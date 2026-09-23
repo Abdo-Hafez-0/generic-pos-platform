@@ -1,0 +1,97 @@
+using Catalog.Infrastructure.Module;
+using Inventory.Infrastructure.Module;
+using Client.Host.Hosting;
+using Client.ModuleHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using System.Windows;
+
+namespace Client.Desktop;
+
+/// <summary>
+/// Application entry point and composition root for the WPF desktop shell.
+///
+/// Startup sequence:
+///   1. WPF Application.OnStartup fires
+///   2. Create the application host via ApplicationHostBuilder
+///   3. Register hosting modules (Client.ModuleHost first; future modules added here in Stage 5+)
+///   4. Build the host
+///   5. Start the host asynchronously (DI, logging, config, services are initialized)
+///   6. Resolve the main window from DI
+///   7. Show the main window
+///   8. On exit: stop the host gracefully
+///
+/// IMPORTANT rules for this class:
+/// - Do NOT put business logic here.
+/// - Do NOT access databases here.
+/// - Do NOT query business data here.
+/// - This class only creates the host and shows the main window.
+/// - The main window itself must also contain no business logic.
+/// </summary>
+public partial class App : Application
+{
+    private IApplicationHost? _applicationHost;
+
+    protected override async void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+
+        try
+        {
+            // Build the application host.
+            // Client.ModuleHost registers module discovery services.
+            // Future business modules will add their own IHostingModule instances here in Stage 5+.
+            _applicationHost = ApplicationHostBuilder
+                .Create()
+                .WithModule(new DesktopServicesRegistrar())
+                .WithModule(new ModuleHostRegistrar())
+                .WithModule(new CatalogHostingModule())  // Stage 5A: Catalog module
+                .WithModule(new InventoryHostingModule()) // Stage 5B: Inventory module
+                .Build();
+
+            // Start all hosted services (logging, configuration, module discovery, etc.)
+            await _applicationHost.StartAsync();
+
+            // Log successful startup.
+            var logger = _applicationHost.Services.GetRequiredService<ILogger<App>>();
+            logger.LogInformation(
+                "GenericPOS application started. Environment: {Environment}",
+                Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production");
+
+            // Create and show the main window.
+            // The MainWindow is resolved from DI so it can receive services via constructor injection.
+            var mainWindow = _applicationHost.Services.GetRequiredService<MainWindow>();
+            MainWindow = mainWindow;
+            mainWindow.Show();
+        }
+        catch (Exception ex)
+        {
+            // If host startup fails, show an error and exit cleanly.
+            MessageBox.Show(
+                $"Application failed to start:\n\n{ex.Message}",
+                "Startup Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            Shutdown(exitCode: 1);
+        }
+    }
+
+    protected override async void OnExit(ExitEventArgs e)
+    {
+        if (_applicationHost is not null)
+        {
+            try
+            {
+                await _applicationHost.StopAsync();
+            }
+            catch (Exception ex)
+            {
+                // Log shutdown errors to debug output since logging may already be torn down.
+                System.Diagnostics.Debug.WriteLine($"Error during host shutdown: {ex.Message}");
+            }
+        }
+
+        base.OnExit(e);
+    }
+}

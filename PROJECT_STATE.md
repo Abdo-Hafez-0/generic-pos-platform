@@ -1,4 +1,4 @@
-# PROJECT_STATE.md
+﻿# PROJECT_STATE.md
 # Generic Offline-First Inventory & POS Platform - Implementation State
 
 ---
@@ -33,13 +33,13 @@ All five Inventory layers (Domain, Application, Contracts, Infrastructure, UI) a
 Inventory.UI (WPF) is implemented but not architecture-tested due to the net10.0-windows TFM gap.
 The Inventory module is integrated into the application host via InventoryHostingModule.
 EF Core migration `InitialInventorySchema` is generated (all 6 tables with `inv_` prefix).
-Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing.
+Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 test methods in total).
 
 ---
 
 ## Completed Work
 
-### Stage 1 — Solution Foundation
+### Stage 1 - Solution Foundation
 - [x] Read all three architecture documents
 - [x] Created GenericPOS.sln
 - [x] Created src/Platform/{Core,Contracts,Application,Infrastructure}
@@ -50,18 +50,18 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing.
 - [x] Platform.Infrastructure: Assembly marker only (Stage 3 adds implementations)
 - [x] 22 architecture tests passing
 
-### Stage 2 — Client Host
+### Stage 2 - Client Host
 - [x] Created src/Client/{Host,ModuleHost,Desktop,Licensing,Updater}
 - [x] Implemented DI, configuration, logging, module discovery, WPF shell
 - [x] Application starts, window appears, logs correctly, shuts down gracefully
 - [x] Added 10 architecture tests (32 total passing)
 
-### Stage 3 — Database Foundation
+### Stage 3 - Database Foundation
 - [x] Added Microsoft.EntityFrameworkCore.Sqlite 10.0.11 to Platform.Infrastructure
 - [x] Added Microsoft.EntityFrameworkCore.Design 10.0.11 to Platform.Infrastructure
 - [x] Added Microsoft.Extensions.Configuration.Binder to Platform.Infrastructure
 - [x] Added [InternalsVisibleTo("Platform.Infrastructure.Tests")] to Platform.Infrastructure
-- [x] Implemented PlatformDbContext (empty — no business tables in Stage 3)
+- [x] Implemented PlatformDbContext (empty - no business tables in Stage 3)
 - [x] Implemented PlatformUnitOfWork (IUnitOfWork, IDisposable, IAsyncDisposable)
 - [x] Implemented DatabaseOptions (SQLite path configuration, LocalAppData strategy)
 - [x] Implemented DatabaseInitializer (EnsureCreated/MigrateAsync, safe, no destructive ops)
@@ -79,13 +79,13 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing.
 - [x] Database created at %LOCALAPPDATA%\GenericPOS\genericpos.db (confirmed in startup logs)
 - [x] Stage 2 desktop startup still works
 
-### Stage 4 — Module Contract
-- [x] Implemented ModuleVersion (Major.Minor.Patch value type, custom — not NuGet)
+### Stage 4 - Module Contract
+- [x] Implemented ModuleVersion (Major.Minor.Patch value type, custom - not NuGet)
 - [x] Implemented VersionRange (constraint model: >=, <=, ==, >, <)
 - [x] Implemented ModuleDependency (RequiredModuleId + VersionRange)
 - [x] Implemented IFeatureDescriptor (FeatureId + DisplayName)
 - [x] Implemented ModuleRuntimeStatus enum (runtime lifecycle states only)
-- [x] Implemented IModuleManifest (runtime manifest contract — hash/signature excluded as Stage 7)
+- [x] Implemented IModuleManifest (runtime manifest contract - hash/signature excluded as Stage 7)
 - [x] Implemented IModule (runtime lifecycle contract: Manifest, Status, InitializeAsync, StartAsync, StopAsync)
 - [x] Implemented IModuleRegistry + ModuleRegistry (thread-safe Singleton)
 - [x] Implemented IModuleDependencyResolver + ModuleDependencyResolver (pure DFS algorithm)
@@ -100,14 +100,34 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing.
 - [x] IHostingModule vs IModule decision documented below
 - [x] Stage 3 desktop startup still works (no runtime changes to startup path)
 
-### Stage 5B — Inventory Module
+### Stage 5A - Catalog Module
+- [x] Created Catalog.Domain: Product, Category, Unit, Barcode aggregates; domain events; strongly-typed IDs
+- [x] Created Catalog.Contracts: IProductLookup, IProductBarcodeResolver, ProductLookupResult, ProductStatusContract
+- [x] Created Catalog.Application: Commands + Queries + Repository interfaces + ICatalogUnitOfWork + DTOs
+- [x] Created Catalog.Infrastructure: CatalogDbContext (cat_ prefix), EF configurations, repositories,
+      CatalogModule (IModule), CatalogModuleManifest, CatalogHostingModule (IHostingModule),
+      CatalogDatabaseInitializer (IHostedService), CatalogServicesExtensions, Migration: CatalogInitialCreate
+- [x] Created Catalog.UI: CreateProductViewModel, ProductListViewModel (net10.0-windows)
+- [x] Updated Client.Desktop.csproj: added Catalog.Infrastructure and Catalog.UI references
+- [x] Updated App.xaml.cs: registered CatalogHostingModule
+- [x] Updated GenericPOS.sln: added all Catalog projects + Catalog.Tests
+- [x] Created tests/Catalog.Tests (64 tests, all passing)
+- [x] Updated Architecture.Tests: added Catalog assemblies + 19 new Catalog boundary tests
+- [x] Generated EF Core migration: CatalogInitialCreate (cat_Products, cat_Categories, cat_Units, cat_Barcodes)
+- [x] Build: 0 errors, 0 warnings (18 projects)
+- [x] All 262 tests PASS (67 Architecture + 64 Catalog + 19 Infrastructure + 112 ModuleContract)
+- [x] Catalog -> no Inventory dependency
+- [x] Platform -> no Catalog dependency
+
+### Stage 5B - Inventory Module
 - [x] Created Inventory.Domain: Entities (Warehouse, Location, StockItem, StockMovement, StockAdjustment, InventoryBalance)
 - [x] Created Inventory.Domain: Value Objects (WarehouseId, LocationId, StockItemId, StockMovementId, StockAdjustmentId, Quantity)
 - [x] Created Inventory.Domain: Enums (MovementType, AdjustmentReason)
 - [x] Created Inventory.Domain: Domain Events (WarehouseCreated, StockMovementRecorded, StockAdjusted)
 - [x] Created Inventory.Contracts: DTOs (StockLevelDto, StockMovementDto, WarehouseDto)
 - [x] Created Inventory.Contracts: Interfaces (IInventoryReader, IStockAvailabilityChecker, IStockMovementReader)
-- [x] Created Inventory.Application: Repository interfaces (IWarehouseRepository, ILocationRepository, IStockItemRepository, IStockMovementRepository, IStockAdjustmentRepository, IInventoryBalanceRepository)
+- [x] Created Inventory.Application: Repository interfaces (IWarehouseRepository, ILocationRepository,
+      IStockItemRepository, IStockMovementRepository, IStockAdjustmentRepository, IInventoryBalanceRepository)
 - [x] Created Inventory.Application: IInventoryUnitOfWork
 - [x] Created Inventory.Application: Commands (CreateWarehouse, CreateLocation, AddStock, AdjustStock)
 - [x] Created Inventory.Application: Queries (GetWarehouses, GetStockLevel, GetAllStockLevels, GetStockMovements)
@@ -121,27 +141,27 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing.
 - [x] Created Inventory.UI: WarehouseListViewModel, StockLevelViewModel (net10.0-windows)
 - [x] Updated Client.Desktop.csproj: added Inventory.Infrastructure and Inventory.UI references
 - [x] Updated App.xaml.cs: registered InventoryHostingModule after CatalogHostingModule
-- [x] Updated GenericPOS.sln: added all Inventory projects + Inventory.Tests
+- [x] Updated GenericPOS.sln: added all Inventory projects + Inventory.Tests (24 projects total)
 - [x] Created tests/Inventory.Tests: InventoryTestDatabase + StubProductLookup
-- [x] Created tests/Inventory.Tests: Domain tests (81 tests covering Warehouse, StockItem, Quantity, InventoryBalance, StockMovement, StockAdjustment)
+- [x] Created tests/Inventory.Tests: Domain tests (covering Warehouse, StockItem, Quantity, InventoryBalance, StockMovement)
 - [x] Created tests/Inventory.Tests: Application tests (AddStockCommand, AdjustStockCommand integration tests)
 - [x] Created tests/Inventory.Tests: Infrastructure tests (schema, contracts, availability checker)
 - [x] Created tests/Inventory.Tests: Contracts tests (DTO boundary, interface shape)
 - [x] Updated Architecture.Tests: added Inventory assemblies to Assemblies.cs and project references
-- [x] Created Architecture.Tests/DependencyRules/InventoryBoundaryTests.cs (11 tests ARCH-INV-001 to ARCH-INV-011)
+- [x] Created Architecture.Tests/DependencyRules/InventoryBoundaryTests.cs (12 test methods, ARCH-INV-001 to ARCH-INV-011)
 - [x] Generated EF Core migration: InitialInventorySchema (all 6 tables with inv_ prefix)
-- [x] Build: 0 errors, 0 warnings
-- [x] All 336 tests PASS (79 Architecture + 81 Inventory + 64 Catalog + 19 Infrastructure + 112 ModuleContract)
-- [x] Inventory → Catalog.Contracts dependency only (Catalog.Domain never referenced)
-- [x] Catalog → no Inventory dependency (no reverse)
-- [x] Platform → no Inventory dependency
+- [x] Build: 0 errors, 0 warnings (24 projects)
+- [x] All 355 tests PASS (79 Architecture + 81 Inventory + 64 Catalog + 19 Infrastructure + 112 ModuleContract)
+- [x] Inventory -> Catalog.Contracts dependency only (Catalog.Domain never referenced)
+- [x] Catalog -> no Inventory dependency (no reverse)
+- [x] Platform -> no Inventory dependency
 - [x] Inventory operates fully offline
 
 ---
 
 ## Current Task
 
-**Stage 5B — COMPLETE. Stopping before Stage 5C — Sales.**
+**Stage 5B - COMPLETE. Stopping before Stage 5C - Sales.**
 
 ---
 
@@ -157,7 +177,7 @@ Follows the same canonical module pattern established in Stages 5A and 5B.
 
 ## Solution / Project Structure (Current State)
 
-GenericPOS.sln (18 projects)
+GenericPOS.sln (24 projects)
 
 src/
 +-- Platform/
@@ -175,43 +195,73 @@ src/
 |   +-- Client.ModuleHost          [DONE] - IModuleDiscoveryService, FileSystemModuleDiscoveryService,
 |   |                                        ModuleCandidate, ModuleHostRegistrar (registers IModuleRegistry,
 |   |                                        IModuleDependencyResolver), ModuleRegistrationRecord
-|   +-- Client.Desktop             [DONE] - WPF shell + Catalog module wired in (Stage 5A)
+|   +-- Client.Desktop             [DONE] - WPF shell + Catalog + Inventory modules wired in (Stage 5B)
 |   +-- Client.Licensing           [DONE] - Boundary marker only (Stage 6)
 |   +-- Client.Updater             [DONE] - Boundary marker only (Stage 7)
 |
 +-- Modules/
     +-- Catalog/
-        +-- Catalog.Domain         [DONE] - Product, Category, Unit, Barcode aggregates; domain events;
-        |                                    strongly-typed IDs (ProductId, CategoryId, UnitId, BarcodeId)
-        +-- Catalog.Contracts      [DONE] - IProductLookup, IProductBarcodeResolver, ProductLookupResult,
-        |                                    ProductStatusContract (cross-module public API)
-        +-- Catalog.Application    [DONE] - Commands: CreateProduct, UpdateProduct, DeactivateProduct,
-        |                                    CreateCategory, CreateUnit, AssignBarcode
-        |                                    Queries: GetProductById, GetProductBySku, FindProductByBarcode,
-        |                                    GetAllCategories, GetAllUnits
-        |                                    Repositories: IProductRepository, ICategoryRepository,
-        |                                    IUnitRepository, IBarcodeRepository, ICatalogUnitOfWork
-        |                                    DTOs: ProductDto, CategoryDto, UnitDto, BarcodeDto
-        +-- Catalog.Infrastructure [DONE] - CatalogDbContext (cat_ prefix), EF configurations,
-        |                                    EfProductRepository, EfCategoryRepository, EfUnitRepository,
-        |                                    EfBarcodeRepository, CatalogUnitOfWork,
-        |                                    CatalogProductLookup, CatalogBarcodeResolver,
-        |                                    CatalogModule (IModule), CatalogModuleManifest,
-        |                                    CatalogHostingModule (IHostingModule),
-        |                                    CatalogDatabaseInitializer (IHostedService),
-        |                                    CatalogServicesExtensions, Migration: CatalogInitialCreate
-        +-- Catalog.UI             [DONE] - CreateProductViewModel, ProductListViewModel (net10.0-windows)
+    |   +-- Catalog.Domain         [DONE] - Product, Category, Unit, Barcode aggregates; domain events;
+    |   |                                    strongly-typed IDs (ProductId, CategoryId, UnitId, BarcodeId)
+    |   +-- Catalog.Contracts      [DONE] - IProductLookup, IProductBarcodeResolver, ProductLookupResult,
+    |   |                                    ProductStatusContract (cross-module public API)
+    |   +-- Catalog.Application    [DONE] - Commands: CreateProduct, UpdateProduct, DeactivateProduct,
+    |   |                                    CreateCategory, CreateUnit, AssignBarcode
+    |   |                                    Queries: GetProductById, GetProductBySku, FindProductByBarcode,
+    |   |                                    GetAllCategories, GetAllUnits
+    |   |                                    Repositories: IProductRepository, ICategoryRepository,
+    |   |                                    IUnitRepository, IBarcodeRepository, ICatalogUnitOfWork
+    |   |                                    DTOs: ProductDto, CategoryDto, UnitDto, BarcodeDto
+    |   +-- Catalog.Infrastructure [DONE] - CatalogDbContext (cat_ prefix), EF configurations,
+    |   |                                    EfProductRepository, EfCategoryRepository, EfUnitRepository,
+    |   |                                    EfBarcodeRepository, CatalogUnitOfWork,
+    |   |                                    CatalogProductLookup, CatalogBarcodeResolver,
+    |   |                                    CatalogModule (IModule), CatalogModuleManifest,
+    |   |                                    CatalogHostingModule (IHostingModule),
+    |   |                                    CatalogDatabaseInitializer (IHostedService),
+    |   |                                    CatalogServicesExtensions, Migration: CatalogInitialCreate
+    |   +-- Catalog.UI             [DONE] - CreateProductViewModel, ProductListViewModel (net10.0-windows)
+    |
+    +-- Inventory/
+        +-- Inventory.Domain       [DONE] - Warehouse, Location, StockItem, StockMovement,
+        |                                    StockAdjustment, InventoryBalance entities;
+        |                                    strongly-typed IDs (WarehouseId, LocationId,
+        |                                    StockItemId, StockMovementId, StockAdjustmentId);
+        |                                    Quantity value object; MovementType, AdjustmentReason enums;
+        |                                    domain events (WarehouseCreated, StockMovementRecorded,
+        |                                    StockAdjusted)
+        +-- Inventory.Contracts    [DONE] - IInventoryReader, IStockAvailabilityChecker,
+        |                                    IStockMovementReader (cross-module public API);
+        |                                    DTOs: StockLevelDto, StockMovementDto, WarehouseDto
+        +-- Inventory.Application  [DONE] - Commands: CreateWarehouse, CreateLocation, AddStock, AdjustStock
+        |                                    Queries: GetWarehouses, GetStockLevel, GetAllStockLevels,
+        |                                    GetStockMovements
+        |                                    Repositories: IWarehouseRepository, ILocationRepository,
+        |                                    IStockItemRepository, IStockMovementRepository,
+        |                                    IStockAdjustmentRepository, IInventoryBalanceRepository
+        |                                    IInventoryUnitOfWork
+        +-- Inventory.Infrastructure [DONE] - InventoryDbContext (inv_ prefix), EF configurations
+        |                                    (all 6 entities), internal EF repository implementations,
+        |                                    InventoryReader, StockAvailabilityChecker, StockMovementReader,
+        |                                    InventoryModule (IModule), InventoryModuleManifest,
+        |                                    InventoryHostingModule (IHostingModule),
+        |                                    InventoryDatabaseInitializer (IHostedService),
+        |                                    InventoryServicesExtensions,
+        |                                    Migration: InitialInventorySchema
+        +-- Inventory.UI           [DONE] - WarehouseListViewModel, StockLevelViewModel (net10.0-windows)
 
 tests/
-+-- Architecture.Tests             [DONE] - 67 tests, all passing (Stages 1-5A)
++-- Architecture.Tests             [DONE] - 79 tests, all passing (Stages 1-5B)
 +-- Platform.Infrastructure.Tests  [DONE] - 19 tests, all passing (Stage 3)
 +-- Platform.ModuleContract.Tests  [DONE] - 112 tests, all passing (Stage 4)
 +-- Catalog.Tests                  [DONE] - 64 tests, all passing (Stage 5A)
++-- Inventory.Tests                [DONE] - 81 tests, all passing (Stage 5B)
 
 Planned:
-src/Modules/Inventory/ - Stage 5B
-src/OptionalModules/   - Stage 8
-src/Cloud/             - Stage 6
+src/Modules/Sales/    - Stage 5C
+src/Modules/POS/      - Stage 5D
+src/OptionalModules/  - Stage 8
+src/Cloud/            - Stage 6
 tests/Integration.Tests - TBD
 tools/                  - TBD
 
@@ -219,7 +269,7 @@ tools/                  - TBD
 
 ## Stage 4 Architectural Decisions
 
-### Decision 1: IHostingModule vs IModule — REMAIN SEPARATE
+### Decision 1: IHostingModule vs IModule - REMAIN SEPARATE
 
 These are intentionally different concerns and must not be conflated:
 
@@ -229,16 +279,16 @@ These are intentionally different concerns and must not be conflated:
 | Business module runtime lifecycle | IModule | Platform.Core | Initialize/Start/Stop the module |
 
 A future business module will implement both:
-- `IHostingModule.RegisterServices()` — wires its services, DbContext, repositories into DI
-- `IModule.InitializeAsync/StartAsync/StopAsync` — manages runtime operation
+- `IHostingModule.RegisterServices()` - wires its services, DbContext, repositories into DI
+- `IModule.InitializeAsync/StartAsync/StopAsync` - manages runtime operation
 
 ### Decision 2: Layer placement for module contracts
 
-Per architecture §6.1, Platform.Core contains IModule, IModuleManifest, IFeature.
+Per architecture section 6.1, Platform.Core contains IModule, IModuleManifest, IFeature.
 Platform.Application contains application-level services (IModuleRegistry, IModuleDependencyResolver).
-This is correct per the dependency direction: UI → Application → Domain ← Infrastructure.
+This is correct per the dependency direction: UI -> Application -> Domain <- Infrastructure.
 
-### Decision 3: ModuleVersion — custom value type, not NuGet
+### Decision 3: ModuleVersion - custom value type, not NuGet
 
 Architecture requires modules to be versionable independently from any package manager.
 ModuleVersion is a simple Major.Minor.Patch value type. It:
@@ -246,24 +296,24 @@ ModuleVersion is a simple Major.Minor.Patch value type. It:
 - Does NOT couple to NuGet, SemVer libraries, or any package manager
 - Supports TryParse/Parse from strings
 
-### Decision 4: IModuleManifest — runtime-only; no PackageHash/Signature
+### Decision 4: IModuleManifest - runtime-only; no PackageHash/Signature
 
-Architecture §38 includes PackageHash and Signature in the manifest concept. However:
+Architecture section 38 includes PackageHash and Signature in the manifest concept. However:
 - PackageHash/Signature are package verification concerns (Stage 7, Client.Updater)
 - They do NOT belong in the runtime module contract
 - The runtime manifest is what a running module exposes to the platform
 
 Stage 7 will define IModulePackageMetadata or similar for the installable package layer.
 
-### Decision 5: ModuleRuntimeStatus — runtime lifecycle only
+### Decision 5: ModuleRuntimeStatus - runtime lifecycle only
 
-Architecture §39 defines the full module lifecycle:
-  Available → Downloaded → Verified → Installed → Registered → Licensed → Enabled → Running
+Architecture section 39 defines the full module lifecycle:
+  Available -> Downloaded -> Verified -> Installed -> Registered -> Licensed -> Enabled -> Running
 
 This was decomposed:
-- **Package lifecycle**: Available → Downloaded → Verified → Installed → Stage 7 (Client.Updater)
-- **Runtime lifecycle**: Registered → Enabled → Running → Stopped/Disabled/Suspended/Faulted → Stage 4
-- **Licensing lifecycle**: Licensed/Unlicensed → Stage 6 (Client.Licensing)
+- Package lifecycle: Available -> Downloaded -> Verified -> Installed -> Stage 7 (Client.Updater)
+- Runtime lifecycle: Registered -> Enabled -> Running -> Stopped/Disabled/Suspended/Faulted -> Stage 4
+- Licensing lifecycle: Licensed/Unlicensed -> Stage 6 (Client.Licensing)
 
 ### Decision 6: IModule has no ConfigureServices()
 
@@ -273,7 +323,7 @@ DI wiring stays exclusively with IHostingModule. This preserves Platform.Core po
 ### Decision 7: ModuleDependencyResolver is pure in-memory
 
 The resolver operates entirely on IModuleManifest objects with no I/O, file system access,
-or network calls. It is a deterministic DFS topological sort. This satisfies §41's requirement
+or network calls. It is a deterministic DFS topological sort. This satisfies section 41 requirement
 for dependency resolution while deliberately NOT being a package manager.
 
 ---
@@ -282,7 +332,7 @@ for dependency resolution while deliberately NOT being a package manager.
 
 DECISION: Multiple DbContexts sharing one SQLite file (Option B)
 
-Rationale: Architecture doc §32 ("logical ownership belongs to modules") and §36
+Rationale: Architecture doc section 32 ("logical ownership belongs to modules") and section 36
 ("each module owns its schema migrations") mandate module-owned persistence.
 
 - One physical SQLite file: %LOCALAPPDATA%\GenericPOS\genericpos.db
@@ -327,16 +377,28 @@ Client.Host -> Platform.Core, Platform.Application, Platform.Infrastructure
   Reason: Client.Host IS the composition root. The composition root is permitted to
   reference implementation assemblies. Client.Host types do NOT use EF Core directly.
 
-Client.ModuleHost -> Client.Host, Platform.Core, Platform.Application   ← Platform.Application added Stage 4
-Client.Desktop -> Client.Host, Client.ModuleHost
+Client.ModuleHost -> Client.Host, Platform.Core, Platform.Application
+Client.Desktop -> Client.Host, Client.ModuleHost, Catalog.Infrastructure, Catalog.UI,
+                  Inventory.Infrastructure, Inventory.UI  <- Inventory references added Stage 5B
 Client.Licensing -> Platform.Core (boundary only)
 Client.Updater -> Platform.Core (boundary only)
 
+INVENTORY MODULE (Stage 5B):
+Inventory.Domain -> Platform.Core
+Inventory.Contracts -> Platform.Core
+Inventory.Application -> Inventory.Domain, Inventory.Contracts, Platform.Core, Platform.Application,
+                          Catalog.Contracts  <- cross-module contract dependency (allowed)
+Inventory.Infrastructure -> Inventory.Domain, Inventory.Application, Inventory.Contracts,
+                             Platform.Core, Platform.Infrastructure, Client.Host,
+                             Microsoft.EntityFrameworkCore.Sqlite
+
 TESTS:
-Architecture.Tests -> all Platform + non-WPF Client + non-WPF Catalog projects (reads assemblies for NetArchTest)
+Architecture.Tests -> all Platform + non-WPF Client + non-WPF Catalog + non-WPF Inventory projects
 Platform.Infrastructure.Tests -> Platform.Infrastructure, Platform.Application
 Platform.ModuleContract.Tests -> Platform.Core, Platform.Application, Client.ModuleHost
-Catalog.Tests -> Catalog.Domain, Catalog.Application, Catalog.Infrastructure, Catalog.Contracts  ← NEW
+Catalog.Tests -> Catalog.Domain, Catalog.Application, Catalog.Infrastructure, Catalog.Contracts
+Inventory.Tests -> Inventory.Domain, Inventory.Application, Inventory.Infrastructure,
+                   Inventory.Contracts, Catalog.Contracts, Platform.Infrastructure
 
 ---
 
@@ -357,7 +419,7 @@ Stage 4 (added via ModuleHostRegistrar):
 - IModuleRegistry -> ModuleRegistry (Singleton)
 - IModuleDependencyResolver -> ModuleDependencyResolver (Singleton)
 
-Stage 5A (added via CatalogHostingModule / CatalogServicesExtensions):  ← NEW
+Stage 5A (added via CatalogHostingModule / CatalogServicesExtensions):
 - CatalogDbContext (Scoped, same SQLite file as PlatformDbContext)
 - ICatalogUnitOfWork -> CatalogUnitOfWork (Scoped)
 - IProductRepository -> EfProductRepository (Scoped)
@@ -373,6 +435,29 @@ Stage 5A (added via CatalogHostingModule / CatalogServicesExtensions):  ← NEW
 - GetProductByIdQueryHandler, GetProductBySkuQueryHandler, FindProductByBarcodeQueryHandler (Transient)
 - GetAllCategoriesQueryHandler, GetAllUnitsQueryHandler (Transient)
 
+Stage 5B (added via InventoryHostingModule / InventoryServicesExtensions):
+- InventoryDbContext (Scoped, same SQLite file as PlatformDbContext and CatalogDbContext)
+- IInventoryUnitOfWork -> InventoryUnitOfWork (Scoped)
+- IWarehouseRepository -> EfWarehouseRepository (Scoped)
+- ILocationRepository -> EfLocationRepository (Scoped)
+- IStockItemRepository -> EfStockItemRepository (Scoped)
+- IStockMovementRepository -> EfStockMovementRepository (Scoped)
+- IStockAdjustmentRepository -> EfStockAdjustmentRepository (Scoped)
+- IInventoryBalanceRepository -> EfInventoryBalanceRepository (Scoped)
+- IInventoryReader -> InventoryReader (Scoped)
+- IStockAvailabilityChecker -> StockAvailabilityChecker (Scoped)
+- IStockMovementReader -> StockMovementReader (Scoped)
+- IModule -> InventoryModule (Singleton)
+- InventoryDatabaseInitializer (IHostedService, Singleton)
+- CreateWarehouseCommandHandler (Transient)
+- CreateLocationCommandHandler (Transient)
+- AddStockCommandHandler (Transient)
+- AdjustStockCommandHandler (Transient)
+- GetWarehousesQueryHandler (Transient)
+- GetStockLevelQueryHandler (Transient)
+- GetAllStockLevelsQueryHandler (Transient)
+- GetStockMovementsQueryHandler (Transient)
+
 ---
 
 ## Migration Strategy
@@ -381,7 +466,7 @@ PlatformDbContext: No EF Core migrations created. PlatformDbContext has no entit
 EnsureCreated() is used as a fallback. When first platform entity is needed:
   dotnet ef migrations add InitialCreate -p src/Platform/Platform.Infrastructure -s src/Client/Client.Desktop
 
-Catalog migrations (Stage 5A): ← ACTIVE
+Catalog migrations (Stage 5A): <- ACTIVE
   Migration: CatalogInitialCreate (20260915165518_CatalogInitialCreate)
   Tables: cat_Categories, cat_Products, cat_Units, cat_Barcodes
   Location: src/Modules/Catalog/Catalog.Infrastructure/Migrations/
@@ -389,31 +474,50 @@ Catalog migrations (Stage 5A): ← ACTIVE
     dotnet ef migrations add {Name} -p src/Modules/Catalog/Catalog.Infrastructure -s src/Client/Client.Desktop --context CatalogDbContext
   Applied by: CatalogDatabaseInitializer (IHostedService) at startup
 
+Inventory migrations (Stage 5B): <- ACTIVE
+  Migration: InitialInventorySchema (20260923132735_InitialInventorySchema)
+  Tables: inv_Warehouses, inv_Locations, inv_StockItems, inv_StockMovements,
+          inv_StockAdjustments, inv_InventoryBalances
+  Table ownership: all inv_* tables are exclusively owned by InventoryDbContext.
+                   No other module may read or write these tables directly.
+  Location: src/Modules/Inventory/Inventory.Infrastructure/Migrations/
+  Command to regenerate:
+    dotnet ef migrations add {Name} -p src/Modules/Inventory/Inventory.Infrastructure -s src/Client/Client.Desktop --context InventoryDbContext
+  Applied by: InventoryDatabaseInitializer (IHostedService) at startup
+
 Future module migrations follow the same pattern with their own prefix:
-  Inventory: inv_ prefix, Inventory.Infrastructure/Migrations/
   Sales: sal_ prefix, Sales.Infrastructure/Migrations/
+  POS:   pos_ prefix, POS.Infrastructure/Migrations/
 
 ---
 
-## Startup Sequence (Updated for Stage 5A)
+## Startup Sequence (Updated for Stage 5B)
 
 WPF App.OnStartup
   -> ApplicationHostBuilder.Create()
      .WithModule(new DesktopServicesRegistrar())    // registers MainWindow
      .WithModule(new ModuleHostRegistrar())          // registers IModuleDiscoveryService,
-     .WithModule(new CatalogHostingModule())         //   IModuleRegistry, IModuleDependencyResolver  ← NEW
-     .Build()                                        // registers all Catalog services
+     .WithModule(new CatalogHostingModule())         //   IModuleRegistry, IModuleDependencyResolver
+     .WithModule(new InventoryHostingModule())       // registers all Inventory services  <- Stage 5B
+     .Build()
   -> host.StartAsync()
        -> DatabaseInitializerService.StartAsync()   // Platform DB (EnsureCreated, no migrations)
             -> DatabaseInitializer.InitializeAsync()
             -> SQLite database created at %LOCALAPPDATA%\GenericPOS\genericpos.db
-       -> CatalogDatabaseInitializer.StartAsync()   // Catalog DB migrations  ← NEW
+       -> CatalogDatabaseInitializer.StartAsync()   // Catalog DB migrations
             -> Applies CatalogInitialCreate migration (cat_Products, cat_Categories, etc.)
+       -> InventoryDatabaseInitializer.StartAsync() // Inventory DB migrations  <- Stage 5B
+            -> Applies InitialInventorySchema migration (inv_Warehouses, inv_Locations, etc.)
   -> Services.GetRequiredService<MainWindow>()
   -> mainWindow.Show()
 
 WPF App.OnExit
   -> host.StopAsync()
+
+Note: Hosted service execution order is determined by registration order in DI.
+DatabaseInitializerService is registered by AddPlatformInfrastructure (Stage 3).
+CatalogDatabaseInitializer is registered by AddCatalogModule (Stage 5A).
+InventoryDatabaseInitializer is registered by AddInventoryModule (Stage 5B).
 
 ---
 
@@ -425,7 +529,7 @@ Stage 1 Tests (22):
   ARCH-003: Domain cannot reference UI (3 tests)
   ARCH-004: Application cannot reference UI (3 tests)
   ARCH-009: Business modules cannot require HTTP (3 tests)
-  ARCH-010: Circular dependencies forbidden (1 test — expanded to all assemblies in Stage 2)
+  ARCH-010: Circular dependencies forbidden (1 test - expanded to all assemblies in Stage 2)
   Deferred stubs: ARCH-005, ARCH-006, ARCH-007, ARCH-008 (4 stubs)
 
 Stage 2 Tests (10):
@@ -446,7 +550,7 @@ Stage 3 Tests (9):
   ARCH-008 (active): Client.Host types must not use EF Core directly (composition root boundary)
   ARCH-008 (deferred): Client.Desktop deferred (TFM gap)
 
-Stage 4 Tests (7) — NEW:
+Stage 4 Tests (7):
   Stage4: Platform.Core module contracts must not reference EF Core
   Stage4: Platform.Core module contracts must not reference WPF
   Stage4: Platform.Core module contracts must not reference ASP.NET Core
@@ -455,20 +559,35 @@ Stage 4 Tests (7) — NEW:
   Stage4: Client.ModuleHost must still not reference Platform.Infrastructure
   Stage4: Client.ModuleHost must still not reference EF Core
 
-Stage 5A Tests (19) — NEW:
+Stage 5A Tests (19):
   ARCH-007a-g: Catalog layer dependency direction (7 tests)
   ARCH-DB-01/02/03: Catalog Domain/Application/Contracts must not reference EF Core (3 tests)
   ARCH-WPF-01/02/03: Catalog Domain/Application/Contracts must not reference WPF (3 tests)
   ARCH-001e/f/g/h: Platform assemblies must not reference Catalog (4 tests)
   ARCH-005: Catalog.Infrastructure must not reference Inventory/Sales (2 tests)
 
-Total Architecture.Tests: 67 tests, all PASSING.
+Stage 5B Tests (12) - NEW:
+  ARCH-INV-001: Inventory.Domain must not depend on EF Core
+  ARCH-INV-002: Inventory.Domain must not depend on WPF
+  ARCH-INV-003: Inventory.Domain must not depend on Catalog.Domain
+  ARCH-INV-004: Inventory.Contracts must not depend on Catalog.Domain
+  ARCH-INV-005: Inventory.Application must not depend on Catalog.Application
+  ARCH-INV-006: Inventory.Application must not depend on Catalog.Infrastructure
+  ARCH-INV-007: Inventory.Infrastructure must not depend on Catalog.Domain
+  ARCH-INV-008: Inventory.Infrastructure must not depend on Catalog.Application
+  ARCH-INV-009: Catalog must not depend on Inventory (2 test methods: CatalogDomain + CatalogApplication)
+  ARCH-INV-010: Platform must not depend on Inventory (iterates all Platform assemblies)
+  ARCH-INV-011: Inventory.Domain must not depend on HTTP
+
+Total Architecture.Tests: 79 tests, all PASSING.
 Platform.Infrastructure.Tests: 19 tests, all PASSING.
 Platform.ModuleContract.Tests: 112 tests, all PASSING.
 Catalog.Tests: 64 tests, all PASSING.
-Grand total: 262 tests, 0 failures.
+Inventory.Tests: 81 tests, all PASSING.
+Grand total: 355 tests, 0 failures.
 
-ARCH-005, ARCH-006, ARCH-007: NOW ACTIVE and passing (activated with Stage 5A).
+ARCH-005, ARCH-006, ARCH-007: ACTIVE and passing (activated with Stage 5A).
+ARCH-INV-001 through ARCH-INV-011: ACTIVE and passing (activated with Stage 5B).
 
 ---
 
@@ -481,9 +600,36 @@ Architecture.Tests | NetArchTest.Rules | 1.3.2 | Architecture boundary testing
 Platform.Infrastructure | Microsoft.EntityFrameworkCore.Sqlite | 10.0.11 | SQLite provider
 Platform.Infrastructure | Microsoft.EntityFrameworkCore.Design | 10.0.11 | Migration tooling (PrivateAssets=all)
 Platform.Infrastructure | Microsoft.Extensions.Configuration.Binder | 10.0.x | DatabaseOptions binding
-Platform.Infrastructure.Tests | Microsoft.EntityFrameworkCore.InMemory | 10.0.11 | (added but unused — using file:memory SQLite instead)
+Platform.Infrastructure.Tests | Microsoft.EntityFrameworkCore.InMemory | 10.0.11 | (added but unused - using file:memory SQLite instead)
 
 No new NuGet packages were added in Stage 4.
+
+---
+
+## Packages Added in Stage 5A
+
+Project | Package | Version | Reason
+--------|---------|---------|-------
+Catalog.Infrastructure | Microsoft.EntityFrameworkCore.Sqlite | 10.0.11 | Module-owned SQLite persistence
+Catalog.Infrastructure | Microsoft.EntityFrameworkCore | 10.0.11 | (transitive)
+Catalog.Infrastructure | Microsoft.Extensions.Hosting.Abstractions | 10.0.11 | IHostedService
+Catalog.Tests | Microsoft.EntityFrameworkCore.Sqlite | 10.0.11 | In-memory SQLite tests
+Client.Desktop | Microsoft.EntityFrameworkCore.Design | 10.0.11 | EF migration tool support (PrivateAssets=all)
+
+---
+
+## Packages Added in Stage 5B
+
+Project | Package | Version | Reason
+--------|---------|---------|-------
+Inventory.Infrastructure | Microsoft.EntityFrameworkCore.Sqlite | 10.0.11 | Module-owned SQLite persistence
+Inventory.Infrastructure | Microsoft.EntityFrameworkCore.Design | 10.0.11 | Migration tooling (PrivateAssets=all)
+Inventory.Infrastructure | Microsoft.Extensions.Configuration.Binder | 10.0.11 | DatabaseOptions binding
+Inventory.Infrastructure | Microsoft.Extensions.Hosting.Abstractions | 10.0.11 | IHostedService
+Inventory.Tests | Microsoft.EntityFrameworkCore.Sqlite | 10.0.11 | In-memory SQLite tests
+Inventory.Tests | Microsoft.Extensions.DependencyInjection | 10.0.11 | DI container for integration tests
+Inventory.Tests | Microsoft.Extensions.Logging.Abstractions | 10.0.11 | ILogger for InventoryDatabaseInitializer
+Inventory.Tests | Microsoft.Extensions.Configuration.Json | 10.0.11 | Configuration loading in tests
 
 ---
 
@@ -496,12 +642,12 @@ Stage | Name                                                  | Status
 3     | Database Foundation (SQLite, EF Core, migrations)     | COMPLETE
 4     | Module Contract (IModule, IModuleManifest, lifecycle) | COMPLETE
 5A    | Catalog Module (canonical module pattern)             | COMPLETE
-5B    | Inventory Module                                      | Not started
-5C    | Sales Module                                          | Not started
-5D    | POS Module                                            | Not started
-6     | Licensing (LicenseServer, Client.Licensing)           | Not started
-7     | Update System (packages, signatures, rollback)        | Not started
-8     | Additional Business Modules                           | Not started
+5B    | Inventory Module                                      | COMPLETE
+5C    | Sales Module                                          | Not Started
+5D    | POS Module                                            | Not Started
+6     | Licensing (LicenseServer, Client.Licensing)           | Not Started
+7     | Update System (packages, signatures, rollback)        | Not Started
+8     | Additional Business Modules                           | Not Started
 
 ---
 
@@ -532,7 +678,7 @@ Stage | Name                                                  | Status
 4. CQRS: ICommand, IQuery, IRequest, IRequestHandler in Platform.Application.
 5. RESULT PATTERN: Result<T> for all expected business failures.
 6. NetArchTest.Rules 1.3.2 for architecture tests.
-7. IHostingModule vs IModule: separate concerns — both are needed (see Decision 1 above).
+7. IHostingModule vs IModule: separate concerns - both are needed (see Decision 1 above).
 8. WPF STARTUP PATTERN: Removed StartupUri, DI host first.
 9. CLIENT.DESKTOP TFM GAP: net10.0-windows cannot be tested by net10.0 Architecture.Tests.
 10. MODULE DISCOVERY CONVENTION: modules/{Name}/{Name}.Infrastructure.dll.
@@ -545,7 +691,7 @@ Stage | Name                                                  | Status
     creates the database file. When migrations are added later, MigrateAsync() takes over.
 15. COMPOSITION ROOT REFERENCE: Client.Host references Platform.Infrastructure as the
     composition root. This is architecturally correct per DIP. Client.Host types themselves
-    do NOT use EF Core — only PlatformServicesExtensions calls AddPlatformInfrastructure().
+    do NOT use EF Core - only PlatformServicesExtensions calls AddPlatformInfrastructure().
 16. MODULE VERSION: Custom ModuleVersion value type (Major.Minor.Patch), NOT NuGet.
     Reason: architecture must not couple module versioning to any package manager.
 17. MANIFEST HASH/SIGNATURE EXCLUSION: PackageHash and Signature are NOT in IModuleManifest.
@@ -562,7 +708,7 @@ Stage | Name                                                  | Status
 
 ## Stage 5A Architectural Decisions
 
-### Decision 1: CatalogHostingModule vs CatalogModule — same pattern as Stage 4
+### Decision 1: CatalogHostingModule vs CatalogModule - same pattern as Stage 4
 
 CatalogHostingModule (IHostingModule): Registered in App.xaml.cs, wires all Catalog DI services.
 CatalogModule (IModule): Runtime lifecycle (Initialize/Start/Stop). Singleton, no async init.
@@ -581,7 +727,7 @@ for integration tests. InternalsVisibleTo is the same pattern used in Platform.I
 
 ### Decision 4: EF LINQ with value objects
 
-Value object properties accessed as p.Id == new ProductId(guid) — not p.Id.Value == guid.
+Value object properties accessed as p.Id == new ProductId(guid) - not p.Id.Value == guid.
 Reason: EF Core can translate typed value object comparisons (it has a registered converter)
 but cannot translate .Value property access inside LINQ predicates.
 
@@ -593,25 +739,49 @@ This is the same documented exception as Client.Desktop.
 
 ---
 
-## Packages Added in Stage 5A
+## Stage 5B Architectural Decisions
 
-Project | Package | Version | Reason
---------|---------|---------|-------
-Catalog.Infrastructure | Microsoft.EntityFrameworkCore.Sqlite | 10.0.11 | Module-owned SQLite persistence
-Catalog.Infrastructure | Microsoft.EntityFrameworkCore | 10.0.11 | (transitive)
-Catalog.Infrastructure | Microsoft.Extensions.Hosting.Abstractions | 10.0.11 | IHostedService
-Catalog.Tests | Microsoft.EntityFrameworkCore.Sqlite | 10.0.11 | In-memory SQLite tests
-Client.Desktop | Microsoft.EntityFrameworkCore.Design | 10.0.11 | EF migration tool support (PrivateAssets=all)
+### Decision 1: InventoryHostingModule vs InventoryModule - same pattern as Catalog
+
+InventoryHostingModule (IHostingModule): Registered in App.xaml.cs, wires all Inventory DI services.
+InventoryModule (IModule): Runtime lifecycle (Initialize/Start/Stop). Singleton, no async init.
+InventoryDatabaseInitializer (IHostedService): Applies Inventory EF Core migrations at startup.
+
+### Decision 2: InventoryDbContext owns inv_* tables exclusively
+
+All Inventory tables use the inv_ prefix:
+  inv_Warehouses, inv_Locations, inv_StockItems, inv_StockMovements,
+  inv_StockAdjustments, inv_InventoryBalances
+No other module may reference or modify these tables directly.
+Other modules access inventory data only through Inventory.Contracts
+(IInventoryReader, IStockAvailabilityChecker, IStockMovementReader).
+
+### Decision 3: Inventory -> Catalog.Contracts only (never Catalog.Domain/Application/Infrastructure)
+
+Inventory.Application references Catalog.Contracts for product identity used in stock items.
+This is the correct cross-module dependency: contracts only, never internal layers.
+Verified by ARCH-INV-003 through ARCH-INV-008 (all passing).
+
+### Decision 4: InternalsVisibleTo("Inventory.Tests") in Inventory.Infrastructure
+
+InventoryTestDatabase directly registers concrete EF repositories for integration tests.
+Same pattern as Catalog.Tests and Platform.Infrastructure.Tests.
+
+### Decision 5: Inventory.UI excluded from Architecture.Tests
+
+Inventory.UI targets net10.0-windows. Architecture.Tests targets net10.0.
+Same documented TFM gap exception as Catalog.UI and Client.Desktop.
 
 ---
 
 ## Known Issues / Blockers
 
-None. Stage 5A is complete.
-Build: 0 errors, 0 warnings (18 projects).
-All 262 tests pass. Application starts correctly. Catalog database schema applied at startup.
-Database: %LOCALAPPDATA%\GenericPOS\genericpos.db (Platform + Catalog tables in same file).
+None. Stage 5B is complete.
+Build: 0 errors, 0 warnings (24 projects).
+All 355 tests pass. Application starts correctly.
+Catalog and Inventory database schemas applied at startup.
+Database: %LOCALAPPDATA%\GenericPOS\genericpos.db (Platform + Catalog + Inventory tables in same file).
 
 ---
 
-Last updated: 2026-09-15 - Stage 5A complete. Catalog module implemented and tested.
+Last updated: 2026-09-24 - Stage 5B complete. Inventory module implemented and tested.

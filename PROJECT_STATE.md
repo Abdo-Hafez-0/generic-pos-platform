@@ -26,7 +26,25 @@ determined by customer license entitlements.
 
 ## Current Implementation Phase
 
-**Stage 5C COMPLETE: Sales Module**
+**Stage 5D COMPLETE: POS Module**
+
+The POS module is the cashier-facing ORCHESTRATION layer. It owns sessions and carts (the transaction being
+built) and coordinates Catalog, Inventory and Sales exclusively through their Contracts:
+
+    POS -> Catalog.Contracts   (IProductLookup, IProductBarcodeResolver)
+    POS -> Inventory.Contracts (IStockAvailabilityChecker, IStockIssueService  <- added in Stage 5D)
+    POS -> Sales.Contracts     (ISalesService)
+
+POS persists only its own data (`pos_Sessions`, `pos_Carts`, `pos_CartItems`; migration `InitialPOSSchema`),
+holding plain Guid references to products, warehouses and sales (no cross-module FKs). Cart lines snapshot
+product SKU, name and unit price at add time; those values are what Sales receives at checkout.
+POSHostingModule is registered last (Catalog -> Inventory -> Sales -> POS). POS.UI contains PosViewModel and a
+minimal PosView (not yet hosted in MainWindow). NO Payments module exists and none was simulated: checkout
+completes the sale and issues stock, and the payment step is a documented integration point (see below).
+Verified end-to-end with the real modules on a temporary SQLite file (barcode add, over-stock rejection,
+checkout -> sale Completed, stock 10 -> 7, cart CheckedOut with SaleId).
+
+### Previous phase - Stage 5C COMPLETE: Sales Module
 
 The Sales module is implemented following the canonical module pattern (Stages 5A/5B).
 All five Sales layers (Domain, Application, Contracts, Infrastructure, UI) exist and are tested.
@@ -169,26 +187,48 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 
 - [x] Platform -> no Inventory dependency
 - [x] Inventory operates fully offline
 
+### Stage 5D - POS Module
+- [x] Created POS.Domain: PosSession (Open/Closed), PosCart (Open/CheckedOut), PosCartItem (snapshot SKU/name/price);
+      value objects PosSessionId, PosCartId, PosCartItemId, Money, CartQuantity; enums PosSessionStatus, PosCartStatus
+- [x] Created POS.Contracts: IPOSService, IPOSReader; POSOperationResult, POSOpenSessionResult, POSStartCartResult,
+      POSAddItemResult, POSCheckoutResult; read models POSSessionResult, POSCartResult, POSCartItemResult (+ status enums)
+- [x] Created POS.Application: commands OpenPosSession, ClosePosSession, StartCart, AddProductToCart, RemoveProductFromCart,
+      ChangeCartQuantity, ClearCart, CheckoutCart; queries GetPosSession, GetCart, GetCurrentCart;
+      IPosSessionRepository, IPosCartRepository, IPosUnitOfWork; PosMapping
+- [x] Created POS.Infrastructure: POSDbContext (pos_ prefix), 3 EF configurations, internal EF repositories, PosUnitOfWork,
+      POSService, POSReader, POSModule, POSModuleManifest (depends on catalog, inventory, sales), POSHostingModule,
+      POSDatabaseInitializer, POSServicesExtensions, Migration: InitialPOSSchema, [InternalsVisibleTo("POS.Tests")]
+- [x] Created POS.UI: PosViewModel (talks only to POS.Contracts), PosView.xaml (barcode input, cart grid, totals, checkout)
+- [x] Extended Inventory (smallest change that keeps the module boundary): Inventory.Contracts.IStockIssueService +
+      IssueStockResult; Inventory.Application IssueStockCommandHandler (StockOut movement + balance decrease, atomic in
+      Inventory); Inventory.Infrastructure StockIssueService; 8 new Inventory tests
+- [x] Updated Client.Desktop.csproj/App.xaml.cs (POSHostingModule registered after Sales), GenericPOS.sln (30 -> 36 projects)
+- [x] Created tests/POS.Tests (84 tests; Catalog/Inventory/Sales are stubs of their Contracts)
+- [x] Created Architecture.Tests/DependencyRules/POSBoundaryTests.cs (ARCH-POS-001..020); Assemblies.cs updated
+- [x] Build: 0 errors, 0 warnings (36 projects); all 586 tests pass
+- [x] No Payments module, no Licensing/Updates/Cloud, no HTTP anywhere in POS
+
 ---
 
 ## Current Task
 
-**Stage 5C - COMPLETE. Stopping before Stage 5D - POS.**
+**Stage 5D - COMPLETE. Stopping before Stage 6.**
 
 ---
 
 ## Next Task
 
-**Stage 5D - POS Module (awaiting instruction)**
+**Awaiting instruction (technical lead decides).**
 
-POS consumes Catalog.Contracts, Inventory.Contracts and Sales.Contracts (ISalesService, ISalesReader).
-Cross-module orchestration of the vertical slice (stock reduction, payment) is Stage 5D+ work.
+Candidates already visible in the roadmap: Stage 6 (Licensing). Known follow-ups that are NOT part of any
+completed stage: a Payments module and its contract (checkout payment step), an Inventory stock-reversal contract,
+hosting PosView inside MainWindow, a Users module for real cashier identity.
 
 ---
 
 ## Solution / Project Structure (Current State)
 
-GenericPOS.sln (30 projects)
+GenericPOS.sln (36 projects)
 
 src/
 +-- Platform/
@@ -206,7 +246,7 @@ src/
 |   +-- Client.ModuleHost          [DONE] - IModuleDiscoveryService, FileSystemModuleDiscoveryService,
 |   |                                        ModuleCandidate, ModuleHostRegistrar (registers IModuleRegistry,
 |   |                                        IModuleDependencyResolver), ModuleRegistrationRecord
-|   +-- Client.Desktop             [DONE] - WPF shell + Catalog + Inventory + Sales modules wired in (Stage 5C)
+|   +-- Client.Desktop             [DONE] - WPF shell + Catalog + Inventory + Sales + POS modules wired in (Stage 5D)
 |   +-- Client.Licensing           [DONE] - Boundary marker only (Stage 6)
 |   +-- Client.Updater             [DONE] - Boundary marker only (Stage 7)
 |
@@ -282,13 +322,28 @@ src/
         |                                    SalesServicesExtensions, Migration: InitialSalesSchema
         +-- Sales.UI               [DONE] - SaleListViewModel (net10.0-windows)
 
+    +-- POS/
+        +-- POS.Domain             [DONE] - PosSession, PosCart, PosCartItem; value objects PosSessionId, PosCartId,
+        |                                    PosCartItemId, Money, CartQuantity; enums PosSessionStatus, PosCartStatus
+        +-- POS.Contracts          [DONE] - IPOSService, IPOSReader; POS*Result records and read models
+        +-- POS.Application        [DONE] - Commands: OpenPosSession, ClosePosSession, StartCart, AddProductToCart,
+        |                                    RemoveProductFromCart, ChangeCartQuantity, ClearCart, CheckoutCart
+        |                                    Queries: GetPosSession, GetCart, GetCurrentCart
+        |                                    Repositories: IPosSessionRepository, IPosCartRepository; IPosUnitOfWork
+        +-- POS.Infrastructure     [DONE] - POSDbContext (pos_ prefix), EF configurations, internal EF repositories,
+        |                                    PosUnitOfWork, POSService, POSReader, POSModule, POSModuleManifest,
+        |                                    POSHostingModule, POSDatabaseInitializer, POSServicesExtensions,
+        |                                    Migration: InitialPOSSchema
+        +-- POS.UI                 [DONE] - PosViewModel, PosView.xaml (net10.0-windows)
+
 tests/
-+-- Architecture.Tests             [DONE] - 95 tests, all passing (Stages 1-5C)
++-- Architecture.Tests             [DONE] - 115 tests, all passing (Stages 1-5D)
 +-- Platform.Infrastructure.Tests  [DONE] - 19 tests, all passing (Stage 3)
 +-- Platform.ModuleContract.Tests  [DONE] - 112 tests, all passing (Stage 4)
 +-- Catalog.Tests                  [DONE] - 64 tests, all passing (Stage 5A)
-+-- Inventory.Tests                [DONE] - 81 tests, all passing (Stage 5B)
++-- Inventory.Tests                [DONE] - 89 tests, all passing (Stages 5B, 5D)
 +-- Sales.Tests                    [DONE] - 103 tests, all passing (Stage 5C)
++-- POS.Tests                      [DONE] - 84 tests, all passing (Stage 5D)
 
 Planned:
 src/Modules/POS/      - Stage 5D
@@ -413,6 +468,7 @@ Client.ModuleHost -> Client.Host, Platform.Core, Platform.Application
 Client.Desktop -> Client.Host, Client.ModuleHost, Catalog.Infrastructure, Catalog.UI,
                   Inventory.Infrastructure, Inventory.UI  <- Inventory references added Stage 5B
                   Sales.Infrastructure, Sales.UI          <- Sales references added Stage 5C
+                  POS.Infrastructure, POS.UI              <- POS references added Stage 5D
 Client.Licensing -> Platform.Core (boundary only)
 Client.Updater -> Platform.Core (boundary only)
 
@@ -435,11 +491,25 @@ Sales.Infrastructure -> Sales.Domain, Sales.Application, Sales.Contracts, Platfo
                          Microsoft.EntityFrameworkCore.Sqlite
 Sales.UI -> Sales.Application, Sales.Contracts, Platform.Core
 
+POS MODULE (Stage 5D):
+POS.Domain -> Platform.Core
+POS.Contracts -> Platform.Core
+POS.Application -> POS.Domain, POS.Contracts, Platform.Core, Platform.Application,
+                    Catalog.Contracts, Inventory.Contracts, Sales.Contracts  <- Contracts ONLY
+POS.Infrastructure -> POS.Domain, POS.Application, POS.Contracts, Platform.Core, Platform.Infrastructure,
+                       Client.Host, Catalog.Contracts, Inventory.Contracts, Sales.Contracts,
+                       Microsoft.EntityFrameworkCore.Sqlite
+POS.UI -> POS.Application, POS.Contracts, Platform.Core
+(POS never references Catalog/Inventory/Sales Domain, Application, Infrastructure or UI.)
+
 TESTS:
-Architecture.Tests -> all Platform + non-WPF Client + non-WPF Catalog + Inventory + Sales projects
+Architecture.Tests -> all Platform + non-WPF Client + non-WPF Catalog + Inventory + Sales + POS projects
 Platform.Infrastructure.Tests -> Platform.Infrastructure, Platform.Application
 Platform.ModuleContract.Tests -> Platform.Core, Platform.Application, Client.ModuleHost
 Catalog.Tests -> Catalog.Domain, Catalog.Application, Catalog.Infrastructure, Catalog.Contracts
+POS.Tests -> POS.Domain, POS.Application, POS.Infrastructure, POS.Contracts,
+               Catalog.Contracts, Inventory.Contracts, Sales.Contracts, Platform.Infrastructure
+               (no Catalog/Inventory/Sales implementation assemblies; their contracts are stubbed)
 Sales.Tests -> Sales.Domain, Sales.Application, Sales.Infrastructure, Sales.Contracts,
                Catalog.Contracts, Inventory.Contracts, Platform.Infrastructure (Catalog/Inventory stubbed)
 Inventory.Tests -> Inventory.Domain, Inventory.Application, Inventory.Infrastructure,
@@ -514,6 +584,21 @@ Stage 5C (added via SalesHostingModule / SalesServicesExtensions):
 - CreateSale/AddSaleItem/ConfirmSale/CompleteSale/CancelSale command handlers (Transient)
 - GetSaleById/GetAllSales query handlers (Transient)
 
+Stage 5D:
+Inventory (extension, registered by InventoryServicesExtensions):
+- IStockIssueService -> StockIssueService (Scoped); IssueStockCommandHandler (Transient)
+POS (added via POSHostingModule / POSServicesExtensions):
+- POSDbContext (Scoped, same SQLite file as the other module DbContexts)
+- IPosUnitOfWork -> PosUnitOfWork (Scoped)
+- IPosSessionRepository -> EfPosSessionRepository, IPosCartRepository -> EfPosCartRepository (Scoped)
+- IPOSService -> POSService, IPOSReader -> POSReader (Scoped)
+- IModule -> POSModule (Singleton)
+- POSDatabaseInitializer (IHostedService, Singleton)
+- OpenPosSession/ClosePosSession/StartCart/AddProductToCart/RemoveProductFromCart/ChangeCartQuantity/
+  ClearCart/CheckoutCart command handlers (Transient)
+- GetPosSession/GetCart/GetCurrentCart query handlers (Transient)
+POS expects Catalog, Inventory and Sales contract implementations to be registered before it (host order).
+
 ---
 
 ## Migration Strategy
@@ -551,12 +636,22 @@ Sales migrations (Stage 5C): <- ACTIVE
     dotnet ef migrations add {Name} -p src/Modules/Sales/Sales.Infrastructure -s src/Client/Client.Desktop --context SalesDbContext
   Applied by: SalesDatabaseInitializer (IHostedService) at startup
 
-Future module migrations follow the same pattern with their own prefix:
-  POS:   pos_ prefix, POS.Infrastructure/Migrations/
+POS migrations (Stage 5D): <- ACTIVE
+  Migration: InitialPOSSchema (20261004191500_InitialPOSSchema)
+  Tables: pos_Sessions, pos_Carts, pos_CartItems
+  Table ownership: all pos_* tables are exclusively owned by POSDbContext.
+                   Only FK: pos_CartItems -> pos_Carts. Product, warehouse and sale references are plain Guids.
+  Location: src/Modules/POS/POS.Infrastructure/Migrations/
+  Command to regenerate:
+    dotnet ef migrations add {Name} -p src/Modules/POS/POS.Infrastructure -s src/Client/Client.Desktop --context POSDbContext
+  Applied by: POSDatabaseInitializer (IHostedService) at startup
+  (Inventory has no new migration in Stage 5D: IStockIssueService reuses existing tables.)
+
+Future module migrations follow the same pattern with their own prefix.
 
 ---
 
-## Startup Sequence (Updated for Stage 5C)
+## Startup Sequence (Updated for Stage 5D)
 
 WPF App.OnStartup
   -> ApplicationHostBuilder.Create()
@@ -565,6 +660,7 @@ WPF App.OnStartup
      .WithModule(new CatalogHostingModule())         //   IModuleRegistry, IModuleDependencyResolver
      .WithModule(new InventoryHostingModule())       // registers all Inventory services  <- Stage 5B
      .WithModule(new SalesHostingModule())           // registers all Sales services      <- Stage 5C
+     .WithModule(new POSHostingModule())             // registers all POS services        <- Stage 5D
      .Build()
   -> host.StartAsync()
        -> DatabaseInitializerService.StartAsync()   // Platform DB (EnsureCreated, no migrations)
@@ -576,6 +672,8 @@ WPF App.OnStartup
             -> Applies InitialInventorySchema migration (inv_Warehouses, inv_Locations, etc.)
        -> SalesDatabaseInitializer.StartAsync()     // Sales DB migrations  <- Stage 5C
             -> Applies InitialSalesSchema migration (sal_Sales, sal_SaleItems, etc.)
+       -> POSDatabaseInitializer.StartAsync()       // POS DB migrations  <- Stage 5D
+            -> Applies InitialPOSSchema migration (pos_Sessions, pos_Carts, pos_CartItems)
   -> Services.GetRequiredService<MainWindow>()
   -> mainWindow.Show()
 
@@ -587,6 +685,7 @@ DatabaseInitializerService is registered by AddPlatformInfrastructure (Stage 3).
 CatalogDatabaseInitializer is registered by AddCatalogModule (Stage 5A).
 InventoryDatabaseInitializer is registered by AddInventoryModule (Stage 5B).
 SalesDatabaseInitializer is registered by AddSalesModule (Stage 5C).
+POSDatabaseInitializer is registered by AddPOSModule (Stage 5D).
 
 ---
 
@@ -659,17 +758,32 @@ Stage 5C Tests (16) - NEW (tests/Architecture.Tests/DependencyRules/SalesBoundar
   ARCH-SAL-013/014/015: Platform, Catalog and Inventory must not depend on Sales
   ARCH-SAL-016: Sales.Application and Sales.Domain must not depend on HTTP
 
-Total Architecture.Tests: 95 tests, all PASSING.
+Stage 5D Tests (20) - NEW (tests/Architecture.Tests/DependencyRules/POSBoundaryTests.cs):
+  ARCH-POS-001/002/003/004: POS.Domain must not depend on EF Core / WPF / HTTP+ASP.NET / POS.Infrastructure
+  ARCH-POS-005/006: POS.Application must not depend on POS.Infrastructure / POS.UI / EF Core
+  ARCH-POS-007: POS.Contracts must not depend on POS.Domain / Application / Infrastructure
+  ARCH-POS-008/009/010: POS must not reference Catalog / Inventory / Sales Domain, Application, Infrastructure, UI
+  ARCH-POS-011/012/013: POS.Application uses Catalog.Contracts / Inventory.Contracts / Sales.Contracts
+  ARCH-POS-014: POS references other modules only through *.Contracts assemblies
+  ARCH-POS-015: POS.Domain and POS.Contracts do not reference Catalog/Inventory/Sales at all
+  ARCH-POS-016: POS.Infrastructure depends on POS inner layers, not on POS.UI
+  ARCH-POS-017/018: Platform, Catalog, Inventory and Sales must not depend on POS
+  ARCH-POS-019: POS has no HTTP dependency and references no Payments assembly
+  ARCH-POS-020: the project assembly graph has no circular dependencies
+
+Total Architecture.Tests: 115 tests, all PASSING.
 Platform.Infrastructure.Tests: 19 tests, all PASSING.
 Platform.ModuleContract.Tests: 112 tests, all PASSING.
 Catalog.Tests: 64 tests, all PASSING.
-Inventory.Tests: 81 tests, all PASSING.
+Inventory.Tests: 89 tests, all PASSING (8 new in Stage 5D for stock issue).
 Sales.Tests: 103 tests, all PASSING (Domain, Application, Infrastructure incl. migration, Contracts).
-Grand total: 474 tests, 0 failures.
+POS.Tests: 84 tests, all PASSING (Domain, Application incl. checkout orchestration, Infrastructure incl. migration, Contracts).
+Grand total: 586 tests, 0 failures.
 
 ARCH-005, ARCH-006, ARCH-007: ACTIVE and passing (activated with Stage 5A).
 ARCH-INV-001 through ARCH-INV-011: ACTIVE and passing (activated with Stage 5B).
 ARCH-SAL-001 through ARCH-SAL-016: ACTIVE and passing (activated with Stage 5C).
+ARCH-POS-001 through ARCH-POS-020: ACTIVE and passing (activated with Stage 5D).
 
 ---
 
@@ -729,6 +843,20 @@ Sales.Tests | Microsoft.Extensions.Logging.Abstractions | 10.0.11 | ILogger for 
 
 ---
 
+## Packages Added in Stage 5D
+
+Project | Package | Version | Reason
+--------|---------|---------|-------
+POS.Infrastructure | Microsoft.EntityFrameworkCore.Sqlite | 10.0.11 | Module-owned SQLite persistence
+POS.Infrastructure | Microsoft.EntityFrameworkCore.Design | 10.0.11 | Migration tooling (PrivateAssets=all)
+POS.Infrastructure | Microsoft.Extensions.Configuration.Binder | 10.0.11 | DatabaseOptions binding
+POS.Infrastructure | Microsoft.Extensions.Hosting.Abstractions | 10.0.11 | IHostedService
+POS.Tests | Microsoft.EntityFrameworkCore.Sqlite | 10.0.11 | In-memory SQLite tests
+POS.Tests | Microsoft.Extensions.DependencyInjection | 10.0.11 | DI container for integration tests
+POS.Tests | Microsoft.Extensions.Logging.Abstractions | 10.0.11 | ILogger for POSDatabaseInitializer
+
+---
+
 ## Architectural Implementation Stages
 
 Stage | Name                                                  | Status
@@ -740,7 +868,7 @@ Stage | Name                                                  | Status
 5A    | Catalog Module (canonical module pattern)             | COMPLETE
 5B    | Inventory Module                                      | COMPLETE
 5C    | Sales Module                                          | COMPLETE
-5D    | POS Module                                            | Not Started
+5D    | POS Module                                            | COMPLETE
 6     | Licensing (LicenseServer, Client.Licensing)           | Not Started
 7     | Update System (packages, signatures, rollback)        | Not Started
 8     | Additional Business Modules                           | Not Started
@@ -870,13 +998,45 @@ Same documented TFM gap exception as Catalog.UI and Client.Desktop.
 
 ---
 
+## Stage 5D Architectural Decisions
+
+1. POS is an orchestration module. Sales keeps sales persistence/lifecycle; Inventory keeps stock; Catalog keeps products.
+   POS holds only IDs and snapshots of other modules' data.
+2. Inventory had no public write capability, so POS could not reduce stock without breaking boundaries. The smallest
+   extension was made: Inventory.Contracts.IStockIssueService (+ IssueStockResult), implemented via a new
+   Inventory.Application IssueStockCommandHandler. Sales was NOT changed and still does not touch stock or payments.
+3. Handlers follow the established plain-class `HandleAsync` pattern of Catalog/Inventory/Sales. The Platform.Application
+   ICommand/IQuery abstractions exist but no module uses them; no MediatR.
+4. Checkout order: validate -> re-check stock -> create sale -> add lines (price snapshot) -> confirm -> issue stock ->
+   complete sale -> mark cart checked out. Catalog/Inventory/Sales/POS use separate DbContexts, so there is no
+   distributed transaction. Failures before stock issue cancel the sale. A failure during stock issue cancels the sale
+   but cannot undo lines already issued (no reversal contract yet) - the error message says so. A failure completing
+   the sale after stock issue leaves the sale Confirmed and the cart open - the error message says so.
+5. Payments: no Payments module exists and nothing was simulated. The payment step belongs between "confirm" and
+   "complete" in CheckoutCartCommandHandler once Payments.Contracts exists.
+6. A cart holds one line per product (adding again merges quantity; the first price snapshot is kept). Closing a session
+   is refused while its open cart still has items. StartCart returns the session's existing open cart (idempotent).
+7. Stock is validated against the session's warehouse (WarehouseId is a plain Guid chosen when the session opens).
+8. Cashier identity is a free-text reference until a Users module exists.
+9. POS.UI is excluded from Architecture.Tests (net10.0-windows TFM gap, same as other modules); its csproj references
+   only POS.Application, POS.Contracts and Platform.Core. PosView is not yet hosted in MainWindow.
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 5C is complete.
-Build: 0 errors, 0 warnings (30 projects).
-All 474 tests pass.
-Catalog, Inventory and Sales database schemas are applied at startup by their initializers.
-Database: %LOCALAPPDATA%\GenericPOS\genericpos.db (Platform + Catalog + Inventory + Sales tables in same file).
+None blocking. Stage 5D is complete.
+Build: 0 errors, 0 warnings (36 projects).
+All 586 tests pass.
+Catalog, Inventory, Sales and POS database schemas are applied at startup by their initializers.
+Database: %LOCALAPPDATA%\GenericPOS\genericpos.db (Platform + Catalog + Inventory + Sales + POS tables in same file).
+
+Remaining limitations after Stage 5D:
+- No payment processing (no Payments module).
+- No stock reversal contract: partial stock issue during a failed checkout needs manual correction.
+- No distributed transaction across modules (see decision 4).
+- POS.UI is a minimal view/view-model, not wired into MainWindow, no real-hardware input.
+- Discounts, tax and pricing rules are not applied in POS (Total == Subtotal); Sales receives discount 0, tax 0.
 
 Notes:
 - Stage 5C fixed a defect in SalesReader.FindByIdAsync (EF could not translate `s.Id.Value == guid`
@@ -889,4 +1049,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-04 - Stage 5C complete. Sales module implemented, migrated and tested.
+Last updated: 2026-10-04 - Stage 5D complete. POS module implemented, migrated and tested.

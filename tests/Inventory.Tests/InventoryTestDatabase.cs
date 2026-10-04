@@ -57,6 +57,7 @@ public sealed class InventoryTestDatabase : IAsyncDisposable
         services.AddScoped<IInventoryReader, InventoryReader>();
         services.AddScoped<IStockAvailabilityChecker, StockAvailabilityChecker>();
         services.AddScoped<IStockMovementReader, StockMovementReader>();
+        services.AddScoped<IStockIssueService, StockIssueService>();
 
         // Stub IProductLookup (Catalog is not loaded in Inventory tests)
         var lookup = productLookup ?? new StubProductLookup();
@@ -67,6 +68,7 @@ public sealed class InventoryTestDatabase : IAsyncDisposable
         services.AddTransient<CreateLocationCommandHandler>();
         services.AddTransient<AddStockCommandHandler>();
         services.AddTransient<AdjustStockCommandHandler>();
+        services.AddTransient<IssueStockCommandHandler>();
 
         // Application: Query handlers
         services.AddTransient<GetWarehousesQueryHandler>();

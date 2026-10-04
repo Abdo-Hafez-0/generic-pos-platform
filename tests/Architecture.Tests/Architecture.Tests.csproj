@@ -43,6 +43,11 @@
     <ProjectReference Include="..\..\src\Modules\Sales\Sales.Contracts\Sales.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Sales\Sales.Application\Sales.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Sales\Sales.Infrastructure\Sales.Infrastructure.csproj" />
+    <!-- POS module assemblies (Stage 5D) - POS.UI excluded (net10.0-windows) -->
+    <ProjectReference Include="..\..\src\Modules\POS\POS.Domain\POS.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\POS\POS.Contracts\POS.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\POS\POS.Application\POS.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\POS\POS.Infrastructure\POS.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

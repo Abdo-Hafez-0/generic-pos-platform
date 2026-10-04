@@ -1,7 +1,7 @@
 # CLAUDE_CONTEXT.md
 
 Practical onboarding snapshot for future Claude sessions. `PROJECT_STATE.md` remains the formal state document.
-Repository source code is the source of truth; last updated 2026-10-04 when Stage 5C was completed.
+Repository source code is the source of truth; last updated 2026-10-04 when Stage 5D was completed.
 
 ## 1. Project purpose
 Generic, modular, offline-first Inventory & POS platform meant to serve many business types (retail, wholesale,
@@ -35,34 +35,32 @@ InventoryDbContext, SalesDbContext). Each module has an `IHostedService` databas
 App must work with no internet. No cloud calls in the operational path.
 
 ## 9. Implemented stages (committed)
-Stage 1 Foundation, 2 Client Host, 3 Database Foundation, 4 Module Contract, 5A Catalog, 5B Inventory, 5C Sales.
-Roadmap: 5D POS, 6 Licensing, 7 Update System, 8 Additional Business Modules, 9 Cloud, 10 Hardware,
+Stage 1 Foundation, 2 Client Host, 3 Database Foundation, 4 Module Contract, 5A Catalog, 5B Inventory, 5C Sales, 5D POS.
+Roadmap: 6 Licensing, 7 Update System, 8 Additional Business Modules, 9 Cloud, 10 Hardware,
 11 Security Hardening, 12 Offline/Failure Testing. Never skip ahead.
 
 ## 10. Current stage
-Stage 5C (Sales) is COMPLETE. Next is Stage 5D (POS), awaiting the technical lead's instruction.
+Stage 5D (POS) is COMPLETE. Next is Stage 6 (Licensing) or whatever the technical lead instructs.
 
-## 11. Stage 5C result (Sales module)
-- **Domain:** Sale (Draft->Confirmed->Completed, Cancel from Draft/Confirmed), SaleItem (snapshots product name/SKU,
-  UnitPrice, Discount, TaxRate), Return, ReturnItem, SalesTransaction; value objects Money, SaleQuantity, strongly-typed IDs.
-- **Application:** commands CreateSale, AddSaleItem, ConfirmSale, CompleteSale, CancelSale; queries GetSaleById, GetAllSales
-  (plain handler classes with `HandleAsync`). AddSaleItem uses Catalog.Contracts `IProductLookup` and (when a warehouse is
-  given) Inventory.Contracts `IStockAvailabilityChecker`.
-- **Contracts:** `ISalesService`, `ISalesReader` + result/summary models.
-- **Infrastructure:** `SalesDbContext` (`sal_` tables), migration `InitialSalesSchema`, internal EF repositories,
-  `SalesModule`/manifest/`SalesHostingModule`/`SalesDatabaseInitializer`; `[InternalsVisibleTo("Sales.Tests")]` is set in
-  `SalesInfrastructureAssemblyMarker.cs` (same pattern as Inventory).
-- **UI:** `SaleListViewModel` only.
-- **Host:** `App.xaml.cs` registers Catalog, Inventory, Sales hosting modules in that order.
-- **Tests:** Sales.Tests 103 (domain, application, infrastructure incl. migration/initializer, contracts);
-  Architecture.Tests 95 total incl. ARCH-SAL-001..016 (`SalesBoundaryTests.cs`).
-- Fixed during 5C: `SalesReader.FindByIdAsync` used `s.Id.Value == guid`, untranslatable by EF; now `s.Id == new SaleId(guid)`.
-- Deliberately NOT done: stock reduction and payments on CompleteSale (Stage 5D / Payments module); no Payments entity.
+## 11. Stage results worth knowing
+**Stage 5C (Sales):** Sale/SaleItem/Return/ReturnItem/SalesTransaction; ISalesService/ISalesReader; `sal_` tables, migration
+`InitialSalesSchema`; CompleteSale only records a SalesTransaction (no stock, no payments). 103 tests, ARCH-SAL-001..016.
+
+**Stage 5D (POS):** orchestration module. PosSession, PosCart, PosCartItem (snapshot SKU/name/price); IPOSService/IPOSReader;
+`pos_` tables, migration `InitialPOSSchema`; handlers: OpenPosSession, ClosePosSession, StartCart, AddProductToCart,
+RemoveProductFromCart, ChangeCartQuantity, ClearCart, CheckoutCart; queries GetPosSession, GetCart, GetCurrentCart.
+POS.Application references Catalog.Contracts, Inventory.Contracts, Sales.Contracts ONLY.
+Checkout: re-check stock -> Sales create/add(snapshot prices)/confirm -> Inventory `IStockIssueService` -> Sales complete -> cart
+CheckedOut (stores SaleId). Added to Inventory (not Sales): `IStockIssueService`, `IssueStockCommandHandler`, `StockIssueService`.
+84 POS tests, 8 new Inventory tests, ARCH-POS-001..020. Real-module end-to-end smoke test was run (scratch, not committed).
+No Payments module exists; the payment step belongs between confirm and complete in `CheckoutCartCommandHandler`.
+No cross-module transaction: see PROJECT_STATE.md "Stage 5D Architectural Decisions" #4 for partial-failure behaviour.
+Handlers are plain classes with `HandleAsync` (Platform ICommand/IQuery abstractions exist but are unused by all modules).
 
 ## 12. Solution structure
 `GenericPOS.sln`: `src/Platform/{Platform.Core,Contracts,Application,Infrastructure}`, `src/Client/{Client.Host,ModuleHost,Desktop,Licensing,Updater}`,
-`src/Modules/{Catalog,Inventory,Sales}/<Module>.{Domain,Application,Contracts,Infrastructure,UI}` (30 projects total),
-`tests/{Architecture,Platform.Infrastructure,Platform.ModuleContract,Catalog,Inventory,Sales}.Tests`.
+`src/Modules/{Catalog,Inventory,Sales,POS}/<Module>.{Domain,Application,Contracts,Infrastructure,UI}` (36 projects total),
+`tests/{Architecture,Platform.Infrastructure,Platform.ModuleContract,Catalog,Inventory,Sales,POS}.Tests`.
 Docs at repo root: `Architecture & Solution Design.md`, `Generic Offline-First Inventory & POS Platform.md`,
 `Module Map & Dependency Specification.md`, `PROJECT_STATE.md`.
 
@@ -71,7 +69,7 @@ Domain (entities, strongly-typed IDs, value objects, events) / Contracts (interf
 Application (commands, queries, repo interfaces, UoW, DTOs) / Infrastructure (DbContext, EF configs, internal repos,
 contract implementations, `<X>Module : IModule`, `<X>ModuleManifest`, `<X>HostingModule : IHostingModule`,
 `<X>DatabaseInitializer`, `Add<X>Module()`, Migrations, InternalsVisibleTo test assembly) / UI (ViewModels, net10.0-windows).
-Registered in `Client.Desktop/App.xaml.cs` via hosting modules (Catalog, then Inventory, then Sales).
+Registered in `Client.Desktop/App.xaml.cs` via hosting modules (Catalog, Inventory, Sales, POS in that order).
 IHostingModule (DI at build time) and IModule (runtime lifecycle) are intentionally separate.
 
 ## 14. Important contracts
@@ -81,8 +79,8 @@ Catalog.Contracts: `IProductLookup`, `IProductBarcodeResolver`. Inventory.Contra
 
 ## 15. Testing strategy
 xUnit. Per-module test projects (domain, application integration on in-memory SQLite, infrastructure, contracts) plus
-`Architecture.Tests` boundary rules (ARCH-INV-xxx style). Baseline (verified 2026-10-04): Architecture 95, Catalog 64, Inventory 81, Platform.Infrastructure 19,
-Platform.ModuleContract 112, Sales 103 = 474 passing.
+`Architecture.Tests` boundary rules (ARCH-INV-xxx style). Baseline (verified 2026-10-04): Architecture 115, Catalog 64, Inventory 89, Platform.Infrastructure 19,
+Platform.ModuleContract 112, Sales 103, POS 84 = 586 passing.
 
 ## 16. Git workflow
 Task -> inspect -> implement only that task -> build -> test -> verify architecture boundaries -> update PROJECT_STATE.md ->
@@ -97,20 +95,22 @@ If push auth fails, stop and report. Commit trailer: `Co-Authored-By: Claude Son
 Clean after the Stage 5C commit is pushed (check `git status` at session start anyway).
 
 ## 19. Last relevant commit
-`feat: add sales module (Stage 5C)` (see `git log -1`). Before it: `6e5d39a docs: add Claude project context`,
-`f6d1848 docs: reconcile project state after inventory`.
+`feat: add pos module (Stage 5D)` (see `git log -1`). Before it: `406cbda feat: add sales module (Stage 5C)`,
+`6e5d39a docs: add Claude project context`.
 
 ## 20. Exact next task
-Stage 5D - POS module, only when the technical lead gives the instruction. POS must use Catalog.Contracts,
-Inventory.Contracts and Sales.Contracts only. Do not start it unprompted.
+None assigned. Wait for the technical lead. Candidates: Stage 6 Licensing; or follow-ups listed in PROJECT_STATE.md
+(Payments module/contract, Inventory stock-reversal contract, hosting PosView in MainWindow, Users module).
 
 ## 21. Known limitations / inconsistencies
-- CompleteSale does not reduce stock or process payments yet (future work; Payments is a separate module).
+- No payments (no Payments module); checkout completes the sale and issues stock only.
+- No stock-reversal contract; a failed checkout that already issued some lines needs manual stock correction.
+- No distributed transaction across module DbContexts.
+- PosView exists but is not hosted in MainWindow; POS has no discounts/tax (Total == Subtotal).
 - PROJECT_STATE.md header still says "Cloud Backend ... Stage 6"; roadmap is 6 Licensing, 7 Updates, 9 Cloud.
 - WPF UI projects are not covered by architecture tests (net10.0-windows TFM gap).
-- Sales.UI is minimal (one view model).
-- Test baseline: 474 tests (Architecture 95, Catalog 64, Inventory 81, Platform.Infrastructure 19,
-  Platform.ModuleContract 112, Sales 103).
+- Test baseline: 586 tests (Architecture 115, Catalog 64, Inventory 89, Platform.Infrastructure 19,
+  Platform.ModuleContract 112, Sales 103, POS 84).
 
 ## 22. Rules for future Claude sessions
 1. Read PROJECT_STATE.md, this file, and the 3 architecture docs before acting.

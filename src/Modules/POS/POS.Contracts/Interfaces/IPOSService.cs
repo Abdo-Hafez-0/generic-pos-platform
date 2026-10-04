@@ -1,0 +1,34 @@
+using POS.Contracts.Models;
+
+namespace POS.Contracts.Interfaces;
+
+/// <summary>
+/// The POS write API for the platform/UI: session handling, cart editing and checkout.
+///
+/// Implemented by POS.Infrastructure.Services.POSService. Uses only IDs, primitives and result
+/// records — never POS.Domain types.
+///
+/// Checkout orchestrates Catalog, Inventory and Sales through THEIR Contracts. It does not process
+/// payments: a Payments module does not exist yet (see PROJECT_STATE.md).
+/// </summary>
+public interface IPOSService
+{
+    Task<POSOpenSessionResult> OpenSessionAsync(string cashierReference, Guid warehouseId, CancellationToken cancellationToken = default);
+
+    Task<POSOperationResult> CloseSessionAsync(Guid sessionId, CancellationToken cancellationToken = default);
+
+    /// <summary>Starts a cart for the session, or returns the session's existing open cart.</summary>
+    Task<POSStartCartResult> StartCartAsync(Guid sessionId, CancellationToken cancellationToken = default);
+
+    /// <summary>Adds a product identified by barcode or SKU. Validates the product and stock.</summary>
+    Task<POSAddItemResult> AddProductAsync(Guid cartId, string productCode, decimal quantity = 1m, CancellationToken cancellationToken = default);
+
+    Task<POSOperationResult> RemoveProductAsync(Guid cartId, Guid productId, CancellationToken cancellationToken = default);
+
+    Task<POSOperationResult> ChangeQuantityAsync(Guid cartId, Guid productId, decimal quantity, CancellationToken cancellationToken = default);
+
+    Task<POSOperationResult> ClearCartAsync(Guid cartId, CancellationToken cancellationToken = default);
+
+    /// <summary>Creates, confirms and completes the sale in Sales and issues stock from Inventory.</summary>
+    Task<POSCheckoutResult> CheckoutAsync(Guid cartId, string? transactionReference = null, CancellationToken cancellationToken = default);
+}

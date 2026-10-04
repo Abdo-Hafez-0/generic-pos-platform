@@ -143,12 +143,36 @@ internal static class Assemblies
         // Sales.UI excluded — net10.0-windows TFM gap
     ];
 
+    // POS module assemblies (Stage 5D)
+    // Note: POS.UI is net10.0-windows and cannot be referenced here (TFM gap).
+    internal static readonly Assembly POSDomain =
+        typeof(POS.Domain.Entities.PosCart).Assembly;
+
+    internal static readonly Assembly POSContracts =
+        typeof(POS.Contracts.Interfaces.IPOSService).Assembly;
+
+    internal static readonly Assembly POSApplication =
+        typeof(POS.Application.Commands.CheckoutCartCommandHandler).Assembly;
+
+    internal static readonly Assembly POSInfrastructure =
+        typeof(POS.Infrastructure.POSInfrastructureAssemblyMarker).Assembly;
+
+    internal static IReadOnlyList<Assembly> AllPOSAssemblies =>
+    [
+        POSDomain,
+        POSContracts,
+        POSApplication,
+        POSInfrastructure
+        // POS.UI excluded - net10.0-windows TFM gap
+    ];
+
     internal static IReadOnlyList<Assembly> AllProjectAssemblies =>
     [
         .. AllPlatformAssemblies,
         .. AllClientAssemblies,
         .. AllCatalogAssemblies,
         .. AllInventoryAssemblies,
-        .. AllSalesAssemblies
+        .. AllSalesAssemblies,
+        .. AllPOSAssemblies
     ];
 }

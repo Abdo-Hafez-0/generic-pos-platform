@@ -1,0 +1,48 @@
+<UserControl x:Class="POS.UI.Views.PosView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Minimal Stage 5D cashier screen. DataContext: POS.UI.ViewModels.PosViewModel -->
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Product search / barcode input -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBlock Text="Barcode / SKU:" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBox x:Name="ProductCodeBox" Width="220" Text="{Binding ProductCode, UpdateSourceTrigger=PropertyChanged}" />
+            <TextBlock Text="Qty:" VerticalAlignment="Center" Margin="12,0,8,0" />
+            <TextBox Width="60" Text="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}" />
+            <Button x:Name="AddButton" Content="Add" Width="80" Margin="12,0,0,0" />
+        </StackPanel>
+
+        <!-- Current cart -->
+        <DataGrid Grid.Row="1" ItemsSource="{Binding Items}" AutoGenerateColumns="False"
+                  IsReadOnly="True" CanUserAddRows="False" x:Name="CartGrid">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="*" />
+                <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity}" />
+                <DataGridTextColumn Header="Unit Price" Binding="{Binding UnitPrice, StringFormat=N2}" />
+                <DataGridTextColumn Header="Line Total" Binding="{Binding LineTotal, StringFormat=N2}" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Totals + checkout -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <TextBlock Text="Subtotal:" Margin="0,0,6,0" />
+            <TextBlock Text="{Binding Subtotal, StringFormat=N2}" Margin="0,0,16,0" />
+            <TextBlock Text="Total:" FontWeight="Bold" Margin="0,0,6,0" />
+            <TextBlock Text="{Binding Total, StringFormat=N2}" FontWeight="Bold" Margin="0,0,16,0" />
+            <Button x:Name="RemoveButton" Content="Remove selected" Margin="0,0,8,0" />
+            <Button x:Name="CheckoutButton" Content="Checkout" Width="100" IsEnabled="{Binding CanCheckout}" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="3" Margin="0,8,0,0">
+            <TextBlock Text="{Binding StatusMessage}" />
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="Firebrick" />
+        </StackPanel>
+    </Grid>
+</UserControl>

@@ -79,6 +79,7 @@ public static class InventoryServicesExtensions
         services.AddScoped<IInventoryReader, InventoryReader>();
         services.AddScoped<IStockAvailabilityChecker, StockAvailabilityChecker>();
         services.AddScoped<IStockMovementReader, StockMovementReader>();
+        services.AddScoped<IStockIssueService, StockIssueService>();
 
         // Module lifecycle (Singleton)
         services.AddSingleton<IModule, InventoryModule>();
@@ -91,6 +92,7 @@ public static class InventoryServicesExtensions
         services.AddTransient<CreateLocationCommandHandler>();
         services.AddTransient<AddStockCommandHandler>();
         services.AddTransient<AdjustStockCommandHandler>();
+        services.AddTransient<IssueStockCommandHandler>();
 
         // Query handlers (Transient — stateless)
         services.AddTransient<GetWarehousesQueryHandler>();

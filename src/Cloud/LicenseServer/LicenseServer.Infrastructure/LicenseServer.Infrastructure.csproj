@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- License server infrastructure: ECDSA signer (owns the PRIVATE key) and the license repository. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LicenseServer.Application\LicenseServer.Application.csproj" />
+    <ProjectReference Include="..\..\..\Licensing\Licensing.Contracts\Licensing.Contracts.csproj" />
+  </ItemGroup>
+</Project>

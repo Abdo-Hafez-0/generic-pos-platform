@@ -12,6 +12,9 @@
     <!-- Sales module (Stage 5C) — SalesHostingModule lives in Sales.Infrastructure -->
     <ProjectReference Include="..\..\Modules\Sales\Sales.Infrastructure\Sales.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Sales\Sales.UI\Sales.UI.csproj" />
+    <!-- Licensing (Stage 6): offline evaluation + HTTP transport to the license server -->
+    <ProjectReference Include="..\Client.Licensing\Client.Licensing.csproj" />
+    <ProjectReference Include="..\Client.Licensing.Http\Client.Licensing.Http.csproj" />
     <!-- POS module (Stage 5D) - POSHostingModule lives in POS.Infrastructure -->
     <ProjectReference Include="..\..\Modules\POS\POS.Infrastructure\POS.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\POS\POS.UI\POS.UI.csproj" />

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Shared wire contracts between the Client (Client.Licensing) and the LicenseServer:
+    the signed license envelope, its payload, and activation/renewal messages.
+    Contains NO cryptographic keys, NO HTTP, NO EF Core, NO UI and no business module references.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+</Project>

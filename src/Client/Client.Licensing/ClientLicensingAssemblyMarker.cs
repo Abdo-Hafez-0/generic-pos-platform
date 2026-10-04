@@ -1,26 +1,21 @@
 namespace Client.Licensing;
 
 /// <summary>
-/// Marks the Client.Licensing project boundary.
+/// Marks the Client.Licensing assembly (used by Architecture.Tests to locate it).
 ///
-/// STAGE 2 STATUS: Project boundary only. NO licensing implementation.
+/// Client.Licensing owns, on the client side:
+///   Domain          - installation identity, license evaluation (deterministic, pure), license policy
+///   Application     - ILicenseService (activate / renew / evaluate), and the abstractions it needs:
+///                     ILicenseClient (server transport), ILicenseStore, IInstallationIdentityStore, ILicenseVerifier
+///   Infrastructure  - file-based stores, ECDSA signature verification, host registration
 ///
-/// This project will own:
-/// - Local license storage and reading
-/// - Signed license lease verification (offline-capable)
-/// - Entitlement lookup (which features are active)
-/// - Activation and renewal coordination
-/// - License state management
+/// It contains NO HTTP (see Client.Licensing.Http), NO EF Core / database access, NO WPF and NO reference to any
+/// business module. Business modules never reference it: they see only
+/// Platform.Application.Abstractions.Licensing.ILicenseEntitlementService.
 ///
-/// Implementation belongs to Stage 6.
-///
-/// IMPORTANT: Business modules must NEVER directly reference Client.Licensing.
-/// Entitlement checks in business logic must go through Platform.Application.Abstractions.Authorization.ICurrentUser.
-/// Client.Licensing will implement ICurrentUser (or provide its data) so that
-/// business modules remain unaware of the licensing mechanism.
+/// Licensing restricts ACCESS to licensed functionality; it never deletes or modifies business data.
 /// </summary>
 public static class ClientLicensingAssemblyMarker
 {
     // Intentionally empty.
-    // Architecture tests use this type to locate the Client.Licensing assembly.
 }

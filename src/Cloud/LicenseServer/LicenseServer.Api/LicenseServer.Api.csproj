@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- Minimal license server HTTP API (Stage 6 foundation): activate + renew. No admin portal, billing or customer auth. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LicenseServer.Application\LicenseServer.Application.csproj" />
+    <ProjectReference Include="..\LicenseServer.Infrastructure\LicenseServer.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Licensing\Licensing.Contracts\Licensing.Contracts.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,7 +1,7 @@
 # CLAUDE_CONTEXT.md
 
 Practical onboarding snapshot for future Claude sessions. `PROJECT_STATE.md` remains the formal state document.
-Repository source code is the source of truth; last updated 2026-10-04 when Stage 5D was completed.
+Repository source code is the source of truth; last updated 2026-10-04 when Stage 6 was completed.
 
 ## 1. Project purpose
 Generic, modular, offline-first Inventory & POS platform meant to serve many business types (retail, wholesale,
@@ -35,16 +35,25 @@ InventoryDbContext, SalesDbContext). Each module has an `IHostedService` databas
 App must work with no internet. No cloud calls in the operational path.
 
 ## 9. Implemented stages (committed)
-Stage 1 Foundation, 2 Client Host, 3 Database Foundation, 4 Module Contract, 5A Catalog, 5B Inventory, 5C Sales, 5D POS.
-Roadmap: 6 Licensing, 7 Update System, 8 Additional Business Modules, 9 Cloud, 10 Hardware,
+Stage 1 Foundation, 2 Client Host, 3 Database Foundation, 4 Module Contract, 5A Catalog, 5B Inventory, 5C Sales, 5D POS,
+6 Licensing (foundation). Roadmap: 7 Update System, 8 Additional Business Modules, 9 Cloud, 10 Hardware,
 11 Security Hardening, 12 Offline/Failure Testing. Never skip ahead.
 
 ## 10. Current stage
-Stage 5D (POS) is COMPLETE. Next is Stage 6 (Licensing) or whatever the technical lead instructs.
+Stage 6 (Licensing) is COMPLETE as a foundation. Next roadmap stage is 7 (Update System) - only when instructed.
 
 ## 11. Stage results worth knowing
 **Stage 5C (Sales):** Sale/SaleItem/Return/ReturnItem/SalesTransaction; ISalesService/ISalesReader; `sal_` tables, migration
 `InitialSalesSchema`; CompleteSale only records a SalesTransaction (no stock, no payments). 103 tests, ARCH-SAL-001..016.
+
+**Stage 6 (Licensing):** signed, offline-evaluated licensing. Shared wire model `Licensing.Contracts` (SignedLicense = Base64 payload +
+ES256 signature). `Client.Licensing` (Domain/Application/Infrastructure namespaces; NO HTTP/EF/WPF/business modules) verifies with trusted
+PUBLIC keys from `Licensing:TrustedKeys`, binds to a persisted installation GUID, evaluates `LicenseState` (Unlicensed, Active,
+GracePeriod, Expired, Suspended, Revoked, Invalid) with `LicenseEvaluator`, stores `license.json`/`installation.json` under
+%LOCALAPPDATA%\GenericPOS\Licensing. `Client.Licensing.Http` is the only HttpClient user (`ILicenseClient`). Server: `src/Cloud/LicenseServer`
+(Application, Infrastructure with the private-key signer, Api with POST /api/licenses/activate|renew; in-memory store).
+Business code sees only `Platform.Application...ILicenseEntitlementService`. NOTHING ENFORCES the license yet (no module/UI gates).
+No keys are committed; tests generate ephemeral keys. 109 licensing tests, ARCH-LIC-001..018. Decisions: PROJECT_STATE.md "Stage 6 Architectural Decisions".
 
 **Stage 5D (POS):** orchestration module. PosSession, PosCart, PosCartItem (snapshot SKU/name/price); IPOSService/IPOSReader;
 `pos_` tables, migration `InitialPOSSchema`; handlers: OpenPosSession, ClosePosSession, StartCart, AddProductToCart,
@@ -59,8 +68,8 @@ Handlers are plain classes with `HandleAsync` (Platform ICommand/IQuery abstract
 
 ## 12. Solution structure
 `GenericPOS.sln`: `src/Platform/{Platform.Core,Contracts,Application,Infrastructure}`, `src/Client/{Client.Host,ModuleHost,Desktop,Licensing,Updater}`,
-`src/Modules/{Catalog,Inventory,Sales,POS}/<Module>.{Domain,Application,Contracts,Infrastructure,UI}` (36 projects total),
-`tests/{Architecture,Platform.Infrastructure,Platform.ModuleContract,Catalog,Inventory,Sales,POS}.Tests`.
+`src/Modules/{Catalog,Inventory,Sales,POS}/<Module>.{Domain,Application,Contracts,Infrastructure,UI}` (42 projects total),
+`tests/{Architecture,Platform.Infrastructure,Platform.ModuleContract,Catalog,Inventory,Sales,POS,Licensing}.Tests`; `src/Licensing/Licensing.Contracts`, `src/Client/Client.Licensing(.Http)`, `src/Cloud/LicenseServer/*`.
 Docs at repo root: `Architecture & Solution Design.md`, `Generic Offline-First Inventory & POS Platform.md`,
 `Module Map & Dependency Specification.md`, `PROJECT_STATE.md`.
 
@@ -79,8 +88,8 @@ Catalog.Contracts: `IProductLookup`, `IProductBarcodeResolver`. Inventory.Contra
 
 ## 15. Testing strategy
 xUnit. Per-module test projects (domain, application integration on in-memory SQLite, infrastructure, contracts) plus
-`Architecture.Tests` boundary rules (ARCH-INV-xxx style). Baseline (verified 2026-10-04): Architecture 115, Catalog 64, Inventory 89, Platform.Infrastructure 19,
-Platform.ModuleContract 112, Sales 103, POS 84 = 586 passing.
+`Architecture.Tests` boundary rules (ARCH-INV-xxx style). Baseline (verified 2026-10-04): Architecture 133, Catalog 64, Inventory 89, Platform.Infrastructure 19,
+Platform.ModuleContract 112, Sales 103, POS 84, Licensing 109 = 713 passing.
 
 ## 16. Git workflow
 Task -> inspect -> implement only that task -> build -> test -> verify architecture boundaries -> update PROJECT_STATE.md ->
@@ -95,12 +104,11 @@ If push auth fails, stop and report. Commit trailer: `Co-Authored-By: Claude Son
 Clean after the Stage 5C commit is pushed (check `git status` at session start anyway).
 
 ## 19. Last relevant commit
-`feat: add pos module (Stage 5D)` (see `git log -1`). Before it: `406cbda feat: add sales module (Stage 5C)`,
-`6e5d39a docs: add Claude project context`.
+`feat(licensing): implement offline-first license management` (see `git log -1`). Before it: `8c44ea4 feat: add pos module (Stage 5D)`.
 
 ## 20. Exact next task
-None assigned. Wait for the technical lead. Candidates: Stage 6 Licensing; or follow-ups listed in PROJECT_STATE.md
-(Payments module/contract, Inventory stock-reversal contract, hosting PosView in MainWindow, Users module).
+None assigned. Wait for the technical lead. Next roadmap stage: Stage 7 Update System. Follow-ups (not in any stage): license
+enforcement points/UI, durable license-server storage, Payments module, stock-reversal contract.
 
 ## 21. Known limitations / inconsistencies
 - No payments (no Payments module); checkout completes the sale and issues stock only.
@@ -109,8 +117,9 @@ None assigned. Wait for the technical lead. Candidates: Stage 6 Licensing; or fo
 - PosView exists but is not hosted in MainWindow; POS has no discounts/tax (Total == Subtotal).
 - PROJECT_STATE.md header still says "Cloud Backend ... Stage 6"; roadmap is 6 Licensing, 7 Updates, 9 Cloud.
 - WPF UI projects are not covered by architecture tests (net10.0-windows TFM gap).
-- Test baseline: 586 tests (Architecture 115, Catalog 64, Inventory 89, Platform.Infrastructure 19,
-  Platform.ModuleContract 112, Sales 103, POS 84).
+- Licensing is not enforced anywhere yet; no clock-rollback protection; license server is in-memory and unauthenticated.
+- Test baseline: 713 tests (Architecture 133, Catalog 64, Inventory 89, Platform.Infrastructure 19,
+  Platform.ModuleContract 112, Sales 103, POS 84, Licensing 109).
 
 ## 22. Rules for future Claude sessions
 1. Read PROJECT_STATE.md, this file, and the 3 architecture docs before acting.

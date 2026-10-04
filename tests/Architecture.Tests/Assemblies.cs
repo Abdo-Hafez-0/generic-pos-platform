@@ -166,6 +166,34 @@ internal static class Assemblies
         // POS.UI excluded - net10.0-windows TFM gap
     ];
 
+    // Licensing assemblies (Stage 6)
+    // Note: LicenseServer.Api is an ASP.NET Core host and is not referenced here.
+    internal static readonly Assembly LicensingContracts =
+        typeof(Licensing.Contracts.SignedLicense).Assembly;
+
+    internal static readonly Assembly ClientLicensingHttp =
+        typeof(Client.Licensing.Http.HttpLicenseClient).Assembly;
+
+    internal static readonly Assembly LicenseServerApplication =
+        typeof(LicenseServer.Application.LicenseIssuanceService).Assembly;
+
+    internal static readonly Assembly LicenseServerInfrastructure =
+        typeof(LicenseServer.Infrastructure.EcdsaLicenseSigner).Assembly;
+
+    internal static IReadOnlyList<Assembly> AllLicenseServerAssemblies =>
+    [
+        LicenseServerApplication,
+        LicenseServerInfrastructure
+    ];
+
+    internal static IReadOnlyList<Assembly> AllBusinessModuleAssemblies =>
+    [
+        .. AllCatalogAssemblies,
+        .. AllInventoryAssemblies,
+        .. AllSalesAssemblies,
+        .. AllPOSAssemblies
+    ];
+
     internal static IReadOnlyList<Assembly> AllProjectAssemblies =>
     [
         .. AllPlatformAssemblies,
@@ -173,6 +201,9 @@ internal static class Assemblies
         .. AllCatalogAssemblies,
         .. AllInventoryAssemblies,
         .. AllSalesAssemblies,
-        .. AllPOSAssemblies
+        .. AllPOSAssemblies,
+        LicensingContracts,
+        ClientLicensingHttp,
+        .. AllLicenseServerAssemblies
     ];
 }

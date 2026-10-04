@@ -48,6 +48,11 @@
     <ProjectReference Include="..\..\src\Modules\POS\POS.Contracts\POS.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\POS\POS.Application\POS.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\POS\POS.Infrastructure\POS.Infrastructure.csproj" />
+    <!-- Licensing assemblies (Stage 6) - LicenseServer.Api excluded (ASP.NET Core host) -->
+    <ProjectReference Include="..\..\src\Licensing\Licensing.Contracts\Licensing.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Client\Client.Licensing.Http\Client.Licensing.Http.csproj" />
+    <ProjectReference Include="..\..\src\Cloud\LicenseServer\LicenseServer.Application\LicenseServer.Application.csproj" />
+    <ProjectReference Include="..\..\src\Cloud\LicenseServer\LicenseServer.Infrastructure\LicenseServer.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

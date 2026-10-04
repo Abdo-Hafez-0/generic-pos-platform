@@ -26,7 +26,27 @@ determined by customer license entitlements.
 
 ## Current Implementation Phase
 
-**Stage 5D COMPLETE: POS Module**
+**Stage 6 COMPLETE (licensing foundation): offline-first signed licensing**
+
+The client evaluates a cryptographically signed license LOCALLY; a license server (minimal foundation) issues and
+renews it. No network is needed for any evaluation or POS operation.
+
+    LicenseServer.Api  --HTTPS-->  Client.Licensing.Http (ILicenseClient)
+                                          |
+    Client.Licensing: LicenseService -> verify ES256 signature -> bind to installation/product -> LicenseEvaluator
+                                          |                                  |
+                      file store (license.json)              LicenseState + entitlements
+                                                                   |
+        Platform.Application.Abstractions.Licensing.ILicenseEntitlementService  <- all business code sees only this
+
+Status of the "current" licensing scope: implemented and tested = installation identity, signed license model,
+ES256 verification with trusted PUBLIC keys (rotation-ready), local storage, deterministic state evaluation
+(Unlicensed/Active/GracePeriod/Expired/Suspended/Revoked/Invalid), module + feature entitlements, activation,
+renewal, offline lease + grace, host integration, minimal license server (activate/renew/sign, in-memory store).
+Deliberately NOT enforced yet: no business module or UI gates on the license (see Stage 6 decisions / limitations).
+Business data is never touched by licensing (Client.Licensing has no DB or business module access).
+
+### Previous phase - Stage 5D COMPLETE: POS Module
 
 The POS module is the cashier-facing ORCHESTRATION layer. It owns sessions and carts (the transaction being
 built) and coordinates Catalog, Inventory and Sales exclusively through their Contracts:
@@ -208,11 +228,34 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 
 - [x] Build: 0 errors, 0 warnings (36 projects); all 586 tests pass
 - [x] No Payments module, no Licensing/Updates/Cloud, no HTTP anywhere in POS
 
+### Stage 6 - Licensing
+- [x] Platform.Core: LicenseState enum (Unlicensed, Active, GracePeriod, Expired, Suspended, Revoked, Invalid)
+- [x] Platform.Application: ILicenseEntitlementService (State, IsModuleLicensed(ModuleId), IsFeatureLicensed(FeatureId))
+      + IsLicensed(IModuleManifest) extension - the only licensing type business code may use
+- [x] Created Licensing.Contracts (shared wire model): LicensePayload, SignedLicense, LicenseSerializer, LicenseSigning,
+      LicenseStatusClaim, ActivationRequest/Response, RenewalRequest/Response, LicenseErrorCodes
+- [x] Client.Licensing (was a marker): Domain (InstallationIdentity, LicenseEvaluator, LicenseEvaluation, LicensePolicy,
+      InvalidReason, ExpiryKind), Application (ILicenseService/LicenseService, InstallationIdentityService, ILicenseClient,
+      ILicenseStore, IInstallationIdentityStore, ILicenseVerifier), Infrastructure (EcdsaLicenseVerifier, FileLicenseStore,
+      FileInstallationIdentityStore, LicensingHostingModule, AddClientLicensing, LicensingInitializer)
+- [x] Created Client.Licensing.Http: HttpLicenseClient (ILicenseClient over HttpClient), AddLicenseHttpClient,
+      LicenseHttpHostingModule (HTTPS required except loopback)
+- [x] Created LicenseServer.Application (LicenseRecord, ILicenseRepository, ILicenseSigner, LicenseIssuanceService,
+      LicenseServerOptions), LicenseServer.Infrastructure (EcdsaLicenseSigner, InMemoryLicenseRepository),
+      LicenseServer.Api (minimal API: POST /api/licenses/activate, POST /api/licenses/renew)
+- [x] Client.Desktop: references Client.Licensing + Client.Licensing.Http; App.xaml.cs registers LicensingHostingModule and
+      LicenseHttpHostingModule; appsettings.json has a Licensing section (no keys)
+- [x] Created tests/Licensing.Tests (109 tests) and Architecture.Tests/DependencyRules/LicensingBoundaryTests.cs
+      (ARCH-LIC-001..018); Assemblies.cs updated
+- [x] Build: 0 errors, 0 warnings (42 projects); all 713 tests pass
+- [x] Verified with the real host: licensing modules + Catalog/Inventory/Sales/POS start together, state Unlicensed,
+      installation.json created in the licensing folder, POS checkout unaffected
+
 ---
 
 ## Current Task
 
-**Stage 5D - COMPLETE. Stopping before Stage 6.**
+**Stage 6 - COMPLETE. Stopping before Stage 7.**
 
 ---
 
@@ -220,15 +263,17 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 
 
 **Awaiting instruction (technical lead decides).**
 
-Candidates already visible in the roadmap: Stage 6 (Licensing). Known follow-ups that are NOT part of any
-completed stage: a Payments module and its contract (checkout payment step), an Inventory stock-reversal contract,
-hosting PosView inside MainWindow, a Users module for real cashier identity.
+Next logical roadmap stage: Stage 7 - Update System (module packages, package signing, rollback). It must reuse the
+Stage 6 key-trust approach rather than duplicate it, and it is NOT started.
+Known follow-ups that are not part of any completed stage: license ENFORCEMENT points (module start / feature gates /
+UI), a licensing status screen, durable license-server storage and administration, a Payments module and its contract,
+an Inventory stock-reversal contract, hosting PosView inside MainWindow, a Users module.
 
 ---
 
 ## Solution / Project Structure (Current State)
 
-GenericPOS.sln (36 projects)
+GenericPOS.sln (42 projects)
 
 src/
 +-- Platform/
@@ -246,8 +291,12 @@ src/
 |   +-- Client.ModuleHost          [DONE] - IModuleDiscoveryService, FileSystemModuleDiscoveryService,
 |   |                                        ModuleCandidate, ModuleHostRegistrar (registers IModuleRegistry,
 |   |                                        IModuleDependencyResolver), ModuleRegistrationRecord
-|   +-- Client.Desktop             [DONE] - WPF shell + Catalog + Inventory + Sales + POS modules wired in (Stage 5D)
-|   +-- Client.Licensing           [DONE] - Boundary marker only (Stage 6)
+|   +-- Client.Desktop             [DONE] - WPF shell + Licensing + Catalog + Inventory + Sales + POS modules wired in (Stage 6)
+|   +-- Client.Licensing           [DONE] - Stage 6: Domain (InstallationIdentity, LicenseEvaluator, LicenseEvaluation,
+|   |                                        LicensePolicy), Application (LicenseService, ILicenseClient, ILicenseStore,
+|   |                                        IInstallationIdentityStore, ILicenseVerifier), Infrastructure (EcdsaLicenseVerifier,
+|   |                                        file stores, LicensingHostingModule). No HTTP/EF/WPF/business modules.
+|   +-- Client.Licensing.Http      [DONE] - Stage 6: HttpLicenseClient + LicenseHttpHostingModule (only HttpClient user)
 |   +-- Client.Updater             [DONE] - Boundary marker only (Stage 7)
 |
 +-- Modules/
@@ -337,7 +386,7 @@ src/
         +-- POS.UI                 [DONE] - PosViewModel, PosView.xaml (net10.0-windows)
 
 tests/
-+-- Architecture.Tests             [DONE] - 115 tests, all passing (Stages 1-5D)
++-- Architecture.Tests             [DONE] - 133 tests, all passing (Stages 1-6)
 +-- Platform.Infrastructure.Tests  [DONE] - 19 tests, all passing (Stage 3)
 +-- Platform.ModuleContract.Tests  [DONE] - 112 tests, all passing (Stage 4)
 +-- Catalog.Tests                  [DONE] - 64 tests, all passing (Stage 5A)
@@ -345,10 +394,16 @@ tests/
 +-- Sales.Tests                    [DONE] - 103 tests, all passing (Stage 5C)
 +-- POS.Tests                      [DONE] - 84 tests, all passing (Stage 5D)
 
+src/Licensing/
++-- Licensing.Contracts            [DONE] - Stage 6: shared signed-license wire model (no keys, no HTTP)
+src/Cloud/LicenseServer/
++-- LicenseServer.Application      [DONE] - Stage 6: LicenseIssuanceService, ILicenseRepository, ILicenseSigner
++-- LicenseServer.Infrastructure   [DONE] - Stage 6: EcdsaLicenseSigner (owns private key), InMemoryLicenseRepository
++-- LicenseServer.Api              [DONE] - Stage 6: minimal ASP.NET Core API (activate, renew)
+tests/Licensing.Tests              [DONE] - 109 tests, all passing (Stage 6)
+
 Planned:
-src/Modules/POS/      - Stage 5D
 src/OptionalModules/  - Stage 8
-src/Cloud/            - Stage 6
 tests/Integration.Tests - TBD
 tools/                  - TBD
 
@@ -469,7 +524,15 @@ Client.Desktop -> Client.Host, Client.ModuleHost, Catalog.Infrastructure, Catalo
                   Inventory.Infrastructure, Inventory.UI  <- Inventory references added Stage 5B
                   Sales.Infrastructure, Sales.UI          <- Sales references added Stage 5C
                   POS.Infrastructure, POS.UI              <- POS references added Stage 5D
-Client.Licensing -> Platform.Core (boundary only)
+Client.Licensing -> Platform.Core, Platform.Application, Licensing.Contracts, Client.Host (IHostingModule only)
+                    + Microsoft.Extensions.Hosting.Abstractions / Configuration.Binder (no HTTP, EF, WPF, business modules)
+Client.Licensing.Http -> Client.Licensing, Licensing.Contracts, Client.Host + Microsoft.Extensions.Http
+Client.Desktop also references Client.Licensing and Client.Licensing.Http  <- Stage 6
+Licensing.Contracts -> (nothing)
+LicenseServer.Application -> Licensing.Contracts
+LicenseServer.Infrastructure -> LicenseServer.Application, Licensing.Contracts
+LicenseServer.Api -> LicenseServer.Application, LicenseServer.Infrastructure, Licensing.Contracts (ASP.NET Core)
+(The server never references client or business code; business modules never reference licensing implementations.)
 Client.Updater -> Platform.Core (boundary only)
 
 INVENTORY MODULE (Stage 5B):
@@ -503,6 +566,7 @@ POS.UI -> POS.Application, POS.Contracts, Platform.Core
 (POS never references Catalog/Inventory/Sales Domain, Application, Infrastructure or UI.)
 
 TESTS:
+Licensing.Tests -> Licensing.Contracts, Client.Licensing, Client.Licensing.Http, LicenseServer.*, Platform.Application
 Architecture.Tests -> all Platform + non-WPF Client + non-WPF Catalog + Inventory + Sales + POS projects
 Platform.Infrastructure.Tests -> Platform.Infrastructure, Platform.Application
 Platform.ModuleContract.Tests -> Platform.Core, Platform.Application, Client.ModuleHost
@@ -657,6 +721,8 @@ WPF App.OnStartup
   -> ApplicationHostBuilder.Create()
      .WithModule(new DesktopServicesRegistrar())    // registers MainWindow
      .WithModule(new ModuleHostRegistrar())          // registers IModuleDiscoveryService,
+     .WithModule(new LicensingHostingModule())       // Stage 6: offline license evaluation services
+     .WithModule(new LicenseHttpHostingModule())     // Stage 6: HTTP transport to the license server
      .WithModule(new CatalogHostingModule())         //   IModuleRegistry, IModuleDependencyResolver
      .WithModule(new InventoryHostingModule())       // registers all Inventory services  <- Stage 5B
      .WithModule(new SalesHostingModule())           // registers all Sales services      <- Stage 5C
@@ -666,6 +732,7 @@ WPF App.OnStartup
        -> DatabaseInitializerService.StartAsync()   // Platform DB (EnsureCreated, no migrations)
             -> DatabaseInitializer.InitializeAsync()
             -> SQLite database created at %LOCALAPPDATA%\GenericPOS\genericpos.db
+       -> LicensingInitializer.StartAsync()         // Stage 6: load identity + local license, verify (offline; never blocks startup)
        -> CatalogDatabaseInitializer.StartAsync()   // Catalog DB migrations
             -> Applies CatalogInitialCreate migration (cat_Products, cat_Categories, etc.)
        -> InventoryDatabaseInitializer.StartAsync() // Inventory DB migrations  <- Stage 5B
@@ -771,19 +838,35 @@ Stage 5D Tests (20) - NEW (tests/Architecture.Tests/DependencyRules/POSBoundaryT
   ARCH-POS-019: POS has no HTTP dependency and references no Payments assembly
   ARCH-POS-020: the project assembly graph has no circular dependencies
 
-Total Architecture.Tests: 115 tests, all PASSING.
+Stage 6 Tests (18) - NEW (tests/Architecture.Tests/DependencyRules/LicensingBoundaryTests.cs):
+  ARCH-LIC-001/002: licensing domain / application namespaces have no HTTP, EF, WPF, infrastructure dependency
+  ARCH-LIC-003: Client.Licensing assembly has no HTTP, WPF, EF Core or SQLite reference
+  ARCH-LIC-004/005/006: client licensing does not depend on business modules / license server / EF-WPF-ASP.NET (Http)
+  ARCH-LIC-007: Licensing.Contracts is a pure wire model
+  ARCH-LIC-008/009/010: license server has no ASP.NET/HTTP/EF in application, no client, business-module or Platform dependency
+  ARCH-LIC-011/012/013: business modules and Platform do not depend on the license server or client licensing
+  ARCH-LIC-014: Platform abstraction ILicenseEntitlementService is implemented by Client.Licensing
+  ARCH-LIC-015: no signing capability in client assemblies (private key stays on the server)
+  ARCH-LIC-016: client licensing does not use ASP.NET Core
+  ARCH-LIC-017: acyclic project graph including licensing; ARCH-LIC-018: no Stage 7 updater/packaging references
+
+Total Architecture.Tests: 133 tests, all PASSING.
 Platform.Infrastructure.Tests: 19 tests, all PASSING.
 Platform.ModuleContract.Tests: 112 tests, all PASSING.
 Catalog.Tests: 64 tests, all PASSING.
 Inventory.Tests: 89 tests, all PASSING (8 new in Stage 5D for stock issue).
 Sales.Tests: 103 tests, all PASSING (Domain, Application, Infrastructure incl. migration, Contracts).
 POS.Tests: 84 tests, all PASSING (Domain, Application incl. checkout orchestration, Infrastructure incl. migration, Contracts).
-Grand total: 586 tests, 0 failures.
+Licensing.Tests: 109 tests, all PASSING (evaluator states/boundaries, signatures, tampering, identity, activation, renewal,
+  offline/restart, suspension/revocation, file stores, expiration safety with SQLite, host integration, server issuance,
+  HttpLicenseClient, in-process ASP.NET Core API integration).
+Grand total: 713 tests, 0 failures.
 
 ARCH-005, ARCH-006, ARCH-007: ACTIVE and passing (activated with Stage 5A).
 ARCH-INV-001 through ARCH-INV-011: ACTIVE and passing (activated with Stage 5B).
 ARCH-SAL-001 through ARCH-SAL-016: ACTIVE and passing (activated with Stage 5C).
 ARCH-POS-001 through ARCH-POS-020: ACTIVE and passing (activated with Stage 5D).
+ARCH-LIC-001 through ARCH-LIC-018: ACTIVE and passing (activated with Stage 6).
 
 ---
 
@@ -857,6 +940,20 @@ POS.Tests | Microsoft.Extensions.Logging.Abstractions | 10.0.11 | ILogger for PO
 
 ---
 
+## Packages Added in Stage 6
+
+Project | Package | Version | Reason
+--------|---------|---------|-------
+Client.Licensing | Microsoft.Extensions.Hosting.Abstractions | 10.0.11 | IHostedService / HostBuilderContext
+Client.Licensing | Microsoft.Extensions.Configuration.Binder | 10.0.11 | Licensing configuration binding
+Client.Licensing.Http | Microsoft.Extensions.Http | 10.0.11 | AddHttpClient typed client
+Licensing.Tests | Microsoft.AspNetCore.Mvc.Testing | 10.0.0 | host the license API in-process (no external network)
+Licensing.Tests | Microsoft.Data.Sqlite | 10.0.11 | stand-in business DB for the expiration-safety test
+Licensing.Tests | Microsoft.Extensions.DependencyInjection / Logging.Abstractions | 10.0.11 | host-integration tests
+(Cryptography uses the built-in System.Security.Cryptography ECDsa; no third-party crypto.)
+
+---
+
 ## Architectural Implementation Stages
 
 Stage | Name                                                  | Status
@@ -869,7 +966,7 @@ Stage | Name                                                  | Status
 5B    | Inventory Module                                      | COMPLETE
 5C    | Sales Module                                          | COMPLETE
 5D    | POS Module                                            | COMPLETE
-6     | Licensing (LicenseServer, Client.Licensing)           | Not Started
+6     | Licensing (LicenseServer, Client.Licensing)           | COMPLETE (foundation; enforcement points deferred)
 7     | Update System (packages, signatures, rollback)        | Not Started
 8     | Additional Business Modules                           | Not Started
 
@@ -1023,13 +1120,74 @@ Same documented TFM gap exception as Catalog.UI and Client.Desktop.
 
 ---
 
+## Stage 6 Architectural Decisions
+
+1. **Installation identity.** `InstallationIdentity(InstallationId GUID, CreatedAt)`: a random GUID generated once and stored in
+   `%LOCALAPPDATA%\GenericPOS\Licensing\installation.json` (outside the app directory, so it survives updates; separate from
+   the business DB). Not a hardware fingerprint. A corrupt/invalid file is regenerated, which breaks binding to the old license
+   (the license then evaluates Invalid/WrongInstallation) - fail closed.
+2. **Payload.** `LicensePayload` JSON: LicenseId, CustomerId, InstallationId, ProductId, LicenseVersion, IssuedAt, ValidFrom,
+   ValidUntil, LeaseValidUntil, GracePeriodUntil, Status (Active/Suspended/Revoked), Modules[], Features[] (string IDs matching
+   ModuleId/FeatureId), Issuer, KeyId. License and lease are ONE signed document: every renewal issues a new signed payload
+   with a higher LicenseVersion and a new lease (a replayed older version is rejected).
+3. **Signature.** ES256 = ECDSA P-256 + SHA-256, IEEE P1363 signature, via System.Security.Cryptography. The signed bytes are the
+   exact UTF-8 JSON bytes transmitted (`SignedLicense.Payload` = Base64 of those bytes), so no canonicalization is needed. The
+   payload is parsed/trusted ONLY after the signature verifies. Signing provides authenticity and integrity; no confidentiality
+   is claimed or needed (a license is not secret).
+4. **Keys.** The server owns the private key (`ILicenseSigner`); clients hold only trusted PUBLIC keys (Base64 SPKI) from the
+   `Licensing:TrustedKeys` configuration, each with a KeyId, so several keys can be trusted during rotation. No keys exist in the
+   repository. Server key: `LicenseServer:SigningKeyPemPath` (PKCS#8 PEM outside the repo; required outside Development). In
+   Development ONLY, an ephemeral key is generated at startup and its public key is logged. Tests generate ephemeral keys.
+   No trusted keys configured = nothing verifies = Unlicensed/Invalid (fails closed).
+5. **Local storage.** `license.json` + `installation.json` in the licensing folder, written atomically. Integrity comes from
+   signature verification on every load: edited data is detected and rejected. This detects tampering; it does not make a client
+   tamper-proof. DPAPI/secure-store wrapping is deferred (not needed for authenticity).
+6. **States** (distinct conditions, deterministic order in `LicenseEvaluator`): Unlicensed (nothing stored) -> Invalid (bad
+   signature / unknown key / malformed / wrong installation / wrong product / not yet valid; carries InvalidReason) -> Revoked /
+   Suspended (signed status) -> Expired (now > ValidUntil, or lease+grace elapsed; carries ExpiryKind) -> Active (now <=
+   LeaseValidUntil) -> GracePeriod (now <= GracePeriodUntil). All end instants are inclusive.
+7. **Lease/grace policy.** Durations are server configuration (`LicenseServerOptions`: LeaseDuration, GraceDuration; Api defaults
+   LeaseDays=30, GraceDays=7 are configuration defaults, not commercial policy). Lease and grace are clamped to ValidUntil.
+   Client policy `GraceGrantsEntitlements` (default true) decides whether entitlements stay granted during grace.
+   Entitlements are granted only in Active (and GracePeriod when the policy allows).
+8. **Client/server boundary.** The application layer depends on `ILicenseClient`; HTTP lives only in Client.Licensing.Http (HTTPS
+   required except loopback). Network failures become `Licensing.Server.Unreachable` results and never alter the stored license.
+   A "successful" server response is never trusted: the signed license must verify, be bound to this installation/product, and
+   (for renewal) be the same license with a newer version before it is stored. Licensing.Contracts holds the shared wire model.
+9. **Entitlements.** String IDs for modules and features in the signed payload, queried through `ILicenseEntitlementService`
+   (Platform.Application). Licensing never references a module implementation; "accounting" is answerable with no Accounting module.
+10. **Module runtime integration.** IModule/IModuleManifest are unchanged. `ILicenseEntitlementService.IsLicensed(manifest)` maps a
+    manifest's ModuleId to entitlements. LicenseService is one DI singleton (no static state) initialised by LicensingInitializer at
+    host start; evaluation is offline, synchronous and follows the clock.
+11. **Expiration safety.** Licensing has no database, EF, or business-module reference (enforced by ARCH-LIC-003/004) and only
+    answers entitlement queries, so no licensing state can delete or modify business data; a test proves tables and rows are intact
+    after expiry, revocation and failed renewals.
+12. **Server scope.** Minimal: activate, renew, status changes (`SetStatusAsync`, suspension/revocation reaches clients at their next
+    renewal), in-memory repository, Development-only config seeding (`LicenseServer:DevLicenses`). No authentication, admin UI,
+    billing, durable storage or multi-tenancy.
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 5D is complete.
-Build: 0 errors, 0 warnings (36 projects).
-All 586 tests pass.
+None blocking. Stage 6 is complete (foundation scope).
+Build: 0 errors, 0 warnings (42 projects).
+All 713 tests pass.
 Catalog, Inventory, Sales and POS database schemas are applied at startup by their initializers.
 Database: %LOCALAPPDATA%\GenericPOS\genericpos.db (Platform + Catalog + Inventory + Sales + POS tables in same file).
+
+Remaining limitations after Stage 6:
+- NO ENFORCEMENT YET: nothing in the runtime or UI denies access based on LicenseState. Business modules do not consult
+  ILicenseEntitlementService, so an unlicensed installation still runs POS. Choosing enforcement points and the restriction UX
+  is deferred; the mechanism (state + entitlements, tested) is ready.
+- No clock-rollback protection (a user can move the system clock back to extend a lease); no secure time source.
+- Local files are integrity-protected by signature only (no OS secure storage); an attacker with file access can delete the
+  license (-> Unlicensed) but cannot forge one without the private key.
+- License server: in-memory store (licenses are lost on restart), no authentication, no admin/portal, no billing; the
+  activation key is the only credential. Activation key brute-force/rate limiting is not implemented.
+- A license can be bound to one installation at a time; transferring/deactivating an installation is not implemented.
+- No licensing status UI. Trusted public keys must be supplied in configuration.
+- Stage 7 (package/update signing) is not started and shares no code with licensing yet.
 
 Remaining limitations after Stage 5D:
 - No payment processing (no Payments module).
@@ -1049,4 +1207,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-04 - Stage 5D complete. POS module implemented, migrated and tested.
+Last updated: 2026-10-04 - Stage 6 complete (licensing foundation). Signed offline licensing and minimal license server implemented and tested.

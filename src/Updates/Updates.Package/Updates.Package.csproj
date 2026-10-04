@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The deterministic package file format (.gpkg = ZIP): safe reader, deterministic writer, payload digest.
+    Used by Client.Updater (read/verify), ModulePackager and UpdatePublisher (write). No keys, no HTTP, no EF, no UI.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Updates.Contracts\Updates.Contracts.csproj" />
+    <ProjectReference Include="..\..\Security\Security.Es256\Security.Es256.csproj" />
+  </ItemGroup>
+</Project>

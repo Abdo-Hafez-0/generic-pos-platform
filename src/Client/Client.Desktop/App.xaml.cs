@@ -2,6 +2,8 @@ using Catalog.Infrastructure.Module;
 using Inventory.Infrastructure.Module;
 using Client.Licensing.Http;
 using Client.Licensing.Infrastructure;
+using Client.Updater.Http;
+using Client.Updater.Infrastructure;
 using POS.Infrastructure.Module;
 using Sales.Infrastructure.Module;
 using Client.Host.Hosting;
@@ -51,6 +53,8 @@ public partial class App : Application
                 .WithModule(new ModuleHostRegistrar())
                 .WithModule(new LicensingHostingModule())       // Stage 6: offline license evaluation
                 .WithModule(new LicenseHttpHostingModule())     // Stage 6: HTTP transport to the license server
+                .WithModule(new UpdaterHostingModule())         // Stage 7: update verification, staging, recovery (local only)
+                .WithModule(new UpdateHttpHostingModule())      // Stage 7: HTTP transport to the update server
                 .WithModule(new CatalogHostingModule())  // Stage 5A: Catalog module
                 .WithModule(new InventoryHostingModule()) // Stage 5B: Inventory module
                 .WithModule(new SalesHostingModule())     // Stage 5C: Sales module

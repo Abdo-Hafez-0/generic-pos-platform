@@ -53,6 +53,15 @@
     <ProjectReference Include="..\..\src\Client\Client.Licensing.Http\Client.Licensing.Http.csproj" />
     <ProjectReference Include="..\..\src\Cloud\LicenseServer\LicenseServer.Application\LicenseServer.Application.csproj" />
     <ProjectReference Include="..\..\src\Cloud\LicenseServer\LicenseServer.Infrastructure\LicenseServer.Infrastructure.csproj" />
+    <!-- Update system assemblies (Stage 7) - UpdateServer.Api excluded (ASP.NET Core host) -->
+    <ProjectReference Include="..\..\src\Security\Security.Es256\Security.Es256.csproj" />
+    <ProjectReference Include="..\..\src\Security\Security.Es256.Signing\Security.Es256.Signing.csproj" />
+    <ProjectReference Include="..\..\src\Updates\Updates.Contracts\Updates.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Updates\Updates.Package\Updates.Package.csproj" />
+    <ProjectReference Include="..\..\src\Client\Client.Updater.Http\Client.Updater.Http.csproj" />
+    <ProjectReference Include="..\..\src\Cloud\UpdateServer\UpdateServer.Application\UpdateServer.Application.csproj" />
+    <ProjectReference Include="..\..\tools\ModulePackager\ModulePackager.csproj" />
+    <ProjectReference Include="..\..\tools\UpdatePublisher\UpdatePublisher.csproj" />
   </ItemGroup>
 
 </Project>

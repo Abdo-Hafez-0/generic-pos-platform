@@ -1,52 +1,36 @@
 using System.Collections.Concurrent;
-using System.Security.Cryptography;
 using LicenseServer.Application;
 using Licensing.Contracts;
+using Security.Es256.Signing;
 
 namespace LicenseServer.Infrastructure;
 
 /// <summary>
-/// ES256 signer (ECDSA P-256 / SHA-256, IEEE P1363). OWNS the private key; the key is never exposed - only the
-/// PUBLIC key can be exported (so it can be distributed to clients as trusted key material).
+/// ILicenseSigner backed by the shared ES256 signer (Security.Es256.Signing). OWNS the private key; only the PUBLIC key
+/// can be exported (so it can be distributed to clients as trusted key material).
 /// </summary>
 public sealed class EcdsaLicenseSigner : ILicenseSigner, IDisposable
 {
-    private readonly ECDsa _key;
+    private readonly Es256Signer _signer;
 
-    public EcdsaLicenseSigner(ECDsa key, string keyId)
-    {
-        _key = key;
-        KeyId = keyId;
-    }
+    private EcdsaLicenseSigner(Es256Signer signer) => _signer = signer;
 
-    public string KeyId { get; }
+    public string KeyId => _signer.KeyId;
 
     public string Algorithm => LicenseSigning.Algorithm;
 
-    public byte[] Sign(byte[] data)
-    {
-        lock (_key)
-        {
-            return _key.SignData(data, HashAlgorithmName.SHA256, DSASignatureFormat.IeeeP1363FixedFieldConcatenation);
-        }
-    }
+    public byte[] Sign(byte[] data) => _signer.Sign(data);
 
     /// <summary>Base64 DER SubjectPublicKeyInfo of the public key (safe to share; matches the client TrustedLicenseKey format).</summary>
-    public string ExportPublicKey() => Convert.ToBase64String(_key.ExportSubjectPublicKeyInfo());
+    public string ExportPublicKey() => _signer.ExportPublicKey();
 
     /// <summary>Creates a throw-away key (development/testing only). Nothing is persisted or committed.</summary>
-    public static EcdsaLicenseSigner GenerateEphemeral(string keyId)
-        => new(ECDsa.Create(ECCurve.NamedCurves.nistP256), keyId);
+    public static EcdsaLicenseSigner GenerateEphemeral(string keyId) => new(Es256Signer.GenerateEphemeral(keyId));
 
     /// <summary>Loads a PKCS#8 PEM private key from a file OUTSIDE the repository (production key management).</summary>
-    public static EcdsaLicenseSigner FromPemFile(string path, string keyId)
-    {
-        var ecdsa = ECDsa.Create();
-        ecdsa.ImportFromPem(File.ReadAllText(path));
-        return new EcdsaLicenseSigner(ecdsa, keyId);
-    }
+    public static EcdsaLicenseSigner FromPemFile(string path, string keyId) => new(Es256Signer.FromPemFile(path, keyId));
 
-    public void Dispose() => _key.Dispose();
+    public void Dispose() => _signer.Dispose();
 }
 
 /// <summary>

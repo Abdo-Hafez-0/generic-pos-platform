@@ -194,6 +194,43 @@ internal static class Assemblies
         .. AllPOSAssemblies
     ];
 
+    // Update system + shared security assemblies (Stage 7)
+    // Note: UpdateServer.Api is an ASP.NET Core host and is not referenced here.
+    internal static readonly Assembly SecurityEs256 =
+        typeof(Security.Es256.Es256Verifier).Assembly;
+
+    internal static readonly Assembly SecurityEs256Signing =
+        typeof(Security.Es256.Signing.Es256Signer).Assembly;
+
+    internal static readonly Assembly UpdatesContracts =
+        typeof(Updates.Contracts.PackageManifest).Assembly;
+
+    internal static readonly Assembly UpdatesPackage =
+        typeof(Updates.Package.PackageFormat).Assembly;
+
+    internal static readonly Assembly ClientUpdaterHttp =
+        typeof(Client.Updater.Http.HttpUpdateClient).Assembly;
+
+    internal static readonly Assembly UpdateServerApplication =
+        typeof(UpdateServer.Application.UpdateDiscoveryService).Assembly;
+
+    internal static readonly Assembly ModulePackager =
+        typeof(Tools.ModulePackager.ModulePackager).Assembly;
+
+    internal static readonly Assembly UpdatePublisher =
+        typeof(Tools.UpdatePublisher.UpdatePublisher).Assembly;
+
+    internal static IReadOnlyList<Assembly> AllUpdateAssemblies =>
+    [
+        UpdatesContracts,
+        UpdatesPackage,
+        ClientUpdater,
+        ClientUpdaterHttp,
+        UpdateServerApplication,
+        ModulePackager,
+        UpdatePublisher
+    ];
+
     internal static IReadOnlyList<Assembly> AllProjectAssemblies =>
     [
         .. AllPlatformAssemblies,
@@ -204,6 +241,14 @@ internal static class Assemblies
         .. AllPOSAssemblies,
         LicensingContracts,
         ClientLicensingHttp,
-        .. AllLicenseServerAssemblies
+        .. AllLicenseServerAssemblies,
+        SecurityEs256,
+        SecurityEs256Signing,
+        UpdatesContracts,
+        UpdatesPackage,
+        ClientUpdaterHttp,
+        UpdateServerApplication,
+        ModulePackager,
+        UpdatePublisher
     ];
 }

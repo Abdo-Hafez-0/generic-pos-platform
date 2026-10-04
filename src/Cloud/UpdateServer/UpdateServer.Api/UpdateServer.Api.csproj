@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- Minimal update server HTTP API (Stage 7 foundation): discovery + package download. No admin portal, billing or customer auth. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\UpdateServer.Application\UpdateServer.Application.csproj" />
+    <ProjectReference Include="..\..\..\Updates\Updates.Contracts\Updates.Contracts.csproj" />
+  </ItemGroup>
+</Project>

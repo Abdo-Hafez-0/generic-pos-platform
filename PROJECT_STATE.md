@@ -26,7 +26,28 @@ determined by customer license entitlements.
 
 ## Current Implementation Phase
 
-**Stage 6 COMPLETE (licensing foundation): offline-first signed licensing**
+**Stage 7 COMPLETE (update system foundation): secure, recoverable updates**
+
+Core and individual modules can be updated from signed packages without ever endangering the working installation or the
+customer's data. The update server is optional: nothing in normal POS operation depends on it.
+
+    UpdatePublisher (private key, offline) -> signed .gpkg --> UpdateServer (serves bytes, holds no keys)
+                                                                    |  HTTPS (Client.Updater.Http / IUpdateClient)
+    Client.Updater:  Discover -> Download -> VERIFY (14 steps, mutates nothing) -> Stage -> [Migrate] -> Deploy side by side
+                     -> ATOMIC active-pointer switch -> Activated -> Confirmed (healthy start) | auto/explicit Rollback
+    Trust: Security.Es256 (same ES256 primitive as licensing) with trusted PUBLIC keys; license checks via ILicenseEntitlementService
+
+Implemented and tested: package format (.gpkg ZIP, signed manifest + hashed payload), ES256 signing/verification with
+KeyId + key rotation + unknown-key rejection, SHA-256 per-file and payload hashes, version semantics (upgrade only),
+host/runtime/module/dependency/license/migration compatibility checks, ModulePackager (validate before signing),
+UpdatePublisher (sign + write), discovery, download, staging, restore points, module-owned migration orchestration,
+side-by-side deployment with atomic activation, persisted update state machine, startup recovery, explicit rollback,
+minimal UpdateServer. Deliberately NOT done: see "Remaining limitations after Stage 7" (notably: nothing yet LOADS the
+activated core/module directories at runtime - launcher/ModuleHost adoption is later work).
+Verified with the real host: update server unreachable -> POS checkout still completes; a signed module package with
+migration metadata installs against the real database, a restore point is taken, and sale/stock data stay intact.
+
+### Previous phase - Stage 6 COMPLETE (licensing foundation): offline-first signed licensing
 
 The client evaluates a cryptographically signed license LOCALLY; a license server (minimal foundation) issues and
 renews it. No network is needed for any evaluation or POS operation.
@@ -251,11 +272,35 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 
 - [x] Verified with the real host: licensing modules + Catalog/Inventory/Sales/POS start together, state Unlicensed,
       installation.json created in the licensing folder, POS checkout unaffected
 
+### Stage 7 - Update System
+- [x] Security.Es256 (neutral, public keys only): Es256Verifier, TrustedPublicKey, SignatureCheck, Sha256Hex, Es256Info.
+      Security.Es256.Signing (private keys): Es256Signer - referenced ONLY by LicenseServer.Infrastructure and UpdatePublisher.
+      Stage 6 licensing was refactored onto these (EcdsaLicenseVerifier/EcdsaLicenseSigner are thin wrappers); all licensing tests still pass.
+- [x] Updates.Contracts: PackageType (Core, Module), PackageManifest, PackageFile, PackageDependency, PackageMigration,
+      SignedPackageManifest + PackageManifestSerializer, UpdateCheckRequest/Response, UpdateInfo, UpdateErrorCodes
+- [x] Updates.Package: PackageFormat (limits, safe-path + forbidden-file rules), PayloadDigest, PackageWriter (deterministic),
+      PackageReader (safe open), PackageContents, ManifestRules (shared structural validation)
+- [x] Platform.Application: IModuleMigrator + ModuleMigrationResult (contract for a module to run ITS OWN migrations; none implemented yet)
+- [x] Client.Updater (was a marker): Domain (UpdateState, UpdateJournal, ActivePointer, InstalledModule, VersionSemantics),
+      Application (PackageVerifier, UpdateService/IUpdateService, IUpdateClient, IUpdateStore, IInstalledStateProvider, IDataSafeguard,
+      IMigrationCoordinator, UpdaterOptions), Infrastructure (UpdateStore, SqliteDataSafeguard, ModuleOwnedMigrationCoordinator,
+      InstalledStateProvider, UpdaterHostingModule, UpdaterInitializer)
+- [x] Client.Updater.Http: HttpUpdateClient (IUpdateClient), AddUpdateHttpClient, UpdateHttpHostingModule (HTTPS except loopback)
+- [x] UpdateServer.Application (DirectoryPackageRepository, UpdateDiscoveryService) + UpdateServer.Api (POST /api/updates/check, GET /api/updates/packages/{id})
+- [x] tools/ModulePackager (CreateDraft: validate + hash, rejects before signing) and tools/UpdatePublisher (Publish: re-verify, sign, write .gpkg)
+- [x] Client.Desktop: references Client.Updater + Client.Updater.Http; App.xaml.cs registers UpdaterHostingModule + UpdateHttpHostingModule
+      (after Licensing); appsettings.json has an Updater section (no keys)
+- [x] tests/Updater.Tests (168 tests); Architecture.Tests/DependencyRules/UpdateBoundaryTests.cs (ARCH-UPD-001..022); Assemblies.cs updated
+- [x] Build: 0 errors, 0 warnings (52 projects); all 903 tests pass
+- [x] Real-host verification (scratch harness, not committed): Catalog+Inventory+Sales+POS+Licensing+Updater with an unreachable update server:
+      startup fine, POS checkout completes, discovery returns Update.ServerUnavailable, a signed module package installs against the real DB with a
+      restore point, and sale/stock rows are intact afterwards
+
 ---
 
 ## Current Task
 
-**Stage 6 - COMPLETE. Stopping before Stage 7.**
+**Stage 7 - COMPLETE. Stopping before Stage 8.**
 
 ---
 
@@ -263,17 +308,17 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 
 
 **Awaiting instruction (technical lead decides).**
 
-Next logical roadmap stage: Stage 7 - Update System (module packages, package signing, rollback). It must reuse the
-Stage 6 key-trust approach rather than duplicate it, and it is NOT started.
-Known follow-ups that are not part of any completed stage: license ENFORCEMENT points (module start / feature gates /
-UI), a licensing status screen, durable license-server storage and administration, a Payments module and its contract,
-an Inventory stock-reversal contract, hosting PosView inside MainWindow, a Users module.
+Next logical roadmap stage: Stage 8 - Additional Business Modules (not started). Follow-ups that are NOT part of any completed
+stage: license ENFORCEMENT points; a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active
+deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules;
+CLI wrappers for ModulePackager/UpdatePublisher; durable/authenticated update + license server administration; Payments module;
+stock-reversal contract; hosting PosView in MainWindow; Users module.
 
 ---
 
 ## Solution / Project Structure (Current State)
 
-GenericPOS.sln (42 projects)
+GenericPOS.sln (52 projects)
 
 src/
 +-- Platform/
@@ -297,7 +342,11 @@ src/
 |   |                                        IInstallationIdentityStore, ILicenseVerifier), Infrastructure (EcdsaLicenseVerifier,
 |   |                                        file stores, LicensingHostingModule). No HTTP/EF/WPF/business modules.
 |   +-- Client.Licensing.Http      [DONE] - Stage 6: HttpLicenseClient + LicenseHttpHostingModule (only HttpClient user)
-|   +-- Client.Updater             [DONE] - Boundary marker only (Stage 7)
+|   +-- Client.Updater             [DONE] - Stage 7: Domain (UpdateState, UpdateJournal, ActivePointer, VersionSemantics), Application
+|   |                                        (PackageVerifier, UpdateService, IUpdateClient, IUpdateStore, IDataSafeguard, IMigrationCoordinator),
+|   |                                        Infrastructure (UpdateStore, SqliteDataSafeguard, ModuleOwnedMigrationCoordinator,
+|   |                                        InstalledStateProvider, UpdaterHostingModule). No HTTP/EF/WPF/signing/business modules.
+|   +-- Client.Updater.Http        [DONE] - Stage 7: HttpUpdateClient + UpdateHttpHostingModule (only HttpClient user of the updater)
 |
 +-- Modules/
     +-- Catalog/
@@ -386,7 +435,7 @@ src/
         +-- POS.UI                 [DONE] - PosViewModel, PosView.xaml (net10.0-windows)
 
 tests/
-+-- Architecture.Tests             [DONE] - 133 tests, all passing (Stages 1-6)
++-- Architecture.Tests             [DONE] - 155 tests, all passing (Stages 1-7)
 +-- Platform.Infrastructure.Tests  [DONE] - 19 tests, all passing (Stage 3)
 +-- Platform.ModuleContract.Tests  [DONE] - 112 tests, all passing (Stage 4)
 +-- Catalog.Tests                  [DONE] - 64 tests, all passing (Stage 5A)
@@ -401,6 +450,20 @@ src/Cloud/LicenseServer/
 +-- LicenseServer.Infrastructure   [DONE] - Stage 6: EcdsaLicenseSigner (owns private key), InMemoryLicenseRepository
 +-- LicenseServer.Api              [DONE] - Stage 6: minimal ASP.NET Core API (activate, renew)
 tests/Licensing.Tests              [DONE] - 109 tests, all passing (Stage 6)
+
+src/Security/
++-- Security.Es256                 [DONE] - Stage 7: shared verification primitives (public keys only) used by licensing AND updates
++-- Security.Es256.Signing         [DONE] - Stage 7: Es256Signer (private keys); referenced only by LicenseServer.Infrastructure and UpdatePublisher
+src/Updates/
++-- Updates.Contracts              [DONE] - Stage 7: package manifest, signed envelope, discovery messages, error codes
++-- Updates.Package                [DONE] - Stage 7: .gpkg format reader/writer, payload digest, shared manifest rules
+src/Cloud/UpdateServer/
++-- UpdateServer.Application       [DONE] - Stage 7: DirectoryPackageRepository, UpdateDiscoveryService (no keys)
++-- UpdateServer.Api               [DONE] - Stage 7: minimal ASP.NET Core API (check, download)
+tools/
++-- ModulePackager                 [DONE] - Stage 7: validates + hashes a package spec, rejects before signing
++-- UpdatePublisher                [DONE] - Stage 7: signs a validated draft and writes the distributable package
+tests/Updater.Tests                [DONE] - 168 tests, all passing (Stage 7)
 
 Planned:
 src/OptionalModules/  - Stage 8
@@ -533,7 +596,17 @@ LicenseServer.Application -> Licensing.Contracts
 LicenseServer.Infrastructure -> LicenseServer.Application, Licensing.Contracts
 LicenseServer.Api -> LicenseServer.Application, LicenseServer.Infrastructure, Licensing.Contracts (ASP.NET Core)
 (The server never references client or business code; business modules never reference licensing implementations.)
-Client.Updater -> Platform.Core (boundary only)
+Client.Updater -> Platform.Core, Platform.Application, Updates.Contracts, Updates.Package, Security.Es256, Client.Host
+                  + Microsoft.Data.Sqlite (restore points only) + Hosting.Abstractions / Configuration.Binder
+                  (no HTTP, EF, WPF, signing, business modules, Client.Licensing)
+Client.Updater.Http -> Client.Updater, Updates.Contracts, Client.Host + Microsoft.Extensions.Http
+Client.Desktop also references Client.Updater and Client.Updater.Http  <- Stage 7
+Security.Es256 -> (nothing); Security.Es256.Signing -> Security.Es256
+Updates.Contracts -> (nothing); Updates.Package -> Updates.Contracts, Security.Es256
+UpdateServer.Application -> Updates.Contracts, Updates.Package, Security.Es256; UpdateServer.Api -> UpdateServer.Application, Updates.Contracts
+ModulePackager -> Updates.Contracts, Updates.Package, Security.Es256
+UpdatePublisher -> ModulePackager, Updates.Contracts, Updates.Package, Security.Es256, Security.Es256.Signing
+Client.Licensing -> also Security.Es256; LicenseServer.Infrastructure -> also Security.Es256, Security.Es256.Signing  <- Stage 7 refactor
 
 INVENTORY MODULE (Stage 5B):
 Inventory.Domain -> Platform.Core
@@ -566,6 +639,8 @@ POS.UI -> POS.Application, POS.Contracts, Platform.Core
 (POS never references Catalog/Inventory/Sales Domain, Application, Infrastructure or UI.)
 
 TESTS:
+Updater.Tests -> Updates.*, Security.Es256(.Signing), Client.Updater(.Http), UpdateServer.*, ModulePackager, UpdatePublisher,
+               Client.Licensing + LicenseServer.* (real licensing states), Platform.Application
 Licensing.Tests -> Licensing.Contracts, Client.Licensing, Client.Licensing.Http, LicenseServer.*, Platform.Application
 Architecture.Tests -> all Platform + non-WPF Client + non-WPF Catalog + Inventory + Sales + POS projects
 Platform.Infrastructure.Tests -> Platform.Infrastructure, Platform.Application
@@ -663,6 +738,14 @@ POS (added via POSHostingModule / POSServicesExtensions):
 - GetPosSession/GetCart/GetCurrentCart query handlers (Transient)
 POS expects Catalog, Inventory and Sales contract implementations to be registered before it (host order).
 
+Stage 7 (added via UpdaterHostingModule / AddClientUpdater; requires licensing + ModuleHostRegistrar first):
+- UpdateStore (Singleton; also as IUpdateStore), UpdaterOptions, Es256Verifier (trusted keys from Updater:TrustedKeys)
+- IInstalledStateProvider -> InstalledStateProvider (reads IModuleRegistry + active pointers)
+- IDataSafeguard -> SqliteDataSafeguard (database located through the Database configuration section)
+- IMigrationCoordinator -> ModuleOwnedMigrationCoordinator (uses any registered IModuleMigrator)
+- IUpdateClient -> NullUpdateClient by default; HttpUpdateClient when UpdateHttpHostingModule is registered
+- PackageVerifier, UpdateService / IUpdateService (Singletons); UpdaterInitializer (IHostedService: local recovery only, no network)
+
 ---
 
 ## Migration Strategy
@@ -715,7 +798,7 @@ Future module migrations follow the same pattern with their own prefix.
 
 ---
 
-## Startup Sequence (Updated for Stage 5D)
+## Startup Sequence (Updated for Stage 7)
 
 WPF App.OnStartup
   -> ApplicationHostBuilder.Create()
@@ -723,6 +806,8 @@ WPF App.OnStartup
      .WithModule(new ModuleHostRegistrar())          // registers IModuleDiscoveryService,
      .WithModule(new LicensingHostingModule())       // Stage 6: offline license evaluation services
      .WithModule(new LicenseHttpHostingModule())     // Stage 6: HTTP transport to the license server
+     .WithModule(new UpdaterHostingModule())         // Stage 7: update verification, staging, recovery (local only)
+     .WithModule(new UpdateHttpHostingModule())      // Stage 7: HTTP transport to the update server
      .WithModule(new CatalogHostingModule())         //   IModuleRegistry, IModuleDependencyResolver
      .WithModule(new InventoryHostingModule())       // registers all Inventory services  <- Stage 5B
      .WithModule(new SalesHostingModule())           // registers all Sales services      <- Stage 5C
@@ -732,6 +817,7 @@ WPF App.OnStartup
        -> DatabaseInitializerService.StartAsync()   // Platform DB (EnsureCreated, no migrations)
             -> DatabaseInitializer.InitializeAsync()
             -> SQLite database created at %LOCALAPPDATA%\GenericPOS\genericpos.db
+       -> UpdaterInitializer.StartAsync()           // Stage 7: resolve interrupted/unconfirmed updates from local state (no network)
        -> LicensingInitializer.StartAsync()         // Stage 6: load identity + local license, verify (offline; never blocks startup)
        -> CatalogDatabaseInitializer.StartAsync()   // Catalog DB migrations
             -> Applies CatalogInitialCreate migration (cat_Products, cat_Categories, etc.)
@@ -850,7 +936,25 @@ Stage 6 Tests (18) - NEW (tests/Architecture.Tests/DependencyRules/LicensingBoun
   ARCH-LIC-016: client licensing does not use ASP.NET Core
   ARCH-LIC-017: acyclic project graph including licensing; ARCH-LIC-018: no Stage 7 updater/packaging references
 
-Total Architecture.Tests: 133 tests, all PASSING.
+Stage 7 Tests (22) - NEW (tests/Architecture.Tests/DependencyRules/UpdateBoundaryTests.cs):
+  ARCH-UPD-001: Client.Updater has no HTTP, EF Core, WPF or ASP.NET reference
+  ARCH-UPD-002/003: updater does not depend on business modules, Client.Licensing or the license server (licensing only via ILicenseEntitlementService)
+  ARCH-UPD-004: updater Domain/Application layering (no infrastructure, HTTP, EF, SQLite in the application layer)
+  ARCH-UPD-005: no signing capability in updater/contract/package assemblies
+  ARCH-UPD-006: Client.Updater.Http boundaries
+  ARCH-UPD-007/008/009: business modules, business domains and Platform do not depend on the update system
+  ARCH-UPD-010: UpdateServer has no WPF/EF/client/business/signing dependency
+  ARCH-UPD-011/012: ModulePackager / UpdatePublisher do not depend on Client.* (incl. Client.Desktop), WPF, HTTP or business modules
+  ARCH-UPD-013: Updates.Contracts / Updates.Package are pure
+  ARCH-UPD-014: only LicenseServer.Infrastructure and UpdatePublisher reference Security.Es256.Signing
+  ARCH-UPD-015/016: PackageHash/Signature/SigningKeyId are NOT in IModuleManifest; they live in PackageManifest; PackageType is an explicit enum
+  ARCH-UPD-017: updater does not redefine licensing or implement IModule/IModuleManifest publicly; UpdateState != ModuleRuntimeStatus
+  ARCH-UPD-018/019: licensing and updates share ONE trust primitive (Security.Es256); no duplicated cryptography; Security.Es256 is verification-only
+  ARCH-UPD-020: acyclic project graph incl. update/security assemblies
+  ARCH-UPD-021: no process execution / assembly loading / scripts from package content
+  ARCH-UPD-022: migrations are orchestrated, not executed, by the updater (module-owned)
+
+Total Architecture.Tests: 155 tests, all PASSING.
 Platform.Infrastructure.Tests: 19 tests, all PASSING.
 Platform.ModuleContract.Tests: 112 tests, all PASSING.
 Catalog.Tests: 64 tests, all PASSING.
@@ -860,13 +964,18 @@ POS.Tests: 84 tests, all PASSING (Domain, Application incl. checkout orchestrati
 Licensing.Tests: 109 tests, all PASSING (evaluator states/boundaries, signatures, tampering, identity, activation, renewal,
   offline/restart, suspension/revocation, file stores, expiration safety with SQLite, host integration, server issuance,
   HttpLicenseClient, in-process ASP.NET Core API integration).
-Grand total: 713 tests, 0 failures.
+Updater.Tests: 168 tests, all PASSING (package format & rejection, hashing, signatures/key rotation, version semantics, host/runtime/module/
+  dependency/migration compatibility, license checks incl. all 7 real LicenseStates, install/stage/activate, confirm, rollback, migration
+  failures, activation failure (real file lock), restart recovery, data preservation on real SQLite, offline/unavailable server, host
+  integration, in-process UpdateServer API end to end incl. tampered-package scenarios).
+Grand total: 903 tests, 0 failures.
 
 ARCH-005, ARCH-006, ARCH-007: ACTIVE and passing (activated with Stage 5A).
 ARCH-INV-001 through ARCH-INV-011: ACTIVE and passing (activated with Stage 5B).
 ARCH-SAL-001 through ARCH-SAL-016: ACTIVE and passing (activated with Stage 5C).
 ARCH-POS-001 through ARCH-POS-020: ACTIVE and passing (activated with Stage 5D).
 ARCH-LIC-001 through ARCH-LIC-018: ACTIVE and passing (activated with Stage 6).
+ARCH-UPD-001 through ARCH-UPD-022: ACTIVE and passing (activated with Stage 7).
 
 ---
 
@@ -954,6 +1063,19 @@ Licensing.Tests | Microsoft.Extensions.DependencyInjection / Logging.Abstraction
 
 ---
 
+## Packages Added in Stage 7
+
+Project | Package | Version | Reason
+--------|---------|---------|-------
+Client.Updater | Microsoft.Data.Sqlite | 10.0.11 | database restore points (online backup API) - no table access
+Client.Updater | Microsoft.Extensions.Hosting.Abstractions / Configuration.Binder | 10.0.11 | host registration + configuration
+Client.Updater.Http | Microsoft.Extensions.Http | 10.0.11 | AddHttpClient typed client
+Updater.Tests | Microsoft.AspNetCore.Mvc.Testing | 10.0.0 | host the update API in-process
+Updater.Tests | Microsoft.Data.Sqlite | 10.0.11 | real-database data-preservation tests
+(Package format uses System.IO.Compression; cryptography uses System.Security.Cryptography via Security.Es256; no third-party crypto/zip.)
+
+---
+
 ## Architectural Implementation Stages
 
 Stage | Name                                                  | Status
@@ -967,7 +1089,7 @@ Stage | Name                                                  | Status
 5C    | Sales Module                                          | COMPLETE
 5D    | POS Module                                            | COMPLETE
 6     | Licensing (LicenseServer, Client.Licensing)           | COMPLETE (foundation; enforcement points deferred)
-7     | Update System (packages, signatures, rollback)        | Not Started
+7     | Update System (packages, signatures, rollback)        | COMPLETE (foundation; runtime adoption of activated versions deferred)
 8     | Additional Business Modules                           | Not Started
 
 ---
@@ -1168,13 +1290,83 @@ Same documented TFM gap exception as Catalog.UI and Client.Desktop.
 
 ---
 
+## Stage 7 Architectural Decisions
+
+1. **Package format** (`.gpkg`, a ZIP): `manifest.json` (a SignedPackageManifest envelope) + `payload/<files>`. Nothing else is allowed in the
+   archive. No scripts, installers or SQL: scripts/installers are rejected everywhere (packager, verifier); module packages may not contain
+   native executables (only core may). Packages are built deterministically (fixed timestamps, sorted entries).
+2. **What is hashed/signed.** The manifest lists SHA-256 + length for every payload file and a `PayloadHash` = SHA-256 over the sorted lines
+   `path TAB sha256 TAB length LF`. The signature (ES256, same as licenses) covers the exact UTF-8 JSON bytes of the manifest, so it transitively
+   protects every payload byte, path and the file set. `UpdateInfo.DownloadSha256` (hash of the whole file) is ADVISORY early corruption detection only;
+   authenticity always comes from the signed manifest.
+3. **Trust model reuse.** Licensing and updates share `Security.Es256` (verify with trusted PUBLIC keys by KeyId; unknown key = rejected; several keys
+   trusted at once = rotation) and `Security.Es256.Signing` (private keys; only LicenseServer.Infrastructure and UpdatePublisher reference it). Updater
+   trusted keys: `Updater:TrustedKeys` (none = nothing verifies = fail closed). No keys are committed; production keys are PEM files outside the repo;
+   tests use ephemeral keys. The updater does NOT reference Client.Licensing; it asks `ILicenseEntitlementService` ("is this entitled?") and never
+   re-implements LicenseState/Evaluator/Policy.
+4. **Package vs runtime manifest.** `PackageManifest` (package layer) holds PackageHash/PayloadHash, KeyId, files, migration metadata. `IModuleManifest`
+   and `IModule` were NOT touched and carry no package/update fields (ARCH-UPD-015). `UpdateState` is its own lifecycle, separate from ModuleRuntimeStatus
+   and LicenseState.
+5. **Verification pipeline** (`PackageVerifier`, mutates nothing): package exists -> opens safely (size/entry/zip-bomb limits, safe unique paths, only
+   manifest.json + payload/) -> envelope well-formed -> signing key trusted -> signature valid -> (only now) manifest parsed and identity validated
+   (schema, package type, target id, versions, deps, entitlements, file list, migration metadata via the shared ManifestRules) -> payload exactly the listed
+   files with matching per-file hashes/lengths and PayloadHash -> target framework + host version range -> version semantics -> module compatibility +
+   dependencies (reuses ModuleDependencyResolver on the post-update module set: missing, version conflict, cycles, breaking an installed dependent) ->
+   license entitlements -> migration metadata (module packages only; schema never moves backwards) -> installation plan. The same pipeline minus the payload
+   step verifies DISCOVERED manifests, so only verified, installable, entitled updates are ever offered or downloaded. (The signature check deliberately
+   precedes manifest parsing: the manifest is untrusted until it verifies.)
+6. **Versions.** Core and every module version independently using the existing ModuleVersion/VersionRange. A package is accepted only as an upgrade (or a
+   new module); same version = Update.AlreadyInstalled, older = Update.Downgrade. Rollback is a separate explicit operation (a pointer switch), never a
+   downgrade install. `MinimumHostVersion` means: module package = minimum installed core; core package = minimum installed core it can upgrade from.
+7. **On-disk model** (outside the SQLite DB, default `%LOCALAPPDATA%\GenericPOS\Updates`): `downloads/`, `staging/<id>/`, `installed/<target>/<version>/`
+   (side by side, never overwritten), `installed/<target>/active.json` (the ONLY switch), `journal/<id>.json`, `restore/<id>/`. Activation = one atomic
+   pointer write (temp file + move), so there is never a half-old/half-new installation and no locked running executable is overwritten. The previous version
+   stays on disk as the known-good fallback; confirmation prunes versions older than the previous one, never the active or previous version.
+8. **State machine** (persisted per update): Discovered, Downloaded, Verified, Staged, MigrationPending, Migrating, ReadyToActivate, Activated, Confirmed;
+   failure branches VerificationFailed, MigrationFailed, ActivationFailed, Failed, RecoveryRequired, RolledBack. Activated means "pointer switched, not yet
+   confirmed healthy"; the host confirms after a healthy start (`ConfirmHealthyAsync`).
+9. **Migrations: orchestrated, not executed.** Packages carry only metadata (`PackageMigration`: from/to schema, `OldBinaryCompatibleWithNewSchema`); the
+   migrations themselves live in the module's own assemblies. The updater creates a database restore point (SQLite online backup) BEFORE a migration, then
+   asks the module's `IModuleMigrator` (Platform.Application contract, module-owned, touches only that module's tables) to migrate. If no migrator exists the
+   migration is DEFERRED to the module's own startup initializer (how all four current modules migrate). The updater never runs SQL and never touches tables.
+10. **Binary rollback != database rollback.** Failure matrix: migration fails without modifying data -> MigrationFailed (nothing activates); migration fails
+    after modifying data -> RecoveryRequired (restore point kept, NO silent restore); crash/activation failure after an incompatible migration ->
+    RecoveryRequired; same with a forward-compatible migration -> safe binary-only recovery (ActivationFailed / auto rollback). Automatic rollback (an
+    unconfirmed update after `MaxStartupAttempts` starts) happens only when binaries can be rolled back safely. Restoring the database requires the explicit
+    `RollbackAsync(target, restoreData: true)` and discards changes made after the restore point. The database file is never deleted or recreated.
+11. **Core updates** use the same mechanism (a separate PackageType): the new core is deployed side by side and activated by pointer switch, so the updater
+    never overwrites itself or a running executable. Taking effect at runtime requires a launcher/ModuleHost that follows the pointer (deferred, below).
+    Core packages cannot carry migration metadata (modules own schemas).
+12. **Failure/offline.** Discovery and download failures are ordinary results (`Update.ServerUnavailable` / `Update.DownloadFailed`), never exceptions;
+    `UpdaterInitializer` (startup recovery) is purely local and cannot fail or block startup; downloads are written to `.part` files and only moved into
+    place after the advisory hash check; transports require HTTPS except loopback.
+13. **Server.** `UpdateServer` serves a directory of `.gpkg` files (read-only repository), answers `check` with the newest newer package per INSTALLED
+    target built for the client's runtime and host version, and streams packages. It holds no keys, does no signing, and is unauthenticated (foundation scope).
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 6 is complete (foundation scope).
-Build: 0 errors, 0 warnings (42 projects).
-All 713 tests pass.
+None blocking. Stage 7 is complete (foundation scope).
+Build: 0 errors, 0 warnings (52 projects).
+All 903 tests pass.
 Catalog, Inventory, Sales and POS database schemas are applied at startup by their initializers.
 Database: %LOCALAPPDATA%\GenericPOS\genericpos.db (Platform + Catalog + Inventory + Sales + POS tables in same file).
+
+Remaining limitations after Stage 7:
+- RUNTIME ADOPTION IS NOT WIRED: an Activated update changes the active pointer and leaves a verified, deployed version on disk, but nothing yet loads from
+  `installed/<target>/<version>`: there is no launcher that starts the active core version, and ModuleHost still uses the modules compiled into the app
+  (its file-system discovery scans `<AppBase>/modules`, not the updater's directories). Until that integration exists, installing an update does not change
+  what runs. The host must also call `UpdateService.ConfirmHealthyAsync` after a healthy start (not yet wired in App.xaml.cs; unconfirmed updates are
+  rolled back after MaxStartupAttempts starts by design).
+- No business module implements `IModuleMigrator` yet; migrations are DEFERRED to each module's own startup initializer, so the pre-activation migration step
+  is only exercised with test doubles. The restore point is a full database copy (disk usage) and RESTORE must run while the database is not in use.
+- No automatic update checks and no UI: the host/code must call `IUpdateService`. ModulePackager/UpdatePublisher are libraries (no CLI wrappers yet).
+- UpdateServer: directory-based, unauthenticated, no publishing API, no admin/portal, no staged rollout or delta packages; HTTPS is expected at the
+  host/reverse proxy. Packages are not encrypted (signatures give authenticity/integrity, not confidentiality).
+- The advisory whole-file hash comes from the same (untrusted) server; it only catches corruption. Anti-rollback of the signed content relies on the
+  version rules (no downgrades), not on a signed "latest version" list.
+- Core activation takes effect only after a restart by design; there is no in-place hot swap.
 
 Remaining limitations after Stage 6:
 - NO ENFORCEMENT YET: nothing in the runtime or UI denies access based on LicenseState. Business modules do not consult
@@ -1187,7 +1379,7 @@ Remaining limitations after Stage 6:
   activation key is the only credential. Activation key brute-force/rate limiting is not implemented.
 - A license can be bound to one installation at a time; transferring/deactivating an installation is not implemented.
 - No licensing status UI. Trusted public keys must be supplied in configuration.
-- Stage 7 (package/update signing) is not started and shares no code with licensing yet.
+- (Stage 7 now reuses the Stage 6 trust model through Security.Es256; licensing itself is unchanged and still not enforced anywhere.)
 
 Remaining limitations after Stage 5D:
 - No payment processing (no Payments module).
@@ -1207,4 +1399,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-04 - Stage 6 complete (licensing foundation). Signed offline licensing and minimal license server implemented and tested.
+Last updated: 2026-10-04 - Stage 7 complete (update system foundation). Signed packages, verified/recoverable updates and a minimal update server implemented and tested.

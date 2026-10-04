@@ -1,7 +1,7 @@
 # CLAUDE_CONTEXT.md
 
 Practical onboarding snapshot for future Claude sessions. `PROJECT_STATE.md` remains the formal state document.
-Repository source code is the source of truth; last updated 2026-10-04 when Stage 6 was completed.
+Repository source code is the source of truth; last updated 2026-10-04 when Stage 7 was completed.
 
 ## 1. Project purpose
 Generic, modular, offline-first Inventory & POS platform meant to serve many business types (retail, wholesale,
@@ -36,15 +36,29 @@ App must work with no internet. No cloud calls in the operational path.
 
 ## 9. Implemented stages (committed)
 Stage 1 Foundation, 2 Client Host, 3 Database Foundation, 4 Module Contract, 5A Catalog, 5B Inventory, 5C Sales, 5D POS,
-6 Licensing (foundation). Roadmap: 7 Update System, 8 Additional Business Modules, 9 Cloud, 10 Hardware,
+6 Licensing (foundation), 7 Update System (foundation). Roadmap: 8 Additional Business Modules, 9 Cloud, 10 Hardware,
 11 Security Hardening, 12 Offline/Failure Testing. Never skip ahead.
 
 ## 10. Current stage
-Stage 6 (Licensing) is COMPLETE as a foundation. Next roadmap stage is 7 (Update System) - only when instructed.
+Stage 7 (Update System) is COMPLETE as a foundation. Next roadmap stage is 8 (Additional Business Modules) - only when instructed.
 
 ## 11. Stage results worth knowing
 **Stage 5C (Sales):** Sale/SaleItem/Return/ReturnItem/SalesTransaction; ISalesService/ISalesReader; `sal_` tables, migration
 `InitialSalesSchema`; CompleteSale only records a SalesTransaction (no stock, no payments). 103 tests, ARCH-SAL-001..016.
+
+**Stage 7 (Update System):** signed, verified, recoverable updates for core and modules. Package = `.gpkg` ZIP (`manifest.json` signed envelope +
+`payload/`), hashed per file + PayloadHash, signed with ES256 (the SAME primitive as licensing, shared in `src/Security/Security.Es256`; signing lives
+in `Security.Es256.Signing`, referenced only by LicenseServer.Infrastructure and UpdatePublisher). `Updates.Contracts` (PackageManifest, PackageType
+Core/Module, discovery DTOs, error codes), `Updates.Package` (format, safe reader, deterministic writer, shared ManifestRules). `Client.Updater`
+(no HTTP/EF/WPF/signing/business/Client.Licensing): `PackageVerifier` = 14-step pipeline that mutates nothing; `UpdateService` = check / download /
+install (stage -> optional migration with DB restore point -> deploy side by side -> ATOMIC `active.json` pointer switch) / recover / confirm /
+rollback; persisted `UpdateState` journal; `Client.Updater.Http` is the only HttpClient user. `UpdateServer.*` serves a directory of packages (no keys).
+`tools/ModulePackager` validates+hashes before signing; `tools/UpdatePublisher` signs and writes. Migrations are module-owned: the updater only
+orchestrates via `IModuleMigrator` (Platform.Application; none implemented yet, so migration is deferred to each module's startup initializer).
+Binary rollback != database rollback: DB restore is explicit only (`RollbackAsync(target, restoreData: true)`).
+**NOT wired yet (read before touching it):** no launcher/ModuleHost consumes the active pointers, so an Activated update does not change what
+runs; `ConfirmHealthyAsync` is not called by the host yet; no auto discovery/UI; servers are in-memory/directory-based and unauthenticated.
+168 updater tests, ARCH-UPD-001..022. Decisions: PROJECT_STATE.md "Stage 7 Architectural Decisions".
 
 **Stage 6 (Licensing):** signed, offline-evaluated licensing. Shared wire model `Licensing.Contracts` (SignedLicense = Base64 payload +
 ES256 signature). `Client.Licensing` (Domain/Application/Infrastructure namespaces; NO HTTP/EF/WPF/business modules) verifies with trusted
@@ -68,8 +82,8 @@ Handlers are plain classes with `HandleAsync` (Platform ICommand/IQuery abstract
 
 ## 12. Solution structure
 `GenericPOS.sln`: `src/Platform/{Platform.Core,Contracts,Application,Infrastructure}`, `src/Client/{Client.Host,ModuleHost,Desktop,Licensing,Updater}`,
-`src/Modules/{Catalog,Inventory,Sales,POS}/<Module>.{Domain,Application,Contracts,Infrastructure,UI}` (42 projects total),
-`tests/{Architecture,Platform.Infrastructure,Platform.ModuleContract,Catalog,Inventory,Sales,POS,Licensing}.Tests`; `src/Licensing/Licensing.Contracts`, `src/Client/Client.Licensing(.Http)`, `src/Cloud/LicenseServer/*`.
+`src/Modules/{Catalog,Inventory,Sales,POS}/<Module>.{Domain,Application,Contracts,Infrastructure,UI}` (52 projects total),
+`tests/{Architecture,Platform.Infrastructure,Platform.ModuleContract,Catalog,Inventory,Sales,POS,Licensing}.Tests`; `src/Licensing/Licensing.Contracts`, `src/Client/Client.Licensing(.Http)`, `src/Cloud/LicenseServer/*`, `src/Security/Security.Es256(.Signing)`, `src/Updates/Updates.{Contracts,Package}`, `src/Client/Client.Updater(.Http)`, `src/Cloud/UpdateServer/*`, `tools/{ModulePackager,UpdatePublisher}`, `tests/Updater.Tests`.
 Docs at repo root: `Architecture & Solution Design.md`, `Generic Offline-First Inventory & POS Platform.md`,
 `Module Map & Dependency Specification.md`, `PROJECT_STATE.md`.
 
@@ -88,8 +102,8 @@ Catalog.Contracts: `IProductLookup`, `IProductBarcodeResolver`. Inventory.Contra
 
 ## 15. Testing strategy
 xUnit. Per-module test projects (domain, application integration on in-memory SQLite, infrastructure, contracts) plus
-`Architecture.Tests` boundary rules (ARCH-INV-xxx style). Baseline (verified 2026-10-04): Architecture 133, Catalog 64, Inventory 89, Platform.Infrastructure 19,
-Platform.ModuleContract 112, Sales 103, POS 84, Licensing 109 = 713 passing.
+`Architecture.Tests` boundary rules (ARCH-INV-xxx style). Baseline (verified 2026-10-04): Architecture 155, Catalog 64, Inventory 89, Platform.Infrastructure 19,
+Platform.ModuleContract 112, Sales 103, POS 84, Licensing 109, Updater 168 = 903 passing.
 
 ## 16. Git workflow
 Task -> inspect -> implement only that task -> build -> test -> verify architecture boundaries -> update PROJECT_STATE.md ->
@@ -104,11 +118,12 @@ If push auth fails, stop and report. Commit trailer: `Co-Authored-By: Claude Son
 Clean after the Stage 5C commit is pushed (check `git status` at session start anyway).
 
 ## 19. Last relevant commit
-`feat(licensing): implement offline-first license management` (see `git log -1`). Before it: `8c44ea4 feat: add pos module (Stage 5D)`.
+`feat(update): implement secure update system` (see `git log -1`). Before it: `e0d777d feat(licensing): implement offline-first license management`.
 
 ## 20. Exact next task
-None assigned. Wait for the technical lead. Next roadmap stage: Stage 7 Update System. Follow-ups (not in any stage): license
-enforcement points/UI, durable license-server storage, Payments module, stock-reversal contract.
+None assigned. Wait for the technical lead. Next roadmap stage: Stage 8 Additional Business Modules. Follow-ups (not in any stage): launcher/ModuleHost
+adoption of activated updates + calling ConfirmHealthyAsync, license enforcement points, IModuleMigrator in the business modules, Payments module,
+stock-reversal contract.
 
 ## 21. Known limitations / inconsistencies
 - No payments (no Payments module); checkout completes the sale and issues stock only.
@@ -118,8 +133,9 @@ enforcement points/UI, durable license-server storage, Payments module, stock-re
 - PROJECT_STATE.md header still says "Cloud Backend ... Stage 6"; roadmap is 6 Licensing, 7 Updates, 9 Cloud.
 - WPF UI projects are not covered by architecture tests (net10.0-windows TFM gap).
 - Licensing is not enforced anywhere yet; no clock-rollback protection; license server is in-memory and unauthenticated.
-- Test baseline: 713 tests (Architecture 133, Catalog 64, Inventory 89, Platform.Infrastructure 19,
-  Platform.ModuleContract 112, Sales 103, POS 84, Licensing 109).
+- Updates verify/stage/activate but nothing loads the activated versions yet (no launcher; ModuleHost uses compiled-in modules); ConfirmHealthyAsync is not called by the host; update server is directory-based and unauthenticated.
+- Test baseline: 903 tests (Architecture 155, Catalog 64, Inventory 89, Platform.Infrastructure 19,
+  Platform.ModuleContract 112, Sales 103, POS 84, Licensing 109, Updater 168).
 
 ## 22. Rules for future Claude sessions
 1. Read PROJECT_STATE.md, this file, and the 3 architecture docs before acting.

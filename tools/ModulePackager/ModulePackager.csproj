@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    ModulePackager: validates a package specification and its payload directory and produces an unsigned PackageDraft.
+    It rejects invalid packages BEFORE signing. No keys, no HTTP, no EF, no UI, no client or business module references.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Updates\Updates.Contracts\Updates.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Updates\Updates.Package\Updates.Package.csproj" />
+    <ProjectReference Include="..\..\src\Security\Security.Es256\Security.Es256.csproj" />
+  </ItemGroup>
+</Project>

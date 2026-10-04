@@ -15,6 +15,7 @@
     <ProjectReference Include="..\..\Platform\Platform.Core\Platform.Core.csproj" />
     <ProjectReference Include="..\..\Platform\Platform.Application\Platform.Application.csproj" />
     <ProjectReference Include="..\..\Licensing\Licensing.Contracts\Licensing.Contracts.csproj" />
+    <ProjectReference Include="..\..\Security\Security.Es256\Security.Es256.csproj" />
     <!-- Client.Host: IHostingModule only (composition-root registration), same as module Infrastructure projects. -->
     <ProjectReference Include="..\Client.Host\Client.Host.csproj" />
   </ItemGroup>

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    UpdatePublisher: the TRUSTED publishing step. Takes a validated PackageDraft, signs the manifest with a private key
+    (held only here / by the operator, never in the package) and writes the distributable .gpkg.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ModulePackager\ModulePackager.csproj" />
+    <ProjectReference Include="..\..\src\Updates\Updates.Contracts\Updates.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Updates\Updates.Package\Updates.Package.csproj" />
+    <ProjectReference Include="..\..\src\Security\Security.Es256\Security.Es256.csproj" />
+    <ProjectReference Include="..\..\src\Security\Security.Es256.Signing\Security.Es256.Signing.csproj" />
+  </ItemGroup>
+</Project>

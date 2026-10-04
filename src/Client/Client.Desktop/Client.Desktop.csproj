@@ -15,6 +15,9 @@
     <!-- Licensing (Stage 6): offline evaluation + HTTP transport to the license server -->
     <ProjectReference Include="..\Client.Licensing\Client.Licensing.csproj" />
     <ProjectReference Include="..\Client.Licensing.Http\Client.Licensing.Http.csproj" />
+    <!-- Updater (Stage 7): verified, recoverable updates + HTTP transport to the update server -->
+    <ProjectReference Include="..\Client.Updater\Client.Updater.csproj" />
+    <ProjectReference Include="..\Client.Updater.Http\Client.Updater.Http.csproj" />
     <!-- POS module (Stage 5D) - POSHostingModule lives in POS.Infrastructure -->
     <ProjectReference Include="..\..\Modules\POS\POS.Infrastructure\POS.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\POS\POS.UI\POS.UI.csproj" />

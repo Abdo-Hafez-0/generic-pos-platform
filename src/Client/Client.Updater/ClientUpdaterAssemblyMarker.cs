@@ -1,28 +1,21 @@
 namespace Client.Updater;
 
 /// <summary>
-/// Marks the Client.Updater project boundary.
+/// Marks the Client.Updater assembly (used by Architecture.Tests to locate it).
 ///
-/// STAGE 2 STATUS: Project boundary only. NO update implementation.
+/// Client.Updater is the client side of the secure update system (Stage 7):
+///   Domain          - UpdateState machine, UpdateJournal, ActivePointer, version semantics
+///   Application     - PackageVerifier (the 14-step verification pipeline), UpdateService (check / download / install /
+///                     recover / confirm / rollback), IUpdateClient (transport abstraction), IDataSafeguard,
+///                     IMigrationCoordinator, IInstalledStateProvider
+///   Infrastructure  - UpdateStore (staging, side-by-side versions, atomic active pointer, journal),
+///                     SqliteDataSafeguard (restore points), ModuleOwnedMigrationCoordinator, host registration
 ///
-/// This project will own:
-/// - Update discovery (checking for new platform/module versions)
-/// - Package download
-/// - Digital signature verification of update packages
-/// - Version validation and dependency resolution
-/// - Module installation and replacement
-/// - Core application update
-/// - Rollback capability
-/// - Update lifecycle coordination
-///
-/// Implementation belongs to Stage 7.
-///
-/// IMPORTANT: Client.Updater operates independently of business modules.
-/// Business modules must NOT depend on Client.Updater.
-/// Update operations are triggered by the application host, not by business logic.
+/// It contains NO HTTP (see Client.Updater.Http), NO EF Core, NO WPF, NO signing key capability and NO reference to
+/// any business module or to Client.Licensing (licensing is consulted only through the Platform abstraction
+/// ILicenseEntitlementService). Business modules never reference it. Updates never delete or recreate the database.
 /// </summary>
 public static class ClientUpdaterAssemblyMarker
 {
     // Intentionally empty.
-    // Architecture tests use this type to locate the Client.Updater assembly.
 }

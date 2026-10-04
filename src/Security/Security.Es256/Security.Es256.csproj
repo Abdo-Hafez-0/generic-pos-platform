@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Neutral ES256 trust primitives shared by licensing (Stage 6) and updates (Stage 7):
+    trusted PUBLIC keys, signature verification, SHA-256 hex.
+    Contains NO private-key handling, NO HTTP, NO EF, NO UI and no reference to any other project.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+</Project>

@@ -120,11 +120,35 @@ internal static class Assemblies
         // Inventory.UI excluded — net10.0-windows TFM gap
     ];
 
+    // Sales module assemblies (Stage 5C)
+    // Note: Sales.UI is net10.0-windows and cannot be referenced here (TFM gap).
+    internal static readonly Assembly SalesDomain =
+        typeof(Sales.Domain.Entities.Sale).Assembly;
+
+    internal static readonly Assembly SalesContracts =
+        typeof(Sales.Contracts.Interfaces.ISalesService).Assembly;
+
+    internal static readonly Assembly SalesApplication =
+        typeof(Sales.Application.Commands.CreateSaleCommandHandler).Assembly;
+
+    internal static readonly Assembly SalesInfrastructure =
+        typeof(Sales.Infrastructure.SalesInfrastructureAssemblyMarker).Assembly;
+
+    internal static IReadOnlyList<Assembly> AllSalesAssemblies =>
+    [
+        SalesDomain,
+        SalesContracts,
+        SalesApplication,
+        SalesInfrastructure
+        // Sales.UI excluded — net10.0-windows TFM gap
+    ];
+
     internal static IReadOnlyList<Assembly> AllProjectAssemblies =>
     [
         .. AllPlatformAssemblies,
         .. AllClientAssemblies,
         .. AllCatalogAssemblies,
-        .. AllInventoryAssemblies
+        .. AllInventoryAssemblies,
+        .. AllSalesAssemblies
     ];
 }

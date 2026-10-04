@@ -9,6 +9,9 @@
     <!-- Inventory module (Stage 5B) — InventoryHostingModule lives in Inventory.Infrastructure -->
     <ProjectReference Include="..\..\Modules\Inventory\Inventory.Infrastructure\Inventory.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Inventory\Inventory.UI\Inventory.UI.csproj" />
+    <!-- Sales module (Stage 5C) — SalesHostingModule lives in Sales.Infrastructure -->
+    <ProjectReference Include="..\..\Modules\Sales\Sales.Infrastructure\Sales.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Sales\Sales.UI\Sales.UI.csproj" />
     <Content Include="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

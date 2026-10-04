@@ -26,7 +26,19 @@ determined by customer license entitlements.
 
 ## Current Implementation Phase
 
-**Stage 5B COMPLETE: Inventory Module**
+**Stage 5C COMPLETE: Sales Module**
+
+The Sales module is implemented following the canonical module pattern (Stages 5A/5B).
+All five Sales layers (Domain, Application, Contracts, Infrastructure, UI) exist and are tested.
+Domain model: Sale, SaleItem, Return, ReturnItem, SalesTransaction (Payments is NOT part of Sales;
+it remains a separate future module). Sales.UI (WPF) is implemented (SaleListViewModel) but not
+architecture-tested due to the net10.0-windows TFM gap. SalesHostingModule is registered in the
+desktop host (Catalog -> Inventory -> Sales). EF Core migration `InitialSalesSchema` creates the
+5 `sal_` tables. Architecture tests ARCH-SAL-001 through ARCH-SAL-016 are active and passing.
+`CompleteSaleCommandHandler` records a SalesTransaction only; inventory reduction and payment
+processing are deliberately deferred (Stage 5D / Payments).
+
+### Previous phase - Stage 5B COMPLETE: Inventory Module
 
 The Inventory module is fully implemented following the canonical module pattern (established in Stage 5A).
 All five Inventory layers (Domain, Application, Contracts, Infrastructure, UI) are implemented and tested.
@@ -161,23 +173,22 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 
 
 ## Current Task
 
-**Stage 5B - COMPLETE. Stopping before Stage 5C - Sales.**
+**Stage 5C - COMPLETE. Stopping before Stage 5D - POS.**
 
 ---
 
 ## Next Task
 
-**Stage 5C - Sales Module (awaiting instruction)**
+**Stage 5D - POS Module (awaiting instruction)**
 
-Sales module: SalesOrder, SalesOrderLine, SalePayment.
-Sales consumes Catalog.Contracts (IProductLookup) and Inventory.Contracts (IStockAvailabilityChecker).
-Follows the same canonical module pattern established in Stages 5A and 5B.
+POS consumes Catalog.Contracts, Inventory.Contracts and Sales.Contracts (ISalesService, ISalesReader).
+Cross-module orchestration of the vertical slice (stock reduction, payment) is Stage 5D+ work.
 
 ---
 
 ## Solution / Project Structure (Current State)
 
-GenericPOS.sln (24 projects)
+GenericPOS.sln (30 projects)
 
 src/
 +-- Platform/
@@ -195,7 +206,7 @@ src/
 |   +-- Client.ModuleHost          [DONE] - IModuleDiscoveryService, FileSystemModuleDiscoveryService,
 |   |                                        ModuleCandidate, ModuleHostRegistrar (registers IModuleRegistry,
 |   |                                        IModuleDependencyResolver), ModuleRegistrationRecord
-|   +-- Client.Desktop             [DONE] - WPF shell + Catalog + Inventory modules wired in (Stage 5B)
+|   +-- Client.Desktop             [DONE] - WPF shell + Catalog + Inventory + Sales modules wired in (Stage 5C)
 |   +-- Client.Licensing           [DONE] - Boundary marker only (Stage 6)
 |   +-- Client.Updater             [DONE] - Boundary marker only (Stage 7)
 |
@@ -250,15 +261,36 @@ src/
         |                                    Migration: InitialInventorySchema
         +-- Inventory.UI           [DONE] - WarehouseListViewModel, StockLevelViewModel (net10.0-windows)
 
+    +-- Sales/
+        +-- Sales.Domain           [DONE] - Sale, SaleItem, Return, ReturnItem, SalesTransaction entities;
+        |                                    value objects Money, SaleQuantity, SaleId, SaleItemId,
+        |                                    ReturnId, ReturnItemId; enums SaleStatus (Draft, Confirmed,
+        |                                    Completed, Cancelled), ReturnStatus (Pending, Processed,
+        |                                    Rejected); events SaleCreated/SaleCompleted/SaleCancelled
+        +-- Sales.Contracts        [DONE] - ISalesService, ISalesReader (cross-module public API);
+        |                                    CreateSaleResult, AddSaleItemResult, SaleOperationResult,
+        |                                    SaleSummaryResult, SaleStatusContract
+        +-- Sales.Application      [DONE] - Commands: CreateSale, AddSaleItem, ConfirmSale, CompleteSale,
+        |                                    CancelSale; Queries: GetSaleById, GetAllSales;
+        |                                    Repositories: ISaleRepository, IReturnRepository,
+        |                                    ISalesTransactionRepository; ISalesUnitOfWork; SaleDto
+        +-- Sales.Infrastructure   [DONE] - SalesDbContext (sal_ prefix), 5 EF configurations,
+        |                                    internal EF repositories, SalesUnitOfWork, SalesReader,
+        |                                    SalesService, SalesModule (IModule), SalesModuleManifest,
+        |                                    SalesHostingModule (IHostingModule),
+        |                                    SalesDatabaseInitializer (IHostedService),
+        |                                    SalesServicesExtensions, Migration: InitialSalesSchema
+        +-- Sales.UI               [DONE] - SaleListViewModel (net10.0-windows)
+
 tests/
-+-- Architecture.Tests             [DONE] - 79 tests, all passing (Stages 1-5B)
++-- Architecture.Tests             [DONE] - 95 tests, all passing (Stages 1-5C)
 +-- Platform.Infrastructure.Tests  [DONE] - 19 tests, all passing (Stage 3)
 +-- Platform.ModuleContract.Tests  [DONE] - 112 tests, all passing (Stage 4)
 +-- Catalog.Tests                  [DONE] - 64 tests, all passing (Stage 5A)
 +-- Inventory.Tests                [DONE] - 81 tests, all passing (Stage 5B)
++-- Sales.Tests                    [DONE] - 103 tests, all passing (Stage 5C)
 
 Planned:
-src/Modules/Sales/    - Stage 5C
 src/Modules/POS/      - Stage 5D
 src/OptionalModules/  - Stage 8
 src/Cloud/            - Stage 6
@@ -380,6 +412,7 @@ Client.Host -> Platform.Core, Platform.Application, Platform.Infrastructure
 Client.ModuleHost -> Client.Host, Platform.Core, Platform.Application
 Client.Desktop -> Client.Host, Client.ModuleHost, Catalog.Infrastructure, Catalog.UI,
                   Inventory.Infrastructure, Inventory.UI  <- Inventory references added Stage 5B
+                  Sales.Infrastructure, Sales.UI          <- Sales references added Stage 5C
 Client.Licensing -> Platform.Core (boundary only)
 Client.Updater -> Platform.Core (boundary only)
 
@@ -392,11 +425,23 @@ Inventory.Infrastructure -> Inventory.Domain, Inventory.Application, Inventory.C
                              Platform.Core, Platform.Infrastructure, Client.Host,
                              Microsoft.EntityFrameworkCore.Sqlite
 
+SALES MODULE (Stage 5C):
+Sales.Domain -> Platform.Core
+Sales.Contracts -> Platform.Core
+Sales.Application -> Sales.Domain, Sales.Contracts, Platform.Core, Platform.Application,
+                      Catalog.Contracts, Inventory.Contracts  <- cross-module contract dependencies (allowed)
+Sales.Infrastructure -> Sales.Domain, Sales.Application, Sales.Contracts, Platform.Core,
+                         Platform.Infrastructure, Client.Host, Catalog.Contracts, Inventory.Contracts,
+                         Microsoft.EntityFrameworkCore.Sqlite
+Sales.UI -> Sales.Application, Sales.Contracts, Platform.Core
+
 TESTS:
-Architecture.Tests -> all Platform + non-WPF Client + non-WPF Catalog + non-WPF Inventory projects
+Architecture.Tests -> all Platform + non-WPF Client + non-WPF Catalog + Inventory + Sales projects
 Platform.Infrastructure.Tests -> Platform.Infrastructure, Platform.Application
 Platform.ModuleContract.Tests -> Platform.Core, Platform.Application, Client.ModuleHost
 Catalog.Tests -> Catalog.Domain, Catalog.Application, Catalog.Infrastructure, Catalog.Contracts
+Sales.Tests -> Sales.Domain, Sales.Application, Sales.Infrastructure, Sales.Contracts,
+               Catalog.Contracts, Inventory.Contracts, Platform.Infrastructure (Catalog/Inventory stubbed)
 Inventory.Tests -> Inventory.Domain, Inventory.Application, Inventory.Infrastructure,
                    Inventory.Contracts, Catalog.Contracts, Platform.Infrastructure
 
@@ -458,6 +503,17 @@ Stage 5B (added via InventoryHostingModule / InventoryServicesExtensions):
 - GetAllStockLevelsQueryHandler (Transient)
 - GetStockMovementsQueryHandler (Transient)
 
+Stage 5C (added via SalesHostingModule / SalesServicesExtensions):
+- SalesDbContext (Scoped, same SQLite file as the other module DbContexts)
+- ISalesUnitOfWork -> SalesUnitOfWork (Scoped)
+- ISaleRepository -> EfSaleRepository, IReturnRepository -> EfReturnRepository,
+  ISalesTransactionRepository -> EfSalesTransactionRepository (Scoped)
+- ISalesReader -> SalesReader, ISalesService -> SalesService (Scoped)
+- IModule -> SalesModule (Singleton)
+- SalesDatabaseInitializer (IHostedService, Singleton)
+- CreateSale/AddSaleItem/ConfirmSale/CompleteSale/CancelSale command handlers (Transient)
+- GetSaleById/GetAllSales query handlers (Transient)
+
 ---
 
 ## Migration Strategy
@@ -485,13 +541,22 @@ Inventory migrations (Stage 5B): <- ACTIVE
     dotnet ef migrations add {Name} -p src/Modules/Inventory/Inventory.Infrastructure -s src/Client/Client.Desktop --context InventoryDbContext
   Applied by: InventoryDatabaseInitializer (IHostedService) at startup
 
+Sales migrations (Stage 5C): <- ACTIVE
+  Migration: InitialSalesSchema (20261004185047_InitialSalesSchema)
+  Tables: sal_Sales, sal_SaleItems, sal_Returns, sal_ReturnItems, sal_SalesTransactions
+  Table ownership: all sal_* tables are exclusively owned by SalesDbContext.
+                   Foreign keys exist only between Sales-owned tables (no cross-module FKs).
+  Location: src/Modules/Sales/Sales.Infrastructure/Migrations/
+  Command to regenerate:
+    dotnet ef migrations add {Name} -p src/Modules/Sales/Sales.Infrastructure -s src/Client/Client.Desktop --context SalesDbContext
+  Applied by: SalesDatabaseInitializer (IHostedService) at startup
+
 Future module migrations follow the same pattern with their own prefix:
-  Sales: sal_ prefix, Sales.Infrastructure/Migrations/
   POS:   pos_ prefix, POS.Infrastructure/Migrations/
 
 ---
 
-## Startup Sequence (Updated for Stage 5B)
+## Startup Sequence (Updated for Stage 5C)
 
 WPF App.OnStartup
   -> ApplicationHostBuilder.Create()
@@ -499,6 +564,7 @@ WPF App.OnStartup
      .WithModule(new ModuleHostRegistrar())          // registers IModuleDiscoveryService,
      .WithModule(new CatalogHostingModule())         //   IModuleRegistry, IModuleDependencyResolver
      .WithModule(new InventoryHostingModule())       // registers all Inventory services  <- Stage 5B
+     .WithModule(new SalesHostingModule())           // registers all Sales services      <- Stage 5C
      .Build()
   -> host.StartAsync()
        -> DatabaseInitializerService.StartAsync()   // Platform DB (EnsureCreated, no migrations)
@@ -508,6 +574,8 @@ WPF App.OnStartup
             -> Applies CatalogInitialCreate migration (cat_Products, cat_Categories, etc.)
        -> InventoryDatabaseInitializer.StartAsync() // Inventory DB migrations  <- Stage 5B
             -> Applies InitialInventorySchema migration (inv_Warehouses, inv_Locations, etc.)
+       -> SalesDatabaseInitializer.StartAsync()     // Sales DB migrations  <- Stage 5C
+            -> Applies InitialSalesSchema migration (sal_Sales, sal_SaleItems, etc.)
   -> Services.GetRequiredService<MainWindow>()
   -> mainWindow.Show()
 
@@ -518,6 +586,7 @@ Note: Hosted service execution order is determined by registration order in DI.
 DatabaseInitializerService is registered by AddPlatformInfrastructure (Stage 3).
 CatalogDatabaseInitializer is registered by AddCatalogModule (Stage 5A).
 InventoryDatabaseInitializer is registered by AddInventoryModule (Stage 5B).
+SalesDatabaseInitializer is registered by AddSalesModule (Stage 5C).
 
 ---
 
@@ -579,15 +648,28 @@ Stage 5B Tests (12) - NEW:
   ARCH-INV-010: Platform must not depend on Inventory (iterates all Platform assemblies)
   ARCH-INV-011: Inventory.Domain must not depend on HTTP
 
-Total Architecture.Tests: 79 tests, all PASSING.
+Stage 5C Tests (16) - NEW (tests/Architecture.Tests/DependencyRules/SalesBoundaryTests.cs):
+  ARCH-SAL-001/002/003/004: Sales.Domain must not depend on EF Core / WPF / HTTP+ASP.NET / Sales.Infrastructure
+  ARCH-SAL-005/006: Sales.Application must not depend on Sales.Infrastructure / Sales.UI / EF Core
+  ARCH-SAL-007: Sales.Contracts must not depend on Sales.Domain / Application / Infrastructure
+  ARCH-SAL-008: Sales must not reference Catalog/Inventory Domain, Application, Infrastructure or UI
+  ARCH-SAL-009: Sales.Domain and Sales.Contracts must not reference Catalog or Inventory at all
+  ARCH-SAL-010: Sales.Application consumes Catalog/Inventory through Contracts only
+  ARCH-SAL-011/012: Sales.Infrastructure depends on Sales inner layers; not on Sales.UI
+  ARCH-SAL-013/014/015: Platform, Catalog and Inventory must not depend on Sales
+  ARCH-SAL-016: Sales.Application and Sales.Domain must not depend on HTTP
+
+Total Architecture.Tests: 95 tests, all PASSING.
 Platform.Infrastructure.Tests: 19 tests, all PASSING.
 Platform.ModuleContract.Tests: 112 tests, all PASSING.
 Catalog.Tests: 64 tests, all PASSING.
 Inventory.Tests: 81 tests, all PASSING.
-Grand total: 355 tests, 0 failures.
+Sales.Tests: 103 tests, all PASSING (Domain, Application, Infrastructure incl. migration, Contracts).
+Grand total: 474 tests, 0 failures.
 
 ARCH-005, ARCH-006, ARCH-007: ACTIVE and passing (activated with Stage 5A).
 ARCH-INV-001 through ARCH-INV-011: ACTIVE and passing (activated with Stage 5B).
+ARCH-SAL-001 through ARCH-SAL-016: ACTIVE and passing (activated with Stage 5C).
 
 ---
 
@@ -633,6 +715,20 @@ Inventory.Tests | Microsoft.Extensions.Configuration.Json | 10.0.11 | Configurat
 
 ---
 
+## Packages Added in Stage 5C
+
+Project | Package | Version | Reason
+--------|---------|---------|-------
+Sales.Infrastructure | Microsoft.EntityFrameworkCore.Sqlite | 10.0.11 | Module-owned SQLite persistence
+Sales.Infrastructure | Microsoft.EntityFrameworkCore.Design | 10.0.11 | Migration tooling (PrivateAssets=all)
+Sales.Infrastructure | Microsoft.Extensions.Configuration.Binder | 10.0.11 | DatabaseOptions binding
+Sales.Infrastructure | Microsoft.Extensions.Hosting.Abstractions | 10.0.11 | IHostedService
+Sales.Tests | Microsoft.EntityFrameworkCore.Sqlite | 10.0.11 | In-memory SQLite tests
+Sales.Tests | Microsoft.Extensions.DependencyInjection | 10.0.11 | DI container for integration tests
+Sales.Tests | Microsoft.Extensions.Logging.Abstractions | 10.0.11 | ILogger for SalesDatabaseInitializer
+
+---
+
 ## Architectural Implementation Stages
 
 Stage | Name                                                  | Status
@@ -643,7 +739,7 @@ Stage | Name                                                  | Status
 4     | Module Contract (IModule, IModuleManifest, lifecycle) | COMPLETE
 5A    | Catalog Module (canonical module pattern)             | COMPLETE
 5B    | Inventory Module                                      | COMPLETE
-5C    | Sales Module                                          | Not Started
+5C    | Sales Module                                          | COMPLETE
 5D    | POS Module                                            | Not Started
 6     | Licensing (LicenseServer, Client.Licensing)           | Not Started
 7     | Update System (packages, signatures, rollback)        | Not Started
@@ -776,12 +872,21 @@ Same documented TFM gap exception as Catalog.UI and Client.Desktop.
 
 ## Known Issues / Blockers
 
-None. Stage 5B is complete.
-Build: 0 errors, 0 warnings (24 projects).
-All 355 tests pass. Application starts correctly.
-Catalog and Inventory database schemas applied at startup.
-Database: %LOCALAPPDATA%\GenericPOS\genericpos.db (Platform + Catalog + Inventory tables in same file).
+None blocking. Stage 5C is complete.
+Build: 0 errors, 0 warnings (30 projects).
+All 474 tests pass.
+Catalog, Inventory and Sales database schemas are applied at startup by their initializers.
+Database: %LOCALAPPDATA%\GenericPOS\genericpos.db (Platform + Catalog + Inventory + Sales tables in same file).
+
+Notes:
+- Stage 5C fixed a defect in SalesReader.FindByIdAsync (EF could not translate `s.Id.Value == guid`
+  against the SaleId value converter; now compares `s.Id == new SaleId(guid)`).
+- Sales.UI is not covered by Architecture.Tests (net10.0-windows TFM gap, same as other modules).
+- CompleteSaleCommandHandler does not yet reduce stock or process payments (Stage 5D / Payments).
+- Sales design: Sale/SaleItem/Return/ReturnItem/SalesTransaction. The earlier planning names
+  SalesOrder/SalesOrderLine/SalePayment were superseded; Payments is a separate future module.
+- Header text "Cloud Backend ... Stage 6" is stale: roadmap is 6 Licensing, 7 Updates, 9 Cloud.
 
 ---
 
-Last updated: 2026-09-24 - Stage 5B complete. Inventory module implemented and tested.
+Last updated: 2026-10-04 - Stage 5C complete. Sales module implemented, migrated and tested.

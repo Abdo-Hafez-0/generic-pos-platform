@@ -1,5 +1,6 @@
 using Catalog.Infrastructure.Module;
 using Inventory.Infrastructure.Module;
+using Sales.Infrastructure.Module;
 using Client.Host.Hosting;
 using Client.ModuleHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,6 +48,7 @@ public partial class App : Application
                 .WithModule(new ModuleHostRegistrar())
                 .WithModule(new CatalogHostingModule())  // Stage 5A: Catalog module
                 .WithModule(new InventoryHostingModule()) // Stage 5B: Inventory module
+                .WithModule(new SalesHostingModule())     // Stage 5C: Sales module
                 .Build();
 
             // Start all hosted services (logging, configuration, module discovery, etc.)

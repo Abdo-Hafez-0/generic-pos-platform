@@ -1,7 +1,7 @@
 # CLAUDE_CONTEXT.md
 
 Practical onboarding snapshot for future Claude sessions. `PROJECT_STATE.md` remains the formal state document.
-Repository source code is the source of truth; this file was written from an audit on 2026-10-04.
+Repository source code is the source of truth; last updated 2026-10-04 when Stage 5C was completed.
 
 ## 1. Project purpose
 Generic, modular, offline-first Inventory & POS platform meant to serve many business types (retail, wholesale,
@@ -35,50 +35,33 @@ InventoryDbContext, SalesDbContext). Each module has an `IHostedService` databas
 App must work with no internet. No cloud calls in the operational path.
 
 ## 9. Implemented stages (committed)
-Stage 1 Foundation, 2 Client Host, 3 Database Foundation, 4 Module Contract, 5A Catalog, 5B Inventory — all committed and pushed.
-Roadmap: 5C Sales, 5D POS, 6 Licensing, 7 Update System, 8 Additional Business Modules, 9 Cloud, 10 Hardware,
+Stage 1 Foundation, 2 Client Host, 3 Database Foundation, 4 Module Contract, 5A Catalog, 5B Inventory, 5C Sales.
+Roadmap: 5D POS, 6 Licensing, 7 Update System, 8 Additional Business Modules, 9 Cloud, 10 Hardware,
 11 Security Hardening, 12 Offline/Failure Testing. Never skip ahead.
 
 ## 10. Current stage
-Stage 5C — Sales. IN PROGRESS, NOT COMPLETE, NOT COMMITTED.
+Stage 5C (Sales) is COMPLETE. Next is Stage 5D (POS), awaiting the technical lead's instruction.
 
-## 11. Exact Stage 5C progress (audited 2026-10-04)
-All Sales work is UNCOMMITTED (untracked `src/Modules/Sales/`, `tests/Sales.Tests/`; modified `GenericPOS.sln`,
-`Client.Desktop.csproj`, `App.xaml.cs`). Do not reset/clean it.
-
-Exists and compiles (Client.Desktop builds with 0 errors/0 warnings):
-- **Sales.Domain**: `Sale` (Draft->Confirmed->Completed, Cancel), `SaleItem`, `Return`, `ReturnItem`, `SalesTransaction`;
-  value objects `Money`, `SaleQuantity`, `SaleId`, `SaleItemId`, `ReturnId`, `ReturnItemId`; enums `SaleStatus`, `ReturnStatus`;
-  events `SaleCreated/Completed/Cancelled`.
-- **Sales.Application**: commands CreateSale, AddSaleItem, ConfirmSale, CompleteSale, CancelSale; queries GetSaleById, GetAllSales;
-  `SaleDto`; repository interfaces ISaleRepository, IReturnRepository, ISalesTransactionRepository; ISalesUnitOfWork.
-  Handlers are plain classes with `HandleAsync` (no MediatR).
-- **Sales.Contracts**: `ISalesService`, `ISalesReader`, models `SaleResults`, `SaleStatusContract`, `SaleSummaryResult`.
-- **Sales.Infrastructure**: `SalesDbContext` (5 `sal_` tables), 5 EF configurations, 3 internal EF repositories, `SalesUnitOfWork`,
-  `SalesReader`, `SalesService` (internal), `SalesModule`, `SalesModuleManifest` (id `sales`, v1.0.0, depends on catalog + inventory),
-  `SalesHostingModule`, `SalesDatabaseInitializer`, `AddSalesModule()` DI extension.
-- **Sales.UI**: only `SaleListViewModel`.
-- **Host wiring**: Client.Desktop references Sales.Infrastructure + Sales.UI; `App.xaml.cs` has `using Sales.Infrastructure.Module;`
-  but `.WithModule(new SalesHostingModule())` is NOT yet added (only Catalog and Inventory are registered) — Sales is not live in the host.
-- **Solution**: all 6 Sales projects added to `GenericPOS.sln`.
-- **Tests**: `tests/Sales.Tests/Sales.Tests.csproj` + `SalesTestDatabase.cs` (SQLite in-memory harness, `StubProductLookup`,
-  `StubStockAvailabilityChecker`). NO actual test cases written.
-
-Known defects / missing:
-1. **Solution build FAILS**: `Sales.Tests` gets CS0122 (6 errors) because Sales.Infrastructure lacks
-   `[assembly: InternalsVisibleTo("Sales.Tests")]`. The csproj uses a bogus `<InternalsVisibleTo>` property. Inventory does it via
-   an assembly attribute in `InventoryInfrastructureAssemblyMarker.cs` — copy that pattern.
-2. `SalesHostingModule` not registered in `App.xaml.cs`. 3. No EF migration for Sales (no `Migrations/` folder); initializer falls back to EnsureCreated when no migrations exist.
-4. No Sales tests (domain/application/infrastructure/contracts), no `SalesBoundaryTests` in Architecture.Tests
-   (Architecture.Tests does not reference Sales assemblies; `Assemblies.cs` not updated).
-5. `CompleteSaleCommandHandler` records the SalesTransaction only; inventory reduction and payments are deliberately deferred to 5D.
-6. Sales.UI is minimal; not architecture-tested (net10.0-windows gap, same as other modules).
-7. PROJECT_STATE.md not updated for 5C.
-8. Design deviates from PROJECT_STATE "Next Task" wording (see §21).
+## 11. Stage 5C result (Sales module)
+- **Domain:** Sale (Draft->Confirmed->Completed, Cancel from Draft/Confirmed), SaleItem (snapshots product name/SKU,
+  UnitPrice, Discount, TaxRate), Return, ReturnItem, SalesTransaction; value objects Money, SaleQuantity, strongly-typed IDs.
+- **Application:** commands CreateSale, AddSaleItem, ConfirmSale, CompleteSale, CancelSale; queries GetSaleById, GetAllSales
+  (plain handler classes with `HandleAsync`). AddSaleItem uses Catalog.Contracts `IProductLookup` and (when a warehouse is
+  given) Inventory.Contracts `IStockAvailabilityChecker`.
+- **Contracts:** `ISalesService`, `ISalesReader` + result/summary models.
+- **Infrastructure:** `SalesDbContext` (`sal_` tables), migration `InitialSalesSchema`, internal EF repositories,
+  `SalesModule`/manifest/`SalesHostingModule`/`SalesDatabaseInitializer`; `[InternalsVisibleTo("Sales.Tests")]` is set in
+  `SalesInfrastructureAssemblyMarker.cs` (same pattern as Inventory).
+- **UI:** `SaleListViewModel` only.
+- **Host:** `App.xaml.cs` registers Catalog, Inventory, Sales hosting modules in that order.
+- **Tests:** Sales.Tests 103 (domain, application, infrastructure incl. migration/initializer, contracts);
+  Architecture.Tests 95 total incl. ARCH-SAL-001..016 (`SalesBoundaryTests.cs`).
+- Fixed during 5C: `SalesReader.FindByIdAsync` used `s.Id.Value == guid`, untranslatable by EF; now `s.Id == new SaleId(guid)`.
+- Deliberately NOT done: stock reduction and payments on CompleteSale (Stage 5D / Payments module); no Payments entity.
 
 ## 12. Solution structure
 `GenericPOS.sln`: `src/Platform/{Platform.Core,Contracts,Application,Infrastructure}`, `src/Client/{Client.Host,ModuleHost,Desktop,Licensing,Updater}`,
-`src/Modules/{Catalog,Inventory,Sales}/<Module>.{Domain,Application,Contracts,Infrastructure,UI}`,
+`src/Modules/{Catalog,Inventory,Sales}/<Module>.{Domain,Application,Contracts,Infrastructure,UI}` (30 projects total),
 `tests/{Architecture,Platform.Infrastructure,Platform.ModuleContract,Catalog,Inventory,Sales}.Tests`.
 Docs at repo root: `Architecture & Solution Design.md`, `Generic Offline-First Inventory & POS Platform.md`,
 `Module Map & Dependency Specification.md`, `PROJECT_STATE.md`.
@@ -98,8 +81,8 @@ Catalog.Contracts: `IProductLookup`, `IProductBarcodeResolver`. Inventory.Contra
 
 ## 15. Testing strategy
 xUnit. Per-module test projects (domain, application integration on in-memory SQLite, infrastructure, contracts) plus
-`Architecture.Tests` boundary rules (ARCH-INV-xxx style). Baseline (verified 2026-10-04, excluding Sales.Tests):
-Architecture 79, Catalog 64, Inventory 81, Platform.Infrastructure 19, Platform.ModuleContract 112 = 355 passing.
+`Architecture.Tests` boundary rules (ARCH-INV-xxx style). Baseline (verified 2026-10-04): Architecture 95, Catalog 64, Inventory 81, Platform.Infrastructure 19,
+Platform.ModuleContract 112, Sales 103 = 474 passing.
 
 ## 16. Git workflow
 Task -> inspect -> implement only that task -> build -> test -> verify architecture boundaries -> update PROJECT_STATE.md ->
@@ -110,24 +93,24 @@ If push auth fails, stop and report. Commit trailer: `Co-Authored-By: Claude Son
 ## 17. Branch
 `master`, remote `origin` = https://github.com/Abdo-Hafez-0/generic-pos-platform.git
 
-## 18. Git status at audit time
-Modified: `GenericPOS.sln`, `Client.Desktop/App.xaml.cs`, `Client.Desktop.csproj`. Untracked: `src/Modules/Sales/`, `tests/Sales.Tests/`.
-(All pre-existing Stage 5C work; only this file was added by the onboarding task.)
+## 18. Git status
+Clean after the Stage 5C commit is pushed (check `git status` at session start anyway).
 
 ## 19. Last relevant commit
-`f6d1848 docs: reconcile project state after inventory` (previous: `899f0c8` PROJECT_STATE, `cc6e3e5` tests, `40a249f` inventory).
+`feat: add sales module (Stage 5C)` (see `git log -1`). Before it: `6e5d39a docs: add Claude project context`,
+`f6d1848 docs: reconcile project state after inventory`.
 
 ## 20. Exact next task
-Resume and finish Stage 5C: fix InternalsVisibleTo, register SalesHostingModule in App.xaml.cs, generate `sal_` migration,
-write Sales tests, add Sales architecture tests (ARCH-SAL-xxx), run full solution build/tests, update PROJECT_STATE.md,
-commit Sales work as `feat: add sales module (Stage 5C)`, push, verify. Then STOP (do not start 5D). Awaits user instruction.
+Stage 5D - POS module, only when the technical lead gives the instruction. POS must use Catalog.Contracts,
+Inventory.Contracts and Sales.Contracts only. Do not start it unprompted.
 
 ## 21. Known limitations / inconsistencies
-- PROJECT_STATE.md "Next Task" describes Sales as SalesOrder/SalesOrderLine/SalePayment; actual code is Sale/SaleItem/Return/
-  ReturnItem/SalesTransaction (no payments entity — Payments is a separate future module). Reconcile when updating state.
-- PROJECT_STATE.md says "Cloud Backend ... Stage 6" while the roadmap puts Licensing at 6 and Cloud at 9.
-- Sales GUIDs in the .sln look hand-written (valid format); harmless but unusual.
-- WPF UI projects are not covered by architecture tests.
+- CompleteSale does not reduce stock or process payments yet (future work; Payments is a separate module).
+- PROJECT_STATE.md header still says "Cloud Backend ... Stage 6"; roadmap is 6 Licensing, 7 Updates, 9 Cloud.
+- WPF UI projects are not covered by architecture tests (net10.0-windows TFM gap).
+- Sales.UI is minimal (one view model).
+- Test baseline: 474 tests (Architecture 95, Catalog 64, Inventory 81, Platform.Infrastructure 19,
+  Platform.ModuleContract 112, Sales 103).
 
 ## 22. Rules for future Claude sessions
 1. Read PROJECT_STATE.md, this file, and the 3 architecture docs before acting.

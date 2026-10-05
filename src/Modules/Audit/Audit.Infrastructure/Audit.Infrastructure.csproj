@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Audit.Domain\Audit.Domain.csproj" />
+    <ProjectReference Include="..\Audit.Application\Audit.Application.csproj" />
+    <ProjectReference Include="..\Audit.Contracts\Audit.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Platform.Application\Platform.Application.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Platform.Infrastructure\Platform.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Client\Client.Host\Client.Host.csproj" />
+  </ItemGroup>
+</Project>

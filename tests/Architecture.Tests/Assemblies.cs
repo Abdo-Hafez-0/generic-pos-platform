@@ -371,6 +371,29 @@ internal static class Assemblies
         // Users.UI excluded - net10.0-windows TFM gap
     ];
 
+    // Audit module assemblies (Stage 8)
+    // Note: Audit.UI is net10.0-windows and cannot be referenced here (TFM gap).
+    internal static readonly Assembly AuditDomain =
+        typeof(Audit.Domain.Entities.AuditEntry).Assembly;
+
+    internal static readonly Assembly AuditContracts =
+        typeof(Audit.Contracts.Interfaces.IAuditRecorder).Assembly;
+
+    internal static readonly Assembly AuditApplication =
+        typeof(Audit.Application.Commands.RecordAuditEntryCommandHandler).Assembly;
+
+    internal static readonly Assembly AuditInfrastructure =
+        typeof(Audit.Infrastructure.AuditInfrastructureAssemblyMarker).Assembly;
+
+    internal static IReadOnlyList<Assembly> AllAuditAssemblies =>
+    [
+        AuditDomain,
+        AuditContracts,
+        AuditApplication,
+        AuditInfrastructure
+        // Audit.UI excluded - net10.0-windows TFM gap
+    ];
+
     internal static IReadOnlyList<Assembly> AllProjectAssemblies =>
     [
         .. AllPlatformAssemblies,

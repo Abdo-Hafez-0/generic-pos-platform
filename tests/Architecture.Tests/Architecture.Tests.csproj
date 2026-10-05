@@ -93,6 +93,11 @@
     <ProjectReference Include="..\..\src\Modules\Users\Users.Contracts\Users.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Users\Users.Application\Users.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Users\Users.Infrastructure\Users.Infrastructure.csproj" />
+    <!-- Audit module assemblies (Stage 8) - Audit.UI excluded (net10.0-windows) -->
+    <ProjectReference Include="..\..\src\Modules\Audit\Audit.Domain\Audit.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Audit\Audit.Contracts\Audit.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Audit\Audit.Application\Audit.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Audit\Audit.Infrastructure\Audit.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

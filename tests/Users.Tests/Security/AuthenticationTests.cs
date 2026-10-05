@@ -109,8 +109,8 @@ public sealed class AuthenticationTests
         var adminId = await h.BootstrapAdminAsync();
         await h.SignInAsync("admin", Password);
         var cashier = await h.CreateUserWithPasswordAsync("cashier");
-        h.Session.SignOut();
         await h.Run(sp => sp.GetRequiredService<DeactivateUserCommandHandler>().HandleAsync(new DeactivateUserCommand(cashier)));
+        h.Session.SignOut();
 
         var right = await h.SignInAsync("cashier", Password);
         var wrong = await h.SignInAsync("cashier", "wrong password!!");

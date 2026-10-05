@@ -23,9 +23,11 @@ public sealed class UsersViewModel(
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
+        ErrorMessage = null;
         Users.Clear();
         var page = await list.HandleAsync(new ListUsersQuery(Search, IncludeInactive), cancellationToken);
-        foreach (var u in page.Items) Users.Add(u);
+        if (page.IsFailure) { ErrorMessage = page.Error.Description; return; }
+        foreach (var u in page.Value.Items) Users.Add(u);
     }
 
     public async Task CreateAsync(string username, string displayName, string? email, CancellationToken cancellationToken = default)

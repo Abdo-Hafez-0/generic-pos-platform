@@ -35,8 +35,8 @@ public sealed class UsersApplicationTests
         return r.Value;
     }
 
-    private static Task<UserDto?> GetUser(TestModuleDatabase<UsersDbContext> db, Guid id)
-        => Run(db, sp => sp.GetRequiredService<GetUserQueryHandler>().HandleAsync(new GetUserQuery(id)));
+    private static async Task<UserDto?> GetUser(TestModuleDatabase<UsersDbContext> db, Guid id)
+        => (await Run(db, sp => sp.GetRequiredService<GetUserQueryHandler>().HandleAsync(new GetUserQuery(id)))).Value;
 
     // ------------------------------------------------------------------ users
 
@@ -96,12 +96,12 @@ public sealed class UsersApplicationTests
         var carol = await CreateUser(db, "carol_x", "Carol C");
         await Run(db, sp => sp.GetRequiredService<DeactivateUserCommandHandler>().HandleAsync(new DeactivateUserCommand(carol)));
 
-        var active = await Run(db, sp => sp.GetRequiredService<ListUsersQueryHandler>().HandleAsync(new ListUsersQuery()));
-        var all = await Run(db, sp => sp.GetRequiredService<ListUsersQueryHandler>().HandleAsync(new ListUsersQuery(IncludeInactive: true)));
-        var search = await Run(db, sp => sp.GetRequiredService<ListUsersQueryHandler>().HandleAsync(new ListUsersQuery("BO")));
-        var literal = await Run(db, sp => sp.GetRequiredService<ListUsersQueryHandler>().HandleAsync(new ListUsersQuery("_", IncludeInactive: true)));
-        var paged = await Run(db, sp => sp.GetRequiredService<ListUsersQueryHandler>().HandleAsync(new ListUsersQuery(IncludeInactive: true, Page: 2, PageSize: 2)));
-        var clamped = await Run(db, sp => sp.GetRequiredService<ListUsersQueryHandler>().HandleAsync(new ListUsersQuery(Page: -4, PageSize: 99999)));
+        var active = (await Run(db, sp => sp.GetRequiredService<ListUsersQueryHandler>().HandleAsync(new ListUsersQuery()))).Value;
+        var all = (await Run(db, sp => sp.GetRequiredService<ListUsersQueryHandler>().HandleAsync(new ListUsersQuery(IncludeInactive: true)))).Value;
+        var search = (await Run(db, sp => sp.GetRequiredService<ListUsersQueryHandler>().HandleAsync(new ListUsersQuery("BO")))).Value;
+        var literal = (await Run(db, sp => sp.GetRequiredService<ListUsersQueryHandler>().HandleAsync(new ListUsersQuery("_", IncludeInactive: true)))).Value;
+        var paged = (await Run(db, sp => sp.GetRequiredService<ListUsersQueryHandler>().HandleAsync(new ListUsersQuery(IncludeInactive: true, Page: 2, PageSize: 2)))).Value;
+        var clamped = (await Run(db, sp => sp.GetRequiredService<ListUsersQueryHandler>().HandleAsync(new ListUsersQuery(Page: -4, PageSize: 99999)))).Value;
 
         Assert.Equal(["alice", "bob"], active.Items.Select(u => u.Username).ToArray());
         Assert.Equal(3, all.TotalCount);
@@ -126,7 +126,7 @@ public sealed class UsersApplicationTests
 
         Assert.Equal("Users.CreateRole.DuplicateName", dup.Error.Code);
         Assert.Equal("Users.Role.NameRequired", bad.Error.Code);
-        Assert.Single(await Run(db, sp => sp.GetRequiredService<ListRolesQueryHandler>().HandleAsync(new ListRolesQuery())));
+        Assert.Single((await Run(db, sp => sp.GetRequiredService<ListRolesQueryHandler>().HandleAsync(new ListRolesQuery()))).Value);
     }
 
     [Fact]
@@ -140,13 +140,13 @@ public sealed class UsersApplicationTests
         var missing = await Run(db, sp => sp.GetRequiredService<RevokePermissionCommandHandler>().HandleAsync(new RevokePermissionCommand(role, "sales.refund")));
         var noRole = await Run(db, sp => sp.GetRequiredService<GrantPermissionCommandHandler>().HandleAsync(new GrantPermissionCommand(Guid.NewGuid(), "a.b")));
 
-        var dto = await Run(db, sp => sp.GetRequiredService<GetRoleQueryHandler>().HandleAsync(new GetRoleQuery(role)));
+        var dto = (await Run(db, sp => sp.GetRequiredService<GetRoleQueryHandler>().HandleAsync(new GetRoleQuery(role)))).Value;
         Assert.Equal("Users.Role.PermissionAlreadyGranted", dup.Error.Code);
         Assert.True(revoked.IsSuccess);
         Assert.Equal("Users.Role.PermissionNotGranted", missing.Error.Code);
         Assert.Equal("Users.Role.NotFound", noRole.Error.Code);
         Assert.Equal(["inventory.adjust"], dto!.Permissions.ToArray());
-        Assert.Null(await Run(db, sp => sp.GetRequiredService<GetRoleQueryHandler>().HandleAsync(new GetRoleQuery(Guid.NewGuid()))));
+        Assert.Null((await Run(db, sp => sp.GetRequiredService<GetRoleQueryHandler>().HandleAsync(new GetRoleQuery(Guid.NewGuid())))).Value);
     }
 
     // ------------------------------------------------------------------ assignments + permissions

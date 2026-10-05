@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using Platform.Core.Results;
 using Users.Domain.Entities;
 using Users.Domain.ValueObjects;
@@ -63,10 +64,13 @@ namespace Users.Application.Commands
 
     public sealed record CreateUserCommand(string Username, string DisplayName, string? Email = null);
 
-    public sealed class CreateUserCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork)
+    public sealed class CreateUserCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
     {
         public async Task<Result<Guid>> HandleAsync(CreateUserCommand command, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
             var created = User.Create(command.Username, command.DisplayName, command.Email);
             if (created.IsFailure) return Result.Failure<Guid>(created.Error);
 
@@ -81,10 +85,13 @@ namespace Users.Application.Commands
 
     public sealed record UpdateUserCommand(Guid UserId, string DisplayName, string? Email);
 
-    public sealed class UpdateUserCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork)
+    public sealed class UpdateUserCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
     {
         public async Task<Result> HandleAsync(UpdateUserCommand command, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return allowed;
+
             var user = await users.GetByIdAsync(new UserId(command.UserId), cancellationToken);
             if (user is null) return Result.Failure(UsersErrors.UserNotFound(command.UserId));
 
@@ -98,10 +105,13 @@ namespace Users.Application.Commands
 
     public sealed record DeactivateUserCommand(Guid UserId);
 
-    public sealed class DeactivateUserCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork)
+    public sealed class DeactivateUserCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
     {
         public async Task<Result> HandleAsync(DeactivateUserCommand command, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return allowed;
+
             var user = await users.GetByIdAsync(new UserId(command.UserId), cancellationToken);
             if (user is null) return Result.Failure(UsersErrors.UserNotFound(command.UserId));
 
@@ -115,10 +125,13 @@ namespace Users.Application.Commands
 
     public sealed record ReactivateUserCommand(Guid UserId);
 
-    public sealed class ReactivateUserCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork)
+    public sealed class ReactivateUserCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
     {
         public async Task<Result> HandleAsync(ReactivateUserCommand command, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return allowed;
+
             var user = await users.GetByIdAsync(new UserId(command.UserId), cancellationToken);
             if (user is null) return Result.Failure(UsersErrors.UserNotFound(command.UserId));
 
@@ -132,10 +145,13 @@ namespace Users.Application.Commands
 
     public sealed record AssignRoleCommand(Guid UserId, Guid RoleId);
 
-    public sealed class AssignRoleCommandHandler(IUserRepository users, IRoleRepository roles, IUsersUnitOfWork unitOfWork)
+    public sealed class AssignRoleCommandHandler(IUserRepository users, IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
     {
         public async Task<Result> HandleAsync(AssignRoleCommand command, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return allowed;
+
             var user = await users.GetByIdAsync(new UserId(command.UserId), cancellationToken);
             if (user is null) return Result.Failure(UsersErrors.UserNotFound(command.UserId));
 
@@ -152,10 +168,13 @@ namespace Users.Application.Commands
 
     public sealed record RemoveRoleCommand(Guid UserId, Guid RoleId);
 
-    public sealed class RemoveRoleCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork)
+    public sealed class RemoveRoleCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
     {
         public async Task<Result> HandleAsync(RemoveRoleCommand command, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return allowed;
+
             var user = await users.GetByIdAsync(new UserId(command.UserId), cancellationToken);
             if (user is null) return Result.Failure(UsersErrors.UserNotFound(command.UserId));
 
@@ -171,10 +190,13 @@ namespace Users.Application.Commands
 
     public sealed record CreateRoleCommand(string Name, string? Description = null);
 
-    public sealed class CreateRoleCommandHandler(IRoleRepository roles, IUsersUnitOfWork unitOfWork)
+    public sealed class CreateRoleCommandHandler(IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
     {
         public async Task<Result<Guid>> HandleAsync(CreateRoleCommand command, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
             var created = Role.Create(command.Name, command.Description);
             if (created.IsFailure) return Result.Failure<Guid>(created.Error);
 
@@ -189,10 +211,13 @@ namespace Users.Application.Commands
 
     public sealed record GrantPermissionCommand(Guid RoleId, string Permission);
 
-    public sealed class GrantPermissionCommandHandler(IRoleRepository roles, IUsersUnitOfWork unitOfWork)
+    public sealed class GrantPermissionCommandHandler(IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
     {
         public async Task<Result> HandleAsync(GrantPermissionCommand command, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return allowed;
+
             var role = await roles.GetByIdAsync(new RoleId(command.RoleId), cancellationToken);
             if (role is null) return Result.Failure(UsersErrors.RoleNotFound(command.RoleId));
 
@@ -206,10 +231,13 @@ namespace Users.Application.Commands
 
     public sealed record RevokePermissionCommand(Guid RoleId, string Permission);
 
-    public sealed class RevokePermissionCommandHandler(IRoleRepository roles, IUsersUnitOfWork unitOfWork)
+    public sealed class RevokePermissionCommandHandler(IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
     {
         public async Task<Result> HandleAsync(RevokePermissionCommand command, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return allowed;
+
             var role = await roles.GetByIdAsync(new RoleId(command.RoleId), cancellationToken);
             if (role is null) return Result.Failure(UsersErrors.RoleNotFound(command.RoleId));
 
@@ -236,50 +264,68 @@ namespace Users.Application.Queries
 
     public sealed record GetUserQuery(Guid UserId);
 
-    public sealed class GetUserQueryHandler(IUserRepository users, IRoleRepository roles)
+    public sealed class GetUserQueryHandler(IUserRepository users, IRoleRepository roles, IAuthorizationService authorization)
     {
-        public async Task<UserDto?> HandleAsync(GetUserQuery query, CancellationToken cancellationToken = default)
+        /// <summary>Success with a null value means "no such user"; a failure means the caller may not view users.</summary>
+        public async Task<Result<UserDto?>> HandleAsync(GetUserQuery query, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.View, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<UserDto?>(allowed.Error);
+
             var user = await users.GetByIdAsync(new UserId(query.UserId), cancellationToken);
-            if (user is null) return null;
+            if (user is null) return Result.Success<UserDto?>(null);
 
             var assigned = await roles.GetByIdsAsync(user.Roles.Select(r => r.RoleId).ToList(), cancellationToken);
-            return new UserDto(
+            return Result.Success<UserDto?>(new UserDto(
                 user.Id.Value, user.Username, user.DisplayName, user.Email, user.Status,
-                assigned.OrderBy(r => r.Name).Select(r => new RoleSummaryDto(r.Id.Value, r.Name)).ToList(), user.CreatedAt);
+                assigned.OrderBy(r => r.Name).Select(r => new RoleSummaryDto(r.Id.Value, r.Name)).ToList(), user.CreatedAt));
         }
     }
 
     public sealed record ListUsersQuery(string? Search = null, bool IncludeInactive = false, int Page = 1, int PageSize = 50);
 
-    public sealed class ListUsersQueryHandler(IUserRepository users)
+    public sealed class ListUsersQueryHandler(IUserRepository users, IAuthorizationService authorization)
     {
         public const int MaxPageSize = 200;
 
-        public async Task<PagedUsers> HandleAsync(ListUsersQuery query, CancellationToken cancellationToken = default)
+        public async Task<Result<PagedUsers>> HandleAsync(ListUsersQuery query, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.View, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<PagedUsers>(allowed.Error);
+
             var page = Math.Max(1, query.Page);
             var size = Math.Clamp(query.PageSize, 1, MaxPageSize);
 
             var (items, total) = await users.ListAsync(query.Search, query.IncludeInactive, (page - 1) * size, size, cancellationToken);
-            return new PagedUsers(items.Select(u => new UserSummaryDto(u.Id.Value, u.Username, u.DisplayName, u.Status)).ToList(), total, page, size);
+            return Result.Success(new PagedUsers(items.Select(u => new UserSummaryDto(u.Id.Value, u.Username, u.DisplayName, u.Status)).ToList(), total, page, size));
         }
     }
 
     public sealed record GetRoleQuery(Guid RoleId);
 
-    public sealed class GetRoleQueryHandler(IRoleRepository roles)
+    public sealed class GetRoleQueryHandler(IRoleRepository roles, IAuthorizationService authorization)
     {
-        public async Task<RoleDto?> HandleAsync(GetRoleQuery query, CancellationToken cancellationToken = default)
-            => (await roles.GetByIdAsync(new RoleId(query.RoleId), cancellationToken))?.ToDto();
+        /// <summary>Success with a null value means "no such role"; a failure means the caller may not view roles.</summary>
+        public async Task<Result<RoleDto?>> HandleAsync(GetRoleQuery query, CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.View, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<RoleDto?>(allowed.Error);
+
+            return Result.Success((await roles.GetByIdAsync(new RoleId(query.RoleId), cancellationToken))?.ToDto());
+        }
     }
 
     public sealed record ListRolesQuery;
 
-    public sealed class ListRolesQueryHandler(IRoleRepository roles)
+    public sealed class ListRolesQueryHandler(IRoleRepository roles, IAuthorizationService authorization)
     {
-        public async Task<IReadOnlyList<RoleDto>> HandleAsync(ListRolesQuery query, CancellationToken cancellationToken = default)
-            => (await roles.ListAsync(cancellationToken)).OrderBy(r => r.Name).Select(r => r.ToDto()).ToList();
+        public async Task<Result<IReadOnlyList<RoleDto>>> HandleAsync(ListRolesQuery query, CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.View, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<IReadOnlyList<RoleDto>>(allowed.Error);
+
+            return Result.Success<IReadOnlyList<RoleDto>>((await roles.ListAsync(cancellationToken)).OrderBy(r => r.Name).Select(r => r.ToDto()).ToList());
+        }
     }
 
     /// <summary>The permission codes a user holds through their roles (nothing for an unknown or inactive user).</summary>

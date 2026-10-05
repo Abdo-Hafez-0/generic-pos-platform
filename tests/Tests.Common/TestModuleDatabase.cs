@@ -24,6 +24,8 @@ public sealed class TestModuleDatabase<TContext> : IAsyncDisposable where TConte
             o.UseSqlite(connection);
             o.EnableSensitiveDataLogging();
         });
+        // Business-behaviour tests are not about security: authorization allows everything unless the test registers a real or scripted one.
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.IAuthorizationService, Security.AllowAllAuthorizationService>();
         register(services);
 
         var provider = services.BuildServiceProvider();

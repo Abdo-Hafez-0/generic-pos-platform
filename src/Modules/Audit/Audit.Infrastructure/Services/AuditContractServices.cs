@@ -26,7 +26,7 @@ internal sealed class AuditReader(QueryAuditEntriesQueryHandler queryHandler, Ge
     public async Task<AuditPage> QueryAsync(AuditEntryFilter? filter = null, int page = 1, int pageSize = 50, CancellationToken cancellationToken = default)
     {
         filter ??= new AuditEntryFilter();
-        var result = await queryHandler.HandleAsync(new QueryAuditEntriesQuery(
+        var result = await queryHandler.ExecuteAsync(new QueryAuditEntriesQuery(
             filter.Module, filter.Action, filter.EntityType, filter.EntityId, filter.ActorId, filter.From, filter.To, page, pageSize), cancellationToken);
 
         return new AuditPage(
@@ -37,7 +37,7 @@ internal sealed class AuditReader(QueryAuditEntriesQueryHandler queryHandler, Ge
 
     public async Task<AuditEntryResult?> GetAsync(Guid entryId, CancellationToken cancellationToken = default)
     {
-        var e = await getHandler.HandleAsync(new GetAuditEntryQuery(entryId), cancellationToken);
+        var e = await getHandler.ExecuteAsync(new GetAuditEntryQuery(entryId), cancellationToken);
         return e is null
             ? null
             : new AuditEntryResult(e.EntryId, e.OccurredAt, e.Module, e.Action, e.EntityType, e.EntityId, e.ActorId, e.ActorName, e.Summary, e.Details);

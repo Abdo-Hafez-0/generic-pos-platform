@@ -77,6 +77,8 @@ public sealed class ReportingApplicationTests
     {
         var services = new ServiceCollection();
         services.AddReportingCore();
+        // These tests are about report content; the authorization boundary is covered in ReportingAuthorizationTests.
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.IAuthorizationService, global::Tests.Common.Security.AllowAllAuthorizationService>();
         configure?.Invoke(services);
         return services.BuildServiceProvider();
     }

@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using Customers.Contracts.Interfaces;
 using Inventory.Contracts.Interfaces;
 using Platform.Core.Results;
@@ -63,12 +64,15 @@ namespace Reporting.Application.Queries
     /// </summary>
     public sealed record GetSalesReportQuery(DateTime From, DateTime To);
 
-    public sealed class GetSalesReportQueryHandler(ISalesReader? salesReader = null)
+    public sealed class GetSalesReportQueryHandler(IAuthorizationService authorization, ISalesReader? salesReader = null)
     {
         public const int MaxSalesScanned = 2000;
 
         public async Task<Result<SalesReportDto>> HandleAsync(GetSalesReportQuery query, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Reporting.Application.Security.ReportingCapabilities.ViewReports, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<SalesReportDto>(allowed.Error);
+
             var range = DateRange.Create(query.From, query.To);
             if (range.IsFailure) return Result.Failure<SalesReportDto>(range.Error);
             if (salesReader is null) return Result.Failure<SalesReportDto>(ReportingErrors.Unavailable("Sales"));
@@ -92,10 +96,13 @@ namespace Reporting.Application.Queries
 
     public sealed record GetInventorySnapshotQuery;
 
-    public sealed class GetInventorySnapshotQueryHandler(IInventoryReader? inventoryReader = null)
+    public sealed class GetInventorySnapshotQueryHandler(IAuthorizationService authorization, IInventoryReader? inventoryReader = null)
     {
         public async Task<Result<InventorySnapshotDto>> HandleAsync(GetInventorySnapshotQuery query, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Reporting.Application.Security.ReportingCapabilities.ViewReports, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<InventorySnapshotDto>(allowed.Error);
+
             if (inventoryReader is null) return Result.Failure<InventorySnapshotDto>(ReportingErrors.Unavailable("Inventory"));
 
             var levels = await inventoryReader.GetAllStockLevelsAsync(cancellationToken);
@@ -106,10 +113,13 @@ namespace Reporting.Application.Queries
 
     public sealed record GetPurchasingOverviewQuery;
 
-    public sealed class GetPurchasingOverviewQueryHandler(IPurchaseOrderReader? purchaseOrderReader = null)
+    public sealed class GetPurchasingOverviewQueryHandler(IAuthorizationService authorization, IPurchaseOrderReader? purchaseOrderReader = null)
     {
         public async Task<Result<PurchasingOverviewDto>> HandleAsync(GetPurchasingOverviewQuery query, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Reporting.Application.Security.ReportingCapabilities.ViewReports, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<PurchasingOverviewDto>(allowed.Error);
+
             if (purchaseOrderReader is null) return Result.Failure<PurchasingOverviewDto>(ReportingErrors.Unavailable("Purchasing"));
 
             var s = await purchaseOrderReader.GetSummaryAsync(cancellationToken);
@@ -119,10 +129,13 @@ namespace Reporting.Application.Queries
 
     public sealed record GetCustomerSummaryQuery;
 
-    public sealed class GetCustomerSummaryQueryHandler(ICustomerReader? customerReader = null)
+    public sealed class GetCustomerSummaryQueryHandler(IAuthorizationService authorization, ICustomerReader? customerReader = null)
     {
         public async Task<Result<PartySummaryDto>> HandleAsync(GetCustomerSummaryQuery query, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Reporting.Application.Security.ReportingCapabilities.ViewReports, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<PartySummaryDto>(allowed.Error);
+
             if (customerReader is null) return Result.Failure<PartySummaryDto>(ReportingErrors.Unavailable("Customers"));
 
             var s = await customerReader.GetSummaryAsync(cancellationToken);
@@ -132,10 +145,13 @@ namespace Reporting.Application.Queries
 
     public sealed record GetSupplierSummaryQuery;
 
-    public sealed class GetSupplierSummaryQueryHandler(ISupplierReader? supplierReader = null)
+    public sealed class GetSupplierSummaryQueryHandler(IAuthorizationService authorization, ISupplierReader? supplierReader = null)
     {
         public async Task<Result<PartySummaryDto>> HandleAsync(GetSupplierSummaryQuery query, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Reporting.Application.Security.ReportingCapabilities.ViewReports, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<PartySummaryDto>(allowed.Error);
+
             if (supplierReader is null) return Result.Failure<PartySummaryDto>(ReportingErrors.Unavailable("Suppliers"));
 
             var s = await supplierReader.GetSummaryAsync(cancellationToken);
@@ -151,10 +167,14 @@ namespace Reporting.Application.Queries
         GetInventorySnapshotQueryHandler inventory,
         GetPurchasingOverviewQueryHandler purchasing,
         GetCustomerSummaryQueryHandler customers,
-        GetSupplierSummaryQueryHandler suppliers)
+        GetSupplierSummaryQueryHandler suppliers,
+        IAuthorizationService authorization)
     {
         public async Task<Result<BusinessOverviewDto>> HandleAsync(GetBusinessOverviewQuery query, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(Reporting.Application.Security.ReportingCapabilities.ViewReports, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<BusinessOverviewDto>(allowed.Error);
+
             var range = DateRange.Create(query.From, query.To);
             if (range.IsFailure) return Result.Failure<BusinessOverviewDto>(range.Error);
 

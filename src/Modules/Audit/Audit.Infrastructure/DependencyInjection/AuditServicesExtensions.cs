@@ -45,6 +45,7 @@ public static class AuditServicesExtensions
         services.AddScoped<Audit.Application.Repositories.IAuditEntryRepository, Audit.Infrastructure.Repositories.EfAuditEntryRepository>();
         services.AddScoped<Audit.Contracts.Interfaces.IAuditRecorder, Audit.Infrastructure.Services.AuditRecorder>();
         services.AddScoped<Audit.Contracts.Interfaces.IAuditReader, Audit.Infrastructure.Services.AuditReader>();
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Audit.Application.Security.AuditCapabilityProvider>();
         services.AddTransient<Audit.Application.Commands.RecordAuditEntryCommandHandler>();
         services.AddTransient<Audit.Application.Queries.GetAuditEntryQueryHandler>();
         services.AddTransient<Audit.Application.Queries.QueryAuditEntriesQueryHandler>();

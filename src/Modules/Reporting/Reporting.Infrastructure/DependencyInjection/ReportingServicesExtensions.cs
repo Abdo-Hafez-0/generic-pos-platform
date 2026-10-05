@@ -18,6 +18,7 @@ public static class ReportingServicesExtensions
     public static IServiceCollection AddReportingCore(this IServiceCollection services)
     {
         services.AddScoped<Reporting.Contracts.Interfaces.IReportProvider, Reporting.Infrastructure.Services.ReportProvider>();
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Reporting.Application.Security.ReportingCapabilityProvider>();
         services.AddTransient<Reporting.Application.Queries.GetSalesReportQueryHandler>();
         services.AddTransient<Reporting.Application.Queries.GetInventorySnapshotQueryHandler>();
         services.AddTransient<Reporting.Application.Queries.GetPurchasingOverviewQueryHandler>();

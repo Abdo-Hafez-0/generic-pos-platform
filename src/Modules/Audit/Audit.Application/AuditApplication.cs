@@ -1,5 +1,6 @@
 using Audit.Domain.Entities;
 using Audit.Domain.ValueObjects;
+using Platform.Application.Abstractions.Authorization;
 using Platform.Core.Results;
 
 namespace Audit.Application.Abstractions
@@ -74,9 +75,19 @@ namespace Audit.Application.Queries
 
     public sealed record GetAuditEntryQuery(Guid EntryId);
 
-    public sealed class GetAuditEntryQueryHandler(IAuditEntryRepository repository)
+    public sealed class GetAuditEntryQueryHandler(IAuditEntryRepository repository, IAuthorizationService authorization)
     {
-        public async Task<AuditEntryDto?> HandleAsync(GetAuditEntryQuery query, CancellationToken cancellationToken = default)
+        /// <summary>Success with a null value means "no such entry"; a failure means the caller may not read the audit trail.</summary>
+        public async Task<Result<AuditEntryDto?>> HandleAsync(GetAuditEntryQuery query, CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(Audit.Application.Security.AuditCapabilities.ViewAudit, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<AuditEntryDto?>(allowed.Error);
+
+            return Result.Success(await ExecuteAsync(query, cancellationToken));
+        }
+
+        /// <summary>Without the capability check: for the module's own read contract (callers there act inside an operation that was already authorized).</summary>
+        internal async Task<AuditEntryDto?> ExecuteAsync(GetAuditEntryQuery query, CancellationToken cancellationToken = default)
             => (await repository.GetByIdAsync(new AuditEntryId(query.EntryId), cancellationToken))?.ToDto();
     }
 
@@ -84,11 +95,20 @@ namespace Audit.Application.Queries
         string? Module = null, string? Action = null, string? EntityType = null, string? EntityId = null,
         Guid? ActorId = null, DateTime? From = null, DateTime? To = null, int Page = 1, int PageSize = 50);
 
-    public sealed class QueryAuditEntriesQueryHandler(IAuditEntryRepository repository)
+    public sealed class QueryAuditEntriesQueryHandler(IAuditEntryRepository repository, IAuthorizationService authorization)
     {
         public const int MaxPageSize = 200;
 
-        public async Task<PagedAuditEntries> HandleAsync(QueryAuditEntriesQuery query, CancellationToken cancellationToken = default)
+        public async Task<Result<PagedAuditEntries>> HandleAsync(QueryAuditEntriesQuery query, CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(Audit.Application.Security.AuditCapabilities.ViewAudit, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<PagedAuditEntries>(allowed.Error);
+
+            return Result.Success(await ExecuteAsync(query, cancellationToken));
+        }
+
+        /// <summary>Without the capability check: for the module's own read contract (callers there act inside an operation that was already authorized).</summary>
+        internal async Task<PagedAuditEntries> ExecuteAsync(QueryAuditEntriesQuery query, CancellationToken cancellationToken = default)
         {
             var page = Math.Max(1, query.Page);
             var size = Math.Clamp(query.PageSize, 1, MaxPageSize);

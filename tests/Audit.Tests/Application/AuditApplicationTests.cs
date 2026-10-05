@@ -43,7 +43,7 @@ public sealed class AuditApplicationTests
             return r.Value;
         });
 
-        var dto = await db.InScopeAsync(sp => sp.GetRequiredService<GetAuditEntryQueryHandler>().HandleAsync(new GetAuditEntryQuery(id)));
+        var dto = (await db.InScopeAsync(sp => sp.GetRequiredService<GetAuditEntryQueryHandler>().HandleAsync(new GetAuditEntryQuery(id)))).Value;
 
         Assert.Equal("inventory", dto!.Module);
         Assert.Equal("stock.adjusted", dto.Action);
@@ -52,7 +52,7 @@ public sealed class AuditApplicationTests
         Assert.Equal(actor, dto.ActorId);
         Assert.Equal("Ann", dto.ActorName);
         Assert.Equal(T0, dto.OccurredAt);
-        Assert.Null(await db.InScopeAsync(sp => sp.GetRequiredService<GetAuditEntryQueryHandler>().HandleAsync(new GetAuditEntryQuery(Guid.NewGuid()))));
+        Assert.Null((await db.InScopeAsync(sp => sp.GetRequiredService<GetAuditEntryQueryHandler>().HandleAsync(new GetAuditEntryQuery(Guid.NewGuid())))).Value);
     }
 
     [Fact]

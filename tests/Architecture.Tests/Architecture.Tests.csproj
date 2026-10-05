@@ -88,6 +88,11 @@
     <ProjectReference Include="..\..\src\Modules\Payments\Payments.Contracts\Payments.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Payments\Payments.Application\Payments.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Payments\Payments.Infrastructure\Payments.Infrastructure.csproj" />
+    <!-- Users module assemblies (Stage 8) - Users.UI excluded (net10.0-windows) -->
+    <ProjectReference Include="..\..\src\Modules\Users\Users.Domain\Users.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Users\Users.Contracts\Users.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Users\Users.Application\Users.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Users\Users.Infrastructure\Users.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

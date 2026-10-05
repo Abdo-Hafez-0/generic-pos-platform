@@ -21,6 +21,9 @@
     <!-- POS module (Stage 5D) - POSHostingModule lives in POS.Infrastructure -->
     <ProjectReference Include="..\..\Modules\POS\POS.Infrastructure\POS.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\POS\POS.UI\POS.UI.csproj" />
+    <!-- Users module (Stage 8) - UsersHostingModule lives in Users.Infrastructure -->
+    <ProjectReference Include="..\..\Modules\Users\Users.Infrastructure\Users.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Users\Users.UI\Users.UI.csproj" />
     <!-- Payments module (Stage 8) - PaymentsHostingModule lives in Payments.Infrastructure -->
     <ProjectReference Include="..\..\Modules\Payments\Payments.Infrastructure\Payments.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Payments\Payments.UI\Payments.UI.csproj" />

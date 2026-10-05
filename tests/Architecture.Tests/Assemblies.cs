@@ -348,6 +348,29 @@ internal static class Assemblies
         // Payments.UI excluded - net10.0-windows TFM gap
     ];
 
+    // Users module assemblies (Stage 8)
+    // Note: Users.UI is net10.0-windows and cannot be referenced here (TFM gap).
+    internal static readonly Assembly UsersDomain =
+        typeof(Users.Domain.Entities.User).Assembly;
+
+    internal static readonly Assembly UsersContracts =
+        typeof(Users.Contracts.Interfaces.IUserLookup).Assembly;
+
+    internal static readonly Assembly UsersApplication =
+        typeof(Users.Application.Commands.CreateUserCommandHandler).Assembly;
+
+    internal static readonly Assembly UsersInfrastructure =
+        typeof(Users.Infrastructure.UsersInfrastructureAssemblyMarker).Assembly;
+
+    internal static IReadOnlyList<Assembly> AllUsersAssemblies =>
+    [
+        UsersDomain,
+        UsersContracts,
+        UsersApplication,
+        UsersInfrastructure
+        // Users.UI excluded - net10.0-windows TFM gap
+    ];
+
     internal static IReadOnlyList<Assembly> AllProjectAssemblies =>
     [
         .. AllPlatformAssemblies,

@@ -89,6 +89,10 @@ public static class LicensingServicesExtensions
         services.AddSingleton<LicenseService>();
         services.AddSingleton<ILicenseService>(sp => sp.GetRequiredService<LicenseService>());
         services.AddSingleton<ILicenseEntitlementService>(sp => sp.GetRequiredService<LicenseService>());
+        // Stage 11: the capability that guards activating/renewing, and the user-facing handlers that check it.
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, LicensingCapabilityProvider>();
+        services.AddTransient<ActivateLicenseCommandHandler>();
+        services.AddTransient<RenewLicenseCommandHandler>();
         services.AddHostedService<LicensingInitializer>();
         return services;
     }

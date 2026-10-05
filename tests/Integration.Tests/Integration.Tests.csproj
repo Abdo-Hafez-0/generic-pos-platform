@@ -24,6 +24,8 @@
     <ProjectReference Include="..\..\src\Client\Client.Host\Client.Host.csproj" />
     <!-- Stage 10: the real hardware adapters + fake hardware -->
     <ProjectReference Include="..\..\src\Client\Client.Hardware\Client.Hardware.csproj" />
+    <ProjectReference Include="..\..\src\Client\Client.Licensing\Client.Licensing.csproj" />
+    <ProjectReference Include="..\..\src\Licensing\Licensing.Contracts\Licensing.Contracts.csproj" />
     <ProjectReference Include="..\Tests.Common\Tests.Common.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.ModuleHost\Client.ModuleHost.csproj" />
 

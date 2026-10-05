@@ -1,6 +1,7 @@
 using Client.Licensing.Domain;
 using Licensing.Contracts;
 using Platform.Application.Abstractions.Licensing;
+using Platform.Application.Abstractions.Security;
 using Platform.Core.Licensing;
 using Platform.Core.Modules;
 using Platform.Core.Results;
@@ -44,7 +45,8 @@ public sealed class LicenseService(
     ILicenseClient client,
     TimeProvider timeProvider,
     LicensingOptions options,
-    LicensePolicy policy) : ILicenseService, ILicenseEntitlementService
+    LicensePolicy policy,
+    ISecurityEventSink? events = null) : ILicenseService, ILicenseEntitlementService
 {
     private sealed record Snapshot(Guid InstallationId, bool HasLicense, LicenseVerificationResult? Verification);
 
@@ -68,8 +70,18 @@ public sealed class LicenseService(
             snapshot = new Snapshot(identity.InstallationId, true, verifier.Verify(stored.License));
 
         Volatile.Write(ref _snapshot, snapshot);
-        return Current;
+        var evaluation = Current;
+        await Record(
+            evaluation.State is LicenseState.Active or LicenseState.GracePeriod or LicenseState.Unlicensed ? SecurityEventOutcome.Success : SecurityEventOutcome.Denied,
+            "security.license.loaded", evaluation.Payload?.LicenseId,
+            evaluation.State == LicenseState.Invalid ? $"{evaluation.State}: {evaluation.InvalidReason}" : evaluation.State.ToString(), cancellationToken);
+        return evaluation;
     }
+
+    /// <summary>Records a licensing security event (never a key, token or the license content): the state, the license ID, the reason.</summary>
+    private Task Record(SecurityEventOutcome outcome, string action, Guid? licenseId, string summary, CancellationToken cancellationToken)
+        => events.TryRecordAsync(SecurityEvent.Create(
+            action, outcome, subjectType: "license", subjectId: licenseId?.ToString(), summary: summary, occurredAt: timeProvider.GetUtcNow()), cancellationToken);
 
     public LicenseEvaluation Current
     {
@@ -119,9 +131,13 @@ public sealed class LicenseService(
             }
 
             if (!response.IsSuccess || response.License is null)
+            {
+                await Record(SecurityEventOutcome.Failure, "security.license.activation-failed", null,
+                    response.ErrorCode ?? LicenseErrorCodes.ServerRejected, cancellationToken);
                 return Result.Failure<LicenseEvaluation>(Error.Failure(
                     response.ErrorCode ?? LicenseErrorCodes.ServerRejected,
                     response.ErrorMessage ?? "The license server rejected the activation."));
+            }
 
             var accepted = await VerifyAndAcceptAsync(response.License, identity.InstallationId, current: null, cancellationToken);
             return accepted;
@@ -183,32 +199,47 @@ public sealed class LicenseService(
     {
         var verification = verifier.Verify(received);
         if (!verification.IsValid || verification.Payload is null)
+        {
+            await Record(SecurityEventOutcome.Denied, "security.license.rejected", null, $"failed verification: {verification.Reason}", cancellationToken);
             return Result.Failure<LicenseEvaluation>(Error.Validation(
                 "Licensing.Verification.Failed",
                 $"The license received from the server failed verification ({verification.Reason}). It was not stored."));
+        }
 
         var evaluation = LicenseEvaluator.Evaluate(
             true, verification, installationId, options.ProductId, timeProvider.GetUtcNow(), policy);
 
         if (evaluation.State == LicenseState.Invalid)
+        {
+            await Record(SecurityEventOutcome.Denied, "security.license.rejected", verification.Payload.LicenseId,
+                $"not valid for this installation: {evaluation.InvalidReason}", cancellationToken);
             return Result.Failure<LicenseEvaluation>(Error.Validation(
                 "Licensing.Verification.Rejected",
                 $"The license received from the server is not valid for this installation ({evaluation.InvalidReason}). It was not stored."));
+        }
 
         if (current is not null)
         {
             var payload = verification.Payload;
             if (payload.LicenseId != current.LicenseId)
+            {
+                await Record(SecurityEventOutcome.Denied, "security.license.rejected", payload.LicenseId, "renewal is a different license", cancellationToken);
                 return Result.Failure<LicenseEvaluation>(Error.Validation(
                     "Licensing.Renewal.WrongLicense", "The renewed license is a different license. It was not stored."));
+            }
 
             if (payload.LicenseVersion <= current.LicenseVersion)
+            {
+                await Record(SecurityEventOutcome.Denied, "security.license.rejected", payload.LicenseId, "renewal is not newer than the current license (replay)", cancellationToken);
                 return Result.Failure<LicenseEvaluation>(Error.Validation(
                     "Licensing.Renewal.Stale", "The renewed license is not newer than the current one. It was not stored."));
+            }
         }
 
         await store.SaveAsync(received, cancellationToken);
         Volatile.Write(ref _snapshot, new Snapshot(installationId, true, verification));
+        await Record(SecurityEventOutcome.Success, current is null ? "security.license.activated" : "security.license.renewed",
+            verification.Payload.LicenseId, $"version {verification.Payload.LicenseVersion}, state {Current.State}", cancellationToken);
         return Result.Success(Current);
     }
 }

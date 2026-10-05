@@ -95,7 +95,7 @@ public sealed class IntegrationHost : IAsyncDisposable
     };
 
     /// <summary>Starts a host with the module host plus exactly the named modules, in the order given.</summary>
-    public static async Task<IntegrationHost> StartAsync(IEnumerable<string> modules, string? reuseFolder = null, IEnumerable<IHostingModule>? extraModules = null)
+    public static async Task<IntegrationHost> StartAsync(IEnumerable<string> modules, string? reuseFolder = null, IEnumerable<IHostingModule>? extraModules = null, bool signInAdministrator = true)
     {
         var folder = reuseFolder ?? Path.Combine(Path.GetTempPath(), "genericpos-it-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
@@ -121,7 +121,7 @@ public sealed class IntegrationHost : IAsyncDisposable
             var host = builder.Build();
             await host.StartAsync();
             var started = new IntegrationHost(host, folder, fileName);
-            if (hasUsers) await started.SignInAdministratorAsync();
+            if (hasUsers) await started.SetUpAdministratorAsync(signIn: signInAdministrator);
             return started;
         }
         catch
@@ -132,8 +132,8 @@ public sealed class IntegrationHost : IAsyncDisposable
         }
     }
 
-    public static Task<IntegrationHost> StartAllAsync(string? reuseFolder = null, IEnumerable<IHostingModule>? extra = null)
-        => StartAsync([.. CoreModules, .. Stage8Modules], reuseFolder, extra);
+    public static Task<IntegrationHost> StartAllAsync(string? reuseFolder = null, IEnumerable<IHostingModule>? extra = null, bool signInAdministrator = true)
+        => StartAsync([.. CoreModules, .. Stage8Modules], reuseFolder, extra, signInAdministrator);
 
     public async ValueTask DisposeAsync()
     {
@@ -152,13 +152,18 @@ public sealed class IntegrationHost : IAsyncDisposable
     /// First-run setup (only the first time on a database) and a real sign-in through the Users module: the authorization every POS call
     /// now goes through is the real one, backed by the administrator's real role.
     /// </summary>
-    public async Task SignInAdministratorAsync()
+    public Task SignInAdministratorAsync() => SetUpAdministratorAsync(signIn: true);
+
+    /// <summary>First-run setup (once per database) and, optionally, signing in as that administrator.</summary>
+    public async Task SetUpAdministratorAsync(bool signIn)
     {
         using var scope = Services.CreateScope();
         var bootstrap = await scope.ServiceProvider.GetRequiredService<BootstrapAdministratorCommandHandler>()
             .HandleAsync(new BootstrapAdministratorCommand(AdministratorUsername, "Administrator", AdministratorPassword));
         if (bootstrap.IsFailure && bootstrap.Error.Code != "Users.Bootstrap.AlreadyInitialized")
             throw new InvalidOperationException("First-run setup failed: " + bootstrap.Error);
+
+        if (!signIn) return;
 
         var signedIn = await scope.ServiceProvider.GetRequiredService<SignInCommandHandler>()
             .HandleAsync(new SignInCommand(AdministratorUsername, AdministratorPassword));

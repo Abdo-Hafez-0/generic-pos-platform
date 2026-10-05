@@ -301,12 +301,13 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 
 - [x] 8B Suppliers (sup_*): Supplier aggregate (+SupplierAddress, SupplierContact, SupplierStatus), same capabilities as Customers; contracts ISupplierLookup, ISupplierReader (Purchasing depends on these); migration InitialSuppliersSchema; Suppliers.Tests (38); ARCH-SUP-001..016
 - [x] 8C Purchasing (pur_*): PurchaseOrder (+PurchaseOrderLine; Draft/Submitted/Received/Cancelled) with create/add-remove-change lines/submit/receive/cancel, get/list; depends on Catalog.Contracts, Suppliers.Contracts, Inventory.Contracts ONLY; Inventory.Contracts extended with IStockReceiptService (StockReceiptService delegating to AddStock; 3 new Inventory tests); receiving is line-by-line and resumable (no cross-module transaction); contract IPurchaseOrderReader; migration InitialPurchasingSchema; Purchasing.Tests (45); ARCH-PUR-001..016
 - [x] 8D Pricing (pri_*): PriceList + Price (effective period, minimum-quantity breaks, overlap prevention, deactivate), CreatePrice/UpdatePrice/DeactivatePrice, get/list, current-price resolution; depends on Catalog.Contracts; contract IPriceResolver; migration InitialPricingSchema; Pricing.Tests (41); ARCH-PRI-001..016. POS integration (OPTIONAL, minimal): AddProductToCart resolves the price through Pricing.Contracts when the module is installed (snapshotted on the cart line), else the Catalog price; 5 new POS tests
+- [x] 8E Payments (pay_*): Payment record (reference type + id, amount, Cash/Card/Other, tendered + change for cash, void with reason; split payments per reference), RecordPayment/VoidPayment, get/list-for-reference; no dependencies; contracts IPaymentService/IPaymentReader; migration InitialPaymentsSchema; Payments.Tests (29); ARCH-PAY-001..016. No real gateways/hardware are involved - payments are records only. POS integration (OPTIONAL, minimal): CheckoutAsync accepts an optional POSPaymentRequest; the payment for the cart total is recorded through Payments.Contracts after the sale is confirmed and before stock is issued (payment voided if stock issue fails, sale cancelled if the payment fails; rejected up front if Payments is not installed or the cash tendered is too low); 6 new POS tests; ARCH-POS-019 relaxed to allow Payments.Contracts only. Also fixed a CS8631 warning in Inventory ReceiveStockTests
 
 ---
 
 ## Current Task
 
-**Stage 8 - IN PROGRESS (8A-8D done: Customers, Suppliers, Purchasing, Pricing). Next: 8E Payments.**
+**Stage 8 - IN PROGRESS (8A-8E done: Customers, Suppliers, Purchasing, Pricing, Payments). Next: 8F Users.**
 
 ---
 

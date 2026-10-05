@@ -65,12 +65,12 @@ internal sealed class POSService(
         => ToOperation(await clearCartHandler.HandleAsync(new ClearCartCommand(cartId), cancellationToken));
 
     public async Task<POSCheckoutResult> CheckoutAsync(
-        Guid cartId, string? transactionReference = null, CancellationToken cancellationToken = default)
+        Guid cartId, string? transactionReference = null, POSPaymentRequest? payment = null, CancellationToken cancellationToken = default)
     {
         var result = await checkoutHandler.HandleAsync(
-            new CheckoutCartCommand(cartId, transactionReference), cancellationToken);
+            new CheckoutCartCommand(cartId, transactionReference, payment), cancellationToken);
         return result.IsSuccess
-            ? POSCheckoutResult.Success(result.Value)
+            ? POSCheckoutResult.Success(result.Value.SaleId, result.Value.PaymentId, result.Value.ChangeDue)
             : POSCheckoutResult.Failure(result.Error.Code, result.Error.Description);
     }
 

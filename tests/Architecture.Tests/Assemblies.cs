@@ -325,6 +325,29 @@ internal static class Assemblies
         // Pricing.UI excluded - net10.0-windows TFM gap
     ];
 
+    // Payments module assemblies (Stage 8)
+    // Note: Payments.UI is net10.0-windows and cannot be referenced here (TFM gap).
+    internal static readonly Assembly PaymentsDomain =
+        typeof(Payments.Domain.Entities.Payment).Assembly;
+
+    internal static readonly Assembly PaymentsContracts =
+        typeof(Payments.Contracts.Interfaces.IPaymentService).Assembly;
+
+    internal static readonly Assembly PaymentsApplication =
+        typeof(Payments.Application.Commands.RecordPaymentCommandHandler).Assembly;
+
+    internal static readonly Assembly PaymentsInfrastructure =
+        typeof(Payments.Infrastructure.PaymentsInfrastructureAssemblyMarker).Assembly;
+
+    internal static IReadOnlyList<Assembly> AllPaymentsAssemblies =>
+    [
+        PaymentsDomain,
+        PaymentsContracts,
+        PaymentsApplication,
+        PaymentsInfrastructure
+        // Payments.UI excluded - net10.0-windows TFM gap
+    ];
+
     internal static IReadOnlyList<Assembly> AllProjectAssemblies =>
     [
         .. AllPlatformAssemblies,

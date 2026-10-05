@@ -54,7 +54,7 @@ public sealed class ReceiveStockTests : IAsyncLifetime
         Assert.True(second.IsSuccess);
         Assert.Equal(15m, await OnHandAsync());
         var movements = await scope.ServiceProvider.GetRequiredService<IStockMovementReader>().GetRecentMovementsAsync();
-        Assert.Equal(["PO-1", "PO-2"], movements.Select(m => m.Reference).OrderBy(r => r).ToArray());
+        Assert.Equal(new[] { "PO-1", "PO-2" }, movements.Select(m => m.Reference!).OrderBy(r => r).ToArray());
         Assert.All(movements, m => Assert.Equal("StockIn", m.MovementType));
     }
 

@@ -36,11 +36,29 @@ public sealed record POSAddItemResult(bool IsSuccess, Guid ItemId, string? Error
         new(false, Guid.Empty, errorCode, errorMessage);
 }
 
-/// <summary>Outcome of checking out a cart. SaleId is the completed sale in the Sales module.</summary>
-public sealed record POSCheckoutResult(bool IsSuccess, Guid SaleId, string? ErrorCode, string? ErrorMessage)
+/// <summary>
+/// Outcome of checking out a cart. SaleId is the completed sale in the Sales module. When a payment was requested
+/// (and the Payments module is installed), PaymentId is the recorded payment and ChangeDue the cash change to give back.
+/// </summary>
+public sealed record POSCheckoutResult(bool IsSuccess, Guid SaleId, string? ErrorCode, string? ErrorMessage, Guid? PaymentId = null, decimal ChangeDue = 0m)
 {
-    public static POSCheckoutResult Success(Guid saleId) => new(true, saleId, null, null);
+    public static POSCheckoutResult Success(Guid saleId, Guid? paymentId = null, decimal changeDue = 0m) =>
+        new(true, saleId, null, null, paymentId, changeDue);
 
     public static POSCheckoutResult Failure(string errorCode, string errorMessage) =>
         new(false, Guid.Empty, errorCode, errorMessage);
 }
+
+/// <summary>How the customer pays at checkout (recorded through the optional Payments module; nothing is processed externally).</summary>
+public enum POSPaymentMethod
+{
+    Cash = 1,
+    Card = 2,
+    Other = 3
+}
+
+/// <summary>An optional payment to record at checkout for the full cart total.</summary>
+/// <param name="Method">Payment method.</param>
+/// <param name="TenderedAmount">Cash handed over (cash only); must cover the total. The change is returned in the result.</param>
+/// <param name="MethodDetail">Required for <see cref="POSPaymentMethod.Other"/>; optional description otherwise.</param>
+public sealed record POSPaymentRequest(POSPaymentMethod Method, decimal? TenderedAmount = null, string? MethodDetail = null);

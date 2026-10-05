@@ -15,5 +15,6 @@
     <ProjectReference Include="..\..\Sales\Sales.Contracts\Sales.Contracts.csproj" />
     <!-- OPTIONAL integrations (resolved only if the module is installed): Pricing, Payments -->
     <ProjectReference Include="..\..\Pricing\Pricing.Contracts\Pricing.Contracts.csproj" />
+    <ProjectReference Include="..\..\Payments\Payments.Contracts\Payments.Contracts.csproj" />
   </ItemGroup>
 </Project>

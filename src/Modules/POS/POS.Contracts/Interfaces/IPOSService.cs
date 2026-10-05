@@ -8,8 +8,8 @@ namespace POS.Contracts.Interfaces;
 /// Implemented by POS.Infrastructure.Services.POSService. Uses only IDs, primitives and result
 /// records — never POS.Domain types.
 ///
-/// Checkout orchestrates Catalog, Inventory and Sales through THEIR Contracts. It does not process
-/// payments: a Payments module does not exist yet (see PROJECT_STATE.md).
+/// Checkout orchestrates Catalog, Inventory and Sales through THEIR Contracts. Payments are recorded only
+/// when requested and the optional Payments module is installed; no real payment processing exists.
 /// </summary>
 public interface IPOSService
 {
@@ -29,6 +29,9 @@ public interface IPOSService
 
     Task<POSOperationResult> ClearCartAsync(Guid cartId, CancellationToken cancellationToken = default);
 
-    /// <summary>Creates, confirms and completes the sale in Sales and issues stock from Inventory.</summary>
-    Task<POSCheckoutResult> CheckoutAsync(Guid cartId, string? transactionReference = null, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Creates, confirms and completes the sale in Sales and issues stock from Inventory. If <paramref name="payment"/> is given,
+    /// the payment for the cart total is recorded through the optional Payments module between confirming the sale and issuing stock.
+    /// </summary>
+    Task<POSCheckoutResult> CheckoutAsync(Guid cartId, string? transactionReference = null, POSPaymentRequest? payment = null, CancellationToken cancellationToken = default);
 }

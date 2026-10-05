@@ -171,13 +171,13 @@ public sealed class POSBoundaryTests
             AssertNoDependency(assembly, "POS", "No reverse dependency.");
     }
 
-    [Fact(DisplayName = "ARCH-POS-019: POS business logic must not depend on HTTP and no Payments module is referenced")]
-    public void POSBusinessLogic_MustNotDependOn_Http_OrPayments()
+    [Fact(DisplayName = "ARCH-POS-019: POS business logic must not depend on HTTP and may reference Payments only through Payments.Contracts")]
+    public void POSBusinessLogic_MustNotDependOn_Http_AndReferencesPaymentsOnlyThroughContracts()
     {
         foreach (var assembly in Assemblies.AllPOSAssemblies)
         {
             AssertNoDependency(assembly, "System.Net.Http", "Business logic must be offline-capable.");
-            Assert.DoesNotContain(assembly.GetReferencedAssemblies(), a => a.Name!.StartsWith("Payments", StringComparison.Ordinal));
+            Assert.DoesNotContain(assembly.GetReferencedAssemblies(), a => a.Name!.StartsWith("Payments", StringComparison.Ordinal) && a.Name != "Payments.Contracts");
         }
     }
 

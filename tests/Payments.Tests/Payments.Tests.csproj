@@ -22,18 +22,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- POS layers under test -->
-    <ProjectReference Include="..\..\src\Modules\POS\POS.Domain\POS.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Modules\POS\POS.Application\POS.Application.csproj" />
-    <ProjectReference Include="..\..\src\Modules\POS\POS.Infrastructure\POS.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\Modules\POS\POS.Contracts\POS.Contracts.csproj" />
-    <!-- Other modules: Contracts ONLY (implementations are stubbed in tests) -->
-    <ProjectReference Include="..\..\src\Modules\Catalog\Catalog.Contracts\Catalog.Contracts.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Inventory\Inventory.Contracts\Inventory.Contracts.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Sales\Sales.Contracts\Sales.Contracts.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Pricing\Pricing.Contracts\Pricing.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Payments\Payments.Domain\Payments.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Payments\Payments.Application\Payments.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Payments\Payments.Infrastructure\Payments.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Payments\Payments.Contracts\Payments.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Platform\Platform.Infrastructure\Platform.Infrastructure.csproj" />
+    <ProjectReference Include="..\Tests.Common\Tests.Common.csproj" />
   </ItemGroup>
 
 </Project>

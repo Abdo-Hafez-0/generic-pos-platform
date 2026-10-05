@@ -38,6 +38,9 @@ public static class PlatformServicesExtensions
         // Stage 3: Register Platform.Infrastructure services (DbContext, UoW, initializer).
         services.AddPlatformInfrastructure(configuration);
 
+        // Stage 11: session, capability catalog, authorization and security events (module-neutral).
+        services.AddPlatformSecurity();
+
         // Register the database initialization hosted service.
         // This runs during IHost.StartAsync() before the WPF window is shown.
         services.AddHostedService<DatabaseInitializerService>();

@@ -26,7 +26,24 @@ determined by customer license entitlements.
 
 ## Current Implementation Phase
 
-**Stage 10 COMPLETE (hardware & device integration): five vendor-neutral hardware abstractions, replaceable adapters in Client.Hardware, optional POS integration**
+**Stage 11 COMPLETE (security hardening): offline authentication, capability-based authorization enforced in the application handlers, centralized license enforcement, protected local licensing state, audited security events**
+
+Security is now a layer of the platform, not a property of the screens. Every mutating business handler refuses before it acts unless the signed-in user CURRENTLY holds the capability its module declared; license
+entitlements are enforced in that one place; the installation identity and the clock mark are protected at rest; every security-relevant event reaches the append-only audit log without ever carrying a secret.
+
+    UI / script / test ---> handler ---> IAuthorizationService.AuthorizeAsync(capability)
+                                              |  known capability? signed in (ICurrentUser)? user holds it NOW (IPermissionProvider = Users, live)?
+                                              |  module licensed (ILicenseEntitlementService, offline) unless the capability is LicenseRequirement.None?
+                                              +--> denial => Security.* error + security event; the operation never starts
+    Users:  username + password -> PBKDF2 hash (never the password) -> lockout -> SignIn -> ISessionManager (identity only, no permissions)
+    Events: SecurityEvent (no field for a secret, sanitised text) -> ISecurityEventSink -> listeners: application log + Audit module (append-only, buffered until the audit store exists)
+    Local state: installation identity + clock high-water mark -> ISecretProtector (Windows DPAPI, current user, purpose-bound) ; clock rollback => license Invalid(ClockRollback)
+    Servers: per-caller authentication throttle (429), HTTPS-only outside Development (plain HTTP refused), security headers, customer backup activity audited, fail-closed start-up.
+
+Implemented and tested: see "Stage 11 Summary" (decisions, capability list, configuration, limitations, deferred work) and "Stage 11" under Completed Work. The Stage 6 documented limitation "no clock-rollback protection" and the Stage 8/10
+limitations "nothing enforces permissions" / "drawer opens are not permission-checked" are resolved; the UI-hosting items they depend on are NOT (see Stage 11 deferred work).
+
+### Previous phase - Stage 10 COMPLETE (hardware & device integration): five vendor-neutral hardware abstractions, replaceable adapters in Client.Hardware, optional POS integration**
 
 Peripherals are an OPTIONAL infrastructure capability. The POS never constructs or knows a device: it receives `IReceiptPrinter`, `ICashDrawer`, `ILabelPrinter`,
 `IScale` and `IBarcodeScanner` (Platform.Application) through dependency injection as nullable parameters, and a missing, broken or throwing device can only
@@ -400,11 +417,36 @@ drivers are infrastructure implementations") and section 8 (Platform.Infrastruct
 - [x] Not done by design (later stages / not required): physical-device protocol adapters beyond ESC/POS, ZPL and keyboard wedge (Windows spooler printing, serial/USB scales, vendor SDKs), customer displays, POS terminals,
       hosting PosView in MainWindow (so nothing forwards key presses to IKeyboardInputSink yet), authorization of "no sale" drawer opens (Stage 11), the failure-testing campaign (Stage 12)
 
+### Stage 11 - Security Hardening (COMPLETE)
+Scope source: roadmap Stage 11 (authentication, authorization, capability-based permissions, password/security policies, data protection, license protection, package signature verification, update verification, secure cloud
+communication, backup security, installation identity, audit trail, tamper resistance); Architecture & Solution Design.md sections 2.5, 69-71 (authentication/authorization separate; capability-oriented permissions that modules register);
+Generic Platform document sections 18 and 53. 17 commits (see "Stage 11 Summary - commit history"), each built and tested before it was committed.
+- [x] Platform.Application/Abstractions/Authorization + Security (new): ICurrentUser (identity only; HasPermission/HasFeature were removed - they were unused and would have cached what must be live), AuthenticatedIdentity, ISessionManager + SessionContext,
+      IAuthorizationService + AuthorizationService (fail closed; also the license gate), IPermissionProvider, CapabilityDescriptor/ICapabilityProvider/ICapabilityCatalog/CapabilityCatalog/CapabilityCodes, SecurityErrors,
+      SecurityEvent (sanitised, no secret field) + SecretRedactor, ISecurityEventSink/ISecurityEventListener/SecurityEventDispatcher/NullSecurityEventSink, ISecretProtector. Client.Host registers them for every host (AddPlatformSecurity).
+- [x] Users (additive migration AddUserCredentials, table usr_UserCredentials): PasswordPolicy/LockoutPolicy (configuration can only tighten), UserCredential, PBKDF2-HMAC-SHA256 hasher (600,000 iterations default, floor 100,000, per-hash 16-byte salt, self-describing and
+      upgradeable, constant-time compare), SignIn/SignOut/ChangePassword/SetUserPassword/BootstrapAdministrator handlers, UsersPermissionProvider (live), UsersCapabilities; every Users command needs users.manage and the four read queries users.view.
+- [x] Capabilities declared and enforced by their handlers (31 total, 14 marked sensitive): users, pos (session, sale, receipt reprint, drawer, label), catalog, inventory (receive, adjust, locations), purchasing, payments, cash management, customers, suppliers,
+      pricing, reporting.view, audit.view, licensing.manage, updates.manage. Handlers that serve both a person and another module through a contract (AddStock, RecordPayment, VoidPayment, RecordCashMovement, the audit read) authorize then delegate to an
+      internal ExecuteAsync that only the module's own contract service can call.
+- [x] License enforcement: AuthorizationService checks the owning module against ILicenseEntitlementService after the user's own permission; capabilities declared LicenseRequirement.None (reports, audit, users, license management, updates) work in every license state;
+      Security.LicenseRestricted says the data is safe; LicenseService records activated/renewed/rejected/loaded/clock-rollback events; Activate/Renew handlers need licensing.manage.
+- [x] Data protection: Client.Security (new, DPAPI current-user, purpose-bound via ISecretProtector); protected installation identity (unusable file kept as evidence and audited, never silently reused; legacy plain text only via Licensing:AllowLegacyPlaintextIdentity);
+      ClockRollbackGuard (persisted protected high-water mark floored by the signed license issue time + monotonic stopwatch within a run; tolerance 5 min..7 days; recovery by correcting the clock or an online renewal).
+- [x] Updates: PackageVerifier/UpdateService record security.update.rejected/accepted/failed/rolledback; Download/Install/Rollback handlers need updates.manage; the Stage 7 verification pipeline is unchanged (it was already signature-first).
+- [x] Audit: AuditSecurityEventListener (buffered, ordered, bounded) writes every security event as module "security"; Users commands record who changed which user/role/permission.
+- [x] Cloud: AuthenticationThrottle (Cloud.Contracts) on admin keys, backup tokens and activation keys (429 + Retry-After); ICloudSecurityLog into the shared adm_AuditLog (failed/blocked authentications, customer backup upload/download/delete/refused upload);
+      Cloud.Hosting (new, ASP.NET plumbing): security headers + transport security (HSTS, redirect, and a 403 refusal of plain HTTP outside Development); AdminPortal refuses to start without UpdateServer:TrustedKeys outside Development; /health on license and update hosts.
+- [x] Tests (+305): Security.Tests 55 (new), Users +107 (157), POS +10, Catalog +4, Inventory +5, Purchasing +3, Payments +4, CashManagement +4, Customers +3, Suppliers +3, Pricing +3, Reporting +4, Audit +9, Licensing +34 (143), Updater +14 (182),
+      Cloud +20 (207), Integration +7 (48: real first-run setup, real sign-in, roles, real signed licenses incl. expiry-keeps-data, real audit log, strict composition), Architecture ARCH-SEC-001..016 (+16 = 345).
+- [x] Build: 0 errors, 0 warnings (120 projects, verified with a no-incremental rebuild); all 2099 tests pass
+- [x] Not done by design (later stages / needs a decision): see "Stage 11 Summary - limitations and deferred work"
+
 ---
 
 ## Current Task
 
-**Stage 10 - COMPLETE (Hardware & Device Integration). Stopped: Stage 11 has not been started.**
+**Stage 11 - COMPLETE (Security Hardening). Stopped: Stage 12 has not been started.**
 
 ---
 
@@ -412,13 +454,13 @@ drivers are infrastructure implementations") and section 8 (Platform.Infrastruct
 
 **Awaiting instruction (technical lead decides).**
 
-Next roadmap stage: Stage 11 (Security Hardening) - only when instructed. Follow-ups that are NOT part of any completed stage: license ENFORCEMENT points; a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient); a browser UI for AdminPortal; stock-reversal contract; hosting PosView and the Stage 8 view models in MainWindow; authentication on top of Users (Stage 11); hosting PosView in MainWindow and forwarding key presses to IKeyboardInputSink; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
+Next roadmap stage: Stage 12 (Offline/Failure Testing) - only when instructed. Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; hosting the sign-in screen, first-run administrator setup, PosView and the Stage 8 view models in MainWindow (the desktop currently has NO screen that signs a user in - see Stage 11 deferred work); forwarding key presses to IKeyboardInputSink; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
 
 ---
 
 ## Solution / Project Structure (Current State)
 
-GenericPOS.sln (117 projects)
+GenericPOS.sln (120 projects)
 
 src/
 +-- Platform/
@@ -540,7 +582,7 @@ src/
         +-- Purchasing             [DONE] - pur_*   PurchaseOrder (+lines); IPurchaseOrderReader; uses Catalog/Suppliers/Inventory contracts
         +-- Pricing                [DONE] - pri_*   PriceList, Price; IPriceResolver; uses Catalog.Contracts
         +-- Payments               [DONE] - pay_*   Payment records; IPaymentService, IPaymentReader
-        +-- Users                  [DONE] - usr_*   User, Role, permission codes; IUserLookup, IUserPermissionChecker (no authentication)
+        +-- Users                  [DONE] - usr_*   User, Role, permission codes; IUserLookup, IUserPermissionChecker (Stage 11 added usr_UserCredentials, sign-in/lockout/password handlers and the platform IPermissionProvider)
         +-- Audit                  [DONE] - aud_*   append-only AuditEntry; IAuditRecorder, IAuditReader
         +-- CashManagement         [DONE] - cash_*  CashSession, CashMovement; ICashMovementRecorder, ICashSessionReader
         +-- Reporting              [DONE] - (no tables) read-only reports; IReportProvider; optional read contracts of Sales/Inventory/Purchasing/Customers/Suppliers
@@ -588,6 +630,9 @@ tests/Cloud.Tests                  [DONE] - 187 tests, all passing (Stage 9)
 src/Client/
 +-- Client.Hardware                [DONE] - Stage 10: hardware adapters (ESC/POS receipt printer + cash drawer, ZPL label printer, keyboard-wedge scanner, TCP/device-path transports, Null placeholders), HardwareFactory, HardwareHostingModule
 tests/Hardware.Tests               [DONE] - 97 tests, all passing (Stage 10)
++-- Client.Security                [DONE] - Stage 11: DPAPI ISecretProtector (current user, purpose-bound) + ClientSecurityHostingModule (registered only on Windows)
++-- Cloud.Hosting                  [DONE] - Stage 11: shared server ASP.NET plumbing (security headers, transport security, caller key, 429 answer); no EF, no persistence
+tests/Security.Tests               [DONE] - 55 tests, all passing (Stage 11: authorization/session/catalog/events foundation, license gate, DPAPI)
 src/Platform/Platform.Application/Abstractions/Hardware [DONE] - Stage 10: IBarcodeScanner, IReceiptPrinter, ILabelPrinter, ICashDrawer, IScale + DTOs, HardwareErrors, HardwareGuard
 tools/
 +-- ModulePackager                 [DONE] - Stage 7: validates + hashes a package spec, rejects before signing
@@ -754,7 +799,10 @@ Platform.Application -> (Abstractions/Hardware namespace; no new reference)
 Client.Hardware -> Platform.Core, Platform.Application, Client.Host (IHostingModule only) + Hosting.Abstractions / Configuration.Binder / Logging.Abstractions
                    (no WPF, EF, HTTP, business module, server code, vendor SDK, System.IO.Ports)
 POS.Infrastructure -> also Platform.Application explicitly (hardware abstractions); POS.Application already referenced it
-Client.Desktop -> also Client.Hardware (the ONLY project that references the adapters)
+Client.Desktop -> also Client.Hardware (the ONLY project that references the adapters) and Client.Security (the ONLY project that references the DPAPI protector)
+Client.Security -> Platform.Core, Platform.Application, Client.Host (IHostingModule only) + System.Security.Cryptography.ProtectedData
+Cloud.Hosting -> Cloud.Contracts + the ASP.NET Core shared framework; referenced by the four server API hosts; Cloud.Infrastructure stays free of ASP.NET (ARCH-CLD-005)
+Every business module's Application project -> Platform.Application (authorization); the module Infrastructure projects register the module's ICapabilityProvider
 Tests.Common -> also Platform.Core, Platform.Application (fake hardware); Hardware.Tests -> Client.Hardware, Platform.*, Tests.Common; POS.Tests/Integration.Tests -> also Tests.Common (+ Client.Hardware for Integration.Tests)
 
 INVENTORY MODULE (Stage 5B):
@@ -1140,6 +1188,13 @@ ARCH-HW-001 through ARCH-HW-014: ACTIVE and passing (activated with Stage 10): t
   POS.Application and POS.Infrastructure may use it; Client.Hardware has no WPF/EF/ASP.NET/HTTP/business/server dependency and only the three approved Microsoft.Extensions packages; UI sources never mention hardware types; adapters are constructed
   only by HardwareFactory; hardware configuration is its own section and no internet address is hard-coded; every POS device dependency is a nullable optional parameter.
 Stage 10 test totals: Hardware.Tests 97 (new), POS.Tests 138 (95 + 43), Architecture.Tests 329 (315 + 14), Integration.Tests 41 (34 + 7). Grand total after Stage 10: 1794 tests, 0 failures.
+ARCH-SEC-001 through ARCH-SEC-016: ACTIVE and passing (activated with Stage 11, SecurityBoundaryTests): the Platform.Application security abstractions depend on no technology; Domain assemblies know nothing of sessions/claims/licensing; no business module references a concrete
+  security implementation (Client.Security, licensing, updater, desktop, signing, DPAPI, server code) nor project-references a client; license enforcement stays centralized (no module touches ILicenseEntitlementService); EVERY business command handler takes IAuthorizationService unless
+  it is on the documented exception list (and that list must not rot), as do the user/audit/report read handlers; every capability provider builds a valid unique catalog and is registered by its module; contracts and DTOs never expose passwords, hashes, tokens or keys; Client.Security is
+  only data protection; Client.Hardware has no security dependency; server projects never reference Client.Security or Platform.Application and Cloud.Hosting has no persistence; no private key or key file anywhere in src/tools; no hard-coded credential in sources or production
+  configuration; no configuration switch turns security off; the desktop composition root registers the security modules.
+Stage 11 test totals: Security.Tests 55 (new), Users.Tests 157 (50 + 107), Licensing.Tests 143 (109 + 34), Updater.Tests 182 (168 + 14), Cloud.Tests 207 (187 + 20), Architecture.Tests 345 (329 + 16), Integration.Tests 48 (41 + 7), POS.Tests 148, Audit.Tests 35, plus +3..+5 in each other module.
+  Grand total after Stage 11: 2099 tests, 0 failures.
 
 ---
 
@@ -1240,6 +1295,15 @@ Updater.Tests | Microsoft.Data.Sqlite | 10.0.11 | real-database data-preservatio
 
 ---
 
+## Packages Added in Stage 11
+
+Project | Package | Version | Reason
+--------|---------|---------|-------
+Client.Security | System.Security.Cryptography.ProtectedData | 10.0.11 | Windows DPAPI. Needed: DPAPI is not in the shared framework, the package is the .NET team's own and maintained for net10.0; the alternatives (hand-written P/Invoke, or a home-made cipher with its key next to the data) are worse.
+(No other package. Password hashing uses Rfc2898DeriveBytes.Pbkdf2 from the base library; rate limiting and HTTPS enforcement use ASP.NET Core's own middleware; no authentication/identity framework was added.)
+
+---
+
 ## Packages Added in Stage 10
 
 Project | Package | Version | Reason
@@ -1279,7 +1343,7 @@ Stage | Name                                                  | Status
 8     | Additional Business Modules                           | COMPLETE
 9     | Cloud Services & Administration (AdminPortal, BackupServer, durable License/UpdateServer) | COMPLETE (foundation; see Stage 9 limitations)
 10    | Hardware & Device Integration                         | COMPLETE (abstractions + ESC/POS, ZPL, keyboard-wedge adapters; no physical device verified)
-11    | Security Hardening                                    | Not Started
+11    | Security Hardening                                    | COMPLETE (authentication, capability authorization, license enforcement, data protection, audit, server hardening; no UI hosting - see Stage 11 deferred work)
 
 ---
 
@@ -1750,11 +1814,105 @@ NO physical printer, drawer, scanner or scale was available; correctness against
 
 ---
 
+## Stage 11 Summary
+
+### Scope decisions (read before changing anything)
+1. **Repository vs the task text.** `POS-Platform-—-Implementation-Roadmap.txt` is not in the repository; the scope came from the three architecture documents, this file and the task. Capability codes follow the EXISTING Users convention
+   (lower-case dotted, `pos.sale.create`), not the `POS.Sale.Create` casing of the task's examples. Operations that do not exist yet got no capability: there is no refund, return or void-sale handler (add `pos.refund`/`pos.sale.void` WITH the operation),
+   no client backup module (`backup.create/restore/delete` belong to it) and no `inventory.cost.view` (Catalog's ProductDto still carries CostPrice; gating it is a follow-up).
+2. **Authentication lives in Users, authorization in the platform.** Users owns credentials (additive table usr_UserCredentials) and implements the platform's IPermissionProvider; the platform owns "who is signed in" (SessionContext, identity only) and "may they do this"
+   (AuthorizationService). Modules know only Platform.Application. No ASP.NET Identity, no claims, no new framework.
+3. **Enforcement is in the handlers**, before anything happens, so a screen, a test or a script cannot bypass it. The answer is computed live on every call (roles, deactivation and permission changes apply to the very next call); it fails closed (nobody signed in,
+   unknown capability, no permission source, licensing refused). `ISessionManager.SignIn` carries no permissions on purpose.
+4. **Trusted module-to-module calls are not authorized a second time.** A contract call (POS checkout -> Sales/Inventory/Payments, Purchasing receive -> Inventory) runs inside an operation the user was already authorized for; making a cashier hold `payments.payment.record`
+   AND `inventory.stock.issue` AND `pos.sale.create` would leak internals into roles. Handlers with two callers split into HandleAsync (authorizes) and an internal ExecuteAsync (InternalsVisibleTo the module's own Infrastructure only). ARCH-SEC-006 keeps the exception list honest.
+5. **License enforcement is centralized and cannot be turned off by configuration.** One gate in AuthorizationService, driven by the capability declaration (LicenseRequirement.Module or None). No `Licensing:Enforcement`-style key exists (ARCH-SEC-015). A host without any licensing component
+   (tests) has nothing to enforce; the desktop always registers it (ARCH-SEC-016). Developers run licensed through the existing Development dev-license flow of the license server.
+6. **A licence never touches data.** A refusal only declines to START licensed work; reading and exporting your own data (reporting.view, audit.view), user and license administration and updates stay available in every state (proved on the real host: an expired license
+   stops new sales, every record stays readable and intact across a restart, a renewal restores selling).
+7. **Clock rollback** (Stage 6 limitation): persisted protected high-water mark floored by the signed IssuedAt of the stored license + the monotonic stopwatch within a run. A clock that cannot be believed makes the license Invalid(ClockRollback). Tolerance default 120 min, bounded 5 min..7 days,
+   no off switch. NOT a secure time source: someone who can run code as the user can in principle defeat it, and each restart can win back at most one tolerance. The one remaining false positive (clock set far AHEAD across a restart, then corrected) is cleared by the next
+   successful online renewal, which re-bases the mark on server-signed time. A product decision to confirm: the default restricts licensed work (data untouched) instead of only warning, because a warning-only policy defeats the purpose.
+8. **Installation identity** stays a random GUID (activation protocol unchanged) but is stored protected for the current user and machine; an unreadable or plain-text identity is never trusted, never silently overwritten (kept as evidence, audited, regenerated = binding broken = nothing granted).
+   Honest limit: the GUID is not secret, so DPAPI stops copying the file, not someone who runs code on the second PC. Real device binding (an installation key pair whose public half the license binds to, proven at renewal) is a protocol change and is deferred. **Compatibility
+   decision to confirm:** pre-Stage-11 installs have a plain `installation.json`; it is refused by default (accepting plain text would keep the copy attack open) and sealed once with `Licensing:AllowLegacyPlaintextIdentity=true`, or the installation is re-activated
+   (AdminPortal release-installation). No production install exists yet.
+9. **Updates:** the Stage 7 pipeline (signature before manifest, per-file + payload hash, version/compat, side by side + atomic pointer, rollback) already met the requirements and is unchanged; Stage 11 adds audit events and `updates.manage`. Permission never replaces verification.
+10. **Cloud:** no wire contract changed. Throttling is per caller address in memory (guessing protection, not DDoS protection; behind a reverse proxy the real client address needs forwarded headers - Stage 14). Plain HTTP is refused outside Development even where a redirect cannot be built.
+11. **Secrets:** nothing secret is stored in clear anywhere new: passwords only as PBKDF2 hashes, admin keys / backup tokens / activation keys unchanged (SHA-256 only), audit text is sanitised (SecretRedactor) and a typed username is only recorded when it is a real user
+    (someone may have typed a password into the name box). No private key exists in client sources (ARCH-SEC-013); no hard-coded credential (ARCH-SEC-014).
+
+### Capabilities (31; * = sensitive; all `LicenseRequirement.Module` unless marked None)
+users.view (None), users.manage* (None) | pos.session.manage, pos.sale.create*, pos.receipt.reprint, pos.drawer.open*, pos.label.print | catalog.product.create / .edit / .deactivate, catalog.category.manage, catalog.unit.manage |
+inventory.stock.receive*, inventory.stock.adjust*, inventory.location.manage | purchasing.order.create / .submit / .cancel, purchasing.order.receive* | payments.payment.record*, payments.payment.void* | cash.session.manage*, cash.movement.record* (module cash-management) |
+customers.customer.manage | suppliers.supplier.manage | pricing.pricelist.manage*, pricing.price.manage* | reporting.view (None) | audit.view* (None) | licensing.manage* (None) | updates.manage* (None).
+Module IDs for entitlements are the manifest IDs (catalog, inventory, sales, pos, customers, suppliers, purchasing, pricing, payments, users, audit, cash-management, reporting). Not protected by a capability by design: Sales workflow handlers and IssueStock (only reachable through contracts inside POS checkout),
+RecordAuditEntry (modules record on their own account), SignIn/SignOut/ChangePassword/BootstrapAdministrator, GetUserPermissions (it IS the permission source), and plain master-data READS of catalog, inventory, customers, suppliers, pricing, payments, cash and POS carts (see limitations).
+
+### First run and sessions
+`BootstrapAdministratorCommandHandler` creates the first user, an "Administrator" role holding every capability the installed modules declare at that moment, and the password; it works only while NO user exists and is audited (also when refused). It signs nobody in. After setup the
+administrator signs in (`SignInCommandHandler`) and creates other users (`CreateUserCommand` + `SetUserPasswordCommand`, temporary passwords force a change: `ChangePasswordCommandHandler`, which re-proves the current password under the same lockout). Unknown user, user without a password and wrong
+password give the same answer and cost the same hashing work; a disabled user is only named to someone who knows the password; oversized input is refused before hashing. Lockout: 5 failed attempts -> 15 minutes, per account, raise-only configuration.
+New capabilities of modules installed LATER are not added to the Administrator role automatically (an administrator grants them): automatic escalation was rejected.
+
+### Configuration reference (all optional; none can weaken a rule below its floor; no secret)
+Key | Meaning (default; floor / bound)
+----|---------------------------------
+Security:Passwords:MinimumLength / MaximumLength | password length (10 / 128; at least 8, at most 128)
+Security:Lockout:MaxFailedAttempts / LockoutMinutes | sign-in lockout (5 / 15; at least 3 attempts, positive duration)
+Security:PasswordHashing:Iterations | PBKDF2 cost (600000; at least 100000)
+Licensing:ClockToleranceMinutes | clock rollback tolerance (120; 5 minutes .. 7 days)
+Licensing:AllowLegacyPlaintextIdentity | accept and seal a pre-Stage-11 plain installation.json once (false)
+Security:AuthThrottle:MaxFailures / WindowMinutes / LockoutMinutes | server credential-guessing throttle (10 / 10 / 15; at least 3 failures)
+UpdateServer:TrustedKeys | now REQUIRED by AdminPortal.Api outside Development (public keys only)
+No setting enables/disables authorization, authentication or license enforcement (ARCH-SEC-015).
+
+### Security events written to the audit log (module "security")
+security.signin.succeeded|failed|locked|blocked, security.signout, security.password.changed|reset, security.bootstrap.administrator-created|refused, security.authorization.denied (capability, user; includes license refusals),
+security.user.created|deactivated|reactivated, security.role.created|assigned|removed, security.permission.granted|revoked, security.license.loaded|activated|renewed|rejected|activation-failed|clock-rollback|clock-state-unusable,
+security.installation.identity-unusable|sealed, security.update.accepted|rejected|failed|rolledback. Events carry IDs, codes and short reasons only (never passwords, hashes, keys, tokens, license content or package content; tested). Recording is best effort and never
+blocks the audited operation; events raised before the audit tables exist wait in a bounded buffer and are written in order after the audit migration. Server side, the shared adm_AuditLog also holds backup.upload|download|delete|upload-denied (actor license:<id>) and admin|backup|license auth-failed|auth-blocked (actor anonymous).
+
+### Stage 11 architectural decisions (short)
+1. ICurrentUser lost HasPermission/HasFeature (never used; a cached permission snapshot contradicts "live"); permissions are asked of IAuthorizationService only.
+2. Reads that return plain DTOs (Users, Audit, Reporting - the protected ones) now return Result<T> so a refusal is expressible; Users.UI and Audit.UI show the reason.
+3. TestModuleDatabase and the per-module test databases register a permissive IAuthorizationService by default so business tests stay about business; security tests register the real or a scripted one. Integration hosts WITH Users do the real first-run setup and sign in;
+   hosts without Users (no permission source) use a test-only permissive stand-in because the real service correctly fails closed.
+4. Client.Security is a separate project (the precedent is Client.Hardware): DPAPI is Windows- and package-specific and must stay replaceable; consumers fall back to plain files and never invent a cipher when no protector is registered.
+5. Cloud.Hosting exists because Cloud.Infrastructure must stay free of ASP.NET (ARCH-CLD-005) and four hosts needed the same middleware.
+6. EF migration tooling: `dotnet ef` 9.0.3 (installed tool) generated the Users migration against EF Core 10.0.11 with `-s src/Client/Client.Desktop`; it works but warns that the tool is older than the runtime.
+
+### Stage 11 limitations and deferred work
+- **No screen signs anyone in.** MainWindow is still an empty shell and PosView is not hosted, so the desktop has no sign-in, first-run setup or administration UI: the security layer is complete and tested at the application boundary (handlers, real host), and the UI must now be built on top
+  (sign-in view model + window, first-run setup, password change, user/role administration; hosting PosView and forwarding keys to IKeyboardInputSink belongs with it). Until then a freshly installed desktop cannot bootstrap an administrator through the UI.
+- **POS session attribution:** `OpenPosSession(cashierReference)` still takes a UI-supplied label; the session is not bound to the signed-in user (attribution, not authorization: the capability check does use the real user). Bind it when the sign-in UI exists.
+- **Master-data reads are not capability-gated** (catalog, inventory, customers, suppliers, pricing, payments, cash sessions, POS carts, device status): cashiers need them, and most are also reachable through module contracts that run inside trusted operations. Customers (PII) and cost prices are the candidates for
+  `customers.view` / `inventory.cost.view` if the business wants them. Users, audit and reports ARE gated.
+- **Contract calls between modules are trusted** (decision 4): code that is allowed to reference another module's Contracts can use them without the second permission. The architecture rules (Contracts-only references, ARCH-xxx-011) are what keeps that set small.
+- **Backup:** the client-side CloudBackup module does not exist, so backup creation/restore/delete permissions and the audit events "Backup created/restored/deleted" for the CLIENT are not implementable yet. Backup encryption and key management are NOT built: they need a key-management design (who holds the key, recovery, rotation) that
+  must not be improvised; backups remain opaque, per-license, token-protected on the server (isolation, revocation and activity audit are tested).
+- **Trusted keys live in configuration** (`Licensing:TrustedKeys`, `Updater:TrustedKeys`), editable by anyone who can edit the application's files; making them tamper-proof needs the public keys inside a signed binary (Authenticode signing and the installer are Stage 14). A customer-controlled PC cannot be made tamper-proof:
+  the goal is detection and prevention of easy and accidental bypasses.
+- **Device binding** of the installation (an installation key pair proven at renewal) is not implemented (protocol change); DPAPI only stops copying the identity file (decision 8). Cloned installations are bounded by one-installation-per-license on the server and the lease length.
+- **Server limits:** throttling is per host in memory per caller address; admin authentication is still static API keys (no per-administrator roles, rotation tooling or 2FA); the license `renew` endpoint is unauthenticated (it can only return what the server signs for that installation).
+- **Runtime adoption of activated updates (launcher/ModuleHost) is still deferred (Stage 7)**: `updates.manage`, the verification and the audit all work, but an Activated update still does not change what runs.
+- **Automatic license renewal** (a background scheduler) does not exist; `RenewLicenseCommandHandler` is the user path and `ILicenseService.RenewAsync` the system path. License state changes during a run are audited when they cause a denial, not on a timer.
+- Not Stage 11 (left for their stages): the failure campaign (12), architecture/integration verification campaign (13), installer/signing/deployment/TLS termination and forwarded headers (14), production-readiness program (15).
+
+### Stage 11 commit history (all on master, each built and tested before committing)
+51ada3d foundation (authorization, session, security events) | d420ba7 offline authentication in Users | b6cffe2 Users enforcement | ad0f628 POS enforcement | 87e0e7d Catalog + Inventory enforcement | 634363b Purchasing + Payments + CashManagement |
+aa60eb4 Customers + Suppliers + Pricing | f4bc964 audit.view + reporting.view | b2ef0a1 central license enforcement + license events | ef2290b protected identity + clock rollback | 0e42ac9 update audit + updates.manage | ddc4d8b audit listener |
+dc41c40 cloud throttling, security log, HTTPS | 87cdaba audit of user/role/permission changes | ed190b1 ARCH-SEC-001..016 | 95cf415 strict composition test | 4942ff5 configuration surface | (docs commit)
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 10 is complete.
-Build: 0 errors, 0 warnings (117 projects).
-All 1794 tests pass (Hardware.Tests 97, POS.Tests 138, Architecture.Tests 329, Integration.Tests 41, Cloud.Tests 187, others unchanged).
+None blocking. Stage 11 is complete.
+Build: 0 errors, 0 warnings (120 projects, verified with `dotnet build --no-incremental`).
+All 2099 tests pass (Architecture 345, Cloud 207, Updater 182, Users 157, POS 148, Licensing 143, Platform.ModuleContract 112, Sales 103, Hardware 97, Inventory 97, Catalog 68, Security 55, Integration 48, Purchasing 48, Pricing 44, Customers 41, Suppliers 41,
+Reporting 38, CashManagement 38, Audit 35, Payments 33, Platform.Infrastructure 19).
+Stage 11 follow-up that is NOT a defect but blocks a usable desktop: there is no sign-in / first-run UI yet (see Stage 11 deferred work).
 Resolved during Stage 9: stress-running Cloud.Tests exposed rare random failures (about 1 run in 8, different tests each time, SQLite connection-open errors). Cause: the test teardown called the
 process-wide `SqliteConnection.ClearAllPools()` while other tests ran in parallel. Fix: test databases use `Pooling=False` (no global pool clearing); staging-file cleanup in the file stores also
 gained short retries (a briefly locked file never fails an upload) and stale `.part` files are swept at start. 30 consecutive full Cloud.Tests runs passed afterwards.
@@ -1771,7 +1929,7 @@ Remaining limitations after Stage 8 (deferred work, none of it is a Stage 8 requ
 - PRICING: price lists with effective periods and quantity breaks only; no customer-specific prices, promotions, discounts, tax or currency; POS still has Total == Subtotal.
 - PAYMENTS: records only (no gateway, no hardware, no refunds beyond voiding); POS pays the full cart total with one method (split payments exist in the Payments API but are not offered by POS).
 - REPORTING: minimal reports; the sales report scans at most 2000 recent sales (Sales.Contracts only exposes a recent list) and flags IsTruncated; no export, scheduling or caching.
-- The Stage 8 UI projects are minimal view models, not hosted in MainWindow, and (net10.0-windows) not covered by Architecture.Tests; module feature entitlements are not enforced (licensing is still not enforced anywhere).
+- The Stage 8 UI projects are minimal view models, not hosted in MainWindow, and (net10.0-windows) not covered by Architecture.Tests; module feature entitlements are not enforced (licensing was not enforced when this was written; Stage 11 enforces MODULE entitlements through capabilities - FEATURE-level entitlements still have no consumer).
 - Everything listed under "Remaining limitations after Stage 7/6/5D" still applies, except that Payments and Users now exist as modules (the 5D line "no Payments module" is superseded by the Stage 8 integration).
 
 Remaining limitations after Stage 7:
@@ -1800,7 +1958,7 @@ Remaining limitations after Stage 6:
   activation key is the only credential. Activation key brute-force/rate limiting is not implemented.
 - A license can be bound to one installation at a time; transferring/deactivating an installation is not implemented.
 - No licensing status UI. Trusted public keys must be supplied in configuration.
-- (Stage 7 now reuses the Stage 6 trust model through Security.Es256; licensing itself is unchanged and still not enforced anywhere.)
+- (Stage 7 now reuses the Stage 6 trust model through Security.Es256; licensing was unchanged by Stage 7; Stage 11 enforces it centrally in AuthorizationService.)
 
 Remaining limitations after Stage 5D:
 - No payment processing (no Payments module).

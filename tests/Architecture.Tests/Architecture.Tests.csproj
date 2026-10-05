@@ -68,6 +68,11 @@
     <ProjectReference Include="..\..\src\Modules\Customers\Customers.Application\Customers.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Customers\Customers.Infrastructure\Customers.Infrastructure.csproj" />
     <ProjectReference Include="..\Tests.Common\Tests.Common.csproj" />
+    <!-- Suppliers module assemblies (Stage 8) - Suppliers.UI excluded (net10.0-windows) -->
+    <ProjectReference Include="..\..\src\Modules\Suppliers\Suppliers.Domain\Suppliers.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Suppliers\Suppliers.Contracts\Suppliers.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Suppliers\Suppliers.Application\Suppliers.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Suppliers\Suppliers.Infrastructure\Suppliers.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

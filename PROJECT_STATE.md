@@ -298,12 +298,13 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 
 
 ### Stage 8 - Additional Business Modules (IN PROGRESS)
 - [x] 8A Customers (cus_*): Customer aggregate (+CustomerAddress, CustomerContact, CustomerStatus), create/update/deactivate/reactivate, address+contact management, get/list(paged)/search; contracts ICustomerLookup, ICustomerReader; migration InitialCustomersSchema; Customers.Tests (38); ARCH-CUS-001..016
+- [x] 8B Suppliers (sup_*): Supplier aggregate (+SupplierAddress, SupplierContact, SupplierStatus), same capabilities as Customers; contracts ISupplierLookup, ISupplierReader (Purchasing depends on these); migration InitialSuppliersSchema; Suppliers.Tests (38); ARCH-SUP-001..016
 
 ---
 
 ## Current Task
 
-**Stage 8 - IN PROGRESS (8A Customers done). Next: 8B Suppliers.**
+**Stage 8 - IN PROGRESS (8A Customers, 8B Suppliers done). Next: 8C Purchasing.**
 
 ---
 

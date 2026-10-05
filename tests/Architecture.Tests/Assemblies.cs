@@ -256,6 +256,29 @@ internal static class Assemblies
         // Customers.UI excluded - net10.0-windows TFM gap
     ];
 
+    // Suppliers module assemblies (Stage 8)
+    // Note: Suppliers.UI is net10.0-windows and cannot be referenced here (TFM gap).
+    internal static readonly Assembly SuppliersDomain =
+        typeof(Suppliers.Domain.Entities.Supplier).Assembly;
+
+    internal static readonly Assembly SuppliersContracts =
+        typeof(Suppliers.Contracts.Interfaces.ISupplierLookup).Assembly;
+
+    internal static readonly Assembly SuppliersApplication =
+        typeof(Suppliers.Application.Commands.CreateSupplierCommandHandler).Assembly;
+
+    internal static readonly Assembly SuppliersInfrastructure =
+        typeof(Suppliers.Infrastructure.SuppliersInfrastructureAssemblyMarker).Assembly;
+
+    internal static IReadOnlyList<Assembly> AllSuppliersAssemblies =>
+    [
+        SuppliersDomain,
+        SuppliersContracts,
+        SuppliersApplication,
+        SuppliersInfrastructure
+        // Suppliers.UI excluded - net10.0-windows TFM gap
+    ];
+
     internal static IReadOnlyList<Assembly> AllProjectAssemblies =>
     [
         .. AllPlatformAssemblies,
@@ -274,6 +297,7 @@ internal static class Assemblies
         ClientUpdaterHttp,
         UpdateServerApplication,
         ModulePackager,
-        UpdatePublisher
+        UpdatePublisher,
+        .. AllSuppliersAssemblies
     ];
 }

@@ -177,7 +177,7 @@ public sealed class PosAuthorizationTests
 
         w.Auth.Allowed.Add(POSCapabilities.PrintLabel);
         Assert.True((await devices.PrintProductLabelAsync("SKU-1")).IsSuccess);
-        Assert.Equal(1, w.Label.Printed.Count);
+        Assert.Single(w.Label.Printed);
         w.Auth.Allowed.Add(POSCapabilities.CreateSale);
         Assert.True((await devices.ReadWeightAsync()).IsSuccess);
     }

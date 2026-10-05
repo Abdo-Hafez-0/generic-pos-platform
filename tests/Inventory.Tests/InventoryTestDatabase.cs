@@ -31,7 +31,8 @@ public sealed class InventoryTestDatabase : IAsyncDisposable
     }
 
     public static async Task<InventoryTestDatabase> CreateAsync(
-        StubProductLookup? productLookup = null)
+        StubProductLookup? productLookup = null,
+        Platform.Application.Abstractions.Authorization.IAuthorizationService? authorization = null)
     {
         var services = new ServiceCollection();
 
@@ -76,6 +77,9 @@ public sealed class InventoryTestDatabase : IAsyncDisposable
         services.AddTransient<GetStockLevelQueryHandler>();
         services.AddTransient<GetAllStockLevelsQueryHandler>();
         services.AddTransient<GetStockMovementsQueryHandler>();
+
+        // Business tests are not about security; security tests pass their own (scripted or real) authorization.
+        services.AddSingleton(authorization ?? new global::Tests.Common.Security.AllowAllAuthorizationService());
 
         var provider = services.BuildServiceProvider();
 

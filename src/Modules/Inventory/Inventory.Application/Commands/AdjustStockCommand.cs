@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using Inventory.Domain.Entities;
 using Inventory.Domain.Enums;
 using Inventory.Domain.ValueObjects;
@@ -32,12 +33,16 @@ public sealed class AdjustStockCommandHandler(
     IStockAdjustmentRepository adjustmentRepository,
     IStockMovementRepository movementRepository,
     IInventoryBalanceRepository balanceRepository,
-    IInventoryUnitOfWork unitOfWork)
+    IInventoryUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(
         AdjustStockCommand command,
         CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Inventory.Application.Security.InventoryCapabilities.AdjustStock, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         var stockItemId = new StockItemId(command.StockItemId);
 
         // 1. Validate stock item

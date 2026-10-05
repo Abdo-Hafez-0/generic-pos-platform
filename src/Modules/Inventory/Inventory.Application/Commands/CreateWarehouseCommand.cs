@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using Inventory.Domain.Entities;
 using Inventory.Application.Abstractions;
 using Inventory.Application.Repositories;
@@ -16,12 +17,16 @@ public sealed record CreateWarehouseCommand(
 
 public sealed class CreateWarehouseCommandHandler(
     IWarehouseRepository warehouseRepository,
-    IInventoryUnitOfWork unitOfWork)
+    IInventoryUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(
         CreateWarehouseCommand command,
         CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Inventory.Application.Security.InventoryCapabilities.ManageLocations, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         // Guard: duplicate code
         if (await warehouseRepository.ExistsByCodeAsync(command.Code, cancellationToken))
             return Result.Failure<Guid>(Error.Conflict(

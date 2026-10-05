@@ -89,6 +89,7 @@ public static class InventoryServicesExtensions
         services.AddHostedService<InventoryDatabaseInitializer>();
 
         // Command handlers (Transient — stateless)
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Inventory.Application.Security.InventoryCapabilityProvider>();
         services.AddTransient<CreateWarehouseCommandHandler>();
         services.AddTransient<CreateLocationCommandHandler>();
         services.AddTransient<AddStockCommandHandler>();

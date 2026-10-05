@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using Catalog.Contracts.Interfaces;
 using Inventory.Domain.Entities;
 using Inventory.Domain.Enums;
@@ -40,9 +41,22 @@ public sealed class AddStockCommandHandler(
     IStockItemRepository stockItemRepository,
     IStockMovementRepository movementRepository,
     IInventoryBalanceRepository balanceRepository,
-    IInventoryUnitOfWork unitOfWork)
+    IInventoryUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(
+        AddStockCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var allowed = await authorization.AuthorizeAsync(Inventory.Application.Security.InventoryCapabilities.ReceiveStock, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
+        return await ExecuteAsync(command, cancellationToken);
+    }
+
+    /// <summary>The same operation WITHOUT the capability check, for trusted calls from other modules through this module's
+    /// contracts (they run inside an operation the user was already authorized for). Not reachable from UI or other modules.</summary>
+    internal async Task<Result<Guid>> ExecuteAsync(
         AddStockCommand command,
         CancellationToken cancellationToken = default)
     {

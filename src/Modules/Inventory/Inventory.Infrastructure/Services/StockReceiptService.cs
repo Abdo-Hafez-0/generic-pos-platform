@@ -14,7 +14,7 @@ internal sealed class StockReceiptService(AddStockCommandHandler handler) : ISto
         string? reference = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await handler.HandleAsync(
+        var result = await handler.ExecuteAsync(
             new AddStockCommand(catalogProductId, warehouseId, quantity, null, reference), cancellationToken);
 
         return result.IsSuccess

@@ -26,7 +26,7 @@ public sealed class CatalogTestDatabase : IAsyncDisposable
         _serviceProvider = serviceProvider;
     }
 
-    public static async Task<CatalogTestDatabase> CreateAsync()
+    public static async Task<CatalogTestDatabase> CreateAsync(Platform.Application.Abstractions.Authorization.IAuthorizationService? authorization = null)
     {
         var services = new ServiceCollection();
 
@@ -64,6 +64,9 @@ public sealed class CatalogTestDatabase : IAsyncDisposable
         services.AddTransient<FindProductByBarcodeQueryHandler>();
         services.AddTransient<GetAllCategoriesQueryHandler>();
         services.AddTransient<GetAllUnitsQueryHandler>();
+
+        // Business tests are not about security; security tests pass their own (scripted or real) authorization.
+        services.AddSingleton(authorization ?? new global::Tests.Common.Security.AllowAllAuthorizationService());
 
         var provider = services.BuildServiceProvider();
 

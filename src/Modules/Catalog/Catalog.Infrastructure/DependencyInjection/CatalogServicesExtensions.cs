@@ -82,6 +82,7 @@ public static class CatalogServicesExtensions
         services.AddHostedService<CatalogDatabaseInitializer>();
 
         // Command handlers (Transient — stateless)
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Catalog.Application.Security.CatalogCapabilityProvider>();
         services.AddTransient<CreateProductCommandHandler>();
         services.AddTransient<UpdateProductCommandHandler>();
         services.AddTransient<DeactivateProductCommandHandler>();

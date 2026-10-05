@@ -5,6 +5,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <!-- The module's own contract services run inside operations the user was already authorized for (see AddStockCommandHandler.ExecuteAsync). -->
+    <InternalsVisibleTo Include="Inventory.Infrastructure" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Inventory.Domain\Inventory.Domain.csproj" />
     <ProjectReference Include="..\Inventory.Contracts\Inventory.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />

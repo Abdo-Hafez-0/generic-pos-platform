@@ -1,4 +1,5 @@
-﻿using Catalog.Domain.Entities;
+﻿using Platform.Application.Abstractions.Authorization;
+using Catalog.Domain.Entities;
 using Catalog.Domain.ValueObjects;
 using Catalog.Application.Repositories;
 using Catalog.Application.Abstractions;
@@ -14,12 +15,16 @@ public sealed record CreateCategoryCommand(string Name, string? Description = nu
 
 public sealed class CreateCategoryCommandHandler(
     ICategoryRepository categoryRepository,
-    ICatalogUnitOfWork unitOfWork)
+    ICatalogUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result<CategoryId>> HandleAsync(
         CreateCategoryCommand command,
         CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Catalog.Application.Security.CatalogCapabilities.ManageCategories, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<CategoryId>(allowed.Error);
+
         var createResult = Category.Create(command.Name, command.Description);
         if (createResult.IsFailure)
             return Result.Failure<CategoryId>(createResult.Error);
@@ -39,12 +44,16 @@ public sealed record CreateUnitCommand(string Name, string Abbreviation);
 
 public sealed class CreateUnitCommandHandler(
     IUnitRepository unitRepository,
-    ICatalogUnitOfWork unitOfWork)
+    ICatalogUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result<UnitId>> HandleAsync(
         CreateUnitCommand command,
         CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Catalog.Application.Security.CatalogCapabilities.ManageUnits, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<UnitId>(allowed.Error);
+
         var createResult = Unit.Create(command.Name, command.Abbreviation);
         if (createResult.IsFailure)
             return Result.Failure<UnitId>(createResult.Error);

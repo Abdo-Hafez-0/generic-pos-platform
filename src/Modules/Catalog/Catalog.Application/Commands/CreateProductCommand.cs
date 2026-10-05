@@ -1,4 +1,5 @@
-﻿using Catalog.Domain.Entities;
+﻿using Platform.Application.Abstractions.Authorization;
+using Catalog.Domain.Entities;
 using Catalog.Domain.Enums;
 using Catalog.Domain.ValueObjects;
 using Catalog.Application.Repositories;
@@ -24,12 +25,16 @@ public sealed class CreateProductCommandHandler(
     IProductRepository productRepository,
     ICategoryRepository categoryRepository,
     IUnitRepository unitRepository,
-    ICatalogUnitOfWork unitOfWork)
+    ICatalogUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result<ProductId>> HandleAsync(
         CreateProductCommand command,
         CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Catalog.Application.Security.CatalogCapabilities.CreateProduct, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<ProductId>(allowed.Error);
+
         // Verify category exists
         var categoryId = new CategoryId(command.CategoryId);
         if (!await categoryRepository.ExistsAsync(categoryId, cancellationToken))

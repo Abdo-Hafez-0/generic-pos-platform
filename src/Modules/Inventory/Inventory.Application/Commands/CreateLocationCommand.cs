@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using Inventory.Domain.Entities;
 using Inventory.Domain.ValueObjects;
 using Inventory.Application.Abstractions;
@@ -19,12 +20,16 @@ public sealed record CreateLocationCommand(
 public sealed class CreateLocationCommandHandler(
     IWarehouseRepository warehouseRepository,
     ILocationRepository locationRepository,
-    IInventoryUnitOfWork unitOfWork)
+    IInventoryUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(
         CreateLocationCommand command,
         CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Inventory.Application.Security.InventoryCapabilities.ManageLocations, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         var warehouseId = new WarehouseId(command.WarehouseId);
 
         // Guard: warehouse must exist and be active

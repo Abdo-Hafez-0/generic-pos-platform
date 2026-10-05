@@ -7,12 +7,17 @@ public sealed class LicenseRecord
 {
     public required Guid LicenseId { get; init; }
     public required string CustomerId { get; init; }
+
+    /// <summary>
+    /// The activation credential as the repository stores it: the plaintext in the in-memory development repository, the
+    /// SHA-256 hash (see <see cref="ActivationKeys"/>) in the durable repository, whose plaintext is shown once at creation.
+    /// </summary>
     public required string ActivationKey { get; init; }
     public required string ProductId { get; init; }
     public required DateTimeOffset ValidFrom { get; init; }
-    public required DateTimeOffset ValidUntil { get; init; }
-    public required IReadOnlyList<string> Modules { get; init; }
-    public required IReadOnlyList<string> Features { get; init; }
+    public required DateTimeOffset ValidUntil { get; set; }
+    public required IReadOnlyList<string> Modules { get; set; }
+    public required IReadOnlyList<string> Features { get; set; }
 
     /// <summary>Set on first activation; a license is bound to one installation at a time.</summary>
     public Guid? InstallationId { get; set; }
@@ -21,6 +26,35 @@ public sealed class LicenseRecord
 
     /// <summary>Last LicenseVersion issued; every issuance increments it.</summary>
     public int Version { get; set; }
+
+    /// <summary>When the current installation activated this license (null when unbound).</summary>
+    public DateTimeOffset? ActivatedAt { get; set; }
+
+    /// <summary>When a signed license was last issued (activation or renewal).</summary>
+    public DateTimeOffset? LastIssuedAt { get; set; }
+
+    /// <summary>Optimistic-concurrency stamp maintained by durable repositories (0 for a new record); ignored elsewhere.</summary>
+    public long RowVersion { get; set; }
+}
+
+/// <summary>Thrown by a durable repository when a license was changed by someone else since it was read (no lost updates).</summary>
+public sealed class LicenseConcurrencyException(Guid licenseId)
+    : Exception($"License {licenseId} was modified concurrently.")
+{
+    public Guid LicenseId { get; } = licenseId;
+}
+
+/// <summary>Criteria for listing licenses (all optional).</summary>
+public sealed record LicenseFilter(string? CustomerId = null, LicenseStatusClaim? Status = null, bool? Bound = null);
+
+public sealed record LicensePage(IReadOnlyList<LicenseRecord> Items, int Total);
+
+/// <summary>Read side used by administration. Kept separate from <see cref="ILicenseRepository"/> so issuance stays minimal.</summary>
+public interface ILicenseQuery
+{
+    Task<LicensePage> ListAsync(LicenseFilter filter, int page, int pageSize, CancellationToken cancellationToken = default);
+
+    Task<int> CountAsync(LicenseFilter filter, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Server-side license persistence abstraction (the server's own storage; never a client or business DB).</summary>
@@ -83,6 +117,9 @@ public sealed class LicenseIssuanceService(
         if (record.InstallationId is { } bound && bound != request.InstallationId)
             return ActivationResponse.Failure(LicenseErrorCodes.AlreadyActivated, "The license is already activated on another installation.");
 
+        if (record.InstallationId != request.InstallationId)
+            record.ActivatedAt = timeProvider.GetUtcNow();
+
         record.InstallationId = request.InstallationId;
         return ActivationResponse.Success(await IssueAsync(record, cancellationToken));
     }
@@ -118,6 +155,7 @@ public sealed class LicenseIssuanceService(
     {
         var now = timeProvider.GetUtcNow();
         record.Version++;
+        record.LastIssuedAt = now;
 
         var lease = Min(now + options.LeaseDuration, record.ValidUntil);
         var grace = Min(lease + options.GraceDuration, record.ValidUntil);

@@ -17,7 +17,7 @@ determined by customer license entitlements.
 
 - **Desktop Client:** Windows WPF application
 - **Local Database:** SQLite via EF Core 10.0 (operational since Stage 3)
-- **Cloud Backend:** ASP.NET Core (not yet created - Stage 6)
+- **Cloud Backend:** ASP.NET Core (Stage 6 license server, Stage 7 update server, Stage 9 administration + backup servers on a durable server database; all optional for the desktop)
 - **Cross-module communication:** Contracts only (never implementation references)
 - **Layering:** UI -> Application -> Domain <- Infrastructure
 - **Target framework:** net10.0 (net10.0-windows for WPF project)
@@ -26,7 +26,25 @@ determined by customer license entitlements.
 
 ## Current Implementation Phase
 
-**Stage 8 COMPLETE (additional business modules): Customers, Suppliers, Purchasing, Pricing, Payments, Users, Audit, CashManagement, Reporting**
+**Stage 9 COMPLETE (cloud services & administration): AdminPortal (vendor administration API), BackupServer (cloud backup API), durable server persistence for the license and update servers**
+
+The vendor now administers the cloud ecosystem through one authenticated API, and the license, update and backup servers read and write
+ONE durable server database. The desktop POS is untouched: nothing in Platform, Client or any business module references server code,
+and the whole POS path (start, load modules, open POS, read local catalog, sell, update local stock, persist the sale) was re-verified
+in a process where no server assembly is even loaded.
+
+    AdminPortal.Api  (vendor, API key)   LicenseServer.Api   UpdateServer.Api   BackupServer.Api (customer, per-license token)
+          \                                   |                    |                 /
+           +-----------------  Cloud.Infrastructure (EF Core SQLite SERVER database, WAL, migrations) ----------------+
+                                                     + file stores: packages (.gpkg) and backups (opaque bytes)
+    Desktop client (WPF + local SQLite): unchanged; reaches the license/update servers only through Client.Licensing.Http / Client.Updater.Http
+
+Implemented and tested: customer management, license management (create, suspend, reinstate, revoke, extend, entitlements, release
+installation, installations list), module registry, package publishing/withdrawal with a publication gate, cloud backup server (opaque
+backups, per-license retention), administrative audit log, dashboard, API-key administrator authentication, durable licenses/packages.
+Full decisions, endpoints, configuration and limitations: "Stage 9 Summary" below.
+
+### Previous phase - Stage 8 COMPLETE (additional business modules): Customers, Suppliers, Purchasing, Pricing, Payments, Users, Audit, CashManagement, Reporting
 
 Stage 7 (update system foundation: secure, recoverable updates) is complete and unchanged.
 
@@ -312,11 +330,40 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 
 - [x] Final verification: `dotnet build GenericPOS.sln` -> 0 errors, 0 warnings (108 projects); `dotnet test` -> 1428 tests, 0 failures; the working tree is clean and pushed to origin/master. One commit per module (`feat(stage8): add customers|suppliers|purchasing|pricing|payments|users|audit|cash management|reporting module`)
 - [x] Not done by design (out of scope for Stage 8): Accounting, Loyalty, Advanced Reports/Inventory, Multi-Branch, Manufacturing, Restaurant, E-Commerce, Cloud Backup, Synchronization, Employee Management, authentication, real payment gateways/hardware, launcher/runtime update adoption, update CLI wrappers, license enforcement, Stage 9+
 
+### Stage 9 - Cloud Services & Administration (COMPLETE)
+Scope source: the roadmap ("POS Platform - Implementation Roadmap", Stage 9): components LicenseServer, UpdateServer, BackupServer, AdminPortal;
+capabilities customer management, license management, module registry, package/update management, cloud backup, administrative operations;
+"Cloud must remain optional for normal offline POS operation". (The roadmap file is not in the repository; it was read from the technical
+lead's copy. Architecture & Solution Design.md sections 45-51, 63-67 and 83 agree.)
+- [x] Cloud.Contracts (new): ApiError, CloudErrorCodes (+ HTTP mapping), ServiceResult<T>, PagedResult<T>, Paging, admin DTOs, backup DTOs/headers
+- [x] LicenseServer.Application (extended, backward compatible): LicenseRecord fields now settable + ActivatedAt, LastIssuedAt, RowVersion; ILicenseQuery,
+      LicenseFilter/LicensePage, LicenseConcurrencyException, ActivationKeys (generate + SHA-256 hash); issuance records ActivatedAt/LastIssuedAt;
+      InMemoryLicenseRepository also implements ILicenseQuery. LicenseServer.Api: durable store when CloudDatabase is configured, HTTPS/HSTS outside Development
+- [x] UpdateServer.Application (extended): PackageStatus, ManagedPackage, IPackageCatalog, IPackageFileStore, PackageSigningPolicy, PackageInspector (publication gate),
+      PackageVersions. UpdateServer.Api: durable catalog when CloudDatabase is configured (only PUBLISHED packages offered/downloadable), else the Stage 7 directory repository
+- [x] BackupServer.Application (new): BackupRecord, IBackupCatalog/IBackupBlobStore/IBackupAccessTokenStore, BackupAccessService (token issue/rotate/revoke/authenticate),
+      BackupService (upload with size limit + hash check, list, download, delete, per-license retention, admin list/delete/usage), BackupServerOptions
+- [x] BackupServer.Api (new): POST/GET /api/backups, GET /api/backups/{id}, GET /api/backups/{id}/content, DELETE /api/backups/{id}, GET /health
+- [x] AdminPortal.Application (new): Customer, RegisteredModule, AdminAuditEntry, ICustomerRepository, IModuleRegistryRepository, IAdminAuditLog, AdminAuditRecorder,
+      AdminKeyAuthenticator/AdminKeys, CustomerAdminService, LicenseAdminService, ModuleRegistryService, PackageAdminService, AdminOperationsService
+- [x] AdminPortal.Api (new): /api/admin/* (dashboard, audit, customers, licenses, installations, modules, packages, backups) behind API-key authentication, GET /health
+- [x] Cloud.Infrastructure (new): CloudDbContext (EF Core SQLite) + migration InitialCloudSchema, EF repositories, FilePackageStore, FileBackupBlobStore, composition helpers
+      (AddCloudDatabase, AddLicenseStore, AddPackageStore, AddBackupStore, AddBackupServices, AddAdminPortalServices)
+- [x] tests/Cloud.Tests (new, 187 tests): application behaviour on the REAL SQLite server database + real file stores, in-process API tests for AdminPortal.Api and
+      BackupServer.Api, and end-to-end tests that host all four servers over one database (vendor creates a license -> client activates/renews against LicenseServer.Api
+      with a verified ES256 signature; backup upload/download; package publish -> UpdateServer.Api offers/withdraws; restart durability)
+- [x] Architecture.Tests: ARCH-CLD-001..016 (CloudBoundaryTests); Assemblies.cs + Architecture.Tests.csproj reference the new server assemblies
+- [x] Integration.Tests: ServerIndependenceTests (2) - the full POS path on the real host with no server assembly loaded in the process
+- [x] Real-process smoke run of AdminPortal.Api (Development: ephemeral key logged, 401 without key, dashboard + customer creation with it, database/WAL files created)
+- [x] Build: 0 errors, 0 warnings (115 projects); all 1633 tests pass; Cloud.Tests were stress-run repeatedly (30 consecutive clean runs after the fix described in Known Issues)
+- [x] Not done by design (later stages / not in Stage 9): the client-side CloudBackup module and IBackupClient/HttpBackupClient, synchronization, a browser UI for the portal, enterprise
+      identity (SSO/2FA/roles), billing/payments/support/telemetry areas of the vendor platform, backup encryption and key management, hardware, security hardening campaign, packaging
+
 ---
 
 ## Current Task
 
-**Stage 8 - COMPLETE (Additional Business Modules). Stopped: Stage 9 has not been started.**
+**Stage 9 - COMPLETE (Cloud Services & Administration). Stopped: Stage 10 has not been started.**
 
 ---
 
@@ -324,13 +371,13 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 
 
 **Awaiting instruction (technical lead decides).**
 
-Next roadmap stage: Stage 9 (Cloud / server administration) - only when instructed. Follow-ups that are NOT part of any completed stage: license ENFORCEMENT points; a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; durable/authenticated update + license server administration; stock-reversal contract; hosting PosView and the Stage 8 view models in MainWindow; authentication on top of Users; adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations").
+Next roadmap stage: Stage 10 (Hardware & Device Integration) - only when instructed. Follow-ups that are NOT part of any completed stage: license ENFORCEMENT points; a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient); a browser UI for AdminPortal; stock-reversal contract; hosting PosView and the Stage 8 view models in MainWindow; authentication on top of Users (Stage 11); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
 
 ---
 
 ## Solution / Project Structure (Current State)
 
-GenericPOS.sln (108 projects)
+GenericPOS.sln (115 projects)
 
 src/
 +-- Platform/
@@ -485,8 +532,18 @@ src/Updates/
 +-- Updates.Contracts              [DONE] - Stage 7: package manifest, signed envelope, discovery messages, error codes
 +-- Updates.Package                [DONE] - Stage 7: .gpkg format reader/writer, payload digest, shared manifest rules
 src/Cloud/UpdateServer/
-+-- UpdateServer.Application       [DONE] - Stage 7: DirectoryPackageRepository, UpdateDiscoveryService (no keys)
-+-- UpdateServer.Api               [DONE] - Stage 7: minimal ASP.NET Core API (check, download)
++-- UpdateServer.Application       [DONE] - Stage 7: DirectoryPackageRepository, UpdateDiscoveryService (no keys); Stage 9: package catalog ports + PackageInspector
++-- UpdateServer.Api               [DONE] - Stage 7: minimal ASP.NET Core API (check, download); Stage 9: durable catalog when CloudDatabase is configured
+src/Cloud/
++-- Cloud.Contracts                [DONE] - Stage 9: server wire/result model (ApiError, ServiceResult, PagedResult, admin + backup DTOs)
++-- Cloud.Infrastructure           [DONE] - Stage 9: CloudDbContext (EF Core SQLite SERVER database), migration InitialCloudSchema, EF repositories, file stores, composition helpers
+src/Cloud/AdminPortal/
++-- AdminPortal.Application        [DONE] - Stage 9: customers, licenses, module registry, packages, backups, audit, dashboard; API-key authentication
++-- AdminPortal.Api                [DONE] - Stage 9: /api/admin/* ASP.NET Core API (vendor administration)
+src/Cloud/BackupServer/
++-- BackupServer.Application       [DONE] - Stage 9: opaque backup storage rules, per-license access tokens, retention
++-- BackupServer.Api               [DONE] - Stage 9: /api/backups ASP.NET Core API (customer side)
+tests/Cloud.Tests                  [DONE] - 187 tests, all passing (Stage 9)
 tools/
 +-- ModulePackager                 [DONE] - Stage 7: validates + hashes a package spec, rejects before signing
 +-- UpdatePublisher                [DONE] - Stage 7: signs a validated draft and writes the distributable package
@@ -633,6 +690,20 @@ ModulePackager -> Updates.Contracts, Updates.Package, Security.Es256
 UpdatePublisher -> ModulePackager, Updates.Contracts, Updates.Package, Security.Es256, Security.Es256.Signing
 Client.Licensing -> also Security.Es256; LicenseServer.Infrastructure -> also Security.Es256, Security.Es256.Signing  <- Stage 7 refactor
 
+STAGE 9 SERVER PROJECTS (never referenced by Platform, Client or any business module):
+Cloud.Contracts -> (nothing)
+LicenseServer.Application -> Licensing.Contracts, (unchanged references)
+UpdateServer.Application -> also Cloud.Contracts
+BackupServer.Application -> Cloud.Contracts, LicenseServer.Application, Licensing.Contracts
+AdminPortal.Application -> Cloud.Contracts, LicenseServer.Application, UpdateServer.Application, BackupServer.Application,
+                           Licensing.Contracts, Updates.Contracts, Updates.Package
+Cloud.Infrastructure -> Cloud.Contracts, LicenseServer.Application, UpdateServer.Application, BackupServer.Application, AdminPortal.Application,
+                        Licensing.Contracts, Updates.Contracts, Updates.Package, Security.Es256 + Microsoft.EntityFrameworkCore.Sqlite / .Design,
+                        Configuration.Binder, Hosting.Abstractions   (the ONLY server project using EF Core; no ASP.NET, no signing)
+AdminPortal.Api -> AdminPortal.Application, Cloud.Contracts, Cloud.Infrastructure (ASP.NET Core; no EF reference, no DbContext)
+BackupServer.Api -> BackupServer.Application, Cloud.Contracts, Cloud.Infrastructure (ASP.NET Core; no EF reference, no DbContext)
+LicenseServer.Api / UpdateServer.Api -> also Cloud.Infrastructure (durable store when CloudDatabase is configured)
+
 INVENTORY MODULE (Stage 5B):
 Inventory.Domain -> Platform.Core
 Inventory.Contracts -> Platform.Core
@@ -667,7 +738,9 @@ TESTS:
 Updater.Tests -> Updates.*, Security.Es256(.Signing), Client.Updater(.Http), UpdateServer.*, ModulePackager, UpdatePublisher,
                Client.Licensing + LicenseServer.* (real licensing states), Platform.Application
 Licensing.Tests -> Licensing.Contracts, Client.Licensing, Client.Licensing.Http, LicenseServer.*, Platform.Application
-Architecture.Tests -> all Platform + non-WPF Client + non-WPF Catalog + Inventory + Sales + POS projects
+Cloud.Tests -> Cloud.Contracts, Cloud.Infrastructure, AdminPortal.*, BackupServer.*, LicenseServer.* (Api aliased LicenseApi), UpdateServer.* (Api aliased UpdateApi),
+               Licensing.Contracts, Updates.*, Security.Es256(.Signing), ModulePackager, UpdatePublisher, Microsoft.AspNetCore.Mvc.Testing
+Architecture.Tests -> all Platform + non-WPF Client + non-WPF Catalog + Inventory + Sales + POS projects (+ later modules, update/licensing and Stage 9 server assemblies)
 Platform.Infrastructure.Tests -> Platform.Infrastructure, Platform.Application
 Platform.ModuleContract.Tests -> Platform.Core, Platform.Application, Client.ModuleHost
 Catalog.Tests -> Catalog.Domain, Catalog.Application, Catalog.Infrastructure, Catalog.Contracts
@@ -1001,6 +1074,14 @@ ARCH-SAL-001 through ARCH-SAL-016: ACTIVE and passing (activated with Stage 5C).
 ARCH-POS-001 through ARCH-POS-020: ACTIVE and passing (activated with Stage 5D).
 ARCH-LIC-001 through ARCH-LIC-018: ACTIVE and passing (activated with Stage 6).
 ARCH-UPD-001 through ARCH-UPD-022: ACTIVE and passing (activated with Stage 7).
+(Stage 8 module rules ARCH-CUS/SUP/PUR/PRI/PAY/USR/AUD/CASH/REP-001..016: see "Stage 8 Summary".)
+ARCH-CLD-001 through ARCH-CLD-016: ACTIVE and passing (activated with Stage 9): Cloud.Contracts pure; server application layers free of ASP.NET/EF/HTTP/WPF/SQLite;
+  server application layers depend inward only; no server project depends on the desktop (Client, Platform, business modules); Cloud.Infrastructure has no
+  ASP.NET/WPF/signing; desktop assemblies and desktop project files never reference server code (offline-first); API hosts are thin (no EF, no DbContext);
+  server administration is separate from the desktop Users module; the admin audit log is append-only; no Stage 9 assembly can sign; assembly graph acyclic;
+  no secrets/private keys in server sources; admin services return contract DTOs only; server tables use server prefixes (lic_/upd_/bak_/adm_); no hard-coded
+  environment values in server code.
+Stage 9 test totals: Cloud.Tests 187, Architecture.Tests 315 (299 + 16), Integration.Tests 34 (32 + 2). Grand total after Stage 9: 1633 tests, 0 failures.
 
 ---
 
@@ -1101,6 +1182,18 @@ Updater.Tests | Microsoft.Data.Sqlite | 10.0.11 | real-database data-preservatio
 
 ---
 
+## Packages Added in Stage 9
+
+Project | Package | Version | Reason
+--------|---------|---------|-------
+Cloud.Infrastructure | Microsoft.EntityFrameworkCore.Sqlite | 10.0.11 | Server database provider (the server's OWN database, never the desktop file)
+Cloud.Infrastructure | Microsoft.EntityFrameworkCore.Design | 10.0.11 | Migration tooling (PrivateAssets=all)
+Cloud.Infrastructure | Microsoft.Extensions.Configuration.Binder / Hosting.Abstractions | 10.0.11 | Configuration binding, database initializer hosted service
+Cloud.Tests | Microsoft.AspNetCore.Mvc.Testing, Microsoft.Data.Sqlite, Microsoft.Extensions.DependencyInjection, xunit stack | existing versions | In-process API hosting, real SQLite
+(No new third-party packages: same packages and versions already used by the desktop persistence layer.)
+
+---
+
 ## Architectural Implementation Stages
 
 Stage | Name                                                  | Status
@@ -1115,7 +1208,9 @@ Stage | Name                                                  | Status
 5D    | POS Module                                            | COMPLETE
 6     | Licensing (LicenseServer, Client.Licensing)           | COMPLETE (foundation; enforcement points deferred)
 7     | Update System (packages, signatures, rollback)        | COMPLETE (foundation; runtime adoption of activated versions deferred)
-8     | Additional Business Modules                           | Not Started
+8     | Additional Business Modules                           | COMPLETE
+9     | Cloud Services & Administration (AdminPortal, BackupServer, durable License/UpdateServer) | COMPLETE (foundation; see Stage 9 limitations)
+10    | Hardware & Device Integration                         | Not Started
 
 ---
 
@@ -1446,11 +1541,103 @@ means a missing registration: nothing else fails.
 
 ---
 
+## Stage 9 Summary
+
+### Scope decisions (read before changing anything)
+1. **Roadmap vs the Stage 9 task text.** The task said not to implement "cloud backup" unless the documents explicitly place it in Stage 9. The roadmap does: Stage 9
+   lists the BackupServer component and the "Cloud backup" capability. So the SERVER side (BackupServer) is implemented. The CLIENT side (the optional CloudBackup module,
+   `IBackupClient`/`HttpBackupClient`, scheduling, encryption/packaging of the SQLite file) is the Stage 8 optional module list and was NOT built: no client can back up yet.
+2. **Server database technology.** The documents say only "ASP.NET Core" for the cloud backend and name no server database. Decision (reversible, behind repository ports):
+   EF Core + SQLite, the stack already in the solution, in the SERVER's own file (`CloudDatabase:ConnectionString`), WAL mode, migrations owned by Cloud.Infrastructure
+   (`InitialCloudSchema`; EF Core 10 serialises concurrent hosts with `__EFMigrationsLock`). Moving to PostgreSQL/SQL Server later means a new provider + migrations in
+   Cloud.Infrastructure only. The architecture lead should confirm this choice before production.
+3. **One backend, four hosts.** The architecture says the cloud projects "should initially remain part of one deployable backend where practical". Decision: the four
+   components stay separate deployables (LicenseServer.Api, UpdateServer.Api, BackupServer.Api, AdminPortal.Api) over ONE server database and shared storage directories, so the
+   customer-facing hosts (license, update, backup) can be exposed while the vendor administration host stays on an internal network. They can be co-hosted later.
+4. **Compatibility.** Stage 6/7 wire contracts, ES256 signing, client verification and the Stage 6/7 hosts' default behavior are unchanged: without `CloudDatabase:ConnectionString`
+   LicenseServer.Api still uses the in-memory store (Development only) and UpdateServer.Api still serves the package directory. All 109 licensing and 168 updater tests pass unchanged.
+
+### Configuration reference (all environment-specific values; no secrets in source control)
+Key | Used by | Meaning
+----|---------|--------
+CloudDatabase:ConnectionString | all four hosts | server database (required for Admin/Backup; License/Update use it when present; License requires it outside Development)
+CloudDatabase:MigrateOnStartup | all four hosts | apply migrations at start (default true)
+UpdateServer:PackageDirectory | Admin (writes), Update (reads) | where package bytes live (required with the durable catalog)
+UpdateServer:TrustedKeys:n:KeyId/PublicKey | Admin | optional PUBLIC keys; when set, a package whose signature does not verify is rejected at publication
+UpdateServer:MaxPackageBytes | Admin | upload limit (default 512 MiB)
+BackupServer:StorageDirectory | Backup, Admin | where backup bytes live (required)
+BackupServer:MaxBackupBytes / MaxBackupsPerLicense / RequiredModule | Backup | 256 MiB / 10 / "cloud-backup" (an explicitly empty RequiredModule = no entitlement needed)
+AdminPortal:Keys:n:Name / Sha256 | Admin | administrator credentials: a name and the SHA-256 (hex) of the API key; no key configured = nobody can call the API
+LicenseServer:SigningKeyPemPath / KeyId | License | unchanged from Stage 6 (PKCS#8 PEM outside the repo; required outside Development)
+Development only: no admin key configured -> an ephemeral key is generated and logged once; `appsettings.Development.json` of AdminPortal.Api/BackupServer.Api points
+at `dev-data/` (git-ignored). Producing a key hash (works in Windows PowerShell 5.1 and pwsh): `(([Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($key)) | ForEach-Object { $_.ToString('x2') }) -join '')`; generate a key with `AdminKeys.Generate()` (prefix `gpa_`).
+
+### API reference
+AdminPortal.Api - every /api/admin request needs `Authorization: Bearer <admin key>` (401 otherwise, `Cache-Control: no-store`); errors are `ApiError{code,message}` (400 validation,
+403, 404, 409 conflict/invalid state, 413 too large). GET /health is open.
+- GET /dashboard; GET /audit (actor, action, entityType, entityId, from, to, page, pageSize)
+- POST/GET /customers, GET/PUT /customers/{id}, POST /customers/{id}/deactivate|reactivate
+- POST/GET /licenses (create returns the activation key ONCE), GET /licenses/{id}, POST /licenses/{id}/suspend|reinstate|revoke (optional reason), POST .../extend,
+  PUT .../entitlements, POST .../release-installation, POST/DELETE .../backup-token (token returned ONCE), GET /installations
+- POST/GET /modules, GET/PUT /modules/{id}, POST /modules/{id}/retire|reactivate
+- POST /packages (body = the signed .gpkg, ?releaseNotes=), GET /packages (targetId, status), GET /packages/{id}, POST /packages/{id}/withdraw|restore
+- GET /backups (licenseId), DELETE /backups/{id}
+BackupServer.Api - `Authorization: Bearer <backup token>`: POST /api/backups (raw bytes; optional `X-Backup-Sha256`, `X-Client-Version`, `?label=`), GET /api/backups, GET /api/backups/{id},
+GET /api/backups/{id}/content (+ `X-Backup-Sha256`), DELETE /api/backups/{id}. LicenseServer.Api (activate, renew) and UpdateServer.Api (check, download) are unchanged.
+
+### Tables (server database; prefixes keep them apart from desktop tables)
+lic_Licenses (activation key stored as SHA-256 only, modules/features as JSON, RowVersion concurrency stamp), upd_Packages (metadata + verbatim signed envelope; unique target+version+framework),
+bak_Backups, bak_AccessTokens (token hash only), adm_Customers (unique case-insensitive name), adm_Modules, adm_AuditLog (append-only).
+
+### Stage 9 architectural decisions
+1. **Layering.** Application layers (AdminPortal/BackupServer/LicenseServer/UpdateServer .Application) hold the rules and are free of ASP.NET, EF, HTTP and SQLite; Cloud.Infrastructure is the only
+   server project with EF Core; the Api hosts are thin endpoints (no DbContext) over services that return `ServiceResult<T>` carrying contract DTOs (enforced by ARCH-CLD-008/014).
+2. **Administration authentication = minimum necessary.** Static API keys held as hashes in configuration, constant-time comparison, a name per key recorded in the audit log. It is NOT
+   the desktop Users module (ARCH-CLD-009) and not a general identity system (no passwords, SSO, 2FA, roles, lockout, rate limiting: Stage 11).
+3. **Secrets.** The activation key and the backup token are shown once and stored only as SHA-256 hashes; admin keys are only configured as hashes; audit entries never contain secrets
+   (tested); no private key exists in server code (ARCH-CLD-011/013); packages and licenses are signed elsewhere (UpdatePublisher, LicenseServer signer).
+4. **License administration works on the existing record.** Creating, suspending, reinstating, revoking, extending, changing entitlements and releasing the installation change the
+   `LicenseRecord`; clients learn at their next renewal exactly as in Stage 6 (verified end to end: suspended + new entitlements arrive in a verified ES256 payload). Revocation is terminal.
+   Licenses may only entitle REGISTERED, ACTIVE modules (the module registry is the vendor's authority); removing a module is always allowed.
+5. **No lost updates.** The durable license repository saves with an optimistic RowVersion; a stale save throws `LicenseConcurrencyException` (admin gets 409), so a renewal can never
+   overwrite a concurrent revocation.
+6. **Package publication gate.** `PackageInspector`: opens the .gpkg safely, parses the manifest, applies the shared `ManifestRules`, checks the payload against the manifest (listed files,
+   lengths, SHA-256, PayloadHash) and, if trusted public keys are configured, the ES256 signature. Module packages need an active registry entry; duplicate package IDs and duplicate
+   target+version(+framework) are conflicts (even if withdrawn). The server never signs and clients still verify everything. Withdrawn packages are neither offered nor downloadable.
+6b. **Registry/versions.** Module versions come from the package catalog (no duplicate bookkeeping); `core` is not a module and cannot be registered.
+7. **Backup access.** A backup token is issued per license by the vendor; it identifies the license (not a user). Uploads need an Active, unexpired license that includes the `cloud-backup`
+   module; READING, restoring and deleting one's own backups stays possible while suspended or expired (expiry never strands customer data) and stops only on revocation or token
+   revocation. Backups are opaque: streamed to a staging file, size-limited, hashed on the way in (a claimed hash that does not match is rejected), then promoted; the oldest backups beyond
+   the per-license retention count are removed after a successful upload. One license can never see another's backups.
+8. **Offline-first.** No Platform, Client or business-module project references any server assembly or project (ARCH-CLD-006/007 inspect assemblies AND project files); the Stage 9 integration
+   test runs the full POS path on the real host with no server assembly loaded. The server hosts never touch the desktop database and the desktop never touches the server database.
+9. **HTTPS.** All four hosts apply HSTS and HTTPS redirection outside Development; TLS termination/reverse-proxy configuration remains a deployment concern (Stage 14).
+
+### Stage 9 limitations and deferred work
+- No client for the cloud: Client-side CloudBackup module, IBackupClient/HttpBackupClient, backup scheduling, client-side encryption and restore flow are NOT built; nothing on the desktop calls
+  BackupServer.Api or AdminPortal.Api. Backup content is opaque to the server; encryption/key management and stronger client authentication ("Backup security", "Secure cloud communication")
+  belong to Stage 11. The backup token is a bearer secret per license (identification by possession).
+- AdminPortal is an API only (no browser UI). Admin authentication is static API keys (see decision 2); no per-administrator permissions, key rotation tooling, lockout or rate limiting.
+- Vendor-platform areas of architecture sections 48-52 that are NOT built: plans/products catalog, billing/payments, customer requests/support, activity feed, telemetry, installation limits
+  (a license binds ONE installation; `release-installation` is the transfer mechanism), activation-key rotation, module compatibility/dependency metadata beyond what packages carry.
+- Server database is SQLite (single node, shared by hosts on one machine through the file); a multi-node deployment needs another provider (see decision in scope item 2). Backup/package bytes are
+  local directories, not object storage. Retention is by count only (no byte quotas, no time-based expiry).
+- LicenseServer.Api does not translate `LicenseConcurrencyException` (a rare activate/renew vs admin-change race answers 500; the client treats it as unreachable and retries). Admin gets a clean 409.
+- Package publication by the server is optional-signature-checked (needs `UpdateServer:TrustedKeys`); there is no staged rollout, release channel or delta package.
+- Still deferred from earlier stages and unchanged: license ENFORCEMENT in the desktop, runtime adoption of activated updates (launcher/ModuleHost), IModuleMigrator implementations, update CLI
+  wrappers, authentication on top of Users, Stage 8 adoption items.
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 8 is complete.
-Build: 0 errors, 0 warnings (108 projects).
-All 1428 tests pass.
+None blocking. Stage 9 is complete.
+Build: 0 errors, 0 warnings (115 projects).
+All 1633 tests pass (Cloud.Tests 187, Architecture.Tests 315, Integration.Tests 34, others unchanged).
+Resolved during Stage 9: stress-running Cloud.Tests exposed rare random failures (about 1 run in 8, different tests each time, SQLite connection-open errors). Cause: the test teardown called the
+process-wide `SqliteConnection.ClearAllPools()` while other tests ran in parallel. Fix: test databases use `Pooling=False` (no global pool clearing); staging-file cleanup in the file stores also
+gained short retries (a briefly locked file never fails an upload) and stale `.part` files are swept at start. 30 consecutive full Cloud.Tests runs passed afterwards.
+(Pre-Stage-9 status for reference: Stage 8 had 1428 tests, 0 warnings, 108 projects.)
 Catalog, Inventory, Sales, POS and every Stage 8 module (except Reporting, which has no tables) apply their own migrations at startup.
 Database: %LOCALAPPDATA%\GenericPOS\genericpos.db (Platform + all module tables in the same file).
 
@@ -1508,8 +1695,8 @@ Notes:
 - CompleteSaleCommandHandler does not yet reduce stock or process payments (Stage 5D / Payments).
 - Sales design: Sale/SaleItem/Return/ReturnItem/SalesTransaction. The earlier planning names
   SalesOrder/SalesOrderLine/SalePayment were superseded; Payments is a separate future module.
-- Header text "Cloud Backend ... Stage 6" is stale: roadmap is 6 Licensing, 7 Updates, 9 Cloud.
+- (Fixed in Stage 9) The header text "Cloud Backend ... Stage 6" was stale: roadmap is 6 Licensing, 7 Updates, 9 Cloud Services & Administration.
 
 ---
 
-Last updated: 2026-10-05 - Stage 8 complete (Customers, Suppliers, Purchasing, Pricing, Payments, Users, Audit, CashManagement, Reporting). 1428 tests, 0 warnings; Stage 9 not started.
+Last updated: 2026-10-05 - Stage 9 complete (AdminPortal, BackupServer, durable License/UpdateServer persistence, Cloud.Contracts, Cloud.Infrastructure). 1633 tests, 0 warnings; Stage 10 not started.

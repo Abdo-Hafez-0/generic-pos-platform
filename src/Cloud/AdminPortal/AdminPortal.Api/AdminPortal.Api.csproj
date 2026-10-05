@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- Vendor administration HTTP API (Stage 9). Thin endpoints over AdminPortal.Application; API-key authenticated; no business logic, no DbContext access. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AdminPortal.Application\AdminPortal.Application.csproj" />
+    <ProjectReference Include="..\..\Cloud.Contracts\Cloud.Contracts.csproj" />
+    <ProjectReference Include="..\..\Cloud.Infrastructure\Cloud.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

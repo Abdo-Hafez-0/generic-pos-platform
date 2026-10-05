@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Cloud backup server logic (Stage 9). Stores OPAQUE client-supplied bytes. No ASP.NET, no HTTP, no EF, no client or business module references, no signing keys. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Cloud.Contracts\Cloud.Contracts.csproj" />
+    <ProjectReference Include="..\..\LicenseServer\LicenseServer.Application\LicenseServer.Application.csproj" />
+    <ProjectReference Include="..\..\..\Licensing\Licensing.Contracts\Licensing.Contracts.csproj" />
+  </ItemGroup>
+</Project>

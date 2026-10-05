@@ -1,3 +1,4 @@
+using Cloud.Infrastructure;
 using LicenseServer.Application;
 using LicenseServer.Infrastructure;
 using Licensing.Contracts;
@@ -7,7 +8,9 @@ using Microsoft.AspNetCore.Http.Json;
 //   POST /api/licenses/activate   body: ActivationRequest  -> ActivationResponse (signed license)
 //   POST /api/licenses/renew      body: RenewalRequest     -> RenewalResponse   (signed license/lease)
 //
-// NOT included (later stages): customer authentication, admin portal, billing, durable storage.
+// Durable storage: with CloudDatabase:ConnectionString configured (Stage 9) licenses live in the shared server database and are
+// administered through AdminPortal.Api; otherwise the in-memory store is used (Development only).
+// NOT included: customer-facing authentication beyond the activation key, billing, multi-tenancy.
 //
 // Signing key handling:
 //   LicenseServer:SigningKeyPemPath  PKCS#8 PEM private key file kept OUTSIDE the repository (required in production)
@@ -22,7 +25,25 @@ builder.Services.Configure<JsonOptions>(o =>
 });
 
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<ILicenseRepository, InMemoryLicenseRepository>();
+
+// License storage. With CloudDatabase:ConnectionString configured, licenses live in the durable server database shared with
+// the administration host (activation keys stored as hashes). Without it, the in-memory store is used, which is allowed in
+// Development ONLY because everything in it is lost on restart.
+if (!string.IsNullOrWhiteSpace(builder.Configuration["CloudDatabase:ConnectionString"]))
+{
+    builder.Services.AddCloudDatabase(builder.Configuration);
+    builder.Services.AddLicenseStore();
+}
+else if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddSingleton<ILicenseRepository, InMemoryLicenseRepository>();
+}
+else
+{
+    throw new InvalidOperationException(
+        "CloudDatabase:ConnectionString is required outside the Development environment (the in-memory license store is not durable).");
+}
+
 builder.Services.AddSingleton(sp => new LicenseServerOptions(
     LeaseDuration: TimeSpan.FromDays(builder.Configuration.GetValue("LicenseServer:LeaseDays", 30)),
     GraceDuration: TimeSpan.FromDays(builder.Configuration.GetValue("LicenseServer:GraceDays", 7)),
@@ -51,6 +72,12 @@ builder.Services.AddSingleton<LicenseIssuanceService>();
 
 var app = builder.Build();
 
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
 // DEVELOPMENT ONLY: provision licenses from configuration (LicenseServer:DevLicenses) so the API can be exercised
 // before a real license administration exists. Never runs outside the Development environment.
 if (app.Environment.IsDevelopment())
@@ -58,6 +85,9 @@ if (app.Environment.IsDevelopment())
     var repository = app.Services.GetRequiredService<ILicenseRepository>();
     foreach (var dev in app.Configuration.GetSection("LicenseServer:DevLicenses").Get<List<DevLicense>>() ?? [])
     {
+        if (await repository.FindByActivationKeyAsync(dev.ActivationKey) is not null)
+            continue; // a durable store keeps the license from the previous run
+
         await repository.AddAsync(new LicenseRecord
         {
             LicenseId = Guid.NewGuid(),

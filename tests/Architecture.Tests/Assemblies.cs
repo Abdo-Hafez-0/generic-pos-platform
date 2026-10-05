@@ -459,6 +459,32 @@ internal static class Assemblies
         UpdateServerApplication,
         ModulePackager,
         UpdatePublisher,
-        .. AllSuppliersAssemblies
+        .. AllSuppliersAssemblies,
+        .. AllCloudServerAssemblies
+    ];
+
+    // -----------------------------------------------------------------------
+    // Server administration, cloud backup and shared server infrastructure (Stage 9)
+    // Note: AdminPortal.Api and BackupServer.Api are ASP.NET Core hosts and are not referenced here.
+    // -----------------------------------------------------------------------
+    internal static readonly Assembly CloudContracts =
+        typeof(Cloud.Contracts.ApiError).Assembly;
+
+    internal static readonly Assembly CloudInfrastructure =
+        typeof(Cloud.Infrastructure.CloudInfrastructureExtensions).Assembly;
+
+    internal static readonly Assembly AdminPortalApplication =
+        typeof(AdminPortal.Application.AdminActor).Assembly;
+
+    internal static readonly Assembly BackupServerApplication =
+        typeof(BackupServer.Application.BackupService).Assembly;
+
+    /// <summary>Stage 9 additions (the Stage 6/7 server assemblies are already in <see cref="AllProjectAssemblies"/>).</summary>
+    internal static IReadOnlyList<Assembly> AllCloudServerAssemblies =>
+    [
+        CloudContracts,
+        CloudInfrastructure,
+        AdminPortalApplication,
+        BackupServerApplication
     ];
 }

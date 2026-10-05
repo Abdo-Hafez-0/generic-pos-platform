@@ -34,10 +34,10 @@ public sealed class EcdsaLicenseSigner : ILicenseSigner, IDisposable
 }
 
 /// <summary>
-/// In-memory license repository: the Stage 6 foundation store. Durable server persistence (and the license
-/// administration that fills it) belongs to later work; this keeps the issuance logic fully testable.
+/// In-memory license repository: the Stage 6 foundation store, kept as the Development-only default and for tests. The durable
+/// store (Stage 9) is Cloud.Infrastructure's EfLicenseRepository, filled by the administration host.
 /// </summary>
-public sealed class InMemoryLicenseRepository : ILicenseRepository
+public sealed class InMemoryLicenseRepository : ILicenseRepository, ILicenseQuery
 {
     private readonly ConcurrentDictionary<Guid, LicenseRecord> _byId = new();
 
@@ -59,4 +59,19 @@ public sealed class InMemoryLicenseRepository : ILicenseRepository
         _byId[record.LicenseId] = record;
         return Task.CompletedTask;
     }
+
+    public Task<LicensePage> ListAsync(LicenseFilter filter, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var all = Filter(filter).OrderBy(r => r.ValidFrom).ThenBy(r => r.LicenseId).ToList();
+        var items = all.Skip((Math.Max(page, 1) - 1) * pageSize).Take(pageSize).ToList();
+        return Task.FromResult(new LicensePage(items, all.Count));
+    }
+
+    public Task<int> CountAsync(LicenseFilter filter, CancellationToken cancellationToken = default)
+        => Task.FromResult(Filter(filter).Count());
+
+    private IEnumerable<LicenseRecord> Filter(LicenseFilter f)
+        => _byId.Values.Where(r => (f.CustomerId is null || r.CustomerId == f.CustomerId)
+                                && (f.Status is null || r.Status == f.Status)
+                                && (f.Bound is null || (r.InstallationId is not null) == f.Bound));
 }

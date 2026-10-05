@@ -89,3 +89,6 @@ PublishProfiles/
 # AgentKit / Gemini IDE scratch files
 .agents/
 .gemini/
+
+# Stage 9 server development data (database, packages, backups) - never committed
+dev-data/

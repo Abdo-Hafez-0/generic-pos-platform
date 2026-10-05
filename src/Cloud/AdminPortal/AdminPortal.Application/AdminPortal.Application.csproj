@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Vendor administration logic (Stage 9): customers, licenses, module registry, packages, backups, audit. No ASP.NET, no HTTP, no EF, no client or business module references, no signing keys. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Cloud.Contracts\Cloud.Contracts.csproj" />
+    <ProjectReference Include="..\..\LicenseServer\LicenseServer.Application\LicenseServer.Application.csproj" />
+    <ProjectReference Include="..\..\UpdateServer\UpdateServer.Application\UpdateServer.Application.csproj" />
+    <ProjectReference Include="..\..\BackupServer\BackupServer.Application\BackupServer.Application.csproj" />
+    <ProjectReference Include="..\..\..\Licensing\Licensing.Contracts\Licensing.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Updates\Updates.Contracts\Updates.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Updates\Updates.Package\Updates.Package.csproj" />
+  </ItemGroup>
+</Project>

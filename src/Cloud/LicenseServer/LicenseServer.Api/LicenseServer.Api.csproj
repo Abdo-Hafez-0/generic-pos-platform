@@ -9,5 +9,6 @@
     <ProjectReference Include="..\LicenseServer.Application\LicenseServer.Application.csproj" />
     <ProjectReference Include="..\LicenseServer.Infrastructure\LicenseServer.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Licensing\Licensing.Contracts\Licensing.Contracts.csproj" />
+    <ProjectReference Include="..\..\Cloud.Infrastructure\Cloud.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

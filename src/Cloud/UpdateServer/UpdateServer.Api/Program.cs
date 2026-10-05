@@ -1,3 +1,4 @@
+using Cloud.Infrastructure;
 using Updates.Contracts;
 using UpdateServer.Application;
 
@@ -5,7 +6,8 @@ using UpdateServer.Application;
 //   POST /api/updates/check                 body: UpdateCheckRequest  -> UpdateCheckResponse (signed manifests, never forced)
 //   GET  /api/updates/packages/{packageId}  -> the .gpkg file
 //
-// NOT included (later stages): customer authentication, admin portal, publishing API, billing, CDN, multi-tenancy.
+// Publishing/withdrawing packages is done through AdminPortal.Api (Stage 9) when CloudDatabase:ConnectionString is configured.
+// NOT included: customer authentication, billing, CDN, multi-tenancy.
 // The server holds NO signing keys: packages are signed by UpdatePublisher and verified by clients.
 // Production transport is HTTPS (terminated by the host/reverse proxy).
 //   UpdateServer:PackageDirectory   directory of .gpkg files to serve
@@ -17,11 +19,29 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     foreach (var c in PackageManifestSerializer.Options.Converters) o.SerializerOptions.Converters.Add(c);
 });
 
-builder.Services.AddSingleton<IPackageRepository>(_ =>
-    new DirectoryPackageRepository(builder.Configuration["UpdateServer:PackageDirectory"] ?? Path.Combine(AppContext.BaseDirectory, "packages")));
+// Package catalog. With CloudDatabase:ConnectionString configured, packages are the ones published through the administration
+// host (durable catalog; withdrawn packages are neither offered nor downloadable) and UpdateServer:PackageDirectory is where
+// their bytes live. Without it, the Stage 7 behavior is unchanged: serve every valid .gpkg in the directory.
+if (!string.IsNullOrWhiteSpace(builder.Configuration["CloudDatabase:ConnectionString"]))
+{
+    builder.Services.AddCloudDatabase(builder.Configuration);
+    builder.Services.AddPackageStore(builder.Configuration);
+}
+else
+{
+    builder.Services.AddSingleton<IPackageRepository>(_ =>
+        new DirectoryPackageRepository(builder.Configuration["UpdateServer:PackageDirectory"] ?? Path.Combine(AppContext.BaseDirectory, "packages")));
+}
+
 builder.Services.AddSingleton<UpdateDiscoveryService>();
 
 var app = builder.Build();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
 
 app.MapPost("/api/updates/check", (UpdateCheckRequest request, UpdateDiscoveryService discovery) =>
 {

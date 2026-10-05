@@ -8,5 +8,6 @@
   <ItemGroup>
     <ProjectReference Include="..\UpdateServer.Application\UpdateServer.Application.csproj" />
     <ProjectReference Include="..\..\..\Updates\Updates.Contracts\Updates.Contracts.csproj" />
+    <ProjectReference Include="..\..\Cloud.Infrastructure\Cloud.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

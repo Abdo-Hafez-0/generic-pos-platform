@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using POS.Application.Devices;
 using Platform.Core.Modules;
 using Platform.Infrastructure.Persistence;
 using POS.Application.Abstractions;
@@ -54,6 +56,15 @@ public static class POSServicesExtensions
         services.AddScoped<IPOSService, POSService>();
         services.AddScoped<IPOSReader, POSReader>();
 
+        // Optional peripherals: the hardware abstractions (IReceiptPrinter, ICashDrawer, ILabelPrinter, IScale, IBarcodeScanner) are
+        // resolved only if a hardware module registered them; without them every device operation reports "not configured".
+        var receiptOptions = new PosReceiptOptions();
+        configuration.GetSection(PosReceiptOptions.SectionName).Bind(receiptOptions);
+        services.AddSingleton(receiptOptions);
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddScoped<IPOSDevices, POSDevices>();
+        services.AddSingleton<IPOSBarcodeInput, POSBarcodeInput>();
+
         services.AddSingleton<IModule, POSModule>();
         services.AddHostedService<POSDatabaseInitializer>();
 
@@ -69,6 +80,12 @@ public static class POSServicesExtensions
         services.AddTransient<GetPosSessionQueryHandler>();
         services.AddTransient<GetCartQueryHandler>();
         services.AddTransient<GetCurrentCartQueryHandler>();
+
+        services.AddTransient<PrintReceiptCommandHandler>();
+        services.AddTransient<OpenCashDrawerCommandHandler>();
+        services.AddTransient<PrintProductLabelCommandHandler>();
+        services.AddTransient<ReadWeightQueryHandler>();
+        services.AddTransient<GetDeviceStatusQueryHandler>();
 
         return services;
     }

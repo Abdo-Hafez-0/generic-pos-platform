@@ -34,6 +34,8 @@
     <ProjectReference Include="..\..\src\Modules\Pricing\Pricing.Contracts\Pricing.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Payments\Payments.Contracts\Payments.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Platform\Platform.Infrastructure\Platform.Infrastructure.csproj" />
+    <!-- Fake hardware (Stage 10) -->
+    <ProjectReference Include="..\Tests.Common\Tests.Common.csproj" />
   </ItemGroup>
 
 </Project>

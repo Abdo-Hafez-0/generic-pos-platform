@@ -25,6 +25,7 @@ public sealed class PosViewModel : INotifyPropertyChanged
     private decimal _total;
     private string? _statusMessage;
     private string? _errorMessage;
+    private string? _hardwareMessage;
     private bool _isBusy;
 
     public PosViewModel(IPOSService service, IPOSReader reader)
@@ -64,6 +65,13 @@ public sealed class PosViewModel : INotifyPropertyChanged
     {
         get => _statusMessage;
         private set { _statusMessage = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>A peripheral problem after a completed sale (for example the receipt could not be printed). Not an error: the sale is valid.</summary>
+    public string? HardwareMessage
+    {
+        get => _hardwareMessage;
+        private set { _hardwareMessage = value; OnPropertyChanged(); }
     }
 
     public string? ErrorMessage
@@ -141,6 +149,11 @@ public sealed class PosViewModel : INotifyPropertyChanged
             if (!result.IsSuccess) { Fail(result.ErrorMessage); return; }
 
             StatusMessage = $"Sale completed ({result.SaleId}).";
+
+            // The sale is complete whatever the peripherals did; tell the cashier what must be done by hand.
+            HardwareMessage = result.HardwareNotices is { Count: > 0 } notices
+                ? string.Join(" ", notices.Select(n => n.Message))
+                : null;
 
             // Ready for the next customer.
             var next = await _service.StartCartAsync(sessionId, cancellationToken);

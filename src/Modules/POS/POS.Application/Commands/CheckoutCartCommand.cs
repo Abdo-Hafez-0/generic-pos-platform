@@ -1,10 +1,13 @@
 using Inventory.Contracts.Interfaces;
 using Payments.Contracts.Interfaces;
 using Payments.Contracts.Models;
+using Platform.Application.Abstractions.Hardware;
 using Platform.Core.Results;
+using POS.Application.Devices;
 using POS.Application.Abstractions;
 using POS.Application.Repositories;
 using POS.Contracts.Models;
+using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
 using Sales.Contracts.Interfaces;
@@ -26,7 +29,9 @@ namespace POS.Application.Commands;
 ///   5. Confirm the sale
 ///   6. Issue stock for every line            -> Inventory.Contracts IStockIssueService
 ///   7. Complete the sale (records the SalesTransaction)
-///   8. Mark the cart checked out (stores the SaleId)
+///   8. Mark the cart checked out (stores the SaleId) and SAVE. The sale is now final.
+///   9. Peripherals (optional hardware): print the receipt and, for a cash payment, open the drawer. A problem here is reported
+///      as a HardwareNotice on the result; it can never undo, roll back or alter the saved sale.
 ///
 /// PAYMENTS (optional): when the command carries a payment request, the payment for the cart total is
 /// recorded through Payments.Contracts after the sale is confirmed and before stock is issued. If the
@@ -42,7 +47,7 @@ namespace POS.Application.Commands;
 public sealed record CheckoutCartCommand(Guid CartId, string? TransactionReference = null, POSPaymentRequest? Payment = null);
 
 /// <summary>A successful checkout: the sale, and the payment/change when a payment was recorded.</summary>
-public sealed record CheckoutOutcome(Guid SaleId, Guid? PaymentId, decimal ChangeDue);
+public sealed record CheckoutOutcome(Guid SaleId, Guid? PaymentId, decimal ChangeDue, IReadOnlyList<POSHardwareNotice>? HardwareNotices = null);
 
 public sealed class CheckoutCartCommandHandler(
     IPosCartRepository cartRepository,
@@ -51,7 +56,11 @@ public sealed class CheckoutCartCommandHandler(
     IStockIssueService stockIssueService,
     ISalesService salesService,
     IPosUnitOfWork unitOfWork,
-    IPaymentService? paymentService = null)
+    IPaymentService? paymentService = null,
+    IReceiptPrinter? receiptPrinter = null,
+    ICashDrawer? cashDrawer = null,
+    PosReceiptOptions? receiptOptions = null,
+    TimeProvider? timeProvider = null)
 {
     public async Task<Result<CheckoutOutcome>> HandleAsync(
         CheckoutCartCommand command,
@@ -202,7 +211,51 @@ public sealed class CheckoutCartCommandHandler(
             return Result.Failure<CheckoutOutcome>(checkedOut.Error);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        return Result.Success(new CheckoutOutcome(saleId, paymentId, changeDue));
+
+        // 9. Peripherals. The sale is complete and saved; from here on only hardware can go wrong, and that can never undo it.
+        var notices = await RunPeripheralsAsync(cart, session, saleId, command.Payment, changeDue);
+        return Result.Success(new CheckoutOutcome(saleId, paymentId, changeDue, notices));
+    }
+
+    private async Task<IReadOnlyList<POSHardwareNotice>> RunPeripheralsAsync(
+        PosCart cart, PosSession session, Guid saleId, POSPaymentRequest? payment, decimal changeDue)
+    {
+        var options = receiptOptions ?? new PosReceiptOptions();
+        var notices = new List<POSHardwareNotice>();
+
+        // No cancellation token: the sale is finished, so the cashier's cancellation must not hide that. Device calls are bounded by their own timeouts.
+        if (options.AutoPrintReceipt && receiptPrinter is not null)
+        {
+            var receiptPayment = payment is null ? null : PosReceiptFactory.ToReceiptPayment(payment, cart.Total.Amount, changeDue);
+            var receipt = PosReceiptFactory.Create(cart, session, saleId, receiptPayment, options, (timeProvider ?? TimeProvider.System).GetUtcNow());
+            await NoticeIfFailedAsync(notices, "receipt printer", "the receipt could not be printed",
+                () => receiptPrinter.PrintAsync(receipt, CancellationToken.None));
+        }
+
+        if (options.AutoOpenDrawerOnCashSale && cashDrawer is not null && payment?.Method == POSPaymentMethod.Cash)
+        {
+            await NoticeIfFailedAsync(notices, "cash drawer", "the cash drawer could not be opened",
+                () => cashDrawer.OpenAsync(CancellationToken.None));
+        }
+
+        return notices;
+    }
+
+    private static async Task NoticeIfFailedAsync(List<POSHardwareNotice> notices, string device, string what, Func<Task<Result>> call)
+    {
+        Result result;
+        try
+        {
+            result = await HardwareGuard.RunAsync(device, call);
+        }
+        catch (Exception ex)
+        {
+            result = HardwareErrors.Failed(device, ex.Message);
+        }
+
+        // A missing device is the normal case, not a problem to report.
+        if (result.IsFailure && !HardwareErrors.IsNotConfigured(result.Error))
+            notices.Add(new POSHardwareNotice(device, result.Error.Code, $"The sale was completed and saved, but {what}: {result.Error.Description}"));
     }
 
     private async Task CancelQuietlyAsync(Guid saleId, string reason, CancellationToken cancellationToken)

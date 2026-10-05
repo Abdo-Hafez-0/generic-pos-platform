@@ -10,4 +10,9 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Fake hardware (Stage 10) implements the Platform hardware abstractions. -->
+    <ProjectReference Include="..\..\src\Platform\Platform.Core\Platform.Core.csproj" />
+    <ProjectReference Include="..\..\src\Platform\Platform.Application\Platform.Application.csproj" />
+  </ItemGroup>
 </Project>

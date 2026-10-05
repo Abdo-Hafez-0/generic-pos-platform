@@ -86,7 +86,7 @@ public sealed class IntegrationHost : IAsyncDisposable
     };
 
     /// <summary>Starts a host with the module host plus exactly the named modules, in the order given.</summary>
-    public static async Task<IntegrationHost> StartAsync(IEnumerable<string> modules, string? reuseFolder = null)
+    public static async Task<IntegrationHost> StartAsync(IEnumerable<string> modules, string? reuseFolder = null, IEnumerable<IHostingModule>? extraModules = null)
     {
         var folder = reuseFolder ?? Path.Combine(Path.GetTempPath(), "genericpos-it-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
@@ -100,6 +100,7 @@ public sealed class IntegrationHost : IAsyncDisposable
         {
             var builder = ApplicationHostBuilder.Create().WithModule(new ModuleHostRegistrar());
             foreach (var module in modules) builder.WithModule(Create(module));
+            foreach (var extra in extraModules ?? []) builder.WithModule(extra);
 
             var host = builder.Build();
             await host.StartAsync();
@@ -113,7 +114,8 @@ public sealed class IntegrationHost : IAsyncDisposable
         }
     }
 
-    public static Task<IntegrationHost> StartAllAsync() => StartAsync([.. CoreModules, .. Stage8Modules]);
+    public static Task<IntegrationHost> StartAllAsync(string? reuseFolder = null, IEnumerable<IHostingModule>? extra = null)
+        => StartAsync([.. CoreModules, .. Stage8Modules], reuseFolder, extra);
 
     public async ValueTask DisposeAsync()
     {

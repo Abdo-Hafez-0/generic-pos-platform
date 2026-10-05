@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Platform.Core.Results;
 using POS.Application.Commands;
 using POS.Application.Queries;
@@ -18,8 +20,11 @@ internal sealed class POSService(
     RemoveProductFromCartCommandHandler removeProductHandler,
     ChangeCartQuantityCommandHandler changeQuantityHandler,
     ClearCartCommandHandler clearCartHandler,
-    CheckoutCartCommandHandler checkoutHandler) : IPOSService
+    CheckoutCartCommandHandler checkoutHandler,
+    ILogger<POSService>? logger = null) : IPOSService
 {
+    private readonly ILogger _logger = logger ?? NullLogger<POSService>.Instance;
+
     public async Task<POSOpenSessionResult> OpenSessionAsync(
         string cashierReference, Guid warehouseId, CancellationToken cancellationToken = default)
     {
@@ -69,9 +74,13 @@ internal sealed class POSService(
     {
         var result = await checkoutHandler.HandleAsync(
             new CheckoutCartCommand(cartId, transactionReference, payment), cancellationToken);
-        return result.IsSuccess
-            ? POSCheckoutResult.Success(result.Value.SaleId, result.Value.PaymentId, result.Value.ChangeDue)
-            : POSCheckoutResult.Failure(result.Error.Code, result.Error.Description);
+        if (result.IsFailure)
+            return POSCheckoutResult.Failure(result.Error.Code, result.Error.Description);
+
+        foreach (var notice in result.Value.HardwareNotices ?? [])
+            _logger.LogWarning("Sale {SaleId} completed but a peripheral failed ({Device}, {Code}): {Message}", result.Value.SaleId, notice.Device, notice.ErrorCode, notice.Message);
+
+        return POSCheckoutResult.Success(result.Value.SaleId, result.Value.PaymentId, result.Value.ChangeDue, result.Value.HardwareNotices);
     }
 
     private static POSOperationResult ToOperation(Result result)

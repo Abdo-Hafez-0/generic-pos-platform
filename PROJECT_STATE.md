@@ -26,7 +26,22 @@ determined by customer license entitlements.
 
 ## Current Implementation Phase
 
-**Stage 9 COMPLETE (cloud services & administration): AdminPortal (vendor administration API), BackupServer (cloud backup API), durable server persistence for the license and update servers**
+**Stage 10 COMPLETE (hardware & device integration): five vendor-neutral hardware abstractions, replaceable adapters in Client.Hardware, optional POS integration**
+
+Peripherals are an OPTIONAL infrastructure capability. The POS never constructs or knows a device: it receives `IReceiptPrinter`, `ICashDrawer`, `ILabelPrinter`,
+`IScale` and `IBarcodeScanner` (Platform.Application) through dependency injection as nullable parameters, and a missing, broken or throwing device can only
+ever produce a hardware notice or a failed result - never a changed sale, stock level or payment.
+
+    POS.Application / POS.Infrastructure --(optional, nullable)--> Platform.Application.Abstractions.Hardware (IReceiptPrinter, ICashDrawer, ILabelPrinter, IScale, IBarcodeScanner)
+    Client.Hardware (adapters, chosen by "Hardware" configuration; registered by HardwareHostingModule in the desktop composition root only)
+        KeyboardWedgeBarcodeScanner | EscPosReceiptPrinter + EscPosCashDrawer (ESC/POS) | ZplLabelPrinter (ZPL) over TcpDeviceTransport / FileDeviceTransport | Null* placeholders
+    Checkout: ... save the sale (final) -> THEN print the receipt / open the drawer; failures become POSHardwareNotice entries on the result.
+
+Implemented and tested: the abstractions and their error vocabulary, the adapters above, configuration-driven selection, POS auto-print + cash-drawer kick + reprint +
+labels + weight reading + scanner-to-cart bridge + device status, fake hardware, failure-isolation tests on the real host and database, and ARCH-HW-001..014.
+No physical device was available: protocols are verified byte-for-byte against fakes, loopback TCP and device-path files, not against real printers. See "Stage 10 Summary".
+
+### Previous phase - Stage 9 COMPLETE (cloud services & administration): AdminPortal (vendor administration API), BackupServer (cloud backup API), durable server persistence for the license and update servers**
 
 The vendor now administers the cloud ecosystem through one authenticated API, and the license, update and backup servers read and write
 ONE durable server database. The desktop POS is untouched: nothing in Platform, Client or any business module references server code,
@@ -361,9 +376,35 @@ lead's copy. Architecture & Solution Design.md sections 45-51, 63-67 and 83 agre
 
 ---
 
+### Stage 10 - Hardware & Device Integration (COMPLETE)
+Scope source: roadmap Stage 10 ("Integrate physical POS hardware through abstractions": IBarcodeScanner, IReceiptPrinter, ILabelPrinter, ICashDrawer, IScale; business logic never depends on
+hardware, implementations replaceable, hardware failures must not corrupt business data); Architecture & Solution Design.md section 72 ("The POS depends on interfaces. Concrete hardware
+drivers are infrastructure implementations") and section 8 (Platform.Infrastructure lists "Hardware infrastructure"); Generic Platform document section 35 ("independent components").
+- [x] Platform.Application/Abstractions/Hardware (new): IHardwareDevice (GetStatusAsync), DeviceState/DeviceStatus, HardwareErrors (Hardware.NotConfigured/Unavailable/Failed/Timeout/InvalidData),
+      HardwareGuard (turns any driver exception into a failed Result; cancellation is not a hardware failure), IBarcodeScanner (event + Start/Stop) + BarcodeScan, IReceiptPrinter + ReceiptDocument/ReceiptLine/ReceiptPayment,
+      ILabelPrinter + LabelDocument, ICashDrawer, IScale + WeightReading/WeightUnit (Kilograms conversion). They use the existing Platform.Core Result/Error.
+- [x] Client.Hardware (new, plain net10.0, no WPF/EF/HTTP/business/server/vendor SDK/System.IO.Ports): HardwareOptions ("Hardware" section, every device defaults to None), IDeviceTransport with TcpDeviceTransport and
+      FileDeviceTransport, EscPosReceiptFormatter + EscPosReceiptPrinter + EscPosCashDrawer, ZplLabelFormatter + ZplLabelPrinter, KeyboardWedgeBarcodeScanner + IKeyboardInputSink,
+      Null* placeholders, HardwareFactory (the only place that maps a configured Type to an adapter), AddClientHardware + HardwareHostingModule
+- [x] POS.Contracts: IPOSDevices (PrintReceiptAsync(cartId), OpenCashDrawerAsync, PrintProductLabelAsync, ReadWeightAsync, GetDeviceStatusAsync), IPOSBarcodeInput (BindCart/Start/Stop + ScanProcessed),
+      POSHardwareNotice, POSScanOutcome, POSWeightResult, POSDeviceStatusResult; POSCheckoutResult gained an optional trailing HardwareNotices (source compatible)
+- [x] POS.Application: PosReceiptOptions ("PosReceipt" section: store name, header/footer, AutoPrintReceipt, AutoOpenDrawerOnCashSale), PosReceiptFactory, PrintReceipt/OpenCashDrawer/PrintProductLabel handlers, ReadWeightQueryHandler
+      (rejects negative/implausible/unknown-unit readings), GetDeviceStatusQueryHandler; CheckoutCartCommandHandler gained optional printer/drawer/options/time parameters and a final step 9
+- [x] POS.Infrastructure: POSDevices (IPOSDevices), POSBarcodeInput (singleton; one scan at a time through IPOSService.AddProductAsync, every failure becomes a rejected outcome, subscribers isolated), logging of hardware notices, DI registration
+- [x] Client.Desktop: registers HardwareHostingModule; appsettings.json gained "Hardware" (all None) and "PosReceipt"; POS.UI PosViewModel shows HardwareMessage after checkout (UI touches no hardware type)
+- [x] Tests: Tests.Common/Hardware fakes (FakeBarcodeScanner/ReceiptPrinter/LabelPrinter/CashDrawer/Scale with Works/NotConfigured/Unavailable/Timeout/Throws modes); tests/Hardware.Tests (97: abstractions, guard, scanner decoding,
+      ESC/POS + ZPL bytes, TCP loopback and device-path transports, factory/configuration/DI); POS.Tests +43 (PosHardwareTests: receipt content, drawer rules, every failure mode leaves the sale intact, reprint, labels, scale, status,
+      scanner bridge); Integration.Tests +7 (HardwareIsolationTests: real host + real SQLite + real Payments: failing peripherals never alter the durable sale, restart keeps it, real ESC/POS bytes on a device path, offline printer notice);
+      Architecture.Tests ARCH-HW-001..014 (HardwareBoundaryTests)
+- [x] Build: 0 errors, 0 warnings (117 projects); all 1794 tests pass
+- [x] Not done by design (later stages / not required): physical-device protocol adapters beyond ESC/POS, ZPL and keyboard wedge (Windows spooler printing, serial/USB scales, vendor SDKs), customer displays, POS terminals,
+      hosting PosView in MainWindow (so nothing forwards key presses to IKeyboardInputSink yet), authorization of "no sale" drawer opens (Stage 11), the failure-testing campaign (Stage 12)
+
+---
+
 ## Current Task
 
-**Stage 9 - COMPLETE (Cloud Services & Administration). Stopped: Stage 10 has not been started.**
+**Stage 10 - COMPLETE (Hardware & Device Integration). Stopped: Stage 11 has not been started.**
 
 ---
 
@@ -371,13 +412,13 @@ lead's copy. Architecture & Solution Design.md sections 45-51, 63-67 and 83 agre
 
 **Awaiting instruction (technical lead decides).**
 
-Next roadmap stage: Stage 10 (Hardware & Device Integration) - only when instructed. Follow-ups that are NOT part of any completed stage: license ENFORCEMENT points; a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient); a browser UI for AdminPortal; stock-reversal contract; hosting PosView and the Stage 8 view models in MainWindow; authentication on top of Users (Stage 11); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
+Next roadmap stage: Stage 11 (Security Hardening) - only when instructed. Follow-ups that are NOT part of any completed stage: license ENFORCEMENT points; a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient); a browser UI for AdminPortal; stock-reversal contract; hosting PosView and the Stage 8 view models in MainWindow; authentication on top of Users (Stage 11); hosting PosView in MainWindow and forwarding key presses to IKeyboardInputSink; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
 
 ---
 
 ## Solution / Project Structure (Current State)
 
-GenericPOS.sln (115 projects)
+GenericPOS.sln (117 projects)
 
 src/
 +-- Platform/
@@ -544,6 +585,10 @@ src/Cloud/BackupServer/
 +-- BackupServer.Application       [DONE] - Stage 9: opaque backup storage rules, per-license access tokens, retention
 +-- BackupServer.Api               [DONE] - Stage 9: /api/backups ASP.NET Core API (customer side)
 tests/Cloud.Tests                  [DONE] - 187 tests, all passing (Stage 9)
+src/Client/
++-- Client.Hardware                [DONE] - Stage 10: hardware adapters (ESC/POS receipt printer + cash drawer, ZPL label printer, keyboard-wedge scanner, TCP/device-path transports, Null placeholders), HardwareFactory, HardwareHostingModule
+tests/Hardware.Tests               [DONE] - 97 tests, all passing (Stage 10)
+src/Platform/Platform.Application/Abstractions/Hardware [DONE] - Stage 10: IBarcodeScanner, IReceiptPrinter, ILabelPrinter, ICashDrawer, IScale + DTOs, HardwareErrors, HardwareGuard
 tools/
 +-- ModulePackager                 [DONE] - Stage 7: validates + hashes a package spec, rejects before signing
 +-- UpdatePublisher                [DONE] - Stage 7: signs a validated draft and writes the distributable package
@@ -703,6 +748,14 @@ Cloud.Infrastructure -> Cloud.Contracts, LicenseServer.Application, UpdateServer
 AdminPortal.Api -> AdminPortal.Application, Cloud.Contracts, Cloud.Infrastructure (ASP.NET Core; no EF reference, no DbContext)
 BackupServer.Api -> BackupServer.Application, Cloud.Contracts, Cloud.Infrastructure (ASP.NET Core; no EF reference, no DbContext)
 LicenseServer.Api / UpdateServer.Api -> also Cloud.Infrastructure (durable store when CloudDatabase is configured)
+
+STAGE 10 HARDWARE:
+Platform.Application -> (Abstractions/Hardware namespace; no new reference)
+Client.Hardware -> Platform.Core, Platform.Application, Client.Host (IHostingModule only) + Hosting.Abstractions / Configuration.Binder / Logging.Abstractions
+                   (no WPF, EF, HTTP, business module, server code, vendor SDK, System.IO.Ports)
+POS.Infrastructure -> also Platform.Application explicitly (hardware abstractions); POS.Application already referenced it
+Client.Desktop -> also Client.Hardware (the ONLY project that references the adapters)
+Tests.Common -> also Platform.Core, Platform.Application (fake hardware); Hardware.Tests -> Client.Hardware, Platform.*, Tests.Common; POS.Tests/Integration.Tests -> also Tests.Common (+ Client.Hardware for Integration.Tests)
 
 INVENTORY MODULE (Stage 5B):
 Inventory.Domain -> Platform.Core
@@ -1082,6 +1135,11 @@ ARCH-CLD-001 through ARCH-CLD-016: ACTIVE and passing (activated with Stage 9): 
   no secrets/private keys in server sources; admin services return contract DTOs only; server tables use server prefixes (lic_/upd_/bak_/adm_); no hard-coded
   environment values in server code.
 Stage 9 test totals: Cloud.Tests 187, Architecture.Tests 315 (299 + 16), Integration.Tests 34 (32 + 2). Grand total after Stage 9: 1633 tests, 0 failures.
+ARCH-HW-001 through ARCH-HW-014: ACTIVE and passing (activated with Stage 10): the five abstractions are Platform.Application interfaces extending IHardwareDevice; Platform knows no device technology; business modules never touch
+  System.IO.Ports/Sockets/Windows/device APIs nor the adapters; only Client.Desktop references Client.Hardware (assemblies AND project files); Domain assemblies never use the hardware namespace; only Platform.Application, Client.Hardware,
+  POS.Application and POS.Infrastructure may use it; Client.Hardware has no WPF/EF/ASP.NET/HTTP/business/server dependency and only the three approved Microsoft.Extensions packages; UI sources never mention hardware types; adapters are constructed
+  only by HardwareFactory; hardware configuration is its own section and no internet address is hard-coded; every POS device dependency is a nullable optional parameter.
+Stage 10 test totals: Hardware.Tests 97 (new), POS.Tests 138 (95 + 43), Architecture.Tests 329 (315 + 14), Integration.Tests 41 (34 + 7). Grand total after Stage 10: 1794 tests, 0 failures.
 
 ---
 
@@ -1182,6 +1240,16 @@ Updater.Tests | Microsoft.Data.Sqlite | 10.0.11 | real-database data-preservatio
 
 ---
 
+## Packages Added in Stage 10
+
+Project | Package | Version | Reason
+--------|---------|---------|-------
+Client.Hardware | Microsoft.Extensions.Hosting.Abstractions, Configuration.Binder, Logging.Abstractions | 10.0.11 | IHostingModule/DI, "Hardware" configuration binding, adapter logging (same packages already used by Client.Licensing / Client.Updater)
+Hardware.Tests | Microsoft.Extensions.Configuration, DependencyInjection, Hosting | 10.0.11 | Configuration/DI/hosting-module tests
+(No third-party, vendor or serial-port packages: ESC/POS and ZPL are written directly and talk through plain sockets or device paths.)
+
+---
+
 ## Packages Added in Stage 9
 
 Project | Package | Version | Reason
@@ -1210,7 +1278,8 @@ Stage | Name                                                  | Status
 7     | Update System (packages, signatures, rollback)        | COMPLETE (foundation; runtime adoption of activated versions deferred)
 8     | Additional Business Modules                           | COMPLETE
 9     | Cloud Services & Administration (AdminPortal, BackupServer, durable License/UpdateServer) | COMPLETE (foundation; see Stage 9 limitations)
-10    | Hardware & Device Integration                         | Not Started
+10    | Hardware & Device Integration                         | COMPLETE (abstractions + ESC/POS, ZPL, keyboard-wedge adapters; no physical device verified)
+11    | Security Hardening                                    | Not Started
 
 ---
 
@@ -1629,15 +1698,67 @@ bak_Backups, bak_AccessTokens (token hash only), adm_Customers (unique case-inse
 
 ---
 
+## Stage 10 Summary
+
+### Where things live (and why)
+1. **Abstractions in Platform.Application/Abstractions/Hardware.** The architecture says "the POS depends on interfaces" and platform projects may not depend on modules, so the contracts sit where the existing licensing
+   abstraction (`ILicenseEntitlementService`) sits: a neutral Platform layer every module already references. They speak business vocabulary only (scan, print a receipt, print a label, open the drawer, read a weight) and use
+   the existing `Result`/`Error` pattern. No new project was needed for the contracts.
+2. **Adapters in a new client component, `Client.Hardware`.** The roadmap and Generic Platform section 35 ask for "independent components" and Architecture section 8 names "hardware infrastructure"; the existing precedent for
+   optional infrastructure is the Stage 6/7 client components (Client.Licensing, Client.Updater) with an `IHostingModule`. Client.Hardware follows it: plain net10.0, referenced only by the desktop composition root, no WPF/EF/HTTP.
+   It was NOT put into Platform.Infrastructure because that project owns the SQLite persistence that every module references; hardware must stay optional and removable.
+3. **POS is the only business consumer.** POS.Application (handlers) and POS.Infrastructure (IPOSDevices, IPOSBarcodeInput) take the abstractions as NULLABLE constructor parameters (the same soft-dependency pattern as Pricing and Payments).
+   Adding another consumer (for example label printing from Catalog) is a deliberate architecture decision: ARCH-HW-007 lists the approved assemblies and must be edited in the same change.
+
+### Behavior rules
+- **A completed sale is final.** Checkout saves the sale (cart marked checked out, SaleId stored) and only THEN attempts the receipt and, for a cash payment, the drawer. A failure becomes a `POSHardwareNotice` ("The sale was completed and saved, but
+  the receipt could not be printed: ...") on the successful result and a warning in the log; it never throws, never rolls back and never changes sale, stock or payment. Peripheral calls deliberately ignore the caller's cancellation token
+  (the sale is already done; each device call is bounded by its own timeout). A device that is NOT CONFIGURED is skipped silently (the normal case); misconfigured or broken devices produce a notice.
+- **Nothing a device does can escape as an exception.** Adapters return failed Results; every POS call is additionally wrapped in `HardwareGuard`, which converts exceptions (a misbehaving third-party driver) into `Hardware.Failed`.
+- **Scanner = input only.** `POSBarcodeInput` feeds scans to the bound cart through the SAME `IPOSService.AddProductAsync` a typed code uses, one at a time; unknown barcodes, no open cart, or exceptions become rejected outcomes (`POS.Scan.*`),
+  and a faulty outcome subscriber cannot stop the others. A scanner that cannot start returns a failed result and the cashier keeps typing codes.
+- **Scale.** Readings are validated by POS: negative, above 1000 kg or unknown-unit readings are rejected as `Hardware.InvalidData`; unstable readings are returned flagged `IsStable=false`. POS offers `ReadWeightAsync` only: it does NOT convert a weight into a
+  cart quantity (a product's unit of measure is a business decision not made here).
+- **Labels** encode the product SKU (the POS resolves a scanned SKU exactly like a barcode); the receipt can be reprinted for any checked-out cart (`PrintReceiptAsync(cartId)`, without payment details because the cart does not store them).
+- **Optional by construction.** No hardware module, "None" configuration, an unknown Type or an incomplete connection all leave the POS fully working; status shows NotConfigured/Unavailable with a reason, and creating a device never touches the network.
+
+### Adapters (what was actually implemented)
+Adapter | Protocol / mechanism | Verified how
+--------|----------------------|--------------
+KeyboardWedgeBarcodeScanner | fast keystrokes ended by Enter (min length, max gap configurable); UI forwards characters to `IKeyboardInputSink` | unit tests with a manual clock
+EscPosReceiptPrinter | ESC/POS (init, align, bold, text, partial cut), ASCII only ('?' for other characters), width configurable | exact bytes + real device-path and loopback TCP transports
+EscPosCashDrawer | ESC p kick pulse, through the receipt printer's connection (`ViaReceiptPrinter`) or its own | exact bytes via a device-path file
+ZplLabelPrinter | ZPL II (name, Code 128 barcode, price, copies); command characters in data neutralised; code must be printable ASCII | exact bytes
+TcpDeviceTransport / FileDeviceTransport | raw TCP (LAN) / device path (UNC share, device node) with timeouts; failures are results | loopback listener, temp files, closed ports, bad hosts/paths
+Null* devices | "not configured" / "unavailable: reason" placeholders | tests
+IScale | NO adapter: no generic scale protocol exists (serial/USB protocols are vendor-specific) | fake + placeholder only
+NO physical printer, drawer, scanner or scale was available; correctness against real devices (code pages, cutters, firmware quirks) is unverified.
+
+### Configuration (separate from business configuration; no secrets)
+`Hardware:Scanner:Type` None|KeyboardWedge (+MinimumLength, MaxInterCharacterMilliseconds); `Hardware:ReceiptPrinter:Type` None|EscPosTcp|EscPosFile (+Host, Port=9100, Path, TimeoutMilliseconds, CharactersPerLine=42, CutPaper);
+`Hardware:LabelPrinter:Type` None|ZplTcp|ZplFile (+connection, WidthDots, HeightDots); `Hardware:CashDrawer:Type` None|ViaReceiptPrinter|EscPosTcp|EscPosFile (+Pin, OnTimeMilliseconds, OffTimeMilliseconds);
+`Hardware:Scale:Type` None. Business receipt text/behavior is a different section: `PosReceipt` (StoreName, HeaderLines, FooterLines, AutoPrintReceipt, AutoOpenDrawerOnCashSale). Environment overrides use the existing `GENERICPOS_` prefix
+(for example `GENERICPOS_Hardware__ReceiptPrinter__Type`).
+
+### Stage 10 limitations and deferred work
+- No physical-device verification (see above). Not implemented: Windows spooler/driver printing (needs Windows-specific APIs and belongs in its own adapter), serial/USB/Bluetooth transports and scales, vendor SDK adapters, non-ASCII receipt text
+  (code pages; Arabic and other scripts print as '?'), barcode/logo graphics on receipts, customer displays and POS terminals (named in the documents as potential integrations, no stage requires them yet).
+- Nothing feeds `IKeyboardInputSink` yet: PosView is still not hosted in MainWindow (an earlier limitation), so a configured keyboard-wedge scanner has no key source until the UI hosting exists. `IPOSBarcodeInput` is not yet bound to the view model.
+- `FileDeviceTransport` opens an EXISTING path and writes from the start; it never creates the path. Two writers to the same ordinary FILE overwrite each other (devices are streams, so this only matters in tests).
+- The receipt of a reprint carries no payment lines; "no sale" drawer opens are not permission-checked (authorization is Stage 11).
+- The Stage 12 failure campaign (unplug during a sale, crash during printing, hardware failure under load) is NOT done; Stage 10 proves the isolation rules with targeted tests only.
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 9 is complete.
-Build: 0 errors, 0 warnings (115 projects).
-All 1633 tests pass (Cloud.Tests 187, Architecture.Tests 315, Integration.Tests 34, others unchanged).
+None blocking. Stage 10 is complete.
+Build: 0 errors, 0 warnings (117 projects).
+All 1794 tests pass (Hardware.Tests 97, POS.Tests 138, Architecture.Tests 329, Integration.Tests 41, Cloud.Tests 187, others unchanged).
 Resolved during Stage 9: stress-running Cloud.Tests exposed rare random failures (about 1 run in 8, different tests each time, SQLite connection-open errors). Cause: the test teardown called the
 process-wide `SqliteConnection.ClearAllPools()` while other tests ran in parallel. Fix: test databases use `Pooling=False` (no global pool clearing); staging-file cleanup in the file stores also
 gained short retries (a briefly locked file never fails an upload) and stale `.part` files are swept at start. 30 consecutive full Cloud.Tests runs passed afterwards.
-(Pre-Stage-9 status for reference: Stage 8 had 1428 tests, 0 warnings, 108 projects.)
+(Earlier statuses for reference: Stage 9 had 1633 tests/115 projects; Stage 8 had 1428 tests/108 projects.)
 Catalog, Inventory, Sales, POS and every Stage 8 module (except Reporting, which has no tables) apply their own migrations at startup.
 Database: %LOCALAPPDATA%\GenericPOS\genericpos.db (Platform + all module tables in the same file).
 
@@ -1699,4 +1820,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-05 - Stage 9 complete (AdminPortal, BackupServer, durable License/UpdateServer persistence, Cloud.Contracts, Cloud.Infrastructure). 1633 tests, 0 warnings; Stage 10 not started.
+Last updated: 2026-10-05 - Stage 10 complete (hardware abstractions, Client.Hardware adapters, optional POS integration). 1794 tests, 0 warnings; Stage 11 not started.

@@ -60,6 +60,8 @@
     <ProjectReference Include="..\..\src\Updates\Updates.Package\Updates.Package.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.Updater.Http\Client.Updater.Http.csproj" />
     <ProjectReference Include="..\..\src\Cloud\UpdateServer\UpdateServer.Application\UpdateServer.Application.csproj" />
+    <!-- Stage 10 hardware adapters -->
+    <ProjectReference Include="..\..\src\Client\Client.Hardware\Client.Hardware.csproj" />
     <!-- Stage 9 server assemblies - AdminPortal.Api / BackupServer.Api excluded (ASP.NET Core hosts) -->
     <ProjectReference Include="..\..\src\Cloud\Cloud.Contracts\Cloud.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Cloud\Cloud.Infrastructure\Cloud.Infrastructure.csproj" />

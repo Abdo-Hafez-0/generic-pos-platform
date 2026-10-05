@@ -5,6 +5,7 @@ using Inventory.Contracts.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Abstractions;
+using POS.Application.Devices;
 using POS.Application.Commands;
 using POS.Application.Queries;
 using POS.Application.Repositories;
@@ -40,7 +41,8 @@ public sealed class PosTestDatabase : IAsyncDisposable
 
     public static async Task<PosTestDatabase> CreateAsync(
         Pricing.Contracts.Interfaces.IPriceResolver? priceResolver = null,
-        Payments.Contracts.Interfaces.IPaymentService? paymentService = null)
+        Payments.Contracts.Interfaces.IPaymentService? paymentService = null,
+        Action<IServiceCollection>? configureServices = null)
     {
         var catalog = new StubCatalog();
         var inventory = new StubInventory();
@@ -69,6 +71,18 @@ public sealed class PosTestDatabase : IAsyncDisposable
         services.AddSingleton<ISalesService>(sales);
         if (priceResolver is not null) services.AddSingleton(priceResolver);   // OPTIONAL integration
         if (paymentService is not null) services.AddSingleton(paymentService); // OPTIONAL integration
+
+        // Stage 10: optional peripherals are registered by the test through configureServices (fake hardware); none by default.
+        services.AddSingleton(new PosReceiptOptions { StoreName = "Test Store", FooterLines = ["Thank you"] });
+        services.AddSingleton(TimeProvider.System);
+        services.AddScoped<IPOSDevices, POSDevices>();
+        services.AddSingleton<IPOSBarcodeInput, POSBarcodeInput>();
+        services.AddTransient<PrintReceiptCommandHandler>();
+        services.AddTransient<OpenCashDrawerCommandHandler>();
+        services.AddTransient<PrintProductLabelCommandHandler>();
+        services.AddTransient<ReadWeightQueryHandler>();
+        services.AddTransient<GetDeviceStatusQueryHandler>();
+        configureServices?.Invoke(services);
 
         services.AddTransient<OpenPosSessionCommandHandler>();
         services.AddTransient<ClosePosSessionCommandHandler>();

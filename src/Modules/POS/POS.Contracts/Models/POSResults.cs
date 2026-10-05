@@ -39,11 +39,15 @@ public sealed record POSAddItemResult(bool IsSuccess, Guid ItemId, string? Error
 /// <summary>
 /// Outcome of checking out a cart. SaleId is the completed sale in the Sales module. When a payment was requested
 /// (and the Payments module is installed), PaymentId is the recorded payment and ChangeDue the cash change to give back.
+/// HardwareNotices lists peripheral problems (receipt not printed, drawer not opened) that occurred AFTER the sale was completed and
+/// saved: the sale is valid regardless, the notices only tell the cashier what to do by hand.
 /// </summary>
-public sealed record POSCheckoutResult(bool IsSuccess, Guid SaleId, string? ErrorCode, string? ErrorMessage, Guid? PaymentId = null, decimal ChangeDue = 0m)
+public sealed record POSCheckoutResult(
+    bool IsSuccess, Guid SaleId, string? ErrorCode, string? ErrorMessage, Guid? PaymentId = null, decimal ChangeDue = 0m,
+    IReadOnlyList<POSHardwareNotice>? HardwareNotices = null)
 {
-    public static POSCheckoutResult Success(Guid saleId, Guid? paymentId = null, decimal changeDue = 0m) =>
-        new(true, saleId, null, null, paymentId, changeDue);
+    public static POSCheckoutResult Success(Guid saleId, Guid? paymentId = null, decimal changeDue = 0m, IReadOnlyList<POSHardwareNotice>? hardwareNotices = null) =>
+        new(true, saleId, null, null, paymentId, changeDue, hardwareNotices);
 
     public static POSCheckoutResult Failure(string errorCode, string errorMessage) =>
         new(false, Guid.Empty, errorCode, errorMessage);

@@ -22,6 +22,9 @@
   <ItemGroup>
     <!-- The real host and the real module hosting modules (no stubs): every module is reached only through its Infrastructure + Contracts. -->
     <ProjectReference Include="..\..\src\Client\Client.Host\Client.Host.csproj" />
+    <!-- Stage 10: the real hardware adapters + fake hardware -->
+    <ProjectReference Include="..\..\src\Client\Client.Hardware\Client.Hardware.csproj" />
+    <ProjectReference Include="..\Tests.Common\Tests.Common.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.ModuleHost\Client.ModuleHost.csproj" />
 
     <ProjectReference Include="..\..\src\Modules\Catalog\Catalog.Infrastructure\Catalog.Infrastructure.csproj" />

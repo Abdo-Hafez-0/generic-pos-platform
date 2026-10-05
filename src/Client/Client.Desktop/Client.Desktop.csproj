@@ -16,6 +16,7 @@
     <ProjectReference Include="..\Client.Licensing\Client.Licensing.csproj" />
     <ProjectReference Include="..\Client.Licensing.Http\Client.Licensing.Http.csproj" />
     <!-- Updater (Stage 7): verified, recoverable updates + HTTP transport to the update server -->
+    <ProjectReference Include="..\Client.Hardware\Client.Hardware.csproj" />
     <ProjectReference Include="..\Client.Updater\Client.Updater.csproj" />
     <ProjectReference Include="..\Client.Updater.Http\Client.Updater.Http.csproj" />
     <!-- POS module (Stage 5D) - POSHostingModule lives in POS.Infrastructure -->

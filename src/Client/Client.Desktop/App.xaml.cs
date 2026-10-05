@@ -1,5 +1,6 @@
 using Catalog.Infrastructure.Module;
 using Inventory.Infrastructure.Module;
+using Client.Hardware;
 using Client.Licensing.Http;
 using Client.Licensing.Infrastructure;
 using Client.Updater.Http;
@@ -64,6 +65,7 @@ public partial class App : Application
                 .WithModule(new LicenseHttpHostingModule())     // Stage 6: HTTP transport to the license server
                 .WithModule(new UpdaterHostingModule())         // Stage 7: update verification, staging, recovery (local only)
                 .WithModule(new UpdateHttpHostingModule())      // Stage 7: HTTP transport to the update server
+                .WithModule(new HardwareHostingModule())        // Stage 10: optional peripherals (all "None" unless configured)
                 .WithModule(new CatalogHostingModule())  // Stage 5A: Catalog module
                 .WithModule(new InventoryHostingModule()) // Stage 5B: Inventory module
                 .WithModule(new SalesHostingModule())     // Stage 5C: Sales module

@@ -460,13 +460,20 @@ internal static class Assemblies
         ModulePackager,
         UpdatePublisher,
         .. AllSuppliersAssemblies,
-        .. AllCloudServerAssemblies
+        .. AllCloudServerAssemblies,
+        ClientHardware
     ];
 
     // -----------------------------------------------------------------------
     // Server administration, cloud backup and shared server infrastructure (Stage 9)
     // Note: AdminPortal.Api and BackupServer.Api are ASP.NET Core hosts and are not referenced here.
     // -----------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // Hardware adapters (Stage 10). Client.Hardware is a plain net10.0 library.
+    // -----------------------------------------------------------------------
+    internal static readonly Assembly ClientHardware =
+        typeof(Client.Hardware.ClientHardwareAssemblyMarker).Assembly;
+
     internal static readonly Assembly CloudContracts =
         typeof(Cloud.Contracts.ApiError).Assembly;
 

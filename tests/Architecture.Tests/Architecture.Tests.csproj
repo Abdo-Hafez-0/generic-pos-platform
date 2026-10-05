@@ -103,6 +103,11 @@
     <ProjectReference Include="..\..\src\Modules\CashManagement\CashManagement.Contracts\CashManagement.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\CashManagement\CashManagement.Application\CashManagement.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\CashManagement\CashManagement.Infrastructure\CashManagement.Infrastructure.csproj" />
+    <!-- Reporting module assemblies (Stage 8) - Reporting.UI excluded (net10.0-windows) -->
+    <ProjectReference Include="..\..\src\Modules\Reporting\Reporting.Domain\Reporting.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Reporting\Reporting.Contracts\Reporting.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Reporting\Reporting.Application\Reporting.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Reporting\Reporting.Infrastructure\Reporting.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

@@ -417,6 +417,29 @@ internal static class Assemblies
         // CashManagement.UI excluded - net10.0-windows TFM gap
     ];
 
+    // Reporting module assemblies (Stage 8)
+    // Note: Reporting.UI is net10.0-windows and cannot be referenced here (TFM gap).
+    internal static readonly Assembly ReportingDomain =
+        typeof(Reporting.Domain.Calculations.SalesCalculator).Assembly;
+
+    internal static readonly Assembly ReportingContracts =
+        typeof(Reporting.Contracts.Interfaces.IReportProvider).Assembly;
+
+    internal static readonly Assembly ReportingApplication =
+        typeof(Reporting.Application.Queries.GetSalesReportQueryHandler).Assembly;
+
+    internal static readonly Assembly ReportingInfrastructure =
+        typeof(Reporting.Infrastructure.ReportingInfrastructureAssemblyMarker).Assembly;
+
+    internal static IReadOnlyList<Assembly> AllReportingAssemblies =>
+    [
+        ReportingDomain,
+        ReportingContracts,
+        ReportingApplication,
+        ReportingInfrastructure
+        // Reporting.UI excluded - net10.0-windows TFM gap
+    ];
+
     internal static IReadOnlyList<Assembly> AllProjectAssemblies =>
     [
         .. AllPlatformAssemblies,

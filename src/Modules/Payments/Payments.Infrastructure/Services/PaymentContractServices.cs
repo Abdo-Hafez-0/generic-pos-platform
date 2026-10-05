@@ -11,7 +11,7 @@ internal sealed class PaymentService(RecordPaymentCommandHandler recordHandler, 
 {
     public async Task<RecordPaymentResult> RecordPaymentAsync(RecordPaymentRequest request, CancellationToken cancellationToken = default)
     {
-        var result = await recordHandler.HandleAsync(new RecordPaymentCommand(
+        var result = await recordHandler.ExecuteAsync(new RecordPaymentCommand(
             request.ReferenceType, request.ReferenceId, request.Amount, (PaymentMethod)(int)request.Method,
             request.MethodDetail, request.TenderedAmount, request.RecordedBy), cancellationToken);
 
@@ -22,7 +22,7 @@ internal sealed class PaymentService(RecordPaymentCommandHandler recordHandler, 
 
     public async Task<PaymentOperationResult> VoidPaymentAsync(Guid paymentId, string reason, CancellationToken cancellationToken = default)
     {
-        var result = await voidHandler.HandleAsync(new VoidPaymentCommand(paymentId, reason), cancellationToken);
+        var result = await voidHandler.ExecuteAsync(new VoidPaymentCommand(paymentId, reason), cancellationToken);
         return result.IsSuccess
             ? PaymentOperationResult.Success()
             : PaymentOperationResult.Failure(result.Error.Code, result.Error.Description);

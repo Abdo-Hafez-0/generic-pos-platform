@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using Catalog.Contracts.Interfaces;
 using Catalog.Contracts.Models;
 using Inventory.Contracts.Interfaces;
@@ -33,10 +34,14 @@ public sealed record CreatePurchaseOrderCommand(Guid SupplierId, string? Referen
 public sealed class CreatePurchaseOrderCommandHandler(
     IPurchaseOrderRepository repository,
     ISupplierLookup supplierLookup,
-    IPurchasingUnitOfWork unitOfWork)
+    IPurchasingUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(CreatePurchaseOrderCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Purchasing.Application.Security.PurchasingCapabilities.EditOrder, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         var supplier = await supplierLookup.FindByIdAsync(command.SupplierId, cancellationToken);
         if (supplier is null)
             return Result.Failure<Guid>(Error.NotFound("Purchasing.CreatePurchaseOrder.SupplierNotFound", $"Supplier '{command.SupplierId}' was not found."));
@@ -66,10 +71,14 @@ public sealed record AddPurchaseOrderLineCommand(Guid OrderId, string ProductCod
 public sealed class AddPurchaseOrderLineCommandHandler(
     IPurchaseOrderRepository repository,
     IProductLookup productLookup,
-    IPurchasingUnitOfWork unitOfWork)
+    IPurchasingUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(AddPurchaseOrderLineCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Purchasing.Application.Security.PurchasingCapabilities.EditOrder, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         var (order, error) = await OrderLoader.LoadAsync(repository, command.OrderId, "AddLine", cancellationToken);
         if (order is null) return Result.Failure<Guid>(error!);
 
@@ -111,10 +120,13 @@ public sealed class AddPurchaseOrderLineCommandHandler(
 
 public sealed record RemovePurchaseOrderLineCommand(Guid OrderId, Guid LineId);
 
-public sealed class RemovePurchaseOrderLineCommandHandler(IPurchaseOrderRepository repository, IPurchasingUnitOfWork unitOfWork)
+public sealed class RemovePurchaseOrderLineCommandHandler(IPurchaseOrderRepository repository, IPurchasingUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(RemovePurchaseOrderLineCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Purchasing.Application.Security.PurchasingCapabilities.EditOrder, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var (order, error) = await OrderLoader.LoadAsync(repository, command.OrderId, "RemoveLine", cancellationToken);
         if (order is null) return Result.Failure(error!);
 
@@ -128,10 +140,13 @@ public sealed class RemovePurchaseOrderLineCommandHandler(IPurchaseOrderReposito
 
 public sealed record ChangePurchaseOrderLineQuantityCommand(Guid OrderId, Guid LineId, decimal Quantity);
 
-public sealed class ChangePurchaseOrderLineQuantityCommandHandler(IPurchaseOrderRepository repository, IPurchasingUnitOfWork unitOfWork)
+public sealed class ChangePurchaseOrderLineQuantityCommandHandler(IPurchaseOrderRepository repository, IPurchasingUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(ChangePurchaseOrderLineQuantityCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Purchasing.Application.Security.PurchasingCapabilities.EditOrder, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var quantity = OrderQuantity.Create(command.Quantity);
         if (quantity.IsFailure) return Result.Failure(quantity.Error);
 
@@ -152,10 +167,13 @@ public sealed class ChangePurchaseOrderLineQuantityCommandHandler(IPurchaseOrder
 
 public sealed record SubmitPurchaseOrderCommand(Guid OrderId);
 
-public sealed class SubmitPurchaseOrderCommandHandler(IPurchaseOrderRepository repository, IPurchasingUnitOfWork unitOfWork)
+public sealed class SubmitPurchaseOrderCommandHandler(IPurchaseOrderRepository repository, IPurchasingUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(SubmitPurchaseOrderCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Purchasing.Application.Security.PurchasingCapabilities.SubmitOrder, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var (order, error) = await OrderLoader.LoadAsync(repository, command.OrderId, "Submit", cancellationToken);
         if (order is null) return Result.Failure(error!);
 
@@ -169,10 +187,13 @@ public sealed class SubmitPurchaseOrderCommandHandler(IPurchaseOrderRepository r
 
 public sealed record CancelPurchaseOrderCommand(Guid OrderId, string Reason);
 
-public sealed class CancelPurchaseOrderCommandHandler(IPurchaseOrderRepository repository, IPurchasingUnitOfWork unitOfWork)
+public sealed class CancelPurchaseOrderCommandHandler(IPurchaseOrderRepository repository, IPurchasingUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(CancelPurchaseOrderCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Purchasing.Application.Security.PurchasingCapabilities.CancelOrder, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var (order, error) = await OrderLoader.LoadAsync(repository, command.OrderId, "Cancel", cancellationToken);
         if (order is null) return Result.Failure(error!);
 
@@ -202,10 +223,14 @@ public sealed record ReceivePurchaseOrderCommand(Guid OrderId, Guid WarehouseId)
 public sealed class ReceivePurchaseOrderCommandHandler(
     IPurchaseOrderRepository repository,
     IStockReceiptService stockReceipts,
-    IPurchasingUnitOfWork unitOfWork)
+    IPurchasingUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result<int>> HandleAsync(ReceivePurchaseOrderCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Purchasing.Application.Security.PurchasingCapabilities.ReceiveOrder, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<int>(allowed.Error);
+
         var (order, error) = await OrderLoader.LoadAsync(repository, command.OrderId, "Receive", cancellationToken);
         if (order is null) return Result.Failure<int>(error!);
 

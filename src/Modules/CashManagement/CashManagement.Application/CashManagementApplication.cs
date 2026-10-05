@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using CashManagement.Domain.Entities;
 using CashManagement.Domain.Enums;
 using CashManagement.Domain.ValueObjects;
@@ -54,10 +55,13 @@ namespace CashManagement.Application.Commands
     /// <summary>Opens a shift for a drawer. A drawer can have only one open session.</summary>
     public sealed record OpenCashSessionCommand(string DrawerCode, string OpenedBy, decimal OpeningFloat, string? Notes = null);
 
-    public sealed class OpenCashSessionCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork)
+    public sealed class OpenCashSessionCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork, IAuthorizationService authorization)
     {
         public async Task<Result<Guid>> HandleAsync(OpenCashSessionCommand command, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(CashManagement.Application.Security.CashManagementCapabilities.ManageSessions, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
             var created = CashSession.Open(command.DrawerCode, command.OpenedBy, command.OpeningFloat, command.Notes);
             if (created.IsFailure) return Result.Failure<Guid>(created.Error);
 
@@ -77,9 +81,19 @@ namespace CashManagement.Application.Commands
 
     public sealed record RecordedCashMovement(Guid MovementId, decimal BalanceAfter);
 
-    public sealed class RecordCashMovementCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork)
+    public sealed class RecordCashMovementCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork, IAuthorizationService authorization)
     {
         public async Task<Result<RecordedCashMovement>> HandleAsync(RecordCashMovementCommand command, CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(CashManagement.Application.Security.CashManagementCapabilities.RecordMovement, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<RecordedCashMovement>(allowed.Error);
+
+            return await ExecuteAsync(command, cancellationToken);
+        }
+
+        /// <summary>The same operation WITHOUT the capability check, for trusted calls from other modules through this module's
+        /// contracts (they run inside an operation the user was already authorized for). Not reachable from UI or other modules.</summary>
+        internal async Task<Result<RecordedCashMovement>> ExecuteAsync(RecordCashMovementCommand command, CancellationToken cancellationToken = default)
         {
             var session = await sessions.GetByIdAsync(new CashSessionId(command.SessionId), cancellationToken);
             if (session is null)
@@ -100,10 +114,13 @@ namespace CashManagement.Application.Commands
 
     public sealed record ClosedCashSession(decimal ExpectedAmount, decimal CountedAmount, decimal Variance);
 
-    public sealed class CloseCashSessionCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork)
+    public sealed class CloseCashSessionCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork, IAuthorizationService authorization)
     {
         public async Task<Result<ClosedCashSession>> HandleAsync(CloseCashSessionCommand command, CancellationToken cancellationToken = default)
         {
+            var allowed = await authorization.AuthorizeAsync(CashManagement.Application.Security.CashManagementCapabilities.ManageSessions, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<ClosedCashSession>(allowed.Error);
+
             var session = await sessions.GetByIdAsync(new CashSessionId(command.SessionId), cancellationToken);
             if (session is null)
                 return Result.Failure<ClosedCashSession>(Error.NotFound(

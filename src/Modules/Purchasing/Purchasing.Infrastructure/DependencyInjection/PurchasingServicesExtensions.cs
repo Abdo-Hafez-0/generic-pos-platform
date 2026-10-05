@@ -44,6 +44,7 @@ public static class PurchasingServicesExtensions
         services.AddScoped<Purchasing.Application.Abstractions.IPurchasingUnitOfWork, Purchasing.Infrastructure.Persistence.PurchasingUnitOfWork>();
         services.AddScoped<Purchasing.Application.Repositories.IPurchaseOrderRepository, Purchasing.Infrastructure.Repositories.EfPurchaseOrderRepository>();
         services.AddScoped<Purchasing.Contracts.Interfaces.IPurchaseOrderReader, Purchasing.Infrastructure.Services.PurchaseOrderReader>();
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Purchasing.Application.Security.PurchasingCapabilityProvider>();
         services.AddTransient<Purchasing.Application.Commands.CreatePurchaseOrderCommandHandler>();
         services.AddTransient<Purchasing.Application.Commands.AddPurchaseOrderLineCommandHandler>();
         services.AddTransient<Purchasing.Application.Commands.RemovePurchaseOrderLineCommandHandler>();

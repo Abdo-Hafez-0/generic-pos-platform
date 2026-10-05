@@ -45,6 +45,7 @@ public static class CashManagementServicesExtensions
         services.AddScoped<CashManagement.Application.Repositories.ICashSessionRepository, CashManagement.Infrastructure.Repositories.EfCashSessionRepository>();
         services.AddScoped<CashManagement.Contracts.Interfaces.ICashMovementRecorder, CashManagement.Infrastructure.Services.CashMovementRecorder>();
         services.AddScoped<CashManagement.Contracts.Interfaces.ICashSessionReader, CashManagement.Infrastructure.Services.CashSessionReader>();
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, CashManagement.Application.Security.CashManagementCapabilityProvider>();
         services.AddTransient<CashManagement.Application.Commands.OpenCashSessionCommandHandler>();
         services.AddTransient<CashManagement.Application.Commands.RecordCashMovementCommandHandler>();
         services.AddTransient<CashManagement.Application.Commands.CloseCashSessionCommandHandler>();

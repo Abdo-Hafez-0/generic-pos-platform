@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using Payments.Domain.Entities;
 using Payments.Domain.ValueObjects;
 using Platform.Core.Results;
@@ -41,9 +42,19 @@ namespace Payments.Application.Commands
 
     public sealed record RecordedPayment(Guid PaymentId, decimal ChangeDue);
 
-    public sealed class RecordPaymentCommandHandler(IPaymentRepository repository, IPaymentsUnitOfWork unitOfWork)
+    public sealed class RecordPaymentCommandHandler(IPaymentRepository repository, IPaymentsUnitOfWork unitOfWork, IAuthorizationService authorization)
     {
         public async Task<Result<RecordedPayment>> HandleAsync(RecordPaymentCommand command, CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(Payments.Application.Security.PaymentsCapabilities.RecordPayment, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<RecordedPayment>(allowed.Error);
+
+            return await ExecuteAsync(command, cancellationToken);
+        }
+
+        /// <summary>The same operation WITHOUT the capability check, for trusted calls from other modules through this module's
+        /// contracts (they run inside an operation the user was already authorized for). Not reachable from UI or other modules.</summary>
+        internal async Task<Result<RecordedPayment>> ExecuteAsync(RecordPaymentCommand command, CancellationToken cancellationToken = default)
         {
             var created = Payment.Record(
                 command.ReferenceType, command.ReferenceId, command.Amount, command.Method,
@@ -58,9 +69,19 @@ namespace Payments.Application.Commands
 
     public sealed record VoidPaymentCommand(Guid PaymentId, string Reason);
 
-    public sealed class VoidPaymentCommandHandler(IPaymentRepository repository, IPaymentsUnitOfWork unitOfWork)
+    public sealed class VoidPaymentCommandHandler(IPaymentRepository repository, IPaymentsUnitOfWork unitOfWork, IAuthorizationService authorization)
     {
         public async Task<Result> HandleAsync(VoidPaymentCommand command, CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(Payments.Application.Security.PaymentsCapabilities.VoidPayment, cancellationToken);
+            if (allowed.IsFailure) return allowed;
+
+            return await ExecuteAsync(command, cancellationToken);
+        }
+
+        /// <summary>The same operation WITHOUT the capability check, for trusted calls from other modules through this module's
+        /// contracts (they run inside an operation the user was already authorized for). Not reachable from UI or other modules.</summary>
+        internal async Task<Result> ExecuteAsync(VoidPaymentCommand command, CancellationToken cancellationToken = default)
         {
             var payment = await repository.GetByIdAsync(new PaymentId(command.PaymentId), cancellationToken);
             if (payment is null)

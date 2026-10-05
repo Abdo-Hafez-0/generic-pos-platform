@@ -5,6 +5,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <!-- The module's own contract services run inside operations the user was already authorized for (see ExecuteAsync). -->
+    <InternalsVisibleTo Include="CashManagement.Infrastructure" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\CashManagement.Domain\CashManagement.Domain.csproj" />
     <ProjectReference Include="..\CashManagement.Contracts\CashManagement.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />

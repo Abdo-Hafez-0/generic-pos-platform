@@ -45,6 +45,7 @@ public static class PaymentsServicesExtensions
         services.AddScoped<Payments.Application.Repositories.IPaymentRepository, Payments.Infrastructure.Repositories.EfPaymentRepository>();
         services.AddScoped<Payments.Contracts.Interfaces.IPaymentService, Payments.Infrastructure.Services.PaymentService>();
         services.AddScoped<Payments.Contracts.Interfaces.IPaymentReader, Payments.Infrastructure.Services.PaymentReader>();
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Payments.Application.Security.PaymentsCapabilityProvider>();
         services.AddTransient<Payments.Application.Commands.RecordPaymentCommandHandler>();
         services.AddTransient<Payments.Application.Commands.VoidPaymentCommandHandler>();
         services.AddTransient<Payments.Application.Queries.GetPaymentQueryHandler>();

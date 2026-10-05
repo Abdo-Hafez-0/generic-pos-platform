@@ -12,7 +12,7 @@ internal sealed class CashMovementRecorder(RecordCashMovementCommandHandler hand
 {
     public async Task<RecordCashMovementResult> RecordMovementAsync(RecordCashMovementRequest request, CancellationToken cancellationToken = default)
     {
-        var result = await handler.HandleAsync(new RecordCashMovementCommand(
+        var result = await handler.ExecuteAsync(new RecordCashMovementCommand(
             request.SessionId, (CashMovementKind)(int)request.Kind, request.Amount, request.Reason,
             request.ReferenceType, request.ReferenceId, request.RecordedBy), cancellationToken);
 

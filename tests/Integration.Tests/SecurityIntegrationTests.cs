@@ -5,6 +5,8 @@ using Client.Host.Hosting;
 using Client.Licensing.Domain;
 using Client.Licensing.Infrastructure;
 using Inventory.Application.Commands;
+using Audit.Contracts.Interfaces;
+using Audit.Contracts.Models;
 using Inventory.Contracts.Interfaces;
 using Licensing.Contracts;
 using Microsoft.Extensions.DependencyInjection;
@@ -167,6 +169,42 @@ public sealed class SecurityIntegrationTests
         var refused = await SellOneAsync(host.Services, shop);
         Assert.Equal(SecurityErrors.ForbiddenCode, refused.Error.Code);
         Assert.Equal(49m, await OnHandAsync(host.Services, shop));
+    }
+
+    // ------------------------------------------------------------------ the audit trail on the real host
+
+    [Fact]
+    public async Task Security_events_land_in_the_real_audit_log_without_any_secret()
+    {
+        await using var host = await IntegrationHost.StartAsync(Modules, signInAdministrator: false);
+
+        await SignIn(host, IntegrationHost.AdministratorUsername, "a wrong passphrase 1234");        // refused
+        await SignIn(host, IntegrationHost.AdministratorUsername, AdminPassword);                      // accepted
+        var cashier = await InScope(host.Services, sp => sp.GetRequiredService<CreateUserCommandHandler>().HandleAsync(new CreateUserCommand("cashier", "Cashier")));
+        await InScope(host.Services, sp => sp.GetRequiredService<SetUserPasswordCommandHandler>().HandleAsync(new SetUserPasswordCommand(cashier.Value, CashierPassword, false)));
+        SignOut(host);
+        await SignIn(host, "cashier", CashierPassword);
+        await InScope(host.Services, sp => sp.GetRequiredService<AdjustStockCommandHandler>()          // refused by the handler
+            .HandleAsync(new AdjustStockCommand(Guid.NewGuid(), -1m, Inventory.Domain.Enums.AdjustmentReason.DamageWrite)));
+
+        var page = await InScope(host.Services, sp => sp.GetRequiredService<IAuditReader>().QueryAsync(new AuditEntryFilter(Module: "security"), pageSize: 200));
+        var actions = page.Items.Select(e => e.Action).ToList();
+
+        Assert.Contains("security.bootstrap.administrator-created", actions);
+        Assert.Contains("security.signin.failed", actions);
+        Assert.Contains("security.signin.succeeded", actions);
+        Assert.Contains("security.password.reset", actions);
+        var denial = Assert.Single(page.Items, e => e.Action == "security.authorization.denied");
+        Assert.Equal("inventory.stock.adjust", denial.EntityId);
+        Assert.Equal("cashier", denial.ActorName);
+
+        var everything = string.Join(" // ", page.Items.Select(e => $"{e.Action}|{e.EntityType}|{e.EntityId}|{e.ActorName}|{e.Summary}|{e.Details}"));
+        Assert.DoesNotContain(AdminPassword, everything);
+        Assert.DoesNotContain(CashierPassword, everything);
+        Assert.DoesNotContain("a wrong passphrase", everything);
+        await using var connection = await host.OpenDatabaseAsync();
+        var hashes = await IntegrationHost.QueryAsync(connection, "SELECT PasswordHash FROM usr_UserCredentials");
+        Assert.All(hashes, h => Assert.DoesNotContain(h, everything)); // not even the hash is audited
     }
 
     // ------------------------------------------------------------------ license enforcement on the real host

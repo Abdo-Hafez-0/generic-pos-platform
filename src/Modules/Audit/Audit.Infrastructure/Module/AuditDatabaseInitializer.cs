@@ -35,6 +35,10 @@ public sealed class AuditDatabaseInitializer(
                 await dbContext.Database.EnsureCreatedAsync(cancellationToken);
                 logger.LogInformation("Audit database schema is up to date.");
             }
+
+            // Security events raised before the audit tables existed (licensing and the updater start first) are written now.
+            var listener = scope.ServiceProvider.GetService<Audit.Infrastructure.Services.AuditSecurityEventListener>();
+            if (listener is not null) await listener.DrainAsync(cancellationToken);
         }
         catch (Exception ex)
         {

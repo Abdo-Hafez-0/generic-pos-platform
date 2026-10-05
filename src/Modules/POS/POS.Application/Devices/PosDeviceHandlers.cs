@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using Catalog.Contracts.Interfaces;
 using Platform.Application.Abstractions.Hardware;
 using Platform.Core.Results;
@@ -66,10 +67,14 @@ public sealed class PrintReceiptCommandHandler(
     IPosSessionRepository sessionRepository,
     PosReceiptOptions options,
     TimeProvider timeProvider,
+    IAuthorizationService authorization,
     IReceiptPrinter? printer = null)
 {
     public async Task<Result> HandleAsync(PrintReceiptCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(POS.Application.Security.POSCapabilities.ReprintReceipt, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var cart = await cartRepository.GetByIdAsync(new PosCartId(command.CartId), cancellationToken);
         if (cart is null)
             return Error.NotFound("POS.Receipt.CartNotFound", $"Cart '{command.CartId}' was not found.");
@@ -89,12 +94,18 @@ public sealed class PrintReceiptCommandHandler(
     }
 }
 
-public sealed class OpenCashDrawerCommandHandler(ICashDrawer? drawer = null)
+public sealed class OpenCashDrawerCommandHandler(IAuthorizationService authorization, ICashDrawer? drawer = null)
 {
-    public Task<Result> HandleAsync(CancellationToken cancellationToken = default)
-        => drawer is null
-            ? Task.FromResult<Result>(HardwareErrors.NotConfigured("cash drawer"))
-            : HardwareGuard.RunAsync("cash drawer", () => drawer.OpenAsync(cancellationToken));
+    /// <summary>"No sale" drawer opens are a classic way to take cash out unnoticed, so they need their own capability.</summary>
+    public async Task<Result> HandleAsync(CancellationToken cancellationToken = default)
+    {
+        var allowed = await authorization.AuthorizeAsync(POS.Application.Security.POSCapabilities.OpenDrawer, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
+        return drawer is null
+            ? HardwareErrors.NotConfigured("cash drawer")
+            : await HardwareGuard.RunAsync("cash drawer", () => drawer.OpenAsync(cancellationToken));
+    }
 }
 
 public sealed record PrintProductLabelCommand(string ProductCode, int Copies = 1);
@@ -102,10 +113,14 @@ public sealed record PrintProductLabelCommand(string ProductCode, int Copies = 1
 public sealed class PrintProductLabelCommandHandler(
     IProductBarcodeResolver barcodeResolver,
     IProductLookup productLookup,
+    IAuthorizationService authorization,
     ILabelPrinter? printer = null)
 {
     public async Task<Result> HandleAsync(PrintProductLabelCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(POS.Application.Security.POSCapabilities.PrintLabel, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         if (string.IsNullOrWhiteSpace(command.ProductCode))
             return Error.Validation("POS.Label.CodeRequired", "A product barcode or SKU is required.");
 
@@ -124,13 +139,16 @@ public sealed class PrintProductLabelCommandHandler(
     }
 }
 
-public sealed class ReadWeightQueryHandler(IScale? scale = null)
+public sealed class ReadWeightQueryHandler(IAuthorizationService authorization, IScale? scale = null)
 {
     /// <summary>The heaviest weight (kg) treated as plausible; anything above is reported as unusable instead of being used.</summary>
     public const decimal MaxPlausibleKilograms = 1000m;
 
     public async Task<Result<WeightReading>> HandleAsync(CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(POS.Application.Security.POSCapabilities.CreateSale, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<WeightReading>(allowed.Error);
+
         if (scale is null)
             return Result.Failure<WeightReading>(HardwareErrors.NotConfigured("scale"));
 

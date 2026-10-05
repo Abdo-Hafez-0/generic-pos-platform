@@ -68,6 +68,7 @@ public static class POSServicesExtensions
         services.AddSingleton<IModule, POSModule>();
         services.AddHostedService<POSDatabaseInitializer>();
 
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, POS.Application.Security.POSCapabilityProvider>();
         services.AddTransient<OpenPosSessionCommandHandler>();
         services.AddTransient<ClosePosSessionCommandHandler>();
         services.AddTransient<StartCartCommandHandler>();

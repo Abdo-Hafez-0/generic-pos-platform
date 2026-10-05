@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using Inventory.Contracts.Interfaces;
 using Payments.Contracts.Interfaces;
 using Payments.Contracts.Models;
@@ -56,6 +57,7 @@ public sealed class CheckoutCartCommandHandler(
     IStockIssueService stockIssueService,
     ISalesService salesService,
     IPosUnitOfWork unitOfWork,
+    IAuthorizationService authorization,
     IPaymentService? paymentService = null,
     IReceiptPrinter? receiptPrinter = null,
     ICashDrawer? cashDrawer = null,
@@ -66,6 +68,9 @@ public sealed class CheckoutCartCommandHandler(
         CheckoutCartCommand command,
         CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(POS.Application.Security.POSCapabilities.CreateSale, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<CheckoutOutcome>(allowed.Error);
+
         // 1. Cart and session
         var cart = await cartRepository.GetByIdAsync(new PosCartId(command.CartId), cancellationToken);
         if (cart is null)

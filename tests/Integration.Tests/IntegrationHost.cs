@@ -15,6 +15,10 @@ using Reporting.Infrastructure.Module;
 using Sales.Infrastructure.Module;
 using Suppliers.Infrastructure.Module;
 using Users.Infrastructure.Module;
+using Users.Application.Commands;
+using Microsoft.Extensions.Hosting;
+using Platform.Application.Abstractions.Authorization;
+using Tests.Common.Security;
 
 namespace Integration.Tests;
 
@@ -34,6 +38,11 @@ public sealed class IntegrationHost : IAsyncDisposable
     private const string Prefix = "GENERICPOS_Database__";
     private const string SubDirectory = "GenericPOS";
     private static readonly string[] Keys = ["DatabaseFolder", "CustomFolderPath", "DatabaseFileName"];
+    private const string HashingCostKey = "GENERICPOS_Security__PasswordHashing__Iterations";
+
+    /// <summary>The first administrator the real host is set up with (first-run setup), used by every host that has the Users module.</summary>
+    public const string AdministratorUsername = "admin";
+    public const string AdministratorPassword = "integration test passphrase";
 
     private readonly IApplicationHost _host;
     private readonly string _folder;
@@ -95,16 +104,25 @@ public sealed class IntegrationHost : IAsyncDisposable
         Environment.SetEnvironmentVariable(Prefix + "DatabaseFolder", "Custom");
         Environment.SetEnvironmentVariable(Prefix + "CustomFolderPath", folder);
         Environment.SetEnvironmentVariable(Prefix + "DatabaseFileName", fileName);
+        Environment.SetEnvironmentVariable(HashingCostKey, "100000"); // the lowest cost the platform accepts: keeps the suite quick
 
         try
         {
+            var moduleList = modules.ToList();
             var builder = ApplicationHostBuilder.Create().WithModule(new ModuleHostRegistrar());
-            foreach (var module in modules) builder.WithModule(Create(module));
+            foreach (var module in moduleList) builder.WithModule(Create(module));
             foreach (var extra in extraModules ?? []) builder.WithModule(extra);
+
+            // Without the Users module there is no permission source, so the real authorization refuses everything (fail closed).
+            // Tests that are not about security and run without Users stand in a permissive authorization service.
+            var hasUsers = moduleList.Contains("Users");
+            if (!hasUsers) builder.WithModule(new PermissiveAuthorizationModule());
 
             var host = builder.Build();
             await host.StartAsync();
-            return new IntegrationHost(host, folder, fileName);
+            var started = new IntegrationHost(host, folder, fileName);
+            if (hasUsers) await started.SignInAdministratorAsync();
+            return started;
         }
         catch
         {
@@ -129,6 +147,24 @@ public sealed class IntegrationHost : IAsyncDisposable
     }
 
     public static void DeleteFolder(string folder) => TryDelete(folder);
+
+    /// <summary>
+    /// First-run setup (only the first time on a database) and a real sign-in through the Users module: the authorization every POS call
+    /// now goes through is the real one, backed by the administrator's real role.
+    /// </summary>
+    public async Task SignInAdministratorAsync()
+    {
+        using var scope = Services.CreateScope();
+        var bootstrap = await scope.ServiceProvider.GetRequiredService<BootstrapAdministratorCommandHandler>()
+            .HandleAsync(new BootstrapAdministratorCommand(AdministratorUsername, "Administrator", AdministratorPassword));
+        if (bootstrap.IsFailure && bootstrap.Error.Code != "Users.Bootstrap.AlreadyInitialized")
+            throw new InvalidOperationException("First-run setup failed: " + bootstrap.Error);
+
+        var signedIn = await scope.ServiceProvider.GetRequiredService<SignInCommandHandler>()
+            .HandleAsync(new SignInCommand(AdministratorUsername, AdministratorPassword));
+        if (signedIn.IsFailure)
+            throw new InvalidOperationException("Signing in failed: " + signedIn.Error);
+    }
 
     /// <summary>Opens the database file directly (read-only use) to inspect what the migrations really created.</summary>
     public async Task<SqliteConnection> OpenDatabaseAsync()
@@ -157,6 +193,7 @@ public sealed class IntegrationHost : IAsyncDisposable
     private static void ClearEnvironment()
     {
         foreach (var key in Keys) Environment.SetEnvironmentVariable(Prefix + key, null);
+        Environment.SetEnvironmentVariable(HashingCostKey, null);
     }
 
     private static void TryDelete(string folder)
@@ -165,4 +202,12 @@ public sealed class IntegrationHost : IAsyncDisposable
         catch (IOException) { /* a leftover temp folder is harmless */ }
         catch (UnauthorizedAccessException) { }
     }
+}
+
+
+/// <summary>Test-only: replaces the platform authorization with one that allows everything, for hosts that have no Users module.</summary>
+internal sealed class PermissiveAuthorizationModule : IHostingModule
+{
+    public void RegisterServices(HostBuilderContext context, IServiceCollection services)
+        => services.AddScoped<IAuthorizationService, AllowAllAuthorizationService>();
 }

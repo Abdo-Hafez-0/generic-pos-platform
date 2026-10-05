@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using Platform.Core.Results;
 using POS.Application.Abstractions;
 using POS.Application.Repositories;
@@ -14,12 +15,16 @@ public sealed record OpenPosSessionCommand(string CashierReference, Guid Warehou
 
 public sealed class OpenPosSessionCommandHandler(
     IPosSessionRepository sessionRepository,
-    IPosUnitOfWork unitOfWork)
+    IPosUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(
         OpenPosSessionCommand command,
         CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(POS.Application.Security.POSCapabilities.ManageSession, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         var sessionResult = PosSession.Open(command.CashierReference, command.WarehouseId);
         if (sessionResult.IsFailure)
             return Result.Failure<Guid>(sessionResult.Error);
@@ -45,12 +50,16 @@ public sealed record ClosePosSessionCommand(Guid SessionId);
 public sealed class ClosePosSessionCommandHandler(
     IPosSessionRepository sessionRepository,
     IPosCartRepository cartRepository,
-    IPosUnitOfWork unitOfWork)
+    IPosUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(
         ClosePosSessionCommand command,
         CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(POS.Application.Security.POSCapabilities.ManageSession, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var sessionId = new PosSessionId(command.SessionId);
         var session = await sessionRepository.GetByIdAsync(sessionId, cancellationToken);
         if (session is null)

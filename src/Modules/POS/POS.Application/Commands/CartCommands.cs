@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using Catalog.Contracts.Interfaces;
 using Catalog.Contracts.Models;
 using Inventory.Contracts.Interfaces;
@@ -21,12 +22,16 @@ public sealed record StartCartCommand(Guid SessionId);
 public sealed class StartCartCommandHandler(
     IPosSessionRepository sessionRepository,
     IPosCartRepository cartRepository,
-    IPosUnitOfWork unitOfWork)
+    IPosUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(
         StartCartCommand command,
         CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(POS.Application.Security.POSCapabilities.CreateSale, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         var sessionId = new PosSessionId(command.SessionId);
         var session = await sessionRepository.GetByIdAsync(sessionId, cancellationToken);
         if (session is null)
@@ -72,12 +77,16 @@ public sealed class AddProductToCartCommandHandler(
     IProductLookup productLookup,
     IStockAvailabilityChecker stockAvailabilityChecker,
     IPosUnitOfWork unitOfWork,
+    IAuthorizationService authorization,
     IPriceResolver? priceResolver = null)
 {
     public async Task<Result<Guid>> HandleAsync(
         AddProductToCartCommand command,
         CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(POS.Application.Security.POSCapabilities.CreateSale, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         if (string.IsNullOrWhiteSpace(command.ProductCode))
             return Result.Failure<Guid>(Error.Validation(
                 "POS.AddProduct.CodeRequired", "A barcode or SKU is required."));
@@ -152,12 +161,16 @@ public sealed record RemoveProductFromCartCommand(Guid CartId, Guid ProductId);
 
 public sealed class RemoveProductFromCartCommandHandler(
     IPosCartRepository cartRepository,
-    IPosUnitOfWork unitOfWork)
+    IPosUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(
         RemoveProductFromCartCommand command,
         CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(POS.Application.Security.POSCapabilities.CreateSale, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var cart = await cartRepository.GetByIdAsync(new PosCartId(command.CartId), cancellationToken);
         if (cart is null)
             return Result.Failure(Error.NotFound(
@@ -183,12 +196,16 @@ public sealed class ChangeCartQuantityCommandHandler(
     IPosCartRepository cartRepository,
     IPosSessionRepository sessionRepository,
     IStockAvailabilityChecker stockAvailabilityChecker,
-    IPosUnitOfWork unitOfWork)
+    IPosUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(
         ChangeCartQuantityCommand command,
         CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(POS.Application.Security.POSCapabilities.CreateSale, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var quantityResult = CartQuantity.Create(command.Quantity);
         if (quantityResult.IsFailure)
             return Result.Failure(quantityResult.Error);
@@ -235,12 +252,16 @@ public sealed record ClearCartCommand(Guid CartId);
 
 public sealed class ClearCartCommandHandler(
     IPosCartRepository cartRepository,
-    IPosUnitOfWork unitOfWork)
+    IPosUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(
         ClearCartCommand command,
         CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(POS.Application.Security.POSCapabilities.CreateSale, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var cart = await cartRepository.GetByIdAsync(new PosCartId(command.CartId), cancellationToken);
         if (cart is null)
             return Result.Failure(Error.NotFound(

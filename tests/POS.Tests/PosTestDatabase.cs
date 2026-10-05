@@ -82,6 +82,8 @@ public sealed class PosTestDatabase : IAsyncDisposable
         services.AddTransient<PrintProductLabelCommandHandler>();
         services.AddTransient<ReadWeightQueryHandler>();
         services.AddTransient<GetDeviceStatusQueryHandler>();
+        // Business tests are not about security; security tests replace this through configureServices.
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.IAuthorizationService, global::Tests.Common.Security.AllowAllAuthorizationService>();
         configureServices?.Invoke(services);
 
         services.AddTransient<OpenPosSessionCommandHandler>();

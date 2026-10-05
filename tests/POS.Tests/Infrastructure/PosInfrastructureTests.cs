@@ -163,6 +163,8 @@ public sealed class PosInfrastructureTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddPOSModule(config);
+        // The real host provides authorization (AddPlatformSecurity); a permissive one stands in for it here.
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.IAuthorizationService, global::Tests.Common.Security.AllowAllAuthorizationService>();
         // Other modules are supplied by their own hosting modules in the real host; here: stubs of their contracts.
         services.AddSingleton<Catalog.Contracts.Interfaces.IProductLookup>(stubs.Catalog);
         services.AddSingleton<Catalog.Contracts.Interfaces.IProductBarcodeResolver>(stubs.Catalog);

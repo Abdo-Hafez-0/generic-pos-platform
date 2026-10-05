@@ -296,11 +296,14 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 
       startup fine, POS checkout completes, discovery returns Update.ServerUnavailable, a signed module package installs against the real DB with a
       restore point, and sale/stock rows are intact afterwards
 
+### Stage 8 - Additional Business Modules (IN PROGRESS)
+- [x] 8A Customers (cus_*): Customer aggregate (+CustomerAddress, CustomerContact, CustomerStatus), create/update/deactivate/reactivate, address+contact management, get/list(paged)/search; contracts ICustomerLookup, ICustomerReader; migration InitialCustomersSchema; Customers.Tests (38); ARCH-CUS-001..016
+
 ---
 
 ## Current Task
 
-**Stage 7 - COMPLETE. Stopping before Stage 8.**
+**Stage 8 - IN PROGRESS (8A Customers done). Next: 8B Suppliers.**
 
 ---
 

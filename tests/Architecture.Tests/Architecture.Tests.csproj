@@ -62,6 +62,12 @@
     <ProjectReference Include="..\..\src\Cloud\UpdateServer\UpdateServer.Application\UpdateServer.Application.csproj" />
     <ProjectReference Include="..\..\tools\ModulePackager\ModulePackager.csproj" />
     <ProjectReference Include="..\..\tools\UpdatePublisher\UpdatePublisher.csproj" />
+    <!-- Customers module assemblies (Stage 8) - Customers.UI excluded (net10.0-windows) -->
+    <ProjectReference Include="..\..\src\Modules\Customers\Customers.Domain\Customers.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Customers\Customers.Contracts\Customers.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Customers\Customers.Application\Customers.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Customers\Customers.Infrastructure\Customers.Infrastructure.csproj" />
+    <ProjectReference Include="..\Tests.Common\Tests.Common.csproj" />
   </ItemGroup>
 
 </Project>

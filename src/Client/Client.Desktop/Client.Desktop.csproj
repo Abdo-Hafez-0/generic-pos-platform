@@ -21,6 +21,9 @@
     <!-- POS module (Stage 5D) - POSHostingModule lives in POS.Infrastructure -->
     <ProjectReference Include="..\..\Modules\POS\POS.Infrastructure\POS.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\POS\POS.UI\POS.UI.csproj" />
+    <!-- Customers module (Stage 8) - CustomersHostingModule lives in Customers.Infrastructure -->
+    <ProjectReference Include="..\..\Modules\Customers\Customers.Infrastructure\Customers.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Customers\Customers.UI\Customers.UI.csproj" />
     <Content Include="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

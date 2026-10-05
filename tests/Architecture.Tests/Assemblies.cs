@@ -191,7 +191,8 @@ internal static class Assemblies
         .. AllCatalogAssemblies,
         .. AllInventoryAssemblies,
         .. AllSalesAssemblies,
-        .. AllPOSAssemblies
+        .. AllPOSAssemblies,
+        .. AllCustomersAssemblies
     ];
 
     // Update system + shared security assemblies (Stage 7)
@@ -228,7 +229,31 @@ internal static class Assemblies
         ClientUpdaterHttp,
         UpdateServerApplication,
         ModulePackager,
-        UpdatePublisher
+        UpdatePublisher,
+        .. AllCustomersAssemblies
+    ];
+
+    // Customers module assemblies (Stage 8)
+    // Note: Customers.UI is net10.0-windows and cannot be referenced here (TFM gap).
+    internal static readonly Assembly CustomersDomain =
+        typeof(Customers.Domain.Entities.Customer).Assembly;
+
+    internal static readonly Assembly CustomersContracts =
+        typeof(Customers.Contracts.Interfaces.ICustomerLookup).Assembly;
+
+    internal static readonly Assembly CustomersApplication =
+        typeof(Customers.Application.Commands.CreateCustomerCommandHandler).Assembly;
+
+    internal static readonly Assembly CustomersInfrastructure =
+        typeof(Customers.Infrastructure.CustomersInfrastructureAssemblyMarker).Assembly;
+
+    internal static IReadOnlyList<Assembly> AllCustomersAssemblies =>
+    [
+        CustomersDomain,
+        CustomersContracts,
+        CustomersApplication,
+        CustomersInfrastructure
+        // Customers.UI excluded - net10.0-windows TFM gap
     ];
 
     internal static IReadOnlyList<Assembly> AllProjectAssemblies =>

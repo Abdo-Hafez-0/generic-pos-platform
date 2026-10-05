@@ -5,6 +5,7 @@ using Client.Licensing.Infrastructure;
 using Client.Updater.Http;
 using Client.Updater.Infrastructure;
 using POS.Infrastructure.Module;
+using Customers.Infrastructure.Module;
 using Sales.Infrastructure.Module;
 using Client.Host.Hosting;
 using Client.ModuleHost;
@@ -59,6 +60,7 @@ public partial class App : Application
                 .WithModule(new InventoryHostingModule()) // Stage 5B: Inventory module
                 .WithModule(new SalesHostingModule())     // Stage 5C: Sales module
                 .WithModule(new POSHostingModule())       // Stage 5D: POS module
+                .WithModule(new CustomersHostingModule())       // Stage 8: Customers module
                 .Build();
 
             // Start all hosted services (logging, configuration, module discovery, etc.)

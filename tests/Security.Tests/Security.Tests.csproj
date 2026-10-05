@@ -22,6 +22,7 @@
     <ProjectReference Include="..\..\src\Platform\Platform.Core\Platform.Core.csproj" />
     <ProjectReference Include="..\..\src\Platform\Platform.Application\Platform.Application.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.Host\Client.Host.csproj" />
+    <ProjectReference Include="..\..\src\Client\Client.Security\Client.Security.csproj" />
   </ItemGroup>
 
 </Project>

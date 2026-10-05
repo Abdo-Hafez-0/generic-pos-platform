@@ -25,34 +25,6 @@ internal static class AtomicFile
 }
 
 /// <summary>
-/// Stores the installation identity as JSON (installation.json). Tampering with it cannot forge a license: the
-/// identity is only compared against the INSTALLATION ID inside the signed license, so a changed identity makes the
-/// stored license fail the binding check.
-/// </summary>
-public sealed class FileInstallationIdentityStore(LicensingStorageOptions options) : IInstallationIdentityStore
-{
-    private string FilePath => Path.Combine(options.Directory, "installation.json");
-
-    public async Task<InstallationIdentity?> LoadAsync(CancellationToken cancellationToken = default)
-    {
-        if (!File.Exists(FilePath)) return null;
-
-        try
-        {
-            var json = await File.ReadAllTextAsync(FilePath, cancellationToken);
-            return JsonSerializer.Deserialize<InstallationIdentity>(json, LicenseSerializer.Options);
-        }
-        catch (Exception ex) when (ex is JsonException or IOException)
-        {
-            return null;
-        }
-    }
-
-    public Task SaveAsync(InstallationIdentity identity, CancellationToken cancellationToken = default)
-        => AtomicFile.WriteAsync(FilePath, JsonSerializer.Serialize(identity, LicenseSerializer.Options), cancellationToken);
-}
-
-/// <summary>
 /// Stores the signed license as JSON (license.json). Integrity/authenticity come from the signature, which is
 /// verified on every load: any edit to the file is detected and the license is rejected. The license is not secret,
 /// so no encryption is applied. Local storage cannot make a client tamper-proof; it only guarantees edits are detected.

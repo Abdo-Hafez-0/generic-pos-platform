@@ -13,6 +13,7 @@
     <ProjectReference Include="..\..\Modules\Sales\Sales.Infrastructure\Sales.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Sales\Sales.UI\Sales.UI.csproj" />
     <!-- Licensing (Stage 6): offline evaluation + HTTP transport to the license server -->
+    <ProjectReference Include="..\Client.Security\Client.Security.csproj" />
     <ProjectReference Include="..\Client.Licensing\Client.Licensing.csproj" />
     <ProjectReference Include="..\Client.Licensing.Http\Client.Licensing.Http.csproj" />
     <!-- Updater (Stage 7): verified, recoverable updates + HTTP transport to the update server -->

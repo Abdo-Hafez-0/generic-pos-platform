@@ -13,7 +13,10 @@ public enum InvalidReason
     BadSignature = 3,
     WrongInstallation = 4,
     WrongProduct = 5,
-    NotYetValid = 6
+    NotYetValid = 6,
+
+    /// <summary>The system clock is earlier than the last time this installation provably ran: it was turned back (or is badly wrong).</summary>
+    ClockRollback = 7
 }
 
 /// <summary>Why a license is <see cref="LicenseState.Expired"/>.</summary>

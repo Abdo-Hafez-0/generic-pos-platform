@@ -46,18 +46,21 @@ public sealed class LicenseService(
     TimeProvider timeProvider,
     LicensingOptions options,
     LicensePolicy policy,
-    ISecurityEventSink? events = null) : ILicenseService, ILicenseEntitlementService
+    ISecurityEventSink? events = null,
+    IClockGuard? clockGuard = null) : ILicenseService, ILicenseEntitlementService
 {
     private sealed record Snapshot(Guid InstallationId, bool HasLicense, LicenseVerificationResult? Verification);
 
     private Snapshot? _snapshot;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private int _rollbackReported;
 
     public async Task<InstallationIdentity> GetInstallationIdentityAsync(CancellationToken cancellationToken = default)
         => await identityService.GetOrCreateAsync(cancellationToken);
 
     public async Task<LicenseEvaluation> InitializeAsync(CancellationToken cancellationToken = default)
     {
+        if (clockGuard is not null) await clockGuard.LoadAsync(cancellationToken);
         var identity = await identityService.GetOrCreateAsync(cancellationToken);
         var stored = await store.LoadAsync(cancellationToken);
 
@@ -68,6 +71,10 @@ public sealed class LicenseService(
             snapshot = new Snapshot(identity.InstallationId, true, LicenseVerificationResult.Invalid(InvalidReason.Malformed));
         else
             snapshot = new Snapshot(identity.InstallationId, true, verifier.Verify(stored.License));
+
+        // The signed issue time of the stored license is a fact nobody on this machine can move: the clock may never be earlier than it.
+        if (clockGuard is not null && snapshot.Verification is { IsValid: true, Payload: { } stored2 })
+            clockGuard.SetFloor(stored2.IssuedAt);
 
         Volatile.Write(ref _snapshot, snapshot);
         var evaluation = Current;
@@ -91,6 +98,22 @@ public sealed class LicenseService(
             var now = timeProvider.GetUtcNow();
             if (snapshot is null)
                 return LicenseEvaluation.Unlicensed(now);
+
+            // A clock that cannot be believed grants nothing: expiry means nothing if the clock can simply be turned back.
+            if (clockGuard is not null && snapshot.HasLicense)
+            {
+                if (clockGuard.Observe(now) == ClockCheck.RolledBack)
+                {
+                    if (Interlocked.Exchange(ref _rollbackReported, 1) == 0)
+                        _ = Record(SecurityEventOutcome.Denied, "security.license.clock-rollback", snapshot.Verification?.Payload?.LicenseId,
+                            "the system clock is earlier than the last time this installation ran; licensed work is restricted until the clock is corrected or the license is renewed online",
+                            CancellationToken.None);
+
+                    return new LicenseEvaluation(LicenseState.Invalid, null, InvalidReason.ClockRollback, ExpiryKind.None, false, now);
+                }
+
+                Interlocked.Exchange(ref _rollbackReported, 0);
+            }
 
             return LicenseEvaluator.Evaluate(
                 snapshot.HasLicense, snapshot.Verification, snapshot.InstallationId, options.ProductId, now, policy);
@@ -238,6 +261,13 @@ public sealed class LicenseService(
 
         await store.SaveAsync(received, cancellationToken);
         Volatile.Write(ref _snapshot, new Snapshot(installationId, true, verification));
+        if (clockGuard is not null)
+        {
+            // The server just vouched for the time of issue: the mark follows it (also the way out of a clock that had run far ahead).
+            clockGuard.Rebase(verification.Payload.IssuedAt);
+            await clockGuard.FlushAsync(cancellationToken);
+        }
+
         await Record(SecurityEventOutcome.Success, current is null ? "security.license.activated" : "security.license.renewed",
             verification.Payload.LicenseId, $"version {verification.Payload.LicenseVersion}, state {Current.State}", cancellationToken);
         return Result.Success(Current);

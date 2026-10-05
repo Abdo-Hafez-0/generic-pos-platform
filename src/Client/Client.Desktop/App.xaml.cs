@@ -2,6 +2,7 @@ using Catalog.Infrastructure.Module;
 using Inventory.Infrastructure.Module;
 using Client.Hardware;
 using Client.Licensing.Http;
+using Client.Security;
 using Client.Licensing.Infrastructure;
 using Client.Updater.Http;
 using Client.Updater.Infrastructure;
@@ -61,6 +62,7 @@ public partial class App : Application
                 .Create()
                 .WithModule(new DesktopServicesRegistrar())
                 .WithModule(new ModuleHostRegistrar())
+                .WithModule(new ClientSecurityHostingModule())  // Stage 11: operating-system data protection (DPAPI) for local security state
                 .WithModule(new LicensingHostingModule())       // Stage 6: offline license evaluation
                 .WithModule(new LicenseHttpHostingModule())     // Stage 6: HTTP transport to the license server
                 .WithModule(new UpdaterHostingModule())         // Stage 7: update verification, staging, recovery (local only)

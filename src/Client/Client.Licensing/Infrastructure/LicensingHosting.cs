@@ -30,6 +30,18 @@ public sealed class LicensingConfiguration
 
     /// <summary>Base URL of the license server (used by Client.Licensing.Http). HTTPS required except loopback.</summary>
     public string? ServerBaseUrl { get; set; }
+
+    /// <summary>
+    /// How far (minutes) the system clock may be behind the last time this installation provably ran before it is treated as turned back.
+    /// Bounded to 5 minutes .. 7 days; there is deliberately no way to switch the check off.
+    /// </summary>
+    public int ClockToleranceMinutes { get; set; } = (int)ClockGuardOptions.DefaultTolerance.TotalMinutes;
+
+    /// <summary>
+    /// Accept (and seal) an installation identity written by a build older than Stage 11 as plain text. Off by default: plain text can be
+    /// copied to another PC. Turn it on for one start of a pre-Stage-11 installation, then off again; or re-activate.
+    /// </summary>
+    public bool AllowLegacyPlaintextIdentity { get; set; }
 }
 
 /// <summary>Used when no transport is registered: licensing evaluation works, activation/renewal report "not configured".</summary>
@@ -46,7 +58,7 @@ internal sealed class NullLicenseClient : ILicenseClient
 /// Loads identity and the local license at host start. Fully offline. A missing, invalid or expired license never
 /// prevents the application from starting: the state is simply exposed through ILicenseEntitlementService.
 /// </summary>
-internal sealed class LicensingInitializer(ILicenseService licenseService, ILogger<LicensingInitializer> logger) : IHostedService
+internal sealed class LicensingInitializer(ILicenseService licenseService, ILogger<LicensingInitializer> logger, IClockGuard? clockGuard = null) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -61,7 +73,20 @@ internal sealed class LicensingInitializer(ILicenseService licenseService, ILogg
         }
     }
 
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    /// <summary>Writes the latest clock mark so the next start can tell whether the clock was turned back while the program was off.</summary>
+    public async Task StopAsync(CancellationToken cancellationToken)
+    {
+        if (clockGuard is null) return;
+
+        try
+        {
+            await clockGuard.FlushAsync(cancellationToken);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "The clock mark could not be written at shutdown.");
+        }
+    }
 }
 
 public static class LicensingServicesExtensions
@@ -81,7 +106,20 @@ public static class LicensingServicesExtensions
         services.AddSingleton(storage);
         services.AddSingleton(new LicensingOptions(config.ProductId));
         services.AddSingleton(new LicensePolicy(config.GraceGrantsEntitlements));
-        services.AddSingleton<IInstallationIdentityStore, FileInstallationIdentityStore>();
+        // Identity and clock mark are protected at rest when the platform offers protection (Client.Security registers DPAPI on Windows).
+        services.AddSingleton<IInstallationIdentityStore>(sp => new FileInstallationIdentityStore(
+            sp.GetRequiredService<LicensingStorageOptions>(),
+            sp.GetService<Platform.Application.Abstractions.Security.ISecretProtector>(),
+            sp.GetService<Platform.Application.Abstractions.Security.ISecurityEventSink>(),
+            sp.GetRequiredService<TimeProvider>(),
+            config.AllowLegacyPlaintextIdentity));
+        services.AddSingleton(new ClockGuardOptions(TimeSpan.FromMinutes(config.ClockToleranceMinutes)).Normalized());
+        services.AddSingleton<IClockStateStore>(sp => new FileClockStateStore(
+            sp.GetRequiredService<LicensingStorageOptions>(),
+            sp.GetService<Platform.Application.Abstractions.Security.ISecretProtector>(),
+            sp.GetService<Platform.Application.Abstractions.Security.ISecurityEventSink>(),
+            sp.GetRequiredService<TimeProvider>()));
+        services.AddSingleton<IClockGuard>(sp => new ClockRollbackGuard(sp.GetRequiredService<IClockStateStore>(), sp.GetRequiredService<ClockGuardOptions>()));
         services.AddSingleton<ILicenseStore, FileLicenseStore>();
         services.AddSingleton<ILicenseVerifier>(_ => new EcdsaLicenseVerifier(config.TrustedKeys));
         services.AddSingleton<InstallationIdentityService>();

@@ -28,15 +28,22 @@ public sealed class BackupService(
     IBackupCatalog catalog,
     IBackupBlobStore blobs,
     TimeProvider timeProvider,
-    BackupServerOptions options)
+    BackupServerOptions options,
+    ICloudSecurityLog? securityLog = null)
 {
+    private Task Log(BackupPrincipal principal, string action, Guid backupId, string summary)
+        => securityLog?.RecordAsync($"license:{principal.LicenseId}", action, "backup", backupId.ToString(), summary) ?? Task.CompletedTask;
+
     public const int MaxLabelLength = 200;
 
     public async Task<ServiceResult<BackupRecord>> UploadAsync(
         BackupPrincipal principal, Stream content, BackupUploadInfo info, CancellationToken cancellationToken = default)
     {
         if (!principal.CanUpload)
+        {
+            await Log(principal, "backup.upload-denied", Guid.Empty, principal.UploadDeniedReason!);
             return ServiceResult<BackupRecord>.Fail(CloudErrorCodes.Forbidden, principal.UploadDeniedReason!);
+        }
 
         var label = string.IsNullOrWhiteSpace(info.Label) ? null : info.Label.Trim();
         if (label is { Length: > MaxLabelLength })
@@ -96,6 +103,7 @@ public sealed class BackupService(
         }
 
         await PruneAsync(principal.LicenseId, cancellationToken);
+        await Log(principal, "backup.upload", record.BackupId, $"{record.SizeBytes} bytes stored (sha256 {record.Sha256[..12]}...).");
         return ServiceResult<BackupRecord>.Ok(record);
     }
 
@@ -118,9 +126,11 @@ public sealed class BackupService(
             return ServiceResult<Stream>.From(found.Error!);
 
         var stream = blobs.OpenRead(backupId);
-        return stream is null
-            ? ServiceResult<Stream>.Fail(CloudErrorCodes.NotFound, "The backup content is no longer available.")
-            : ServiceResult<Stream>.Ok(stream);
+        if (stream is null)
+            return ServiceResult<Stream>.Fail(CloudErrorCodes.NotFound, "The backup content is no longer available.");
+
+        await Log(principal, "backup.download", backupId, "The backup content was read (restore).");
+        return ServiceResult<Stream>.Ok(stream);
     }
 
     public async Task<ServiceResult> DeleteAsync(BackupPrincipal principal, Guid backupId, CancellationToken cancellationToken = default)
@@ -130,6 +140,7 @@ public sealed class BackupService(
             return ServiceResult.Fail(found.Error!.Code, found.Error.Message);
 
         await RemoveAsync(backupId, cancellationToken);
+        await Log(principal, "backup.delete", backupId, "The customer deleted a backup.");
         return ServiceResult.Ok();
     }
 

@@ -1,3 +1,4 @@
+using Cloud.Hosting;
 using Cloud.Infrastructure;
 using Updates.Contracts;
 using UpdateServer.Application;
@@ -37,11 +38,12 @@ builder.Services.AddSingleton<UpdateDiscoveryService>();
 
 var app = builder.Build();
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHsts();
-    app.UseHttpsRedirection();
-}
+app.UseCloudSecurityHeaders();
+
+app.UseCloudTransportSecurity();   // HSTS, HTTPS redirection and a hard refusal of plain HTTP outside Development
+
+// A probe for load balancers and monitors: reachable over plain HTTP behind a proxy, reveals nothing.
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.MapPost("/api/updates/check", (UpdateCheckRequest request, UpdateDiscoveryService discovery) =>
 {

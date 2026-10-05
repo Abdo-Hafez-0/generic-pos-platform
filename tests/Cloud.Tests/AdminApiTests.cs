@@ -109,6 +109,9 @@ public sealed class AdminApiTests : IDisposable
     public async Task OutsideDevelopment_WithNoConfiguredKeys_NoOneCanCallTheApi()
     {
         var settings = _world.Settings.Where(kv => !kv.Key.StartsWith("AdminPortal:")).ToDictionary(kv => kv.Key, kv => kv.Value);
+        // outside Development the portal also needs the publisher keys it verifies packages with (covered in CloudSecurityTests)
+        settings["UpdateServer:TrustedKeys:0:KeyId"] = CloudWorld.PublisherKeyId;
+        settings["UpdateServer:TrustedKeys:0:PublicKey"] = _world.PublisherKey.ExportPublicKey();
         using var host = ApiHosting.Host<AdminPortalApiMarker>(settings, "Production");
         using var client = host.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 

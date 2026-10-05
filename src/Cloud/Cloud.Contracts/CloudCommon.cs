@@ -14,6 +14,12 @@ public static class CloudErrorCodes
     public const string InvalidState = "Cloud.InvalidState";
     public const string TooLarge = "Cloud.TooLarge";
 
+    /// <summary>Too many failed authentications from one caller: it is refused for a while (HTTP 429).</summary>
+    public const string TooManyRequests = "Cloud.TooManyRequests";
+
+    /// <summary>The request arrived over plain HTTP outside Development: it is refused (HTTP 403) and never served.</summary>
+    public const string HttpsRequired = "Cloud.HttpsRequired";
+
     public const string InvalidPackage = "Package.Invalid";
     public const string PackageSignatureRejected = "Package.SignatureRejected";
     public const string BackupHashMismatch = "Backup.HashMismatch";
@@ -26,6 +32,7 @@ public static class CloudErrorCodes
         NotFound => 404,
         Conflict or InvalidState => 409,
         TooLarge => 413,
+        TooManyRequests => 429,
         _ => 400
     };
 }

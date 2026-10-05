@@ -1,6 +1,7 @@
 using AdminPortal.Application;
 using Cloud.Contracts;
 using Cloud.Contracts.Admin;
+using Cloud.Hosting;
 using Cloud.Infrastructure;
 using Microsoft.AspNetCore.Http.Features;
 
@@ -27,18 +28,22 @@ if (builder.Environment.IsDevelopment() && !builder.Configuration.GetSection("Ad
 }
 
 builder.Services.AddCloudDatabase(builder.Configuration);
+builder.Services.AddCloudSecurity(builder.Configuration);
 builder.Services.AddAdminPortalServices(builder.Configuration);
 
+// Outside Development the portal refuses to start unless it knows which publisher keys to trust: without them it could not tell a forged
+// package from a real one at publication (clients would still reject it, but a vendor must not distribute what it cannot verify).
+if (!builder.Environment.IsDevelopment() && !builder.Configuration.GetSection("UpdateServer:TrustedKeys").GetChildren().Any())
+    throw new InvalidOperationException("UpdateServer:TrustedKeys is required outside the Development environment (packages are verified when they are published).");
+
 var app = builder.Build();
+
+app.UseCloudSecurityHeaders();
 
 if (developmentKey is not null)
     app.Logger.LogWarning("DEVELOPMENT ONLY: no administrator keys are configured; using the ephemeral key '{Key}' (name 'development').", developmentKey);
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHsts();
-    app.UseHttpsRedirection();
-}
+app.UseCloudTransportSecurity();   // HSTS, HTTPS redirection and a hard refusal of plain HTTP outside Development
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
@@ -164,7 +169,7 @@ admin.MapDelete("/backups/{id:guid}", async (HttpContext http, Guid id, AdminOpe
 app.Run();
 
 /// <summary>Authenticates /api/admin requests by API key and keeps administrative responses out of caches.</summary>
-internal sealed class AdminAuthenticationFilter(AdminKeyAuthenticator authenticator) : IEndpointFilter
+internal sealed class AdminAuthenticationFilter(AdminKeyAuthenticator authenticator, AuthenticationThrottle throttle, ICloudSecurityLog securityLog) : IEndpointFilter
 {
     public const string ActorKey = "admin.actor";
 
@@ -176,13 +181,22 @@ internal sealed class AdminAuthenticationFilter(AdminKeyAuthenticator authentica
         var header = http.Request.Headers.Authorization.ToString();
         var key = header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ? header["Bearer ".Length..] : null;
 
+        var caller = http.CallerKey();
+        var decision = throttle.Check(caller);
+        if (!decision.Allowed)
+            return http.TooManyRequests(decision);
+
         var actor = authenticator.Authenticate(key);
         if (actor is null)
         {
             http.Response.Headers.WWWAuthenticate = "Bearer";
+            var blocked = throttle.RecordFailure(caller);
+            await securityLog.RecordAsync("anonymous", blocked ? "admin.auth-blocked" : "admin.auth-failed", "admin-access", caller,
+                blocked ? "Too many failed administrator-key attempts; the caller was blocked for a while." : "A request presented a missing or invalid administrator key.");
             return Results.Json(new ApiError(CloudErrorCodes.Unauthorized, "A valid administrator API key is required."), statusCode: 401);
         }
 
+        throttle.RecordSuccess(caller);
         http.Items[ActorKey] = actor;
         return await next(context);
     }

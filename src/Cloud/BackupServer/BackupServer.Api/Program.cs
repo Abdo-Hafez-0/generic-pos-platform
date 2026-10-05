@@ -1,6 +1,7 @@
 using BackupServer.Application;
 using Cloud.Contracts;
 using Cloud.Contracts.Backup;
+using Cloud.Hosting;
 using Cloud.Infrastructure;
 using Microsoft.AspNetCore.Http.Features;
 
@@ -23,15 +24,14 @@ using Microsoft.AspNetCore.Http.Features;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCloudDatabase(builder.Configuration);
+builder.Services.AddCloudSecurity(builder.Configuration);
 builder.Services.AddBackupServices(builder.Configuration);
 
 var app = builder.Build();
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHsts();
-    app.UseHttpsRedirection();
-}
+app.UseCloudSecurityHeaders();
+
+app.UseCloudTransportSecurity();   // HSTS, HTTPS redirection and a hard refusal of plain HTTP outside Development
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
@@ -82,7 +82,7 @@ static BackupDto ToDto(BackupRecord r)
     => new(r.BackupId, r.LicenseId, r.CustomerId, r.InstallationId, r.CreatedAt, r.SizeBytes, r.Sha256, r.Label, r.ClientVersion);
 
 /// <summary>Authenticates backup requests by the license's backup access token and keeps responses out of caches.</summary>
-internal sealed class BackupAuthenticationFilter(BackupAccessService access) : IEndpointFilter
+internal sealed class BackupAuthenticationFilter(BackupAccessService access, AuthenticationThrottle throttle, ICloudSecurityLog securityLog) : IEndpointFilter
 {
     public const string PrincipalKey = "backup.principal";
 
@@ -94,15 +94,27 @@ internal sealed class BackupAuthenticationFilter(BackupAccessService access) : I
         var header = http.Request.Headers.Authorization.ToString();
         var token = header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ? header["Bearer ".Length..] : null;
 
+        // A caller that keeps presenting wrong tokens is turned away for a while - even if its next token is right.
+        var caller = http.CallerKey();
+        var decision = throttle.Check(caller);
+        if (!decision.Allowed)
+            return http.TooManyRequests(decision);
+
         var result = await access.AuthenticateAsync(token, http.RequestAborted);
         if (!result.IsSuccess)
         {
             if (result.Error!.Code == CloudErrorCodes.Unauthorized)
+            {
                 http.Response.Headers.WWWAuthenticate = "Bearer";
+                var blocked = throttle.RecordFailure(caller);
+                await securityLog.RecordAsync("anonymous", blocked ? "backup.auth-blocked" : "backup.auth-failed", "backup-access", caller,
+                    blocked ? "Too many failed backup-token attempts; the caller was blocked for a while." : "A request presented a missing or invalid backup token.");
+            }
 
             return result.Fail();
         }
 
+        throttle.RecordSuccess(caller);
         http.Items[PrincipalKey] = result.Value!;
         return await next(context);
     }

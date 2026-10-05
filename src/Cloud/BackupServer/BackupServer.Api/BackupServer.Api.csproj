@@ -9,5 +9,6 @@
     <ProjectReference Include="..\BackupServer.Application\BackupServer.Application.csproj" />
     <ProjectReference Include="..\..\Cloud.Contracts\Cloud.Contracts.csproj" />
     <ProjectReference Include="..\..\Cloud.Infrastructure\Cloud.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Cloud.Hosting\Cloud.Hosting.csproj" />
   </ItemGroup>
 </Project>

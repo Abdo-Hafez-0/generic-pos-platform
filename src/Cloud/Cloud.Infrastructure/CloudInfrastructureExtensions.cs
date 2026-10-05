@@ -66,6 +66,9 @@ public static class CloudInfrastructureExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.AddDbContextFactory<CloudDbContext>(o => o.UseSqlite(connectionString));
         services.AddSingleton(new CloudDatabaseOptions(connectionString, configuration.GetValue("CloudDatabase:MigrateOnStartup", true)));
+
+        // The append-only audit table is shared by every host: the vendor reads one trail (admin actions and customer-facing security facts).
+        services.TryAddSingleton<IAdminAuditLog, EfAdminAuditLog>();
         services.AddHostedService<CloudDatabaseInitializer>();
         return services;
     }

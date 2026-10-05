@@ -38,7 +38,7 @@ public sealed class PosTestDatabase : IAsyncDisposable
     public StubInventory Inventory { get; }
     public StubSales Sales { get; }
 
-    public static async Task<PosTestDatabase> CreateAsync()
+    public static async Task<PosTestDatabase> CreateAsync(Pricing.Contracts.Interfaces.IPriceResolver? priceResolver = null)
     {
         var catalog = new StubCatalog();
         var inventory = new StubInventory();
@@ -65,6 +65,7 @@ public sealed class PosTestDatabase : IAsyncDisposable
         services.AddSingleton<IStockAvailabilityChecker>(inventory);
         services.AddSingleton<IStockIssueService>(inventory);
         services.AddSingleton<ISalesService>(sales);
+        if (priceResolver is not null) services.AddSingleton(priceResolver);   // OPTIONAL integration
 
         services.AddTransient<OpenPosSessionCommandHandler>();
         services.AddTransient<ClosePosSessionCommandHandler>();

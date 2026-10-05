@@ -302,6 +302,29 @@ internal static class Assemblies
         // Purchasing.UI excluded - net10.0-windows TFM gap
     ];
 
+    // Pricing module assemblies (Stage 8)
+    // Note: Pricing.UI is net10.0-windows and cannot be referenced here (TFM gap).
+    internal static readonly Assembly PricingDomain =
+        typeof(Pricing.Domain.Entities.Price).Assembly;
+
+    internal static readonly Assembly PricingContracts =
+        typeof(Pricing.Contracts.Interfaces.IPriceResolver).Assembly;
+
+    internal static readonly Assembly PricingApplication =
+        typeof(Pricing.Application.Commands.CreatePriceCommandHandler).Assembly;
+
+    internal static readonly Assembly PricingInfrastructure =
+        typeof(Pricing.Infrastructure.PricingInfrastructureAssemblyMarker).Assembly;
+
+    internal static IReadOnlyList<Assembly> AllPricingAssemblies =>
+    [
+        PricingDomain,
+        PricingContracts,
+        PricingApplication,
+        PricingInfrastructure
+        // Pricing.UI excluded - net10.0-windows TFM gap
+    ];
+
     internal static IReadOnlyList<Assembly> AllProjectAssemblies =>
     [
         .. AllPlatformAssemblies,

@@ -78,6 +78,11 @@
     <ProjectReference Include="..\..\src\Modules\Purchasing\Purchasing.Contracts\Purchasing.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Purchasing\Purchasing.Application\Purchasing.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Purchasing\Purchasing.Infrastructure\Purchasing.Infrastructure.csproj" />
+    <!-- Pricing module assemblies (Stage 8) - Pricing.UI excluded (net10.0-windows) -->
+    <ProjectReference Include="..\..\src\Modules\Pricing\Pricing.Domain\Pricing.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Pricing\Pricing.Contracts\Pricing.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Pricing\Pricing.Application\Pricing.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Pricing\Pricing.Infrastructure\Pricing.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

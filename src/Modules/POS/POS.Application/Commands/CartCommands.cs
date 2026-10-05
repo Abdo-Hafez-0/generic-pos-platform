@@ -2,6 +2,7 @@ using Catalog.Contracts.Interfaces;
 using Catalog.Contracts.Models;
 using Inventory.Contracts.Interfaces;
 using Platform.Core.Results;
+using Pricing.Contracts.Interfaces;
 using POS.Application.Abstractions;
 using POS.Application.Repositories;
 using POS.Domain.Entities;
@@ -70,7 +71,8 @@ public sealed class AddProductToCartCommandHandler(
     IProductBarcodeResolver barcodeResolver,
     IProductLookup productLookup,
     IStockAvailabilityChecker stockAvailabilityChecker,
-    IPosUnitOfWork unitOfWork)
+    IPosUnitOfWork unitOfWork,
+    IPriceResolver? priceResolver = null)
 {
     public async Task<Result<Guid>> HandleAsync(
         AddProductToCartCommand command,
@@ -118,7 +120,17 @@ public sealed class AddProductToCartCommandHandler(
                 "POS.AddProduct.InsufficientStock",
                 $"Insufficient stock for '{product.Name}' (requested total: {requiredTotal})."));
 
-        var priceResult = Money.Create(product.SalePrice);
+        // OPTIONAL Pricing integration: when the Pricing module is installed and has an applicable price it wins over the Catalog
+        // sale price; otherwise the Catalog price is used. The resolved amount is snapshotted on the cart line (a merge keeps the
+        // first line's snapshot). POS works unchanged when Pricing is absent.
+        var unitPrice = product.SalePrice;
+        if (priceResolver is not null)
+        {
+            var resolved = await priceResolver.ResolveAsync(product.ProductId, quantityResult.Value.Value, null, null, cancellationToken);
+            if (resolved.Found) unitPrice = resolved.Amount;
+        }
+
+        var priceResult = Money.Create(unitPrice);
         if (priceResult.IsFailure)
             return Result.Failure<Guid>(priceResult.Error);
 

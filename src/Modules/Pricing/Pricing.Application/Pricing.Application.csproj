@@ -5,15 +5,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\POS.Domain\POS.Domain.csproj" />
-    <ProjectReference Include="..\POS.Contracts\POS.Contracts.csproj" />
+    <ProjectReference Include="..\Pricing.Domain\Pricing.Domain.csproj" />
+    <ProjectReference Include="..\Pricing.Contracts\Pricing.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />
     <ProjectReference Include="..\..\..\Platform\Platform.Application\Platform.Application.csproj" />
     <!-- Cross-module dependencies: Contracts ONLY -->
     <ProjectReference Include="..\..\Catalog\Catalog.Contracts\Catalog.Contracts.csproj" />
-    <ProjectReference Include="..\..\Inventory\Inventory.Contracts\Inventory.Contracts.csproj" />
-    <ProjectReference Include="..\..\Sales\Sales.Contracts\Sales.Contracts.csproj" />
-    <!-- OPTIONAL integrations (resolved only if the module is installed): Pricing, Payments -->
-    <ProjectReference Include="..\..\Pricing\Pricing.Contracts\Pricing.Contracts.csproj" />
   </ItemGroup>
 </Project>

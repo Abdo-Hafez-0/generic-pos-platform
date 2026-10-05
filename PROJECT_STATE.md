@@ -299,12 +299,13 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 
 ### Stage 8 - Additional Business Modules (IN PROGRESS)
 - [x] 8A Customers (cus_*): Customer aggregate (+CustomerAddress, CustomerContact, CustomerStatus), create/update/deactivate/reactivate, address+contact management, get/list(paged)/search; contracts ICustomerLookup, ICustomerReader; migration InitialCustomersSchema; Customers.Tests (38); ARCH-CUS-001..016
 - [x] 8B Suppliers (sup_*): Supplier aggregate (+SupplierAddress, SupplierContact, SupplierStatus), same capabilities as Customers; contracts ISupplierLookup, ISupplierReader (Purchasing depends on these); migration InitialSuppliersSchema; Suppliers.Tests (38); ARCH-SUP-001..016
+- [x] 8C Purchasing (pur_*): PurchaseOrder (+PurchaseOrderLine; Draft/Submitted/Received/Cancelled) with create/add-remove-change lines/submit/receive/cancel, get/list; depends on Catalog.Contracts, Suppliers.Contracts, Inventory.Contracts ONLY; Inventory.Contracts extended with IStockReceiptService (StockReceiptService delegating to AddStock; 3 new Inventory tests); receiving is line-by-line and resumable (no cross-module transaction); contract IPurchaseOrderReader; migration InitialPurchasingSchema; Purchasing.Tests (45); ARCH-PUR-001..016
 
 ---
 
 ## Current Task
 
-**Stage 8 - IN PROGRESS (8A Customers, 8B Suppliers done). Next: 8C Purchasing.**
+**Stage 8 - IN PROGRESS (8A Customers, 8B Suppliers, 8C Purchasing done). Next: 8D Pricing.**
 
 ---
 

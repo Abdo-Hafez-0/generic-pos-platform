@@ -21,6 +21,9 @@
     <!-- POS module (Stage 5D) - POSHostingModule lives in POS.Infrastructure -->
     <ProjectReference Include="..\..\Modules\POS\POS.Infrastructure\POS.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\POS\POS.UI\POS.UI.csproj" />
+    <!-- Purchasing module (Stage 8) - PurchasingHostingModule lives in Purchasing.Infrastructure -->
+    <ProjectReference Include="..\..\Modules\Purchasing\Purchasing.Infrastructure\Purchasing.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Purchasing\Purchasing.UI\Purchasing.UI.csproj" />
     <!-- Suppliers module (Stage 8) - SuppliersHostingModule lives in Suppliers.Infrastructure -->
     <ProjectReference Include="..\..\Modules\Suppliers\Suppliers.Infrastructure\Suppliers.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Suppliers\Suppliers.UI\Suppliers.UI.csproj" />

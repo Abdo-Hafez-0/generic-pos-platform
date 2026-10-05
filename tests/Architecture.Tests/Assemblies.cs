@@ -279,6 +279,29 @@ internal static class Assemblies
         // Suppliers.UI excluded - net10.0-windows TFM gap
     ];
 
+    // Purchasing module assemblies (Stage 8)
+    // Note: Purchasing.UI is net10.0-windows and cannot be referenced here (TFM gap).
+    internal static readonly Assembly PurchasingDomain =
+        typeof(Purchasing.Domain.Entities.PurchaseOrder).Assembly;
+
+    internal static readonly Assembly PurchasingContracts =
+        typeof(Purchasing.Contracts.Interfaces.IPurchaseOrderReader).Assembly;
+
+    internal static readonly Assembly PurchasingApplication =
+        typeof(Purchasing.Application.Commands.CreatePurchaseOrderCommandHandler).Assembly;
+
+    internal static readonly Assembly PurchasingInfrastructure =
+        typeof(Purchasing.Infrastructure.PurchasingInfrastructureAssemblyMarker).Assembly;
+
+    internal static IReadOnlyList<Assembly> AllPurchasingAssemblies =>
+    [
+        PurchasingDomain,
+        PurchasingContracts,
+        PurchasingApplication,
+        PurchasingInfrastructure
+        // Purchasing.UI excluded - net10.0-windows TFM gap
+    ];
+
     internal static IReadOnlyList<Assembly> AllProjectAssemblies =>
     [
         .. AllPlatformAssemblies,

@@ -80,6 +80,7 @@ public static class InventoryServicesExtensions
         services.AddScoped<IStockAvailabilityChecker, StockAvailabilityChecker>();
         services.AddScoped<IStockMovementReader, StockMovementReader>();
         services.AddScoped<IStockIssueService, StockIssueService>();
+        services.AddScoped<IStockReceiptService, StockReceiptService>();
 
         // Module lifecycle (Singleton)
         services.AddSingleton<IModule, InventoryModule>();

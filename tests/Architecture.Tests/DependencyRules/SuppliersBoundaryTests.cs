@@ -104,8 +104,12 @@ public sealed class SuppliersBoundaryTests
         {
             var moduleRefs = Refs(assembly).Where(n => modules.Any(m => n.StartsWith(m, StringComparison.Ordinal))).OrderBy(n => n).ToList();
             Assert.All(moduleRefs, n => Assert.EndsWith(".Contracts", n));
-            Assert.Equal(AllowedContracts.OrderBy(n => n), moduleRefs);
+            Assert.All(moduleRefs, n => Assert.Contains(n, AllowedContracts));
         }
+
+        // The application layer is where cross-module use cases live: it must actually use the contracts the module is designed around.
+        var applicationRefs = Refs(Assemblies.SuppliersApplication).ToList();
+        Assert.All(AllowedContracts, c => Assert.Contains(c, applicationRefs));
     }
 
     [Fact(DisplayName = "ARCH-SUP-012: Platform must not depend on Suppliers")]

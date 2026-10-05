@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Purchasing.Domain\Purchasing.Domain.csproj" />
+    <ProjectReference Include="..\Purchasing.Contracts\Purchasing.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Platform.Application\Platform.Application.csproj" />
+    <!-- Cross-module dependencies: Contracts ONLY -->
+    <ProjectReference Include="..\..\Catalog\Catalog.Contracts\Catalog.Contracts.csproj" />
+    <ProjectReference Include="..\..\Suppliers\Suppliers.Contracts\Suppliers.Contracts.csproj" />
+    <ProjectReference Include="..\..\Inventory\Inventory.Contracts\Inventory.Contracts.csproj" />
+  </ItemGroup>
+</Project>

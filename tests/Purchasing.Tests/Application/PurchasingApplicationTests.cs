@@ -1,0 +1,445 @@
+using Catalog.Contracts.Interfaces;
+using Catalog.Contracts.Models;
+using Inventory.Contracts.Interfaces;
+using Inventory.Contracts.Models;
+using Microsoft.Extensions.DependencyInjection;
+using Purchasing.Application.Commands;
+using Purchasing.Application.Queries;
+using Purchasing.Contracts.Interfaces;
+using Purchasing.Contracts.Models;
+using Purchasing.Domain.Enums;
+using Purchasing.Infrastructure.DependencyInjection;
+using Purchasing.Infrastructure.Persistence;
+using Suppliers.Contracts.Interfaces;
+using Suppliers.Contracts.Models;
+using Tests.Common;
+
+namespace Purchasing.Tests.Application;
+
+/// <summary>Stubs of the OTHER modules' contracts: Purchasing tests never touch Suppliers/Catalog/Inventory implementations.</summary>
+public sealed class StubSuppliers : ISupplierLookup
+{
+    private readonly Dictionary<Guid, SupplierLookupResult> _suppliers = [];
+
+    public Guid Register(string name = "Acme Supply", SupplierStatusContract status = SupplierStatusContract.Active)
+    {
+        var id = Guid.NewGuid();
+        _suppliers[id] = new SupplierLookupResult(id, "SUP-" + _suppliers.Count, name, null, null, status);
+        return id;
+    }
+
+    public Task<SupplierLookupResult?> FindByIdAsync(Guid supplierId, CancellationToken cancellationToken = default)
+        => Task.FromResult(_suppliers.GetValueOrDefault(supplierId));
+
+    public Task<SupplierLookupResult?> FindByCodeAsync(string code, CancellationToken cancellationToken = default)
+        => Task.FromResult(_suppliers.Values.FirstOrDefault(s => s.Code == code));
+}
+
+public sealed class StubCatalog : IProductLookup
+{
+    private readonly Dictionary<Guid, ProductLookupResult> _products = [];
+
+    public Guid Register(string sku, decimal? cost = 4m, ProductStatusContract status = ProductStatusContract.Active, string name = "Product")
+    {
+        var id = Guid.NewGuid();
+        _products[id] = new ProductLookupResult(id, sku, name + " " + sku, null, Guid.NewGuid(), "Cat", Guid.NewGuid(), "Each", "ea", 10m, cost, status);
+        return id;
+    }
+
+    public Task<ProductLookupResult?> FindByIdAsync(Guid productId, CancellationToken cancellationToken = default)
+        => Task.FromResult(_products.GetValueOrDefault(productId));
+
+    public Task<ProductLookupResult?> FindBySkuAsync(string sku, CancellationToken cancellationToken = default)
+        => Task.FromResult(_products.Values.FirstOrDefault(p => p.Sku == sku));
+}
+
+public sealed class StubReceipts : IStockReceiptService
+{
+    private readonly HashSet<Guid> _failFor = [];
+    public List<(Guid ProductId, Guid WarehouseId, decimal Quantity, string? Reference)> Received { get; } = [];
+
+    public void FailFor(Guid productId) => _failFor.Add(productId);
+    public void Heal() => _failFor.Clear();
+
+    public Task<ReceiveStockResult> ReceiveStockAsync(Guid catalogProductId, Guid warehouseId, decimal quantity, string? reference = null, CancellationToken cancellationToken = default)
+    {
+        if (_failFor.Contains(catalogProductId))
+            return Task.FromResult(ReceiveStockResult.Failure("Inventory.Stub", "warehouse offline"));
+
+        Received.Add((catalogProductId, warehouseId, quantity, reference));
+        return Task.FromResult(ReceiveStockResult.Success(Guid.NewGuid()));
+    }
+}
+
+public sealed class PurchasingApplicationTests
+{
+    private sealed record Env(TestModuleDatabase<PurchasingDbContext> Db, StubSuppliers Suppliers, StubCatalog Catalog, StubReceipts Receipts);
+
+    private static async Task<Env> NewEnv()
+    {
+        var suppliers = new StubSuppliers();
+        var catalog = new StubCatalog();
+        var receipts = new StubReceipts();
+        var db = await TestModuleDatabase<PurchasingDbContext>.CreateAsync(s =>
+        {
+            s.AddPurchasingCore();
+            s.AddSingleton<ISupplierLookup>(suppliers);
+            s.AddSingleton<IProductLookup>(catalog);
+            s.AddSingleton<IStockReceiptService>(receipts);
+        });
+        return new Env(db, suppliers, catalog, receipts);
+    }
+
+    private static async Task<Guid> Draft(Env e, Guid? supplier = null)
+        => await e.Db.InScopeAsync(async sp =>
+        {
+            var r = await sp.GetRequiredService<CreatePurchaseOrderCommandHandler>()
+                .HandleAsync(new CreatePurchaseOrderCommand(supplier ?? e.Suppliers.Register(), "REF"));
+            Assert.True(r.IsSuccess, r.IsFailure ? r.Error.ToString() : null);
+            return r.Value;
+        });
+
+    private static Task<Platform.Core.Results.Result<Guid>> Line(Env e, Guid order, string code, decimal qty = 2m, decimal? cost = null)
+        => e.Db.InScopeAsync(sp => sp.GetRequiredService<AddPurchaseOrderLineCommandHandler>().HandleAsync(new AddPurchaseOrderLineCommand(order, code, qty, cost)));
+
+    private static Task<Purchasing.Application.DTOs.PurchaseOrderDto?> Get(Env e, Guid order)
+        => e.Db.InScopeAsync(sp => sp.GetRequiredService<GetPurchaseOrderQueryHandler>().HandleAsync(new GetPurchaseOrderQuery(order)));
+
+    private static Task<Platform.Core.Results.Result> Submit(Env e, Guid order)
+        => e.Db.InScopeAsync(sp => sp.GetRequiredService<SubmitPurchaseOrderCommandHandler>().HandleAsync(new SubmitPurchaseOrderCommand(order)));
+
+    private static Task<Platform.Core.Results.Result<int>> Receive(Env e, Guid order, Guid warehouse)
+        => e.Db.InScopeAsync(sp => sp.GetRequiredService<ReceivePurchaseOrderCommandHandler>().HandleAsync(new ReceivePurchaseOrderCommand(order, warehouse)));
+
+    // ------------------------------------------------------------------ create
+
+    [Fact]
+    public async Task Create_ForActiveSupplier_SnapshotsSupplier_AndPersistsDraft()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        var supplier = e.Suppliers.Register("Globex");
+
+        var id = await Draft(e, supplier);
+
+        var dto = await Get(e, id);
+        Assert.Equal(PurchaseOrderStatus.Draft, dto!.Status);
+        Assert.Equal("Globex", dto.SupplierName);
+        Assert.Equal(supplier, dto.SupplierId);
+        Assert.Equal("REF", dto.Reference);
+        Assert.Empty(dto.Lines);
+    }
+
+    [Fact]
+    public async Task Create_UnknownOrInactiveSupplier_IsRejected()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        var inactive = e.Suppliers.Register(status: SupplierStatusContract.Inactive);
+
+        var unknown = await e.Db.InScopeAsync(sp => sp.GetRequiredService<CreatePurchaseOrderCommandHandler>().HandleAsync(new CreatePurchaseOrderCommand(Guid.NewGuid())));
+        var notActive = await e.Db.InScopeAsync(sp => sp.GetRequiredService<CreatePurchaseOrderCommandHandler>().HandleAsync(new CreatePurchaseOrderCommand(inactive)));
+
+        Assert.Equal("Purchasing.CreatePurchaseOrder.SupplierNotFound", unknown.Error.Code);
+        Assert.Equal("Purchasing.CreatePurchaseOrder.SupplierInactive", notActive.Error.Code);
+        Assert.Equal(0, (await e.Db.InScopeAsync(sp => sp.GetRequiredService<ListPurchaseOrdersQueryHandler>().HandleAsync(new ListPurchaseOrdersQuery()))).Total);
+    }
+
+    // ------------------------------------------------------------------ lines
+
+    [Fact]
+    public async Task AddLine_BySku_UsesCatalogCostWhenNoCostGiven_AndSnapshotsProduct()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        var product = e.Catalog.Register("SKU-1", cost: 4.5m);
+        var order = await Draft(e);
+
+        var r = await Line(e, order, "SKU-1", 4m);
+
+        Assert.True(r.IsSuccess, r.IsFailure ? r.Error.ToString() : null);
+        var line = Assert.Single((await Get(e, order))!.Lines);
+        Assert.Equal(product, line.ProductId);
+        Assert.Equal("SKU-1", line.ProductSku);
+        Assert.Equal(4.5m, line.UnitCost);
+        Assert.Equal(18m, line.LineTotal);
+        Assert.Equal(18m, (await Get(e, order))!.TotalAmount);
+    }
+
+    [Fact]
+    public async Task AddLine_ByProductId_AndExplicitCostOverridesCatalog()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        var product = e.Catalog.Register("SKU-2", cost: 1m);
+        var order = await Draft(e);
+
+        var r = await Line(e, order, product.ToString(), 3m, cost: 7m);
+
+        Assert.True(r.IsSuccess);
+        Assert.Equal(7m, Assert.Single((await Get(e, order))!.Lines).UnitCost);
+    }
+
+    [Fact]
+    public async Task AddLine_Failures()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        e.Catalog.Register("NOCOST", cost: null);
+        e.Catalog.Register("OLD", status: ProductStatusContract.Inactive);
+        e.Catalog.Register("OK");
+        var order = await Draft(e);
+
+        Assert.Equal("Purchasing.AddLine.ProductNotFound", (await Line(e, order, "GHOST")).Error.Code);
+        Assert.Equal("Purchasing.AddLine.ProductInactive", (await Line(e, order, "OLD")).Error.Code);
+        Assert.Equal("Purchasing.AddLine.CostRequired", (await Line(e, order, "NOCOST")).Error.Code);
+        Assert.Equal("Purchasing.AddLine.ProductCodeRequired", (await Line(e, order, " ")).Error.Code);
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidQuantity", (await Line(e, order, "OK", 0m)).Error.Code);
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidCost", (await Line(e, order, "OK", 1m, -1m)).Error.Code);
+        Assert.Equal("Purchasing.AddLine.OrderNotFound", (await Line(e, Guid.NewGuid(), "OK")).Error.Code);
+        Assert.Empty((await Get(e, order))!.Lines);
+    }
+
+    [Fact]
+    public async Task RemoveLine_AndChangeQuantity_UpdateTheOrder()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        e.Catalog.Register("A", cost: 10m);
+        e.Catalog.Register("B", cost: 1m);
+        var order = await Draft(e);
+        var a = (await Line(e, order, "A", 2m)).Value;
+        var b = (await Line(e, order, "B", 5m)).Value;
+
+        Assert.True((await e.Db.InScopeAsync(sp => sp.GetRequiredService<ChangePurchaseOrderLineQuantityCommandHandler>()
+            .HandleAsync(new ChangePurchaseOrderLineQuantityCommand(order, a, 3m)))).IsSuccess);
+        Assert.True((await e.Db.InScopeAsync(sp => sp.GetRequiredService<RemovePurchaseOrderLineCommandHandler>()
+            .HandleAsync(new RemovePurchaseOrderLineCommand(order, b)))).IsSuccess);
+
+        var dto = (await Get(e, order))!;
+        Assert.Equal(30m, dto.TotalAmount);
+        Assert.Equal(a, Assert.Single(dto.Lines).LineId);
+        var bad = await e.Db.InScopeAsync(sp => sp.GetRequiredService<ChangePurchaseOrderLineQuantityCommandHandler>()
+            .HandleAsync(new ChangePurchaseOrderLineQuantityCommand(order, a, -1m)));
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidQuantity", bad.Error.Code);
+    }
+
+    // ------------------------------------------------------------------ submit / cancel
+
+    [Fact]
+    public async Task Submit_FreezesTheOrder()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        e.Catalog.Register("A");
+        var order = await Draft(e);
+
+        Assert.Equal("Purchasing.PurchaseOrder.NoLines", (await Submit(e, order)).Error.Code);
+        await Line(e, order, "A");
+        Assert.True((await Submit(e, order)).IsSuccess);
+
+        Assert.Equal(PurchaseOrderStatus.Submitted, (await Get(e, order))!.Status);
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidState", (await Line(e, order, "A")).Error.Code);
+        Assert.Equal("Purchasing.Submit.OrderNotFound", (await Submit(e, Guid.NewGuid())).Error.Code);
+    }
+
+    [Fact]
+    public async Task Cancel_Works_ForDraftAndSubmitted_NotForReceived()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        e.Catalog.Register("A");
+        var draft = await Draft(e);
+        var submitted = await Draft(e);
+        await Line(e, submitted, "A");
+        await Submit(e, submitted);
+
+        Task<Platform.Core.Results.Result> Cancel(Guid id, string reason)
+            => e.Db.InScopeAsync(sp => sp.GetRequiredService<CancelPurchaseOrderCommandHandler>().HandleAsync(new CancelPurchaseOrderCommand(id, reason)));
+
+        Assert.True((await Cancel(draft, "no longer needed")).IsSuccess);
+        Assert.True((await Cancel(submitted, "supplier closed")).IsSuccess);
+        Assert.Equal("no longer needed", (await Get(e, draft))!.CancellationReason);
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidState", (await Cancel(draft, "again")).Error.Code);
+        Assert.Equal("Purchasing.Cancel.OrderNotFound", (await Cancel(Guid.NewGuid(), "x")).Error.Code);
+
+        var toReceive = await Draft(e);
+        await Line(e, toReceive, "A");
+        await Submit(e, toReceive);
+        await Receive(e, toReceive, Guid.NewGuid());
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidState", (await Cancel(toReceive, "late")).Error.Code);
+    }
+
+    // ------------------------------------------------------------------ receive
+
+    [Fact]
+    public async Task Receive_ReceivesEveryLineThroughInventoryContracts_AndCompletesTheOrder()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        var a = e.Catalog.Register("A");
+        var b = e.Catalog.Register("B");
+        var order = await Draft(e);
+        await Line(e, order, "A", 3m);
+        await Line(e, order, "B", 7m);
+        await Submit(e, order);
+        var warehouse = Guid.NewGuid();
+
+        var r = await Receive(e, order, warehouse);
+
+        Assert.True(r.IsSuccess, r.IsFailure ? r.Error.ToString() : null);
+        Assert.Equal(2, r.Value);
+        var dto = (await Get(e, order))!;
+        Assert.Equal(PurchaseOrderStatus.Received, dto.Status);
+        Assert.NotNull(dto.ReceivedAt);
+        Assert.Equal(warehouse, dto.WarehouseId);
+        Assert.All(dto.Lines, l => Assert.True(l.IsReceived));
+        Assert.Equal(2, e.Receipts.Received.Count);
+        Assert.Contains(e.Receipts.Received, x => x.ProductId == a && x.Quantity == 3m && x.WarehouseId == warehouse);
+        Assert.Contains(e.Receipts.Received, x => x.ProductId == b && x.Quantity == 7m);
+        Assert.All(e.Receipts.Received, x => Assert.Contains(dto.Number, x.Reference));
+    }
+
+    [Fact]
+    public async Task Receive_PartialFailure_KeepsProgress_AndRetryNeverReceivesALineTwice()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        e.Catalog.Register("A");
+        var b = e.Catalog.Register("B");
+        var order = await Draft(e);
+        await Line(e, order, "A", 1m);
+        await Line(e, order, "B", 1m);
+        await Submit(e, order);
+        var warehouse = Guid.NewGuid();
+        e.Receipts.FailFor(b);
+
+        var first = await Receive(e, order, warehouse);
+
+        Assert.True(first.IsFailure);
+        Assert.Equal("Purchasing.Receive.StockReceiptFailed", first.Error.Code);
+        var partial = (await Get(e, order))!;
+        Assert.Equal(PurchaseOrderStatus.Submitted, partial.Status);
+        Assert.Equal([true, false], partial.Lines.OrderBy(l => l.ProductSku).Select(l => l.IsReceived).ToArray());
+        Assert.Single(e.Receipts.Received);
+
+        e.Receipts.Heal();
+        var retry = await Receive(e, order, warehouse);
+
+        Assert.True(retry.IsSuccess);
+        Assert.Equal(1, retry.Value);                       // only the outstanding line
+        Assert.Equal(2, e.Receipts.Received.Count);         // A was NOT received twice
+        Assert.Equal(PurchaseOrderStatus.Received, (await Get(e, order))!.Status);
+    }
+
+    [Fact]
+    public async Task Receive_PartiallyReceivedOrder_CannotBeCancelled_OrRedirectedToAnotherWarehouse()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        e.Catalog.Register("A");
+        var b = e.Catalog.Register("B");
+        var order = await Draft(e);
+        await Line(e, order, "A");
+        await Line(e, order, "B");
+        await Submit(e, order);
+        var warehouse = Guid.NewGuid();
+        e.Receipts.FailFor(b);
+        await Receive(e, order, warehouse);
+
+        var cancel = await e.Db.InScopeAsync(sp => sp.GetRequiredService<CancelPurchaseOrderCommandHandler>().HandleAsync(new CancelPurchaseOrderCommand(order, "x")));
+        var elsewhere = await Receive(e, order, Guid.NewGuid());
+
+        Assert.Equal("Purchasing.PurchaseOrder.PartiallyReceived", cancel.Error.Code);
+        Assert.Equal("Purchasing.PurchaseOrder.WarehouseMismatch", elsewhere.Error.Code);
+    }
+
+    [Fact]
+    public async Task Receive_Validation()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        e.Catalog.Register("A");
+        var draft = await Draft(e);
+        await Line(e, draft, "A");
+
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidState", (await Receive(e, draft, Guid.NewGuid())).Error.Code);
+        await Submit(e, draft);
+        Assert.Equal("Purchasing.PurchaseOrder.WarehouseRequired", (await Receive(e, draft, Guid.Empty)).Error.Code);
+        Assert.Equal("Purchasing.Receive.OrderNotFound", (await Receive(e, Guid.NewGuid(), Guid.NewGuid())).Error.Code);
+        Assert.Empty(e.Receipts.Received);
+
+        Assert.True((await Receive(e, draft, Guid.NewGuid())).IsSuccess);
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidState", (await Receive(e, draft, Guid.NewGuid())).Error.Code);   // already received
+        Assert.Single(e.Receipts.Received);
+    }
+
+    // ------------------------------------------------------------------ queries and contracts
+
+    [Fact]
+    public async Task List_IsPaged_NewestFirst_AndFilteredByStatus()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        e.Catalog.Register("A");
+        var ids = new List<Guid>();
+        for (var i = 0; i < 5; i++)
+        {
+            ids.Add(await Draft(e));
+            await Task.Delay(5);
+        }
+
+        await Line(e, ids[0], "A");
+        await Submit(e, ids[0]);
+
+        var page1 = await e.Db.InScopeAsync(sp => sp.GetRequiredService<ListPurchaseOrdersQueryHandler>().HandleAsync(new ListPurchaseOrdersQuery(0, 2)));
+        var page3 = await e.Db.InScopeAsync(sp => sp.GetRequiredService<ListPurchaseOrdersQueryHandler>().HandleAsync(new ListPurchaseOrdersQuery(4, 2)));
+        var submitted = await e.Db.InScopeAsync(sp => sp.GetRequiredService<ListPurchaseOrdersQueryHandler>().HandleAsync(new ListPurchaseOrdersQuery(Status: PurchaseOrderStatus.Submitted)));
+
+        Assert.Equal(5, page1.Total);
+        Assert.Equal([ids[4], ids[3]], page1.Items.Select(i => i.OrderId).ToArray());
+        Assert.Equal([ids[0]], page3.Items.Select(i => i.OrderId).ToArray());
+        Assert.Equal([ids[0]], submitted.Items.Select(i => i.OrderId).ToArray());
+        Assert.Equal(1, submitted.Total);
+    }
+
+    [Fact]
+    public async Task Reader_Contract_ExposesOrdersAndSummary_WithoutDomainTypes()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        e.Catalog.Register("A", cost: 10m);
+        var open = await Draft(e);
+        await Line(e, open, "A", 2m);                            // draft, value 20
+        var received = await Draft(e);
+        await Line(e, received, "A", 5m);                        // value 50
+        await Submit(e, received);
+        await Receive(e, received, Guid.NewGuid());
+        var cancelled = await Draft(e);
+        await e.Db.InScopeAsync(sp => sp.GetRequiredService<CancelPurchaseOrderCommandHandler>().HandleAsync(new CancelPurchaseOrderCommand(cancelled, "x")));
+
+        var summary = await e.Db.InScopeAsync(sp => sp.GetRequiredService<IPurchaseOrderReader>().GetSummaryAsync());
+        var one = await e.Db.InScopeAsync(sp => sp.GetRequiredService<IPurchaseOrderReader>().GetAsync(received));
+        var recent = await e.Db.InScopeAsync(sp => sp.GetRequiredService<IPurchaseOrderReader>().ListRecentAsync(10, PurchaseOrderStatusContract.Draft));
+        var none = await e.Db.InScopeAsync(sp => sp.GetRequiredService<IPurchaseOrderReader>().GetAsync(Guid.NewGuid()));
+
+        Assert.Equal(new PurchaseSummaryResult(3, 1, 0, 1, 1, 50m, 20m), summary);
+        Assert.Equal(PurchaseOrderStatusContract.Received, one!.Status);
+        Assert.Single(one.Lines);
+        Assert.Equal(open, Assert.Single(recent).OrderId);
+        Assert.Empty(recent[0].Lines);                           // list results carry no lines
+        Assert.Null(none);
+        Assert.DoesNotContain(typeof(IPurchaseOrderReader).Assembly.GetReferencedAssemblies(), a => a.Name!.StartsWith("Purchasing.Domain", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task EmptyDatabase_Summary_IsAllZero()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+
+        var summary = await e.Db.InScopeAsync(sp => sp.GetRequiredService<IPurchaseOrderReader>().GetSummaryAsync());
+
+        Assert.Equal(new PurchaseSummaryResult(0, 0, 0, 0, 0, 0m, 0m), summary);
+    }
+}

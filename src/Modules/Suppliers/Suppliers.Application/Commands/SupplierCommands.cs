@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using Suppliers.Application.Abstractions;
 using Suppliers.Application.Repositories;
 using Suppliers.Domain.Entities;
@@ -13,10 +14,13 @@ namespace Suppliers.Application.Commands;
 
 public sealed record CreateSupplierCommand(string Code, string Name, string? Email = null, string? Phone = null, string? Notes = null);
 
-public sealed class CreateSupplierCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork)
+public sealed class CreateSupplierCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(CreateSupplierCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Suppliers.Application.Security.SuppliersCapabilities.ManageSuppliers, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         var created = Supplier.Create(command.Code, command.Name, command.Email, command.Phone, command.Notes);
         if (created.IsFailure) return Result.Failure<Guid>(created.Error);
 
@@ -36,10 +40,13 @@ public sealed class CreateSupplierCommandHandler(ISupplierRepository repository,
 
 public sealed record UpdateSupplierCommand(Guid SupplierId, string Name, string? Email, string? Phone, string? Notes);
 
-public sealed class UpdateSupplierCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork)
+public sealed class UpdateSupplierCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(UpdateSupplierCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Suppliers.Application.Security.SuppliersCapabilities.ManageSuppliers, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var supplier = await repository.GetByIdAsync(new SupplierId(command.SupplierId), cancellationToken);
         if (supplier is null) return NotFound(command.SupplierId, "UpdateSupplier");
 
@@ -60,10 +67,13 @@ public sealed class UpdateSupplierCommandHandler(ISupplierRepository repository,
 
 public sealed record DeactivateSupplierCommand(Guid SupplierId);
 
-public sealed class DeactivateSupplierCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork)
+public sealed class DeactivateSupplierCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(DeactivateSupplierCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Suppliers.Application.Security.SuppliersCapabilities.ManageSuppliers, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var supplier = await repository.GetByIdAsync(new SupplierId(command.SupplierId), cancellationToken);
         if (supplier is null) return UpdateSupplierCommandHandler.NotFound(command.SupplierId, "DeactivateSupplier");
 
@@ -77,10 +87,13 @@ public sealed class DeactivateSupplierCommandHandler(ISupplierRepository reposit
 
 public sealed record ReactivateSupplierCommand(Guid SupplierId);
 
-public sealed class ReactivateSupplierCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork)
+public sealed class ReactivateSupplierCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(ReactivateSupplierCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Suppliers.Application.Security.SuppliersCapabilities.ManageSuppliers, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var supplier = await repository.GetByIdAsync(new SupplierId(command.SupplierId), cancellationToken);
         if (supplier is null) return UpdateSupplierCommandHandler.NotFound(command.SupplierId, "ReactivateSupplier");
 
@@ -99,10 +112,13 @@ public sealed class ReactivateSupplierCommandHandler(ISupplierRepository reposit
 public sealed record AddSupplierAddressCommand(
     Guid SupplierId, AddressType Type, string Line1, string? Line2, string City, string? Region, string? PostalCode, string Country);
 
-public sealed class AddSupplierAddressCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork)
+public sealed class AddSupplierAddressCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(AddSupplierAddressCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Suppliers.Application.Security.SuppliersCapabilities.ManageSuppliers, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         var supplier = await repository.GetByIdAsync(new SupplierId(command.SupplierId), cancellationToken);
         if (supplier is null)
             return Result.Failure<Guid>(Error.NotFound("Suppliers.AddAddress.SupplierNotFound", $"Supplier '{command.SupplierId}' was not found."));
@@ -117,10 +133,13 @@ public sealed class AddSupplierAddressCommandHandler(ISupplierRepository reposit
 
 public sealed record RemoveSupplierAddressCommand(Guid SupplierId, Guid AddressId);
 
-public sealed class RemoveSupplierAddressCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork)
+public sealed class RemoveSupplierAddressCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(RemoveSupplierAddressCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Suppliers.Application.Security.SuppliersCapabilities.ManageSuppliers, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var supplier = await repository.GetByIdAsync(new SupplierId(command.SupplierId), cancellationToken);
         if (supplier is null) return UpdateSupplierCommandHandler.NotFound(command.SupplierId, "RemoveAddress");
 
@@ -134,10 +153,13 @@ public sealed class RemoveSupplierAddressCommandHandler(ISupplierRepository repo
 
 public sealed record AddSupplierContactCommand(Guid SupplierId, string Name, string? Email, string? Phone, string? Role);
 
-public sealed class AddSupplierContactCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork)
+public sealed class AddSupplierContactCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(AddSupplierContactCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Suppliers.Application.Security.SuppliersCapabilities.ManageSuppliers, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         var supplier = await repository.GetByIdAsync(new SupplierId(command.SupplierId), cancellationToken);
         if (supplier is null)
             return Result.Failure<Guid>(Error.NotFound("Suppliers.AddContact.SupplierNotFound", $"Supplier '{command.SupplierId}' was not found."));
@@ -152,10 +174,13 @@ public sealed class AddSupplierContactCommandHandler(ISupplierRepository reposit
 
 public sealed record RemoveSupplierContactCommand(Guid SupplierId, Guid ContactId);
 
-public sealed class RemoveSupplierContactCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork)
+public sealed class RemoveSupplierContactCommandHandler(ISupplierRepository repository, ISuppliersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(RemoveSupplierContactCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Suppliers.Application.Security.SuppliersCapabilities.ManageSuppliers, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var supplier = await repository.GetByIdAsync(new SupplierId(command.SupplierId), cancellationToken);
         if (supplier is null) return UpdateSupplierCommandHandler.NotFound(command.SupplierId, "RemoveContact");
 

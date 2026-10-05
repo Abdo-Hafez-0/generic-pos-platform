@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using Catalog.Contracts.Interfaces;
 using Catalog.Contracts.Models;
 using Platform.Core.Results;
@@ -15,10 +16,13 @@ namespace Pricing.Application.Commands;
 /// <summary>Creates a price list. The first list ever created becomes the default automatically.</summary>
 public sealed record CreatePriceListCommand(string Code, string Name, bool MakeDefault = false);
 
-public sealed class CreatePriceListCommandHandler(IPriceListRepository lists, IPricingUnitOfWork unitOfWork)
+public sealed class CreatePriceListCommandHandler(IPriceListRepository lists, IPricingUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(CreatePriceListCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Pricing.Application.Security.PricingCapabilities.ManagePriceLists, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         var existing = await lists.ListAsync(cancellationToken);
         var makeDefault = command.MakeDefault || existing.Count == 0;
 
@@ -39,10 +43,13 @@ public sealed class CreatePriceListCommandHandler(IPriceListRepository lists, IP
 
 public sealed record SetDefaultPriceListCommand(Guid PriceListId);
 
-public sealed class SetDefaultPriceListCommandHandler(IPriceListRepository lists, IPricingUnitOfWork unitOfWork)
+public sealed class SetDefaultPriceListCommandHandler(IPriceListRepository lists, IPricingUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(SetDefaultPriceListCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Pricing.Application.Security.PricingCapabilities.ManagePriceLists, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var all = await lists.ListAsync(cancellationToken);
         var target = all.FirstOrDefault(l => l.Id == new PriceListId(command.PriceListId));
         if (target is null)
@@ -59,10 +66,13 @@ public sealed class SetDefaultPriceListCommandHandler(IPriceListRepository lists
 
 public sealed record DeactivatePriceListCommand(Guid PriceListId);
 
-public sealed class DeactivatePriceListCommandHandler(IPriceListRepository lists, IPricingUnitOfWork unitOfWork)
+public sealed class DeactivatePriceListCommandHandler(IPriceListRepository lists, IPricingUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(DeactivatePriceListCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Pricing.Application.Security.PricingCapabilities.ManagePriceLists, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var list = await lists.GetByIdAsync(new PriceListId(command.PriceListId), cancellationToken);
         if (list is null)
             return Result.Failure(Error.NotFound("Pricing.DeactivatePriceList.PriceListNotFound", $"Price list '{command.PriceListId}' was not found."));
@@ -104,10 +114,14 @@ public sealed class CreatePriceCommandHandler(
     IPriceRepository prices,
     IPriceListRepository lists,
     IProductLookup productLookup,
-    IPricingUnitOfWork unitOfWork)
+    IPricingUnitOfWork unitOfWork,
+    IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(CreatePriceCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Pricing.Application.Security.PricingCapabilities.ManagePrices, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         if (string.IsNullOrWhiteSpace(command.ProductCode))
             return Result.Failure<Guid>(Error.Validation("Pricing.CreatePrice.ProductCodeRequired", "A product SKU (or ID) is required."));
 
@@ -141,10 +155,13 @@ public sealed class CreatePriceCommandHandler(
 
 public sealed record UpdatePriceCommand(Guid PriceId, decimal Amount, DateTime EffectiveFrom, DateTime? EffectiveTo = null, decimal MinimumQuantity = 1m);
 
-public sealed class UpdatePriceCommandHandler(IPriceRepository prices, IPricingUnitOfWork unitOfWork)
+public sealed class UpdatePriceCommandHandler(IPriceRepository prices, IPricingUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(UpdatePriceCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Pricing.Application.Security.PricingCapabilities.ManagePrices, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var price = await prices.GetByIdAsync(new PriceId(command.PriceId), cancellationToken);
         if (price is null)
             return Result.Failure(Error.NotFound("Pricing.UpdatePrice.PriceNotFound", $"Price '{command.PriceId}' was not found."));
@@ -162,10 +179,13 @@ public sealed class UpdatePriceCommandHandler(IPriceRepository prices, IPricingU
 
 public sealed record DeactivatePriceCommand(Guid PriceId);
 
-public sealed class DeactivatePriceCommandHandler(IPriceRepository prices, IPricingUnitOfWork unitOfWork)
+public sealed class DeactivatePriceCommandHandler(IPriceRepository prices, IPricingUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(DeactivatePriceCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Pricing.Application.Security.PricingCapabilities.ManagePrices, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var price = await prices.GetByIdAsync(new PriceId(command.PriceId), cancellationToken);
         if (price is null)
             return Result.Failure(Error.NotFound("Pricing.DeactivatePrice.PriceNotFound", $"Price '{command.PriceId}' was not found."));

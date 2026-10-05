@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Authorization;
 using Customers.Application.Abstractions;
 using Customers.Application.Repositories;
 using Customers.Domain.Entities;
@@ -13,10 +14,13 @@ namespace Customers.Application.Commands;
 
 public sealed record CreateCustomerCommand(string Code, string Name, string? Email = null, string? Phone = null, string? Notes = null);
 
-public sealed class CreateCustomerCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork)
+public sealed class CreateCustomerCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(CreateCustomerCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Customers.Application.Security.CustomersCapabilities.ManageCustomers, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         var created = Customer.Create(command.Code, command.Name, command.Email, command.Phone, command.Notes);
         if (created.IsFailure) return Result.Failure<Guid>(created.Error);
 
@@ -36,10 +40,13 @@ public sealed class CreateCustomerCommandHandler(ICustomerRepository repository,
 
 public sealed record UpdateCustomerCommand(Guid CustomerId, string Name, string? Email, string? Phone, string? Notes);
 
-public sealed class UpdateCustomerCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork)
+public sealed class UpdateCustomerCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(UpdateCustomerCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Customers.Application.Security.CustomersCapabilities.ManageCustomers, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var customer = await repository.GetByIdAsync(new CustomerId(command.CustomerId), cancellationToken);
         if (customer is null) return NotFound(command.CustomerId, "UpdateCustomer");
 
@@ -60,10 +67,13 @@ public sealed class UpdateCustomerCommandHandler(ICustomerRepository repository,
 
 public sealed record DeactivateCustomerCommand(Guid CustomerId);
 
-public sealed class DeactivateCustomerCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork)
+public sealed class DeactivateCustomerCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(DeactivateCustomerCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Customers.Application.Security.CustomersCapabilities.ManageCustomers, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var customer = await repository.GetByIdAsync(new CustomerId(command.CustomerId), cancellationToken);
         if (customer is null) return UpdateCustomerCommandHandler.NotFound(command.CustomerId, "DeactivateCustomer");
 
@@ -77,10 +87,13 @@ public sealed class DeactivateCustomerCommandHandler(ICustomerRepository reposit
 
 public sealed record ReactivateCustomerCommand(Guid CustomerId);
 
-public sealed class ReactivateCustomerCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork)
+public sealed class ReactivateCustomerCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(ReactivateCustomerCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Customers.Application.Security.CustomersCapabilities.ManageCustomers, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var customer = await repository.GetByIdAsync(new CustomerId(command.CustomerId), cancellationToken);
         if (customer is null) return UpdateCustomerCommandHandler.NotFound(command.CustomerId, "ReactivateCustomer");
 
@@ -99,10 +112,13 @@ public sealed class ReactivateCustomerCommandHandler(ICustomerRepository reposit
 public sealed record AddCustomerAddressCommand(
     Guid CustomerId, AddressType Type, string Line1, string? Line2, string City, string? Region, string? PostalCode, string Country);
 
-public sealed class AddCustomerAddressCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork)
+public sealed class AddCustomerAddressCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(AddCustomerAddressCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Customers.Application.Security.CustomersCapabilities.ManageCustomers, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         var customer = await repository.GetByIdAsync(new CustomerId(command.CustomerId), cancellationToken);
         if (customer is null)
             return Result.Failure<Guid>(Error.NotFound("Customers.AddAddress.CustomerNotFound", $"Customer '{command.CustomerId}' was not found."));
@@ -117,10 +133,13 @@ public sealed class AddCustomerAddressCommandHandler(ICustomerRepository reposit
 
 public sealed record RemoveCustomerAddressCommand(Guid CustomerId, Guid AddressId);
 
-public sealed class RemoveCustomerAddressCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork)
+public sealed class RemoveCustomerAddressCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(RemoveCustomerAddressCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Customers.Application.Security.CustomersCapabilities.ManageCustomers, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var customer = await repository.GetByIdAsync(new CustomerId(command.CustomerId), cancellationToken);
         if (customer is null) return UpdateCustomerCommandHandler.NotFound(command.CustomerId, "RemoveAddress");
 
@@ -134,10 +153,13 @@ public sealed class RemoveCustomerAddressCommandHandler(ICustomerRepository repo
 
 public sealed record AddCustomerContactCommand(Guid CustomerId, string Name, string? Email, string? Phone, string? Role);
 
-public sealed class AddCustomerContactCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork)
+public sealed class AddCustomerContactCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result<Guid>> HandleAsync(AddCustomerContactCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Customers.Application.Security.CustomersCapabilities.ManageCustomers, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
+
         var customer = await repository.GetByIdAsync(new CustomerId(command.CustomerId), cancellationToken);
         if (customer is null)
             return Result.Failure<Guid>(Error.NotFound("Customers.AddContact.CustomerNotFound", $"Customer '{command.CustomerId}' was not found."));
@@ -152,10 +174,13 @@ public sealed class AddCustomerContactCommandHandler(ICustomerRepository reposit
 
 public sealed record RemoveCustomerContactCommand(Guid CustomerId, Guid ContactId);
 
-public sealed class RemoveCustomerContactCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork)
+public sealed class RemoveCustomerContactCommandHandler(ICustomerRepository repository, ICustomersUnitOfWork unitOfWork, IAuthorizationService authorization)
 {
     public async Task<Result> HandleAsync(RemoveCustomerContactCommand command, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Customers.Application.Security.CustomersCapabilities.ManageCustomers, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
         var customer = await repository.GetByIdAsync(new CustomerId(command.CustomerId), cancellationToken);
         if (customer is null) return UpdateCustomerCommandHandler.NotFound(command.CustomerId, "RemoveContact");
 

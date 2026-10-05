@@ -45,6 +45,7 @@ public static class CustomersServicesExtensions
         services.AddScoped<Customers.Application.Repositories.ICustomerRepository, Customers.Infrastructure.Repositories.EfCustomerRepository>();
         services.AddScoped<Customers.Contracts.Interfaces.ICustomerLookup, Customers.Infrastructure.Services.CustomerLookup>();
         services.AddScoped<Customers.Contracts.Interfaces.ICustomerReader, Customers.Infrastructure.Services.CustomerReader>();
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Customers.Application.Security.CustomersCapabilityProvider>();
         services.AddTransient<Customers.Application.Commands.CreateCustomerCommandHandler>();
         services.AddTransient<Customers.Application.Commands.UpdateCustomerCommandHandler>();
         services.AddTransient<Customers.Application.Commands.DeactivateCustomerCommandHandler>();

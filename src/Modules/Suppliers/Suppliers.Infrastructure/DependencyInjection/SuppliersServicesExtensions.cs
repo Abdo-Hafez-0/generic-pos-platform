@@ -45,6 +45,7 @@ public static class SuppliersServicesExtensions
         services.AddScoped<Suppliers.Application.Repositories.ISupplierRepository, Suppliers.Infrastructure.Repositories.EfSupplierRepository>();
         services.AddScoped<Suppliers.Contracts.Interfaces.ISupplierLookup, Suppliers.Infrastructure.Services.SupplierLookup>();
         services.AddScoped<Suppliers.Contracts.Interfaces.ISupplierReader, Suppliers.Infrastructure.Services.SupplierReader>();
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Suppliers.Application.Security.SuppliersCapabilityProvider>();
         services.AddTransient<Suppliers.Application.Commands.CreateSupplierCommandHandler>();
         services.AddTransient<Suppliers.Application.Commands.UpdateSupplierCommandHandler>();
         services.AddTransient<Suppliers.Application.Commands.DeactivateSupplierCommandHandler>();

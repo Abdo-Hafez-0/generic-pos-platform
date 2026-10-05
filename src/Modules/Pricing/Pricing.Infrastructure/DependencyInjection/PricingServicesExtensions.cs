@@ -45,6 +45,7 @@ public static class PricingServicesExtensions
         services.AddScoped<Pricing.Application.Repositories.IPriceListRepository, Pricing.Infrastructure.Repositories.EfPriceListRepository>();
         services.AddScoped<Pricing.Application.Repositories.IPriceRepository, Pricing.Infrastructure.Repositories.EfPriceRepository>();
         services.AddScoped<Pricing.Contracts.Interfaces.IPriceResolver, Pricing.Infrastructure.Services.PriceResolver>();
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Pricing.Application.Security.PricingCapabilityProvider>();
         services.AddTransient<Pricing.Application.Commands.CreatePriceListCommandHandler>();
         services.AddTransient<Pricing.Application.Commands.SetDefaultPriceListCommandHandler>();
         services.AddTransient<Pricing.Application.Commands.DeactivatePriceListCommandHandler>();

@@ -1,0 +1,171 @@
+using CashManagement.Domain.Entities;
+using CashManagement.Domain.Enums;
+using CashManagement.Domain.ValueObjects;
+using Platform.Core.Results;
+
+namespace CashManagement.Application.Abstractions
+{
+    /// <summary>Saves changes to the CashManagement module's own persistence (CashManagementDbContext).</summary>
+    public interface ICashManagementUnitOfWork
+    {
+        Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    }
+}
+
+namespace CashManagement.Application.Repositories
+{
+    public interface ICashSessionRepository
+    {
+        /// <summary>Loads the session with its movements.</summary>
+        Task<CashSession?> GetByIdAsync(CashSessionId id, CancellationToken cancellationToken = default);
+
+        /// <summary>The open session of the drawer (code already upper-case), with its movements, or null.</summary>
+        Task<CashSession?> GetOpenByDrawerAsync(string drawerCode, CancellationToken cancellationToken = default);
+
+        Task AddAsync(CashSession session, CancellationToken cancellationToken = default);
+
+        Task<(IReadOnlyList<CashSession> Items, int TotalCount)> ListAsync(
+            string? drawerCode, CashSessionStatus? status, int skip, int take, CancellationToken cancellationToken = default);
+    }
+}
+
+namespace CashManagement.Application.DTOs
+{
+    public sealed record CashMovementDto(
+        Guid MovementId, CashMovementKind Kind, decimal Amount, decimal SignedAmount, string? Reason,
+        string? ReferenceType, Guid? ReferenceId, string? RecordedBy, DateTime RecordedAt);
+
+    public sealed record CashSessionDto(
+        Guid SessionId, string DrawerCode, string OpenedBy, decimal OpeningFloat, decimal Balance, CashSessionStatus Status,
+        DateTime OpenedAt, DateTime? ClosedAt, string? ClosedBy, decimal? CountedAmount, decimal? ExpectedAmount, decimal? Variance,
+        string? Notes, IReadOnlyList<CashMovementDto> Movements);
+
+    public sealed record CashSessionSummaryDto(
+        Guid SessionId, string DrawerCode, string OpenedBy, CashSessionStatus Status, DateTime OpenedAt, DateTime? ClosedAt, decimal? Variance);
+
+    public sealed record PagedCashSessions(IReadOnlyList<CashSessionSummaryDto> Items, int TotalCount, int Page, int PageSize);
+}
+
+namespace CashManagement.Application.Commands
+{
+    using CashManagement.Application.Abstractions;
+    using CashManagement.Application.Repositories;
+
+    /// <summary>Opens a shift for a drawer. A drawer can have only one open session.</summary>
+    public sealed record OpenCashSessionCommand(string DrawerCode, string OpenedBy, decimal OpeningFloat, string? Notes = null);
+
+    public sealed class OpenCashSessionCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork)
+    {
+        public async Task<Result<Guid>> HandleAsync(OpenCashSessionCommand command, CancellationToken cancellationToken = default)
+        {
+            var created = CashSession.Open(command.DrawerCode, command.OpenedBy, command.OpeningFloat, command.Notes);
+            if (created.IsFailure) return Result.Failure<Guid>(created.Error);
+
+            if (await sessions.GetOpenByDrawerAsync(created.Value.DrawerCode, cancellationToken) is not null)
+                return Result.Failure<Guid>(Error.Conflict(
+                    "CashManagement.OpenSession.AlreadyOpen", $"Drawer '{created.Value.DrawerCode}' already has an open session."));
+
+            await sessions.AddAsync(created.Value, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success(created.Value.Id.Value);
+        }
+    }
+
+    public sealed record RecordCashMovementCommand(
+        Guid SessionId, CashMovementKind Kind, decimal Amount, string? Reason = null,
+        string? ReferenceType = null, Guid? ReferenceId = null, string? RecordedBy = null);
+
+    public sealed record RecordedCashMovement(Guid MovementId, decimal BalanceAfter);
+
+    public sealed class RecordCashMovementCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork)
+    {
+        public async Task<Result<RecordedCashMovement>> HandleAsync(RecordCashMovementCommand command, CancellationToken cancellationToken = default)
+        {
+            var session = await sessions.GetByIdAsync(new CashSessionId(command.SessionId), cancellationToken);
+            if (session is null)
+                return Result.Failure<RecordedCashMovement>(Error.NotFound(
+                    "CashManagement.RecordMovement.SessionNotFound", $"Cash session '{command.SessionId}' was not found."));
+
+            var recorded = session.RecordMovement(
+                command.Kind, command.Amount, command.Reason, command.ReferenceType, command.ReferenceId, command.RecordedBy);
+            if (recorded.IsFailure) return Result.Failure<RecordedCashMovement>(recorded.Error);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success(new RecordedCashMovement(recorded.Value.Id.Value, session.Balance));
+        }
+    }
+
+    /// <summary>Closes a shift with the counted amount; the variance against the expected balance is stored.</summary>
+    public sealed record CloseCashSessionCommand(Guid SessionId, decimal CountedAmount, string ClosedBy, string? Notes = null);
+
+    public sealed record ClosedCashSession(decimal ExpectedAmount, decimal CountedAmount, decimal Variance);
+
+    public sealed class CloseCashSessionCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork)
+    {
+        public async Task<Result<ClosedCashSession>> HandleAsync(CloseCashSessionCommand command, CancellationToken cancellationToken = default)
+        {
+            var session = await sessions.GetByIdAsync(new CashSessionId(command.SessionId), cancellationToken);
+            if (session is null)
+                return Result.Failure<ClosedCashSession>(Error.NotFound(
+                    "CashManagement.CloseSession.SessionNotFound", $"Cash session '{command.SessionId}' was not found."));
+
+            var closed = session.Close(command.CountedAmount, command.ClosedBy, command.Notes);
+            if (closed.IsFailure) return Result.Failure<ClosedCashSession>(closed.Error);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success(new ClosedCashSession(session.ExpectedAmount!.Value.Value, session.CountedAmount!.Value.Value, session.Variance!.Value));
+        }
+    }
+}
+
+namespace CashManagement.Application.Queries
+{
+    using CashManagement.Application.DTOs;
+    using CashManagement.Application.Repositories;
+
+    internal static class CashMapping
+    {
+        public static CashSessionDto ToDto(this CashSession s) => new(
+            s.Id.Value, s.DrawerCode, s.OpenedBy, s.OpeningFloat.Value, s.Balance, s.Status, s.OpenedAt, s.ClosedAt, s.ClosedBy,
+            s.CountedAmount?.Value, s.ExpectedAmount?.Value, s.Variance, s.Notes,
+            s.Movements.OrderBy(m => m.RecordedAt).Select(m => new CashMovementDto(
+                m.Id.Value, m.Kind, m.Amount, m.SignedAmount, m.Reason, m.ReferenceType, m.ReferenceId, m.RecordedBy, m.RecordedAt)).ToList());
+    }
+
+    public sealed record GetCashSessionQuery(Guid SessionId);
+
+    public sealed class GetCashSessionQueryHandler(ICashSessionRepository sessions)
+    {
+        public async Task<CashSessionDto?> HandleAsync(GetCashSessionQuery query, CancellationToken cancellationToken = default)
+            => (await sessions.GetByIdAsync(new CashSessionId(query.SessionId), cancellationToken))?.ToDto();
+    }
+
+    public sealed record GetOpenCashSessionQuery(string DrawerCode);
+
+    public sealed class GetOpenCashSessionQueryHandler(ICashSessionRepository sessions)
+    {
+        public async Task<CashSessionDto?> HandleAsync(GetOpenCashSessionQuery query, CancellationToken cancellationToken = default)
+            => string.IsNullOrWhiteSpace(query.DrawerCode)
+                ? null
+                : (await sessions.GetOpenByDrawerAsync(query.DrawerCode.Trim().ToUpperInvariant(), cancellationToken))?.ToDto();
+    }
+
+    public sealed record ListCashSessionsQuery(string? DrawerCode = null, CashSessionStatus? Status = null, int Page = 1, int PageSize = 50);
+
+    public sealed class ListCashSessionsQueryHandler(ICashSessionRepository sessions)
+    {
+        public const int MaxPageSize = 200;
+
+        public async Task<PagedCashSessions> HandleAsync(ListCashSessionsQuery query, CancellationToken cancellationToken = default)
+        {
+            var page = Math.Max(1, query.Page);
+            var size = Math.Clamp(query.PageSize, 1, MaxPageSize);
+            var drawer = string.IsNullOrWhiteSpace(query.DrawerCode) ? null : query.DrawerCode.Trim().ToUpperInvariant();
+
+            var (items, total) = await sessions.ListAsync(drawer, query.Status, (page - 1) * size, size, cancellationToken);
+            return new PagedCashSessions(
+                items.Select(s => new CashSessionSummaryDto(s.Id.Value, s.DrawerCode, s.OpenedBy, s.Status, s.OpenedAt, s.ClosedAt, s.Variance)).ToList(),
+                total, page, size);
+        }
+    }
+}

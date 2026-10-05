@@ -21,6 +21,9 @@
     <!-- POS module (Stage 5D) - POSHostingModule lives in POS.Infrastructure -->
     <ProjectReference Include="..\..\Modules\POS\POS.Infrastructure\POS.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\POS\POS.UI\POS.UI.csproj" />
+    <!-- CashManagement module (Stage 8) - CashManagementHostingModule lives in CashManagement.Infrastructure -->
+    <ProjectReference Include="..\..\Modules\CashManagement\CashManagement.Infrastructure\CashManagement.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\CashManagement\CashManagement.UI\CashManagement.UI.csproj" />
     <!-- Audit module (Stage 8) - AuditHostingModule lives in Audit.Infrastructure -->
     <ProjectReference Include="..\..\Modules\Audit\Audit.Infrastructure\Audit.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Audit\Audit.UI\Audit.UI.csproj" />

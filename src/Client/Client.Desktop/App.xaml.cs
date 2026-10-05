@@ -5,6 +5,7 @@ using Client.Licensing.Infrastructure;
 using Client.Updater.Http;
 using Client.Updater.Infrastructure;
 using POS.Infrastructure.Module;
+using CashManagement.Infrastructure.Module;
 using Audit.Infrastructure.Module;
 using Users.Infrastructure.Module;
 using Payments.Infrastructure.Module;
@@ -66,6 +67,7 @@ public partial class App : Application
                 .WithModule(new InventoryHostingModule()) // Stage 5B: Inventory module
                 .WithModule(new SalesHostingModule())     // Stage 5C: Sales module
                 .WithModule(new POSHostingModule())       // Stage 5D: POS module
+                .WithModule(new CashManagementHostingModule())       // Stage 8: CashManagement module
                 .WithModule(new AuditHostingModule())       // Stage 8: Audit module
                 .WithModule(new UsersHostingModule())       // Stage 8: Users module
                 .WithModule(new PaymentsHostingModule())       // Stage 8: Payments module

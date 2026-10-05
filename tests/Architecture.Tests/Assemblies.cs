@@ -394,6 +394,29 @@ internal static class Assemblies
         // Audit.UI excluded - net10.0-windows TFM gap
     ];
 
+    // CashManagement module assemblies (Stage 8)
+    // Note: CashManagement.UI is net10.0-windows and cannot be referenced here (TFM gap).
+    internal static readonly Assembly CashManagementDomain =
+        typeof(CashManagement.Domain.Entities.CashSession).Assembly;
+
+    internal static readonly Assembly CashManagementContracts =
+        typeof(CashManagement.Contracts.Interfaces.ICashMovementRecorder).Assembly;
+
+    internal static readonly Assembly CashManagementApplication =
+        typeof(CashManagement.Application.Commands.OpenCashSessionCommandHandler).Assembly;
+
+    internal static readonly Assembly CashManagementInfrastructure =
+        typeof(CashManagement.Infrastructure.CashManagementInfrastructureAssemblyMarker).Assembly;
+
+    internal static IReadOnlyList<Assembly> AllCashManagementAssemblies =>
+    [
+        CashManagementDomain,
+        CashManagementContracts,
+        CashManagementApplication,
+        CashManagementInfrastructure
+        // CashManagement.UI excluded - net10.0-windows TFM gap
+    ];
+
     internal static IReadOnlyList<Assembly> AllProjectAssemblies =>
     [
         .. AllPlatformAssemblies,

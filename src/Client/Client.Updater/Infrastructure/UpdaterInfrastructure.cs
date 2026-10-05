@@ -273,6 +273,11 @@ public static class UpdaterServicesExtensions
         services.AddSingleton<PackageVerifier>();
         services.AddSingleton<UpdateService>();
         services.AddSingleton<IUpdateService>(sp => sp.GetRequiredService<UpdateService>());
+        // Stage 11: the capability that guards installing/rolling back, and the user-facing handlers that check it.
+        services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, UpdatesCapabilityProvider>();
+        services.AddTransient<DownloadUpdateCommandHandler>();
+        services.AddTransient<InstallUpdateCommandHandler>();
+        services.AddTransient<RollbackUpdateCommandHandler>();
         services.AddHostedService<UpdaterInitializer>();
         return services;
     }

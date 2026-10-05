@@ -3,6 +3,7 @@ using System.Text;
 using Client.Updater.Domain;
 using Microsoft.Extensions.Logging;
 using Platform.Application.Abstractions.Licensing;
+using Platform.Application.Abstractions.Security;
 using Platform.Application.Modules;
 using Platform.Core.Modules;
 using Platform.Core.Results;
@@ -35,7 +36,8 @@ public sealed class PackageVerifier(
     IInstalledStateProvider installedState,
     ILicenseEntitlementService licensing,
     UpdaterOptions options,
-    ILogger<PackageVerifier> logger)
+    ILogger<PackageVerifier> logger,
+    ISecurityEventSink? events = null)
 {
     private static readonly ModuleDependencyResolver Resolver = new();
 
@@ -350,6 +352,11 @@ public sealed class PackageVerifier(
     private Result<VerifiedPackage> Reject(string code, string message, bool conflict = false)
     {
         logger.LogWarning("Package rejected [{Code}]: {Message}", code, message);
+
+        // The code says WHY (unsigned, untrusted key, bad signature, hash mismatch, downgrade, incompatible, license...). The message is the
+        // verifier's own text about the package; nothing from inside a rejected package other than that is recorded.
+        _ = events.TryRecordAsync(SecurityEvent.Create(
+            "security.update.rejected", SecurityEventOutcome.Denied, subjectType: "update", summary: $"[{code}] {message}"));
         return Result.Failure<VerifiedPackage>(conflict ? Error.Conflict(code, message) : Error.Validation(code, message));
     }
 

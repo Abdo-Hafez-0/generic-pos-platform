@@ -39,6 +39,7 @@
     <ProjectReference Include="..\..\src\Cloud\LicenseServer\LicenseServer.Infrastructure\LicenseServer.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Licensing\Licensing.Contracts\Licensing.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Platform\Platform.Application\Platform.Application.csproj" />
+    <ProjectReference Include="..\Tests.Common\Tests.Common.csproj" />
   </ItemGroup>
 
 </Project>

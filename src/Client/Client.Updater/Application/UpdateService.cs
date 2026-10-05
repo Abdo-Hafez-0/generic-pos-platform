@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Client.Updater.Domain;
 using Microsoft.Extensions.Logging;
+using Platform.Application.Abstractions.Security;
 using Platform.Core.Results;
 using Security.Es256;
 using Updates.Contracts;
@@ -48,8 +49,13 @@ public sealed class UpdateService(
     IDataSafeguard safeguard,
     UpdaterOptions options,
     TimeProvider timeProvider,
-    ILogger<UpdateService> logger) : IUpdateService
+    ILogger<UpdateService> logger,
+    ISecurityEventSink? events = null) : IUpdateService
 {
+    /// <summary>Records what happened to an update: IDs, version and result only - never package content.</summary>
+    private void Audit(string action, SecurityEventOutcome outcome, string? subjectId, string summary)
+        => _ = events.TryRecordAsync(SecurityEvent.Create(action, outcome, subjectType: "update", subjectId: subjectId, summary: summary, occurredAt: timeProvider.GetUtcNow()));
+
     // ------------------------------------------------------------------ discovery
 
     public async Task<Result<IReadOnlyList<UpdateInfo>>> CheckForUpdatesAsync(CancellationToken cancellationToken = default)
@@ -130,6 +136,7 @@ public sealed class UpdateService(
             {
                 DeleteQuietly(partPath);
                 logger.LogWarning("Downloaded package {PackageId} rejected: file hash mismatch.", update.PackageId);
+                Audit("security.update.rejected", SecurityEventOutcome.Denied, update.PackageId.ToString(), "downloaded file does not match its advertised hash");
                 return Result.Failure<string>(Error.Validation(UpdateErrorCodes.HashMismatch, "The downloaded package does not match its advertised hash."));
             }
 
@@ -276,6 +283,8 @@ public sealed class UpdateService(
 
         Transition(journal, UpdateState.Activated, "Activated; awaiting confirmation after a healthy start.");
         logger.LogInformation("Activation completed: {Target} {Version}", m.TargetId, m.Version);
+        Audit("security.update.accepted", SecurityEventOutcome.Success, m.PackageId.ToString(),
+            $"{m.TargetId} {m.Version} verified (signature by key '{m.KeyId}') and activated");
         return Result.Success(journal);
     }
 
@@ -486,6 +495,13 @@ public sealed class UpdateService(
     {
         journal.State = state;
         journal.History.Add(new UpdateStateEntry(state, timeProvider.GetUtcNow(), message));
+
+        // The states that are security-relevant to whoever reads the audit trail: a rollback happened, or an update ended badly.
+        if (state is UpdateState.RolledBack)
+            Audit("security.update.rolledback", SecurityEventOutcome.Success, journal.PackageId.ToString(), $"{journal.TargetId} {journal.Version}: {message}");
+        else if (state is UpdateState.Failed or UpdateState.MigrationFailed or UpdateState.ActivationFailed or UpdateState.RecoveryRequired)
+            Audit("security.update.failed", SecurityEventOutcome.Failure, journal.PackageId.ToString(), $"{journal.TargetId} {journal.Version}: {state}");
+
         try
         {
             store.SaveJournal(journal);

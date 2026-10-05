@@ -135,6 +135,9 @@ public sealed class UpdateWorld : IDisposable
     public PackageVerifier PackageVerifier { get; private set; } = null!;
     public UpdateService Service { get; private set; } = null!;
 
+    /// <summary>Every security event the verifier and the update service report.</summary>
+    public global::Tests.Common.Security.RecordingSecurityEventSink Events { get; } = new();
+
     public UpdateWorld(params TrustedPublicKey[]? extraTrusted)
     {
         Directory.CreateDirectory(Dir);
@@ -151,9 +154,9 @@ public sealed class UpdateWorld : IDisposable
     public void Rebuild(IEnumerable<TrustedPublicKey> trusted, ILicenseEntitlementService? entitlements = null)
     {
         Verifier = new Es256Verifier(trusted);
-        PackageVerifier = new PackageVerifier(Verifier, Installed, entitlements ?? Entitlements, Options, NullLogger<PackageVerifier>.Instance);
+        PackageVerifier = new PackageVerifier(Verifier, Installed, entitlements ?? Entitlements, Options, NullLogger<PackageVerifier>.Instance, Events);
         Service = new UpdateService(Store, PackageVerifier, Client, Installed, Migrations, Safeguard, Options, Clock,
-            NullLogger<UpdateService>.Instance);
+            NullLogger<UpdateService>.Instance, Events);
     }
 
     public string PayloadDir(string name, params (string Path, string Content)[] files)

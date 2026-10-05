@@ -461,7 +461,8 @@ internal static class Assemblies
         UpdatePublisher,
         .. AllSuppliersAssemblies,
         .. AllCloudServerAssemblies,
-        ClientHardware
+        ClientHardware,
+        ClientSecurity
     ];
 
     // -----------------------------------------------------------------------
@@ -473,6 +474,10 @@ internal static class Assemblies
     // -----------------------------------------------------------------------
     internal static readonly Assembly ClientHardware =
         typeof(Client.Hardware.ClientHardwareAssemblyMarker).Assembly;
+
+    // Stage 11: client-side data protection (DPAPI). Plain net10.0 library.
+    internal static readonly Assembly ClientSecurity =
+        typeof(Client.Security.ClientSecurityAssemblyMarker).Assembly;
 
     internal static readonly Assembly CloudContracts =
         typeof(Cloud.Contracts.ApiError).Assembly;

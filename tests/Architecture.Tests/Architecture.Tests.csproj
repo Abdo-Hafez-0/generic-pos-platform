@@ -115,6 +115,9 @@
     <ProjectReference Include="..\..\src\Modules\Reporting\Reporting.Contracts\Reporting.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reporting\Reporting.Application\Reporting.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reporting\Reporting.Infrastructure\Reporting.Infrastructure.csproj" />
+
+    <!-- Stage 11: data protection (DPAPI) -->
+    <ProjectReference Include="..\..\src\Client\Client.Security\Client.Security.csproj" />
   </ItemGroup>
 
 </Project>

@@ -26,7 +26,9 @@ determined by customer license entitlements.
 
 ## Current Implementation Phase
 
-**Stage 7 COMPLETE (update system foundation): secure, recoverable updates**
+**Stage 8 COMPLETE (additional business modules): Customers, Suppliers, Purchasing, Pricing, Payments, Users, Audit, CashManagement, Reporting**
+
+Stage 7 (update system foundation: secure, recoverable updates) is complete and unchanged.
 
 Core and individual modules can be updated from signed packages without ever endangering the working installation or the
 customer's data. The update server is optional: nothing in normal POS operation depends on it.
@@ -296,7 +298,7 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 
       startup fine, POS checkout completes, discovery returns Update.ServerUnavailable, a signed module package installs against the real DB with a
       restore point, and sale/stock rows are intact afterwards
 
-### Stage 8 - Additional Business Modules (IN PROGRESS)
+### Stage 8 - Additional Business Modules (COMPLETE)
 - [x] 8A Customers (cus_*): Customer aggregate (+CustomerAddress, CustomerContact, CustomerStatus), create/update/deactivate/reactivate, address+contact management, get/list(paged)/search; contracts ICustomerLookup, ICustomerReader; migration InitialCustomersSchema; Customers.Tests (38); ARCH-CUS-001..016
 - [x] 8B Suppliers (sup_*): Supplier aggregate (+SupplierAddress, SupplierContact, SupplierStatus), same capabilities as Customers; contracts ISupplierLookup, ISupplierReader (Purchasing depends on these); migration InitialSuppliersSchema; Suppliers.Tests (38); ARCH-SUP-001..016
 - [x] 8C Purchasing (pur_*): PurchaseOrder (+PurchaseOrderLine; Draft/Submitted/Received/Cancelled) with create/add-remove-change lines/submit/receive/cancel, get/list; depends on Catalog.Contracts, Suppliers.Contracts, Inventory.Contracts ONLY; Inventory.Contracts extended with IStockReceiptService (StockReceiptService delegating to AddStock; 3 new Inventory tests); receiving is line-by-line and resumable (no cross-module transaction); contract IPurchaseOrderReader; migration InitialPurchasingSchema; Purchasing.Tests (45); ARCH-PUR-001..016
@@ -306,12 +308,15 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 
 - [x] 8G Audit (aud_*): append-only AuditEntry (module, action, entity type/id, actor id/name, summary, details, UTC time) - no update or delete exists at any layer; RecordAuditEntry, GetAuditEntry, QueryAuditEntries (module/action/entity/actor/time-range filters, newest first, paged, MaxPageSize 200); no dependencies (every value is a plain string/Guid); contracts IAuditRecorder (append) and IAuditReader (read-only); migration InitialAuditSchema (aud_AuditEntries); Audit.Tests (26); ARCH-AUD-001..016. Adoption by other modules is deferred: no module records to Audit yet (they would take an optional IAuditRecorder, like POS does for Pricing/Payments)
 - [x] 8H CashManagement (cash_*): CashSession (one shift per drawer: opening float, PayIn/PayOut with reasons, CashSale/CashRefund movements, counted close with stored expected amount and variance) and CashMovement; outflows cannot take the drawer below zero; a movement reference (type + id) is idempotent per kind so retries never double-count; only one open session per drawer (application check plus a filtered unique index); OpenCashSession, RecordCashMovement, CloseCashSession, get/get-open/list queries; no dependencies; contracts ICashMovementRecorder and ICashSessionReader; migration InitialCashManagementSchema (cash_Sessions, cash_Movements); CashManagement.Tests (34); ARCH-CASH-001..016. Module id cash-management. Tracks cash only - no hardware, no real money. POS/Payments do not record cash sales into it yet (deferred; they would take an optional ICashMovementRecorder)
 - [x] 8I Reporting (no tables, no DbContext, no migration - it stores nothing): read-only reports built from other modules' read contracts - sales report (completed sales in a range with daily breakdown, bounded scan window flagged IsTruncated), inventory snapshot, purchasing overview, customer and supplier summaries, and a business overview where each section stands alone; pure calculators in Reporting.Domain (DateRange max 366 days, SalesCalculator, StockCalculator); SOFT dependencies on Sales/Inventory/Purchasing/Customers/Suppliers contracts: each source reader is an optional constructor parameter, so a missing module makes only its own section Unavailable (never an error); contract IReportProvider; Reporting.Tests (34); ARCH-REP-001..016. Limitation: Sales.Contracts only exposes a recent-sales list, so the sales report scans at most 2000 sales (IsTruncated tells the caller). No export, scheduling or advanced analytics (Stage 8 minimum)
+- [x] Integration tests (tests/Integration.Tests, 32 tests): the REAL host (ApplicationHostBuilder + ModuleHostRegistrar + the real hosting modules) against a throw-away SQLite file (location set through GENERICPOS_Database__* environment variables, tests serialised in one xUnit collection). Proves: every module creates only tables under its own prefix, no foreign key crosses a module boundary, every Stage 8 migration is recorded, a restart on the same database applies nothing new and keeps data; the core modules alone start with no Stage 8 table or contract; each Stage 8 module can be added alone (with its Stage 8 dependency) and each can be removed from the full set; Reporting alone reports every section Unavailable (not an error); POS vertical slice (create product, add stock, open POS, find product, add to cart, checkout -> sale Completed, stock reduced) with and without Stage 8 modules, cash payment recorded with change, Pricing overriding the Catalog price, rejected payment request without Payments, purchase order receiving increasing real stock
+- [x] Final verification: `dotnet build GenericPOS.sln` -> 0 errors, 0 warnings (108 projects); `dotnet test` -> 1428 tests, 0 failures; the working tree is clean and pushed to origin/master. One commit per module (`feat(stage8): add customers|suppliers|purchasing|pricing|payments|users|audit|cash management|reporting module`)
+- [x] Not done by design (out of scope for Stage 8): Accounting, Loyalty, Advanced Reports/Inventory, Multi-Branch, Manufacturing, Restaurant, E-Commerce, Cloud Backup, Synchronization, Employee Management, authentication, real payment gateways/hardware, launcher/runtime update adoption, update CLI wrappers, license enforcement, Stage 9+
 
 ---
 
 ## Current Task
 
-**Stage 8 - IN PROGRESS (8A-8I modules done). Remaining: cross-module integration tests, final documentation, final verification.**
+**Stage 8 - COMPLETE (Additional Business Modules). Stopped: Stage 9 has not been started.**
 
 ---
 
@@ -319,17 +324,13 @@ Architecture tests ARCH-INV-001 through ARCH-INV-011 are active and passing (12 
 
 **Awaiting instruction (technical lead decides).**
 
-Next logical roadmap stage: Stage 8 - Additional Business Modules (not started). Follow-ups that are NOT part of any completed
-stage: license ENFORCEMENT points; a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active
-deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules;
-CLI wrappers for ModulePackager/UpdatePublisher; durable/authenticated update + license server administration; Payments module;
-stock-reversal contract; hosting PosView in MainWindow; Users module.
+Next roadmap stage: Stage 9 (Cloud / server administration) - only when instructed. Follow-ups that are NOT part of any completed stage: license ENFORCEMENT points; a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; durable/authenticated update + license server administration; stock-reversal contract; hosting PosView and the Stage 8 view models in MainWindow; authentication on top of Users; adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations").
 
 ---
 
 ## Solution / Project Structure (Current State)
 
-GenericPOS.sln (52 projects)
+GenericPOS.sln (108 projects)
 
 src/
 +-- Platform/
@@ -445,14 +446,29 @@ src/
         |                                    Migration: InitialPOSSchema
         +-- POS.UI                 [DONE] - PosViewModel, PosView.xaml (net10.0-windows)
 
+    +-- Stage 8 modules (each: <M>.Domain, <M>.Contracts, <M>.Application, <M>.Infrastructure, <M>.UI - same five-layer pattern as Catalog)
+        +-- Customers              [DONE] - cus_*   Customer (+addresses, contacts); ICustomerLookup, ICustomerReader
+        +-- Suppliers              [DONE] - sup_*   Supplier (+addresses, contacts); ISupplierLookup, ISupplierReader
+        +-- Purchasing             [DONE] - pur_*   PurchaseOrder (+lines); IPurchaseOrderReader; uses Catalog/Suppliers/Inventory contracts
+        +-- Pricing                [DONE] - pri_*   PriceList, Price; IPriceResolver; uses Catalog.Contracts
+        +-- Payments               [DONE] - pay_*   Payment records; IPaymentService, IPaymentReader
+        +-- Users                  [DONE] - usr_*   User, Role, permission codes; IUserLookup, IUserPermissionChecker (no authentication)
+        +-- Audit                  [DONE] - aud_*   append-only AuditEntry; IAuditRecorder, IAuditReader
+        +-- CashManagement         [DONE] - cash_*  CashSession, CashMovement; ICashMovementRecorder, ICashSessionReader
+        +-- Reporting              [DONE] - (no tables) read-only reports; IReportProvider; optional read contracts of Sales/Inventory/Purchasing/Customers/Suppliers
+
 tests/
-+-- Architecture.Tests             [DONE] - 155 tests, all passing (Stages 1-7)
++-- Architecture.Tests             [DONE] - 299 tests, all passing (Stages 1-8)
 +-- Platform.Infrastructure.Tests  [DONE] - 19 tests, all passing (Stage 3)
 +-- Platform.ModuleContract.Tests  [DONE] - 112 tests, all passing (Stage 4)
 +-- Catalog.Tests                  [DONE] - 64 tests, all passing (Stage 5A)
-+-- Inventory.Tests                [DONE] - 89 tests, all passing (Stages 5B, 5D)
++-- Inventory.Tests                [DONE] - 92 tests, all passing (Stages 5B, 5D, 8C)
 +-- Sales.Tests                    [DONE] - 103 tests, all passing (Stage 5C)
-+-- POS.Tests                      [DONE] - 84 tests, all passing (Stage 5D)
++-- POS.Tests                      [DONE] - 95 tests, all passing (Stages 5D, 8D, 8E)
++-- Tests.Common                   [DONE] - Stage 8: shared in-memory SQLite test database helper (TestModuleDatabase) + RepoPaths
++-- Customers.Tests (38), Suppliers.Tests (38), Purchasing.Tests (45), Pricing.Tests (41), Payments.Tests (29), Users.Tests (50),
+    Audit.Tests (26), CashManagement.Tests (34), Reporting.Tests (34)   [DONE] - Stage 8
++-- Integration.Tests              [DONE] - Stage 8: 32 tests against the real host and real SQLite migrations
 
 src/Licensing/
 +-- Licensing.Contracts            [DONE] - Stage 6: shared signed-license wire model (no keys, no HTTP)
@@ -477,8 +493,6 @@ tools/
 tests/Updater.Tests                [DONE] - 168 tests, all passing (Stage 7)
 
 Planned:
-src/OptionalModules/  - Stage 8
-tests/Integration.Tests - TBD
 tools/                  - TBD
 
 ---
@@ -1356,13 +1370,101 @@ Same documented TFM gap exception as Catalog.UI and Client.Desktop.
 
 ---
 
+## Stage 8 Summary
+
+### Dependency graph (cross-module references are Contracts-only)
+```
+Customers        -> (none)
+Suppliers        -> (none)
+Payments         -> (none)
+Users            -> (none)
+Audit            -> (none)         every value it stores is a plain string/Guid
+CashManagement   -> (none)
+Pricing          -> Catalog.Contracts
+Purchasing       -> Catalog.Contracts, Suppliers.Contracts, Inventory.Contracts
+Reporting        -> optional (soft): Sales.Contracts, Inventory.Contracts, Purchasing.Contracts, Customers.Contracts, Suppliers.Contracts
+POS              -> Catalog/Inventory/Sales contracts (unchanged manifest) + OPTIONAL Pricing.Contracts, Payments.Contracts (constructor parameters defaulting to null)
+```
+Manifest dependencies are declared only for the hard dependencies (Purchasing: catalog, suppliers, inventory; Pricing: catalog). The optional ones (POS -> Pricing/Payments,
+Reporting -> everything) are deliberately NOT in any manifest, so no module is forced to exist. `IModuleManifest` was not changed. No cycles (ARCH-POS-020 covers the whole graph).
+
+### Tables and migrations
+| Module | Tables | Migration |
+|---|---|---|
+| Customers | cus_Customers, cus_CustomerAddresses, cus_CustomerContacts | InitialCustomersSchema |
+| Suppliers | sup_Suppliers, sup_SupplierAddresses, sup_SupplierContacts | InitialSuppliersSchema |
+| Purchasing | pur_PurchaseOrders, pur_PurchaseOrderLines | InitialPurchasingSchema |
+| Pricing | pri_PriceLists, pri_Prices | InitialPricingSchema |
+| Payments | pay_Payments | InitialPaymentsSchema |
+| Users | usr_Users, usr_Roles, usr_UserRoles, usr_RolePermissions | InitialUsersSchema |
+| Audit | aud_AuditEntries | InitialAuditSchema |
+| CashManagement | cash_Sessions, cash_Movements (filtered unique index: one OPEN session per drawer) | InitialCashManagementSchema |
+| Reporting | none | none (stores nothing; DatabaseSchemaVersion 0) |
+
+Every module has its own DbContext and its own migrations; all share the one SQLite file. Foreign keys exist only inside a module (verified against the real database by
+Integration.Tests). No migration modifies or drops an existing table.
+
+### New architecture rules
+ARCH-CUS-001..016, ARCH-SUP-001..016, ARCH-PUR-001..016, ARCH-PRI-001..016, ARCH-PAY-001..016, ARCH-USR-001..016, ARCH-AUD-001..016, ARCH-CASH-001..016, ARCH-REP-001..016
+(Architecture.Tests: 155 -> 299). Per module: layer references (Domain pure, Application -> Domain/Contracts only, UI never -> Infrastructure), Contracts leak no Domain types,
+cross-module references limited to the allowed *.Contracts set (ARCH-xxx-011), no HTTP, no licensing/update coupling, own DbContext/prefix, no other module references the
+module's non-Contract layers. ARCH-POS-019 was relaxed from "POS references no Payments assembly" to "only Payments.Contracts".
+
+### Tests
+New: Customers 38, Suppliers 38, Purchasing 45, Pricing 41, Payments 29, Users 50, Audit 26, CashManagement 34, Reporting 34, Integration 32, Architecture +144.
+Extended: POS 84 -> 95, Inventory 89 -> 92. Total 903 -> 1428, 0 failures. Each module has domain tests, application tests (in-memory SQLite through Tests.Common, other modules'
+contracts replaced by stubs), generated infrastructure tests (module lifecycle, manifest, migration applies to a real file, hosting registration) and contract tests.
+
+### Project references / packages
+No new NuGet package in any module (Microsoft.EntityFrameworkCore.Sqlite/Design 10.0.11, Microsoft.Extensions.Configuration.Binder 10.0.11 and Microsoft.Extensions.Hosting.Abstractions
+10.0.11 as in the existing modules). Tests: Tests.Common (EF Core Sqlite, DI), Integration.Tests (Microsoft.Data.Sqlite 10.0.11). New project references are the allowed *.Contracts
+projects listed in the dependency graph above, plus Pricing.Contracts and Payments.Contracts from POS.Application.
+
+### DI registrations (Stage 8)
+Per module `Add<M>Module(services, configuration)`: `<M>DbContext` (SQLite, same file, migrations assembly = <M>.Infrastructure), `Add<M>Core()` (unit of work, repositories, contract
+services - all Scoped - and command/query handlers - Transient), `IModule` singleton, `<M>DatabaseInitializer` hosted service. Reporting registers no DbContext and no initializer.
+Contract services registered: ICustomerLookup/ICustomerReader, ISupplierLookup/ISupplierReader, IPurchaseOrderReader, IPriceResolver, IPaymentService/IPaymentReader,
+IUserLookup/IUserPermissionChecker, IAuditRecorder/IAuditReader, ICashMovementRecorder/ICashSessionReader, IReportProvider; Inventory additionally registers IStockReceiptService.
+Optional consumers (POS handlers, Reporting handlers) take the contract as a nullable constructor parameter with a null default, so the container passes null when the module is absent.
+
+### Startup sequence
+Unchanged in shape: App.xaml.cs adds the hosting modules after POSHostingModule in this order - Reporting, CashManagement, Audit, Users, Payments, Pricing, Purchasing, Suppliers,
+Customers; the host starts hosted services in registration order, so each module initializer applies its pending migration before the main window is shown. A missing module simply
+means a missing registration: nothing else fails.
+
+### Stage 8 architectural decisions
+1. **Contracts-only, optional by construction.** Hard needs go into the manifest (Purchasing, Pricing); soft needs are nullable constructor parameters. The same host composition works with any subset of Stage 8 modules (Integration.Tests proves it).
+2. **No distributed transactions.** Purchasing receives a purchase order line by line through `IStockReceiptService` (new, minimal Inventory contract delegating to AddStock), saving after every line; it is resumable and idempotent per line, and a partial receipt leaves the order Submitted with the already-received lines marked (cancelling it is then refused), instead of pretending to be atomic.
+3. **POS is extended minimally.** `AddProductToCart` asks Pricing for a price when the module exists (snapshotted on the cart line); `CheckoutAsync(cartId, reference, POSPaymentRequest?)` records a payment through Payments after the sale is confirmed and before stock is issued. A failed payment cancels the sale; a failed stock issue voids the payment and cancels the sale. A payment request without the Payments module is rejected up front (POS.Checkout.PaymentsUnavailable).
+4. **Payments records, it does not process.** No gateway, no hardware; a payment points at anything through a generic (type, id) reference; cash tendered/change is computed; voiding keeps the record.
+5. **Users is identity and permission data only.** No password, credential, session or sign-in exists (authentication/security architecture belongs to a later stage); permission codes are stored, never interpreted; nothing enforces them yet.
+6. **Audit is append-only.** The entity has no mutators and the module exposes no update or delete at any layer; modules record to it through `IAuditRecorder` with plain values, so Audit knows no other module.
+7. **CashManagement tracks cash only.** One open session per drawer (application check plus a filtered unique index), outflows cannot take the drawer below zero, a movement reference makes the contract call idempotent per kind (retries never double-count), the counted close stores expected amount and variance.
+8. **Reporting stores nothing.** Pure calculators in Reporting.Domain; each report is an independent section that is Unavailable (not an error) when its source module is missing; the sales report scans a bounded window and says so (IsTruncated).
+9. **SQLite specifics.** Money is stored as TEXT through value converters; decimal aggregates are computed in memory (SQLite cannot translate them); search uses EF.Functions.Like with escaping; case-insensitive uniqueness is enforced by normalising on write.
+10. **Verification uses the real thing.** Besides per-module in-memory tests, Integration.Tests start the real host and apply the real migrations to a temporary file; they never touch the user's %LOCALAPPDATA% database.
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 7 is complete (foundation scope).
-Build: 0 errors, 0 warnings (52 projects).
-All 903 tests pass.
-Catalog, Inventory, Sales and POS database schemas are applied at startup by their initializers.
-Database: %LOCALAPPDATA%\GenericPOS\genericpos.db (Platform + Catalog + Inventory + Sales + POS tables in same file).
+None blocking. Stage 8 is complete.
+Build: 0 errors, 0 warnings (108 projects).
+All 1428 tests pass.
+Catalog, Inventory, Sales, POS and every Stage 8 module (except Reporting, which has no tables) apply their own migrations at startup.
+Database: %LOCALAPPDATA%\GenericPOS\genericpos.db (Platform + all module tables in the same file).
+
+Remaining limitations after Stage 8 (deferred work, none of it is a Stage 8 requirement):
+- AUDIT IS NOT ADOPTED: no module records to Audit yet. Adoption means giving a module an optional `IAuditRecorder` constructor parameter (the POS/Pricing pattern); it was left out to keep Stage 1-7 modules untouched.
+- USERS IS NOT AUTHENTICATION: no passwords, credentials, sessions or sign-in; permission codes are stored but no module checks them; the POS cashier is still a free-text reference not linked to a Users record.
+- CASHMANAGEMENT IS NOT CONNECTED TO POS/PAYMENTS: cash sales are not recorded into a drawer session automatically; `ICashMovementRecorder` is ready (idempotent per reference) for a later optional integration.
+- CUSTOMERS/SUPPLIERS: a sale does not carry a customer; the Catalog product has no supplier link; no credit, loyalty or statements.
+- PURCHASING: whole-line receiving only (no partial quantities, no supplier returns, no cost update back to Catalog); a failed multi-line receipt is resumable but not rolled back (no stock-reversal contract exists).
+- PRICING: price lists with effective periods and quantity breaks only; no customer-specific prices, promotions, discounts, tax or currency; POS still has Total == Subtotal.
+- PAYMENTS: records only (no gateway, no hardware, no refunds beyond voiding); POS pays the full cart total with one method (split payments exist in the Payments API but are not offered by POS).
+- REPORTING: minimal reports; the sales report scans at most 2000 recent sales (Sales.Contracts only exposes a recent list) and flags IsTruncated; no export, scheduling or caching.
+- The Stage 8 UI projects are minimal view models, not hosted in MainWindow, and (net10.0-windows) not covered by Architecture.Tests; module feature entitlements are not enforced (licensing is still not enforced anywhere).
+- Everything listed under "Remaining limitations after Stage 7/6/5D" still applies, except that Payments and Users now exist as modules (the 5D line "no Payments module" is superseded by the Stage 8 integration).
 
 Remaining limitations after Stage 7:
 - RUNTIME ADOPTION IS NOT WIRED: an Activated update changes the active pointer and leaves a verified, deployed version on disk, but nothing yet loads from
@@ -1410,4 +1512,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-04 - Stage 7 complete (update system foundation). Signed packages, verified/recoverable updates and a minimal update server implemented and tested.
+Last updated: 2026-10-05 - Stage 8 complete (Customers, Suppliers, Purchasing, Pricing, Payments, Users, Audit, CashManagement, Reporting). 1428 tests, 0 warnings; Stage 9 not started.

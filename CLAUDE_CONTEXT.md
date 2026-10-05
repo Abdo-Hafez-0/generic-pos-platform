@@ -1,7 +1,7 @@
 # CLAUDE_CONTEXT.md
 
 Practical onboarding snapshot for future Claude sessions. `PROJECT_STATE.md` remains the formal state document.
-Repository source code is the source of truth; last updated 2026-10-04 when Stage 7 was completed.
+Repository source code is the source of truth; last updated 2026-10-05 when Stage 8 was completed.
 
 ## 1. Project purpose
 Generic, modular, offline-first Inventory & POS platform meant to serve many business types (retail, wholesale,
@@ -36,11 +36,11 @@ App must work with no internet. No cloud calls in the operational path.
 
 ## 9. Implemented stages (committed)
 Stage 1 Foundation, 2 Client Host, 3 Database Foundation, 4 Module Contract, 5A Catalog, 5B Inventory, 5C Sales, 5D POS,
-6 Licensing (foundation), 7 Update System (foundation). Roadmap: 8 Additional Business Modules, 9 Cloud, 10 Hardware,
+6 Licensing (foundation), 7 Update System (foundation), 8 Additional Business Modules. Roadmap: 9 Cloud, 10 Hardware,
 11 Security Hardening, 12 Offline/Failure Testing. Never skip ahead.
 
 ## 10. Current stage
-Stage 7 (Update System) is COMPLETE as a foundation. Next roadmap stage is 8 (Additional Business Modules) - only when instructed.
+Stage 8 (Additional Business Modules) is COMPLETE. Next roadmap stage is 9 (Cloud / server administration) - only when instructed. Do not start it unprompted.
 
 ## 11. Stage results worth knowing
 **Stage 5C (Sales):** Sale/SaleItem/Return/ReturnItem/SalesTransaction; ISalesService/ISalesReader; `sal_` tables, migration
@@ -80,10 +80,12 @@ No Payments module exists; the payment step belongs between confirm and complete
 No cross-module transaction: see PROJECT_STATE.md "Stage 5D Architectural Decisions" #4 for partial-failure behaviour.
 Handlers are plain classes with `HandleAsync` (Platform ICommand/IQuery abstractions exist but are unused by all modules).
 
+**Stage 8 (Additional Business Modules):** nine independent five-layer modules with their own table prefix, DbContext and migration - Customers (cus_), Suppliers (sup_), Purchasing (pur_; needs Catalog/Suppliers/Inventory contracts), Pricing (pri_; needs Catalog.Contracts; IPriceResolver), Payments (pay_; records only, no gateway), Users (usr_; identity + roles + permission codes, NO authentication), Audit (aud_; append-only), CashManagement (cash_; drawer sessions, idempotent cash movements), Reporting (no tables; read-only reports over OPTIONAL read contracts, missing source = Unavailable section). Cross-module access is Contracts-only; soft dependencies are nullable constructor parameters, not manifest entries. POS was extended minimally and optionally: Pricing resolves the cart price, `CheckoutAsync(..., POSPaymentRequest?)` records a payment through Payments (void + cancel on later failure). Inventory gained `IStockReceiptService` for Purchasing. `IModuleManifest` is unchanged. 1428 tests (299 architecture, 32 integration against the real host + real SQLite). Decisions, tables, graph and limitations: PROJECT_STATE.md "Stage 8 Summary".
+
 ## 12. Solution structure
 `GenericPOS.sln`: `src/Platform/{Platform.Core,Contracts,Application,Infrastructure}`, `src/Client/{Client.Host,ModuleHost,Desktop,Licensing,Updater}`,
-`src/Modules/{Catalog,Inventory,Sales,POS}/<Module>.{Domain,Application,Contracts,Infrastructure,UI}` (52 projects total),
-`tests/{Architecture,Platform.Infrastructure,Platform.ModuleContract,Catalog,Inventory,Sales,POS,Licensing}.Tests`; `src/Licensing/Licensing.Contracts`, `src/Client/Client.Licensing(.Http)`, `src/Cloud/LicenseServer/*`, `src/Security/Security.Es256(.Signing)`, `src/Updates/Updates.{Contracts,Package}`, `src/Client/Client.Updater(.Http)`, `src/Cloud/UpdateServer/*`, `tools/{ModulePackager,UpdatePublisher}`, `tests/Updater.Tests`.
+`src/Modules/{Catalog,Inventory,Sales,POS,Customers,Suppliers,Purchasing,Pricing,Payments,Users,Audit,CashManagement,Reporting}/<Module>.{Domain,Application,Contracts,Infrastructure,UI}` (108 projects total),
+`tests/{Architecture,Platform.Infrastructure,Platform.ModuleContract,Catalog,Inventory,Sales,POS,Licensing,Customers,Suppliers,Purchasing,Pricing,Payments,Users,Audit,CashManagement,Reporting,Integration}.Tests` + `tests/Tests.Common` (shared in-memory SQLite helper); `src/Licensing/Licensing.Contracts`, `src/Client/Client.Licensing(.Http)`, `src/Cloud/LicenseServer/*`, `src/Security/Security.Es256(.Signing)`, `src/Updates/Updates.{Contracts,Package}`, `src/Client/Client.Updater(.Http)`, `src/Cloud/UpdateServer/*`, `tools/{ModulePackager,UpdatePublisher}`, `tests/Updater.Tests`.
 Docs at repo root: `Architecture & Solution Design.md`, `Generic Offline-First Inventory & POS Platform.md`,
 `Module Map & Dependency Specification.md`, `PROJECT_STATE.md`.
 
@@ -118,15 +120,15 @@ If push auth fails, stop and report. Commit trailer: `Co-Authored-By: Claude Son
 Clean after the Stage 5C commit is pushed (check `git status` at session start anyway).
 
 ## 19. Last relevant commit
-`feat(update): implement secure update system` (see `git log -1`). Before it: `e0d777d feat(licensing): implement offline-first license management`.
+`feat(stage8): ...` commits, one per module, then the Stage 8 integration tests + documentation commit (see `git log -12`). Before Stage 8: `60a8123`-era `feat(update): implement secure update system`.
 
 ## 20. Exact next task
-None assigned. Wait for the technical lead. Next roadmap stage: Stage 8 Additional Business Modules. Follow-ups (not in any stage): launcher/ModuleHost
-adoption of activated updates + calling ConfirmHealthyAsync, license enforcement points, IModuleMigrator in the business modules, Payments module,
-stock-reversal contract.
+None assigned. Wait for the technical lead. Next roadmap stage: Stage 9 (Cloud / server administration). Follow-ups (not in any stage): launcher/ModuleHost
+adoption of activated updates + calling ConfirmHealthyAsync, license enforcement points, IModuleMigrator in the business modules, stock-reversal contract,
+authentication on top of Users, adopting Audit/CashManagement/Customers from POS and Sales, hosting view models in MainWindow.
 
 ## 21. Known limitations / inconsistencies
-- No payments (no Payments module); checkout completes the sale and issues stock only.
+- Payments exist (Stage 8E) but only record payments (no gateway/hardware); POS records one payment for the full total, only when asked and only if the module is installed.
 - No stock-reversal contract; a failed checkout that already issued some lines needs manual stock correction.
 - No distributed transaction across module DbContexts.
 - PosView exists but is not hosted in MainWindow; POS has no discounts/tax (Total == Subtotal).
@@ -134,8 +136,8 @@ stock-reversal contract.
 - WPF UI projects are not covered by architecture tests (net10.0-windows TFM gap).
 - Licensing is not enforced anywhere yet; no clock-rollback protection; license server is in-memory and unauthenticated.
 - Updates verify/stage/activate but nothing loads the activated versions yet (no launcher; ModuleHost uses compiled-in modules); ConfirmHealthyAsync is not called by the host; update server is directory-based and unauthenticated.
-- Test baseline: 903 tests (Architecture 155, Catalog 64, Inventory 89, Platform.Infrastructure 19,
-  Platform.ModuleContract 112, Sales 103, POS 84, Licensing 109, Updater 168).
+- Stage 8 limitations: Audit is adopted by no module; Users has no authentication and nothing enforces permissions; CashManagement is not fed by POS/Payments; sales carry no customer; Purchasing receives whole lines only; Reporting's sales report scans at most 2000 recent sales (IsTruncated).
+- Test baseline: 1428 tests (Architecture 299, Catalog 64, Inventory 92, Platform.Infrastructure 19, Platform.ModuleContract 112, Sales 103, POS 95, Licensing 109, Updater 168, Customers 38, Suppliers 38, Purchasing 45, Pricing 41, Payments 29, Users 50, Audit 26, CashManagement 34, Reporting 34, Integration 32).
 
 ## 22. Rules for future Claude sessions
 1. Read PROJECT_STATE.md, this file, and the 3 architecture docs before acting.

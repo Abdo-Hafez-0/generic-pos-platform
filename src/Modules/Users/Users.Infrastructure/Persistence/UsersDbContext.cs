@@ -16,6 +16,7 @@ public sealed class UsersDbContext : DbContext
 
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<Role> Roles { get; set; } = null!;
+    public DbSet<UserCredential> Credentials { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -18,6 +18,9 @@ internal sealed class EfUserRepository(UsersDbContext dbContext) : IUserReposito
     public async Task AddAsync(User user, CancellationToken cancellationToken = default)
         => await dbContext.Users.AddAsync(user, cancellationToken);
 
+    public async Task<bool> AnyAsync(CancellationToken cancellationToken = default)
+        => await dbContext.Users.AnyAsync(cancellationToken);
+
     public async Task<(IReadOnlyList<User> Items, int TotalCount)> ListAsync(
         string? search, bool includeInactive, int skip, int take, CancellationToken cancellationToken = default)
     {
@@ -63,4 +66,13 @@ internal sealed class EfRoleRepository(UsersDbContext dbContext) : IRoleReposito
         var wanted = ids.ToList();
         return await dbContext.Roles.AsNoTracking().Include(r => r.Permissions).Where(r => wanted.Contains(r.Id)).ToListAsync(cancellationToken);
     }
+}
+
+internal sealed class EfUserCredentialRepository(UsersDbContext dbContext) : IUserCredentialRepository
+{
+    public async Task<UserCredential?> GetByUserIdAsync(UserId userId, CancellationToken cancellationToken = default)
+        => await dbContext.Credentials.FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
+
+    public async Task AddAsync(UserCredential credential, CancellationToken cancellationToken = default)
+        => await dbContext.Credentials.AddAsync(credential, cancellationToken);
 }

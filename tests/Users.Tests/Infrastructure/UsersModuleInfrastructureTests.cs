@@ -15,7 +15,7 @@ namespace Users.Tests.Infrastructure;
 public sealed class UsersModuleInfrastructureTests
 {
 
-    private static readonly string[] ExpectedTables = ["usr_Users", "usr_Roles", "usr_UserRoles", "usr_RolePermissions"];
+    private static readonly string[] ExpectedTables = ["usr_Users", "usr_Roles", "usr_UserRoles", "usr_RolePermissions", "usr_UserCredentials"];
 
     private static async Task<(SqliteConnection Connection, UsersDbContext Context)> OpenMigratedAsync()
     {

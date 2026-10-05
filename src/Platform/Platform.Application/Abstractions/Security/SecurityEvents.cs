@@ -74,6 +74,13 @@ public interface ISecurityEventSink
     Task RecordAsync(SecurityEvent securityEvent, CancellationToken cancellationToken = default);
 }
 
+/// <summary>Lets a producer that treats auditing as optional record without a null check.</summary>
+public static class SecurityEventSinkExtensions
+{
+    public static Task TryRecordAsync(this ISecurityEventSink? sink, SecurityEvent securityEvent, CancellationToken cancellationToken = default)
+        => sink is null ? Task.CompletedTask : sink.RecordAsync(securityEvent, cancellationToken);
+}
+
 /// <summary>Discards events (used when nothing records them).</summary>
 public sealed class NullSecurityEventSink : ISecurityEventSink
 {

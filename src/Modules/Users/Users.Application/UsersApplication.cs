@@ -18,7 +18,15 @@ namespace Users.Application.Repositories
         Task<User?> GetByIdAsync(UserId id, CancellationToken cancellationToken = default);
         Task<User?> GetByUsernameAsync(string normalizedUsername, CancellationToken cancellationToken = default);
         Task AddAsync(User user, CancellationToken cancellationToken = default);
+        Task<bool> AnyAsync(CancellationToken cancellationToken = default);
         Task<(IReadOnlyList<User> Items, int TotalCount)> ListAsync(string? search, bool includeInactive, int skip, int take, CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>Credential material (password hash, lockout state). Separate from <see cref="IUserRepository"/> so that ordinary user queries never touch it.</summary>
+    public interface IUserCredentialRepository
+    {
+        Task<UserCredential?> GetByUserIdAsync(UserId userId, CancellationToken cancellationToken = default);
+        Task AddAsync(UserCredential credential, CancellationToken cancellationToken = default);
     }
 
     public interface IRoleRepository

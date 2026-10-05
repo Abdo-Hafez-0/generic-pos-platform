@@ -77,3 +77,24 @@ internal sealed class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
         builder.HasOne<Role>().WithMany().HasForeignKey(r => r.RoleId).OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+/// <summary>Table: usr_UserCredentials (one row per user that has a password). Holds only a HASH, never a password.</summary>
+internal sealed class UserCredentialConfiguration : IEntityTypeConfiguration<UserCredential>
+{
+    public void Configure(EntityTypeBuilder<UserCredential> builder)
+    {
+        builder.ToTable("usr_UserCredentials");
+
+        builder.HasKey(c => c.UserId);
+        builder.Property(c => c.UserId).HasConversion(id => id.Value, v => new UserId(v)).IsRequired();
+        builder.Property(c => c.PasswordHash).HasMaxLength(UserCredential.MaxHashLength).IsRequired();
+        builder.Property(c => c.PasswordChangedAt).IsRequired();
+        builder.Property(c => c.MustChangePassword).IsRequired();
+        builder.Property(c => c.FailedAttempts).IsRequired();
+        builder.Property(c => c.LockedUntil);
+        builder.Property(c => c.LastFailedAt);
+        builder.Property(c => c.LastSignInAt);
+
+        builder.HasOne<User>().WithOne().HasForeignKey<UserCredential>(c => c.UserId).OnDelete(DeleteBehavior.Cascade);
+    }
+}

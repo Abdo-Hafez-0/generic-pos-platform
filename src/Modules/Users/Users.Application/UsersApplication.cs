@@ -1,4 +1,5 @@
 using Platform.Application.Abstractions.Authorization;
+using Platform.Application.Abstractions.Security;
 using Platform.Core.Results;
 using Users.Domain.Entities;
 using Users.Domain.ValueObjects;
@@ -64,7 +65,7 @@ namespace Users.Application.Commands
 
     public sealed record CreateUserCommand(string Username, string DisplayName, string? Email = null);
 
-    public sealed class CreateUserCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
+    public sealed class CreateUserCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null, ISecurityEventSink? events = null)
     {
         public async Task<Result<Guid>> HandleAsync(CreateUserCommand command, CancellationToken cancellationToken = default)
         {
@@ -79,6 +80,9 @@ namespace Users.Application.Commands
 
             await users.AddAsync(created.Value, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            await events.TryRecordAsync(SecurityEvent.Create(
+                "security.user.created", SecurityEventOutcome.Success, currentUser?.UserId, currentUser?.UserName,
+                "user", created.Value.Id.ToString(), "user created"), cancellationToken);
             return Result.Success(created.Value.Id.Value);
         }
     }
@@ -105,7 +109,7 @@ namespace Users.Application.Commands
 
     public sealed record DeactivateUserCommand(Guid UserId);
 
-    public sealed class DeactivateUserCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
+    public sealed class DeactivateUserCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null, ISecurityEventSink? events = null)
     {
         public async Task<Result> HandleAsync(DeactivateUserCommand command, CancellationToken cancellationToken = default)
         {
@@ -119,13 +123,16 @@ namespace Users.Application.Commands
             if (result.IsFailure) return result;
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            await events.TryRecordAsync(SecurityEvent.Create(
+                "security.user.deactivated", SecurityEventOutcome.Success, currentUser?.UserId, currentUser?.UserName,
+                "user", command.UserId.ToString(), "user deactivated: sign-in and every permission end immediately"), cancellationToken);
             return Result.Success();
         }
     }
 
     public sealed record ReactivateUserCommand(Guid UserId);
 
-    public sealed class ReactivateUserCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
+    public sealed class ReactivateUserCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null, ISecurityEventSink? events = null)
     {
         public async Task<Result> HandleAsync(ReactivateUserCommand command, CancellationToken cancellationToken = default)
         {
@@ -139,13 +146,16 @@ namespace Users.Application.Commands
             if (result.IsFailure) return result;
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            await events.TryRecordAsync(SecurityEvent.Create(
+                "security.user.reactivated", SecurityEventOutcome.Success, currentUser?.UserId, currentUser?.UserName,
+                "user", command.UserId.ToString(), "user reactivated"), cancellationToken);
             return Result.Success();
         }
     }
 
     public sealed record AssignRoleCommand(Guid UserId, Guid RoleId);
 
-    public sealed class AssignRoleCommandHandler(IUserRepository users, IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
+    public sealed class AssignRoleCommandHandler(IUserRepository users, IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null, ISecurityEventSink? events = null)
     {
         public async Task<Result> HandleAsync(AssignRoleCommand command, CancellationToken cancellationToken = default)
         {
@@ -162,13 +172,16 @@ namespace Users.Application.Commands
             if (result.IsFailure) return result;
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            await events.TryRecordAsync(SecurityEvent.Create(
+                "security.role.assigned", SecurityEventOutcome.Success, currentUser?.UserId, currentUser?.UserName,
+                "user", command.UserId.ToString(), $"role {command.RoleId} assigned"), cancellationToken);
             return Result.Success();
         }
     }
 
     public sealed record RemoveRoleCommand(Guid UserId, Guid RoleId);
 
-    public sealed class RemoveRoleCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
+    public sealed class RemoveRoleCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null, ISecurityEventSink? events = null)
     {
         public async Task<Result> HandleAsync(RemoveRoleCommand command, CancellationToken cancellationToken = default)
         {
@@ -182,6 +195,9 @@ namespace Users.Application.Commands
             if (result.IsFailure) return result;
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            await events.TryRecordAsync(SecurityEvent.Create(
+                "security.role.removed", SecurityEventOutcome.Success, currentUser?.UserId, currentUser?.UserName,
+                "user", command.UserId.ToString(), $"role {command.RoleId} removed"), cancellationToken);
             return Result.Success();
         }
     }
@@ -190,7 +206,7 @@ namespace Users.Application.Commands
 
     public sealed record CreateRoleCommand(string Name, string? Description = null);
 
-    public sealed class CreateRoleCommandHandler(IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
+    public sealed class CreateRoleCommandHandler(IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null, ISecurityEventSink? events = null)
     {
         public async Task<Result<Guid>> HandleAsync(CreateRoleCommand command, CancellationToken cancellationToken = default)
         {
@@ -205,13 +221,16 @@ namespace Users.Application.Commands
 
             await roles.AddAsync(created.Value, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            await events.TryRecordAsync(SecurityEvent.Create(
+                "security.role.created", SecurityEventOutcome.Success, currentUser?.UserId, currentUser?.UserName,
+                "role", created.Value.Id.ToString(), "role created"), cancellationToken);
             return Result.Success(created.Value.Id.Value);
         }
     }
 
     public sealed record GrantPermissionCommand(Guid RoleId, string Permission);
 
-    public sealed class GrantPermissionCommandHandler(IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
+    public sealed class GrantPermissionCommandHandler(IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null, ISecurityEventSink? events = null)
     {
         public async Task<Result> HandleAsync(GrantPermissionCommand command, CancellationToken cancellationToken = default)
         {
@@ -225,13 +244,16 @@ namespace Users.Application.Commands
             if (result.IsFailure) return result;
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            await events.TryRecordAsync(SecurityEvent.Create(
+                "security.permission.granted", SecurityEventOutcome.Success, currentUser?.UserId, currentUser?.UserName,
+                "role", command.RoleId.ToString(), $"permission {command.Permission} granted"), cancellationToken);
             return Result.Success();
         }
     }
 
     public sealed record RevokePermissionCommand(Guid RoleId, string Permission);
 
-    public sealed class RevokePermissionCommandHandler(IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization)
+    public sealed class RevokePermissionCommandHandler(IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null, ISecurityEventSink? events = null)
     {
         public async Task<Result> HandleAsync(RevokePermissionCommand command, CancellationToken cancellationToken = default)
         {
@@ -245,6 +267,9 @@ namespace Users.Application.Commands
             if (result.IsFailure) return result;
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            await events.TryRecordAsync(SecurityEvent.Create(
+                "security.permission.revoked", SecurityEventOutcome.Success, currentUser?.UserId, currentUser?.UserName,
+                "role", command.RoleId.ToString(), $"permission {command.Permission} revoked"), cancellationToken);
             return Result.Success();
         }
     }

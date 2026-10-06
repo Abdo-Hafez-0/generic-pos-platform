@@ -307,4 +307,22 @@ public sealed class SecurityBoundaryTests
         foreach (var module in new[] { "ClientSecurityHostingModule", "LicensingHostingModule", "UpdaterHostingModule", "UsersHostingModule", "AuditHostingModule" })
             Assert.Contains($"new {module}()", composition);
     }
+
+    [Fact(DisplayName = "ARCH-SEC-017: The desktop shows the sign-in window before the shell and exits when nobody signs in; the window is glue over InteractiveSignInService")]
+    public void DesktopRequiresSignInBeforeTheShell()
+    {
+        var app = File.ReadAllText(Path.Combine(RepoRoot(), "src", "Client", "Client.Desktop", "App.xaml.cs"));
+        var signIn = app.IndexOf("GetRequiredService<SignInWindow>()", StringComparison.Ordinal);
+        var shell = app.IndexOf("GetRequiredService<MainWindow>()", StringComparison.Ordinal);
+
+        Assert.True(signIn >= 0 && shell > signIn, "App must resolve and show SignInWindow before MainWindow.");
+        Assert.Contains("ShowDialog() != true", app[signIn..shell]);
+        Assert.Contains("Shutdown(", app[signIn..shell]);
+
+        // the window decides nothing itself: no handler, repository or hasher is used directly
+        var window = File.ReadAllText(Path.Combine(RepoRoot(), "src", "Client", "Client.Desktop", "SignInWindow.xaml.cs"));
+        Assert.Contains("InteractiveSignInService", window);
+        foreach (var forbidden in new[] { "CommandHandler", "Repository", "IPasswordHasher", "ISessionManager", "DbContext" })
+            Assert.DoesNotContain(forbidden, window);
+    }
 }

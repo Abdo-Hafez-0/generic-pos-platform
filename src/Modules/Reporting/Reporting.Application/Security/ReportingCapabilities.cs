@@ -7,11 +7,11 @@ public static class ReportingCapabilities
 {
     public const string Module = "reporting";
 
-        public const string ViewReports = "reporting.view";
+    public const string ViewReports = "reporting.view";
 
     public static IReadOnlyList<CapabilityDescriptor> All { get; } =
     [
-            new(ViewReports, Module, "View reports", "Open the business reports. Available in every license state: your data stays readable.", LicenseRequirement.None)
+        new(ViewReports, Module, "View reports", "Open the business reports. Available in every license state: your data stays readable.", LicenseRequirement.None)
     ];
 }
 

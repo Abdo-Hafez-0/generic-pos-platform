@@ -7,11 +7,11 @@ public static class SuppliersCapabilities
 {
     public const string Module = "suppliers";
 
-        public const string ManageSuppliers = "suppliers.supplier.manage";
+    public const string ManageSuppliers = "suppliers.supplier.manage";
 
     public static IReadOnlyList<CapabilityDescriptor> All { get; } =
     [
-            new(ManageSuppliers, Module, "Manage suppliers", "Create and change suppliers, their addresses and contacts, and deactivate them.", LicenseRequirement.Module)
+        new(ManageSuppliers, Module, "Manage suppliers", "Create and change suppliers, their addresses and contacts, and deactivate them.", LicenseRequirement.Module)
     ];
 }
 

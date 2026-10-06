@@ -174,7 +174,7 @@ public sealed class UpdateIntegrationTests
         var store = desktop.Services.GetRequiredService<Client.Updater.Infrastructure.UpdateStore>();
         var journal = Assert.Single(store.ListJournals());
         Assert.Equal(UpdateState.RecoveryRequired, journal.State);                // not activated; the operator must decide
-        Assert.Empty(store.ListInstalledTargets().Where(t => store.ReadActive(t) is not null));
+        Assert.DoesNotContain(store.ListInstalledTargets(), t => store.ReadActive(t) is not null);
         Assert.Equal("damaged", await ScalarAsync(desktop.Host, "SELECT Name FROM cat_Products"));
 
         // the restore point is a real, consistent copy of the database as it was before the migration

@@ -83,6 +83,7 @@ public static class UsersServicesExtensions
         services.AddTransient<Users.Application.Commands.ChangePasswordCommandHandler>();
         services.AddTransient<Users.Application.Commands.SetUserPasswordCommandHandler>();
         services.AddTransient<Users.Application.Commands.BootstrapAdministratorCommandHandler>();
+        services.AddTransient<Users.Application.Security.InteractiveSignInService>();
         services.AddTransient<Users.Application.Commands.CreateUserCommandHandler>();
         services.AddTransient<Users.Application.Commands.UpdateUserCommandHandler>();
         services.AddTransient<Users.Application.Commands.DeactivateUserCommandHandler>();

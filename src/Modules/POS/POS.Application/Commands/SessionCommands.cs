@@ -11,12 +11,18 @@ namespace POS.Application.Commands;
 // OpenPosSessionCommand
 // ============================================================
 
+/// <summary>
+/// Opens a till session. When a user is signed in, the session is attributed to THAT user: the supplied
+/// <see cref="CashierReference"/> is only used when nobody is signed in (hosts without authentication), so a screen
+/// cannot open a session in someone else's name and receipts always show who really sold.
+/// </summary>
 public sealed record OpenPosSessionCommand(string CashierReference, Guid WarehouseId);
 
 public sealed class OpenPosSessionCommandHandler(
     IPosSessionRepository sessionRepository,
     IPosUnitOfWork unitOfWork,
-    IAuthorizationService authorization)
+    IAuthorizationService authorization,
+    ICurrentUser? currentUser = null)
 {
     public async Task<Result<Guid>> HandleAsync(
         OpenPosSessionCommand command,
@@ -25,7 +31,8 @@ public sealed class OpenPosSessionCommandHandler(
         var allowed = await authorization.AuthorizeAsync(POS.Application.Security.POSCapabilities.ManageSession, cancellationToken);
         if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
 
-        var sessionResult = PosSession.Open(command.CashierReference, command.WarehouseId);
+        var cashier = currentUser is { IsAuthenticated: true } ? currentUser.UserName : command.CashierReference;
+        var sessionResult = PosSession.Open(cashier, command.WarehouseId);
         if (sessionResult.IsFailure)
             return Result.Failure<Guid>(sessionResult.Error);
 

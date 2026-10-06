@@ -247,6 +247,38 @@ public sealed class PosAuthorizationTests
         Assert.Equal(SecurityErrors.ForbiddenCode, cart.ErrorCode);
     }
 
+    // ------------------------------------------------------------------ attribution
+
+    [Fact]
+    public async Task A_session_is_attributed_to_the_signed_in_user_not_to_the_name_a_screen_supplies()
+    {
+        var session = new SessionContext();
+        await using var db = await PosTestDatabase.CreateAsync(configureServices: s =>
+        {
+            s.AddSingleton<IAuthorizationService>(new ScriptedAuthorizationService(POSCapabilities.ManageSession));
+            s.AddSingleton<ICurrentUser>(session);
+        });
+        session.SignIn(new AuthenticatedIdentity(Guid.NewGuid(), "ann", "Ann"));
+        using var scope = db.CreateScope();
+
+        var opened = await scope.ServiceProvider.GetRequiredService<IPOSService>().OpenSessionAsync("bob", Guid.NewGuid());
+        var stored = await scope.ServiceProvider.GetRequiredService<IPOSReader>().GetSessionAsync(opened.SessionId);
+
+        Assert.True(opened.IsSuccess, opened.ErrorMessage);
+        Assert.Equal("ann", stored!.CashierReference);
+    }
+
+    [Fact]
+    public async Task Without_authentication_in_the_host_the_supplied_reference_is_kept()
+    {
+        await using var db = await PosTestDatabase.CreateAsync();
+        using var scope = db.CreateScope();
+
+        var opened = await scope.ServiceProvider.GetRequiredService<IPOSService>().OpenSessionAsync("till-3", Guid.NewGuid());
+
+        Assert.Equal("till-3", (await scope.ServiceProvider.GetRequiredService<IPOSReader>().GetSessionAsync(opened.SessionId))!.CashierReference);
+    }
+
     // ------------------------------------------------------------------ the declaration itself
 
     [Fact]

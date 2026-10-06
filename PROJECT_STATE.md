@@ -26,7 +26,21 @@ determined by customer license entitlements.
 
 ## Current Implementation Phase
 
-**Stage 11 COMPLETE (security hardening): offline authentication, capability-based authorization enforced in the application handlers, centralized license enforcement, protected local licensing state, audited security events**
+**Stage 12 COMPLETE (offline and failure testing): the platform is proven correct and usable when things fail - no network, a cloud that fails in every way, a locked or damaged database, dying peripherals, interrupted operations**
+
+Stage 12 proved the offline-first claim with real SQLite, the real desktop composition and deterministic failure injection, and in doing so found and fixed the one structural weakness: a business operation that spans modules was not one transaction.
+
+    POS checkout (Sales + Payments + Inventory + POS) and Purchasing receive (Purchasing + Inventory)
+        ---> IAtomicOperation (Platform.Application)  ---> SharedDatabaseScope (Platform.Infrastructure)
+                 ONE connection per DI scope shared by the business module contexts, ONE real SQLite transaction (BEGIN IMMEDIATE ... COMMIT)
+                 failed Result / exception / lost connection => the DATABASE rolls everything back (no compensating writes), contexts forget what was undone
+    After the commit only: receipt, drawer (devices cannot be rolled back and can never undo a sale)
+    Cloud (license / update servers): every failure is a non-fatal result with a plain message; local work never waits for, or depends on, it
+
+Implemented and tested: see "Stage 12 Summary" (defects found and fixed, decisions, failure matrix, offline workflows, recovery scenarios, limitations) and "Stage 12" under Completed Work.
+Stage 11 is unchanged in behavior; its decisions (offline authentication, capabilities, license enforcement, clock rollback, protected identity) were re-verified under failure.
+
+### Previous phase - Stage 11 COMPLETE (security hardening): offline authentication, capability-based authorization enforced in the application handlers, centralized license enforcement, protected local licensing state, audited security events**
 
 Security is now a layer of the platform, not a property of the screens. Every mutating business handler refuses before it acts unless the signed-in user CURRENTLY holds the capability its module declared; license
 entitlements are enforced in that one place; the installation identity and the clock mark are protected at rest; every security-relevant event reaches the append-only audit log without ever carrying a secret.
@@ -446,9 +460,23 @@ Generic Platform document sections 18 and 53. 17 commits (see "Stage 11 Summary 
 
 ---
 
+### Stage 12 - Offline & Failure Testing (COMPLETE)
+Scope source: the Stage 12 task text (the roadmap file is not in the repository). Goal: prove the platform stays correct and usable when things fail, with real SQLite, the real desktop composition and deterministic failure injection; fix only defects the testing exposes.
+- [x] Audit first (no code changed before it): existing resilience = hardware isolation (Stage 10), optional cloud clients mapping network errors to results (Stage 6/7), startup recovery in the updater (Stage 7), per-module migrations. Existing failure tests were targeted (one network failure per client, hardware isolation, the offline POS path). The highest-risk boundary was found by reading the code, not assumed: POS checkout and Purchasing receive spanned separate module DbContexts/connections with no shared transaction (compensation + "durable progress per line"); the fix was approved before it was made.
+- [x] Platform.Application/Abstractions/Data/IAtomicOperation (new) + Platform.Infrastructure/Persistence/SharedDatabaseScope (new): one connection per DI scope shared by the business module contexts (UseSharedSqlite), one real BEGIN IMMEDIATE transaction, rollback by the database on a failed Result, an exception or a lost connection; nested calls join; AtomicSaveChangesInterceptor stops EF's nested per-save transaction while an operation runs and clears a context's tracked state after a failed save or a rolled-back operation. Ten business modules register through UseSharedSqlite (Users and Audit stay independent ON PURPOSE: an audit record must survive the rollback of what it describes).
+- [x] POS.Application CheckoutCartCommandHandler: steps 1-8 (cart + session read, validation, stock re-check, sale, lines, payment, stock issue, completion, cart checked out) are ONE transaction; peripherals run after the commit; compensation (cancel sale, void payment, "manual stock correction") now exists only in the fallback for hosts without IAtomicOperation (unit-test hosts). Purchasing ReceivePurchaseOrderCommandHandler: all lines + order progress commit together or not at all (resumable per-line progress remains only in the fallback).
+- [x] POS.Infrastructure POSService: every action converts an unexpected failure into a plain result ("The operation could not be completed and nothing was changed...", POS.OperationFailed / POS.Checkout.NotSaved); details go to the log only. Client.Host StartupFailure + App.xaml.cs: a failed start shows a plain statement instead of the exception text. Licensing/Updater HTTP clients and LicenseService: failure messages no longer carry exception text and say "Local operation is not affected".
+- [x] Platform.Infrastructure DatabaseOptions.BusyTimeoutSeconds (optional, bounded 1..600; 0 would mean "wait forever" in the driver): a locked database fails in bounded time and is testable deterministically.
+- [x] Tests (129 new; see "Stage 12 Summary" for the matrix): Integration.Tests (+56) AtomicityFailureTests, OfflineWorkflowTests, DatabaseFailureTests, RestartAndRecoveryTests, HardwareFailureTests, LicenseAndSecurityFailureTests with FailureTestKit (database-level failure injection through SQLite triggers, direct database inspection), OfflineDesktop (production-like composition on a network that refuses and counts every request), SignedLicenseWorld (extracted from SecurityIntegrationTests); Licensing.Tests (+30) LicenseServerOutageTests; Updater.Tests (+27) UpdateServerOutageTests; Tests.Common/Network FaultInjectingHandler; Platform.Infrastructure.Tests (+8) SharedDatabaseScopeTests; Architecture.Tests (+8) ARCH-RES-001..008 (ResilienceBoundaryTests).
+- [x] Real-executable smoke runs (Windows, isolated folders, no network configured): Client.Desktop.exe starts offline, creates the database and the protected identity file, reaches the sign-in screen and closes cleanly; with a corrupt database file the real executable shows the plain "local database could not be opened - nothing was changed or deleted" message (read through UI Automation) and the file is byte-identical afterwards.
+- [x] Build: 0 errors, 0 warnings (120 projects, --no-incremental); all 2254 tests pass (22 test projects), 0 failed, 0 skipped.
+- [x] Not done by design (see the Stage 12 limitations): a real process kill, a real full disk, the real OS certificate store, physical devices, UI automation of the WPF screens, load testing.
+
+---
+
 ## Current Task
 
-**Stage 11 - COMPLETE (Security Hardening). Stopped: Stage 12 has not been started.**
+**Stage 12 - COMPLETE (Offline/Failure Testing). Stopped: Stage 13 has not been started.**
 
 ---
 
@@ -456,7 +484,7 @@ Generic Platform document sections 18 and 53. 17 commits (see "Stage 11 Summary 
 
 **Awaiting instruction (technical lead decides).**
 
-Next roadmap stage: Stage 12 (Offline/Failure Testing) - only when instructed. Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; hosting the sign-in screen, first-run administrator setup, PosView and the Stage 8 view models in MainWindow (the desktop currently has NO screen that signs a user in - see Stage 11 deferred work); forwarding key presses to IKeyboardInputSink; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
+Next roadmap stage: Stage 13 (Verification campaign) - only when instructed. Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; hosting the sign-in screen, first-run administrator setup, PosView and the Stage 8 view models in MainWindow (the desktop currently has NO screen that signs a user in - see Stage 11 deferred work); forwarding key presses to IKeyboardInputSink; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
 
 ---
 
@@ -1664,7 +1692,7 @@ means a missing registration: nothing else fails.
 
 ### Stage 8 architectural decisions
 1. **Contracts-only, optional by construction.** Hard needs go into the manifest (Purchasing, Pricing); soft needs are nullable constructor parameters. The same host composition works with any subset of Stage 8 modules (Integration.Tests proves it).
-2. **No distributed transactions.** Purchasing receives a purchase order line by line through `IStockReceiptService` (new, minimal Inventory contract delegating to AddStock), saving after every line; it is resumable and idempotent per line, and a partial receipt leaves the order Submitted with the already-received lines marked (cancelling it is then refused), instead of pretending to be atomic.
+2. **No distributed transactions.** Purchasing receives a purchase order line by line through `IStockReceiptService` (new, minimal Inventory contract delegating to AddStock), saving after every line; it is resumable and idempotent per line, and a partial receipt leaves the order Submitted with the already-received lines marked (cancelling it is then refused), instead of pretending to be atomic. **[Superseded in Stage 12: checkout and purchase receive now run as ONE SQLite transaction (IAtomicOperation); see Stage 12 Summary.]**
 3. **POS is extended minimally.** `AddProductToCart` asks Pricing for a price when the module exists (snapshotted on the cart line); `CheckoutAsync(cartId, reference, POSPaymentRequest?)` records a payment through Payments after the sale is confirmed and before stock is issued. A failed payment cancels the sale; a failed stock issue voids the payment and cancels the sale. A payment request without the Payments module is rejected up front (POS.Checkout.PaymentsUnavailable).
 4. **Payments records, it does not process.** No gateway, no hardware; a payment points at anything through a generic (type, id) reference; cash tendered/change is computed; voiding keeps the record.
 5. **Users is identity and permission data only.** No password, credential, session or sign-in exists (authentication/security architecture belongs to a later stage); permission codes are stored, never interpreted; nothing enforces them yet.
@@ -1812,7 +1840,7 @@ NO physical printer, drawer, scanner or scale was available; correctness against
 - Nothing feeds `IKeyboardInputSink` yet: PosView is still not hosted in MainWindow (an earlier limitation), so a configured keyboard-wedge scanner has no key source until the UI hosting exists. `IPOSBarcodeInput` is not yet bound to the view model.
 - `FileDeviceTransport` opens an EXISTING path and writes from the start; it never creates the path. Two writers to the same ordinary FILE overwrite each other (devices are streams, so this only matters in tests).
 - The receipt of a reprint carries no payment lines; "no sale" drawer opens are not permission-checked (authorization is Stage 11).
-- The Stage 12 failure campaign (unplug during a sale, crash during printing, hardware failure under load) is NOT done; Stage 10 proves the isolation rules with targeted tests only.
+- The Stage 12 failure campaign (unplug during a sale, crash during printing, hardware failure) was done in Stage 12 (see "Stage 12 Summary"); under LOAD (many sales per second) it was not.
 
 ---
 
@@ -1944,7 +1972,8 @@ commit, listed in the commit history below).
 | Runtime adoption of activated updates (launcher/ModuleHost) | Deferred since Stage 7 | Stage 14 |
 | Automatic background license renewal | Deferred: user path (RenewLicense) and system path (ILicenseService.RenewAsync) exist | Licensing follow-up |
 | WPF screens have no automated UI tests | Accepted (TFM gap); flow logic is unit-tested, startup smoke-run | Stage 13 verification campaign |
-| Failure campaign, verification campaign, packaging, production readiness | Not Stage 11 | Stages 12-15 |
+| Failure campaign | DONE in Stage 12 | - |
+| Verification campaign, packaging, production readiness | Not Stage 11 | Stages 13-15 |
 
 ### Stage 11 commit history (all on master, each built and tested before committing)
 51ada3d foundation (authorization, session, security events) | d420ba7 offline authentication in Users | b6cffe2 Users enforcement | ad0f628 POS enforcement | 87e0e7d Catalog + Inventory enforcement | 634363b Purchasing + Payments + CashManagement |
@@ -1954,14 +1983,75 @@ Review corrections (2026-10-06): 6c20057 POS sessions attributed to the signed-i
 cad0eee LicenseNotice (plain-words license state incl. clock rollback) | 2aeded0 desktop start screen + sign-out | 5e9eded audit buffer waits for the audit store | 3fa9bb4 capability files whitespace |
 8df863d ARCH-SEC-017 | (review docs commit)
 
+## Stage 12 Summary
+
+### The operational rule (read before changing anything)
+**Offline business operations must remain functional without cloud connectivity unless the specific operation inherently requires an online service.** Selling, purchasing, stock work, cash sessions, sign-in, license EVALUATION and reading your own data never touch the network; the only operations that need the cloud are activating or renewing a license and checking for / downloading an update, and they fail with a plain message ("... could not be reached. Local operation is not affected") while everything else keeps working. Ordering inside an operation: database work first, in one transaction; devices and network only after the commit (they cannot be rolled back and must never undo a sale).
+
+### Defects found by Stage 12 and fixed (each has a test that failed before the fix or exercises it)
+| # | Defect | Fix | Evidence |
+|---|---|---|---|
+| 1 | Checkout and purchase receive were not atomic: separate contexts/connections, no shared transaction. A failed step left a Confirmed sale or part of a purchase; a failed stock issue after earlier lines could not be undone; a retry after a crash could duplicate the sale and the stock deduction | IAtomicOperation / SharedDatabaseScope (one real SQLite transaction across the module contexts) | 12 AtomicityFailureTests: all fail against the old code, all pass with the fix |
+| 2 | A double submit sold a cart twice: the cart was read before the transaction, so two simultaneous checkouts both saw it open | the transaction starts first (BEGIN IMMEDIATE serialises writers) and the cart is read inside it | TwoCheckoutsOfTheSameCart... failed 3 of 3 on the old order, passes 5 of 5 now |
+| 3 | After a failed save the failed entities stayed tracked: the next call in the same scope worked on a change that never reached the database (a cart edited in memory, then checked out empty) | failed saves and rolled-back operations clear the tracked state | EveryPosAction_ReportsAPlainFailure... |
+| 4 | An unexpected database failure reached the cashier as a raw exception (database wording, table names) | POSService returns a plain "nothing was changed" result; details only in the log | DatabaseFailureTests, AtomicityFailureTests |
+| 5 | A failed start-up showed the raw exception text (database wording, file paths) | StartupFailure: plain statement; real executable verified | DatabaseFailureTests + executable smoke run |
+| 6 | Cloud failure messages carried exception text (host names, OS wording) and did not say local work continues | fixed wording in LicenseService and both HTTP clients | outage tests, OfflineWorkflowTests |
+| 7 | A locked database could only be waited on for the driver default (30 s) and could not be tested deterministically | optional Database:BusyTimeoutSeconds (1..600) | DatabaseFailureTests |
+
+### Decisions introduced
+1. **One transaction per business operation, owned by the platform.** Modules keep separate DbContexts and never reference each other; they take part in the transaction only by registering their context through `UseSharedSqlite` (ARCH-RES-003) and orchestrators run through `IAtomicOperation` (ARCH-RES-004: any handler that writes through the Inventory, Sales or Payments contracts must take it). Hosts that register no atomic operation keep the older step-by-step behavior, so unit-test hosts are unchanged.
+2. **Users and Audit are deliberately outside the business transaction** (own connection): audit records and sign-in/lockout state must survive the rollback of the operation they describe. Consequence: nothing inside a business transaction may write to them (nothing does; a write would wait for the lock). A new persistent module must be classified in ARCH-RES-003.
+3. **One DI scope per user action.** A failed operation clears what the contexts track, but a context that mutated an aggregate and failed BEFORE saving keeps that in-memory change; the rule that keeps this safe is the one the codebase already follows (POSBarcodeInput, tests): a scope per action. Hosting the screens (UI follow-up) must keep it.
+4. **Failure injection is test-only and database-level where possible**: SQLite triggers that RAISE on a chosen table (the real EF code, the real transaction and the real engine fail at the chosen write), a decorator that fails or kills at commit (`InterruptCommit`), a fault-injecting HTTP handler, the existing fake hardware. No production switch exists (ARCH-RES-007 forbids failure simulation and Random in src).
+5. **Unexpected failures are translated at the service boundary** for POS (the only workflow with a hosted-ready service); other handlers still surface exceptions on database failure and will be translated where their screens are hosted.
+6. Stage 11 was not reopened; its decisions were re-verified under failure (clock rollback, unreadable identity, tampered license, rejected update).
+
+### Failure matrix (what was simulated, where, result)
+| Category | Scenarios | Where | Result |
+|---|---|---|---|
+| Network | no network, DNS failure, connection refused (also a real closed port), connection timeout, request timeout (also one real HttpClient timeout), 500, 503, malformed body, empty body, 401, 403, TLS certificate failure, connection reset during the body | LicenseServerOutageTests, UpdateServerOutageTests, OfflineWorkflowTests | every fault is a non-fatal result, no exception, local state untouched, recovery on the next call |
+| License server | activation and renewal under every fault; offline evaluation; expired license during an outage; renewal after recovery | Licensing.Tests | stays Active/Expired as the clock says; an outage never grants or revokes; renewal issues a newer license |
+| Update server | check and download under every fault; no partial package; retry then install | Updater.Tests | nothing on disk, nothing installed, the retry installs once |
+| Backup / admin / cloud APIs | not applicable on the desktop: no client exists (CloudBackup is deferred) so nothing local can fail or block; server behavior is covered by Cloud.Tests; the POS path runs with no server assembly loaded (ServerIndependenceTests) | - | see limitations |
+| Database | locked (write lock, exclusive lock), failure at each write of a sale (7 table/operation pairs), failure at the last write, failure before COMMIT, constraint violation, migration that cannot apply (rolled back whole, recovers when the conflict is removed), corrupt file, truncated file, path that is a directory | AtomicityFailureTests, DatabaseFailureTests, SharedDatabaseScopeTests | nothing partial remains (counts, stock, cart status, payments compared with the database directly); damaged files are never overwritten; plain messages |
+| Lifecycle | clean shutdown (no journal, integrity ok), restart after a completed sale, after a failed commit, after a connection lost with the transaction open (the database view of a killed process), after an interrupted purchase receipt, double submit (sequential and simultaneous) | RestartAndRecoveryTests | the sale or receipt exists exactly once or not at all; no duplicate sale, payment or stock deduction; no receipt for a lost sale |
+| Hardware | receipt printer and cash drawer unavailable / timeout / throwing after a sale; label printer, scale (also negative and implausible readings), barcode scanner (cannot start; unknown, blank, control-character and hostile input) | HardwareFailureTests | the sale is complete and durable with one attempt per device and a precise notice; devices never change business data; reprint creates nothing; recovery when the device returns |
+| Licensing / security | clock rolled back 3 h (offline), corrupted installation identity, tampered license file, invalid update package | LicenseAndSecurityFailureTests | the Stage 11 words and rules hold: licensed work declined, data readable and untouched, evidence kept, events audited, recovery when the cause is removed |
+
+### Offline workflows verified (real desktop composition; the network refuses and counts every request; business operations make 0 requests)
+Sales: open POS session, add by SKU, change quantity, price-list pricing, cash sale with change, card sale, receipt data, drawer, inventory update, close and reopen the session. Inventory: product lookup, stock lookup, adjustment, movement history. Purchasing: supplier, order, lines, submit, receive; stock and order agree. Cash management: open session, pay-in / pay-out / cash-sale, close with counted amount, totals and variance. Customers and suppliers: the administrator creates both; a cashier signing in offline can sell but cannot read customers or create suppliers (Stage 11 boundaries unchanged). Cloud-dependent operations (renew, update check) fail gracefully while selling continues.
+
+### Recovery scenarios verified (Normal -> Failure -> Recovery -> Normal, with no duplicate state)
+Cloud returns -> activation, renewal, check and download succeed; printer, drawer, label printer, scale and scanner restored -> the next operation succeeds and the first receipt can be reprinted; database lock released -> the same cart sells once; fault removed -> the same cart or receipt retried succeeds exactly once and a further attempt changes nothing; restart -> state identical and the shop keeps selling; clock corrected -> selling resumes; genuine license restored -> selling resumes; migration conflict removed -> start-up works.
+
+### Known limitations and scenarios that cannot be realistically tested
+- A **real process kill** is not simulated. The equivalent that is tested is the database view of it: the connection disappears with the transaction open (no COMMIT, no ROLLBACK) and a new process finds nothing. SQLite hot-journal recovery is relied upon, not re-proven (no crash image is constructed).
+- A **real full disk or I/O error** is simulated by SQLite triggers and exceptions, not by the operating system. TLS validation, DNS and sockets are simulated by exceptions raised exactly as HttpClient raises them (plus one real closed port and one real HttpClient timeout); the OS certificate store is not exercised.
+- **Physical devices** were not available (as in Stage 10): fakes, and the real adapters over loopback and device paths only.
+- **WPF screens** have no automated UI tests (net10.0-windows TFM gap). Covered instead by the composition tests, a smoke run of the real executable (starts offline, reaches sign-in, closes; a corrupt database shows the plain message) and the unit-tested sign-in flow. Signing in and selling through the real window was not automated.
+- No **load or soak campaign** beyond the simultaneous double checkout; SQLite is single-writer, a second writer waits up to the busy timeout (default 30 s) and then fails safely.
+- Only POS translates unexpected failures into plain results; Purchasing, Inventory, Cash and the other handlers still throw on a database failure (nothing is kept) and need the same translation where their screens are hosted.
+- A context that mutated an aggregate and failed before saving keeps the in-memory change until its scope ends (decision 3).
+- Cash sales are still not recorded into a cash-drawer session automatically (Stage 8 limitation), so there is no cross-module cash atomicity to test; a cash session is a single aggregate and atomic by one save (tested).
+- Update installation crashes were covered in Stage 7 (InstallRecoveryTests) and were not repeated. The log has console and debug providers only (no log file): "details go to the log" means those providers; a log file belongs with packaging (Stage 14).
+- Client-side backup failure handling does not exist because there is no client backup module yet.
+
+### Deferred failure/resilience work
+Translate unexpected failures at the other module services when their screens are hosted; keep a scope per action in the hosted UI; a log file and crash-report collection (Stage 14); load and soak testing and a UI-automated sale (Stage 13); a physical-device failure campaign when devices exist; automatic retry or queueing of cloud operations if a later stage needs it (nothing queues today, by design).
+
+### Stage 12 commit history (all on master, each built and tested before committing)
+dedbc1d one SQLite transaction for checkout and purchase receive | d048360 atomicity failure tests | d5578f0 cloud outage tests | d269e8b safe cloud failure messages | 2df6fd7 offline POS scenarios | 54de606 consistent contexts after failed saves, plain POS failures, busy timeout | 46bba7c database failure tests | 2cd1e8e cart read inside the checkout transaction (double submit) | eb63199 restart and interrupted-operation tests | e9635b6 hardware failure tests | 185b25c ARCH-RES-001..008 | c0d6dd7 plain startup-failure message | 586806e licensing and security failure tests | 388354b shared-transaction unit tests | d8b7fdc deterministic timeout tests | (docs commit)
+
 ---
 
 ## Known Issues / Blockers
 
-None blocking. Stage 11 is complete.
+None blocking. Stage 12 is complete.
 Build: 0 errors, 0 warnings (120 projects, verified with `dotnet build --no-incremental`).
-All 2125 tests pass (Architecture 346, Cloud 207, Updater 182, Users 163, Licensing 155, POS 150, Platform.ModuleContract 112, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Integration 48, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
-Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 19).
+All 2254 tests pass (Architecture 354, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Platform.ModuleContract 112, Integration 104, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
+Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 11 had 2125; Stage 12 added 129.
+Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
 Not defects but known gaps (see the Stage 11 deferred-limitations register): no user-administration / license-activation screen yet; backup encryption not built.
 Resolved during Stage 9: stress-running Cloud.Tests exposed rare random failures (about 1 run in 8, different tests each time, SQLite connection-open errors). Cause: the test teardown called the
 process-wide `SqliteConnection.ClearAllPools()` while other tests ran in parallel. Fix: test databases use `Pooling=False` (no global pool clearing); staging-file cleanup in the file stores also
@@ -1975,7 +2065,7 @@ Remaining limitations after Stage 8 (deferred work, none of it is a Stage 8 requ
 - USERS IS NOT AUTHENTICATION: no passwords, credentials, sessions or sign-in; permission codes are stored but no module checks them; the POS cashier is still a free-text reference not linked to a Users record.
 - CASHMANAGEMENT IS NOT CONNECTED TO POS/PAYMENTS: cash sales are not recorded into a drawer session automatically; `ICashMovementRecorder` is ready (idempotent per reference) for a later optional integration.
 - CUSTOMERS/SUPPLIERS: a sale does not carry a customer; the Catalog product has no supplier link; no credit, loyalty or statements.
-- PURCHASING: whole-line receiving only (no partial quantities, no supplier returns, no cost update back to Catalog); a failed multi-line receipt is resumable but not rolled back (no stock-reversal contract exists).
+- PURCHASING: whole-line receiving only (no partial quantities, no supplier returns, no cost update back to Catalog); a failed multi-line receipt is resumable but not rolled back (no stock-reversal contract exists). **[Superseded in Stage 12: checkout and purchase receive now run as ONE SQLite transaction (IAtomicOperation); see Stage 12 Summary.]**
 - PRICING: price lists with effective periods and quantity breaks only; no customer-specific prices, promotions, discounts, tax or currency; POS still has Total == Subtotal.
 - PAYMENTS: records only (no gateway, no hardware, no refunds beyond voiding); POS pays the full cart total with one method (split payments exist in the Payments API but are not offered by POS).
 - REPORTING: minimal reports; the sales report scans at most 2000 recent sales (Sales.Contracts only exposes a recent list) and flags IsTruncated; no export, scheduling or caching.
@@ -2012,8 +2102,8 @@ Remaining limitations after Stage 6:
 
 Remaining limitations after Stage 5D:
 - No payment processing (no Payments module).
-- No stock reversal contract: partial stock issue during a failed checkout needs manual correction.
-- No distributed transaction across modules (see decision 4).
+- No stock reversal contract: partial stock issue during a failed checkout needs manual correction. **[Superseded in Stage 12: checkout and purchase receive now run as ONE SQLite transaction (IAtomicOperation); see Stage 12 Summary.]**
+- No distributed transaction across modules (see decision 4). **[Superseded in Stage 12: checkout and purchase receive now run as ONE SQLite transaction (IAtomicOperation); see Stage 12 Summary.]**
 - POS.UI is a minimal view/view-model, not wired into MainWindow, no real-hardware input.
 - Discounts, tax and pricing rules are not applied in POS (Total == Subtotal); Sales receives discount 0, tax 0.
 
@@ -2028,4 +2118,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-05 - Stage 10 complete (hardware abstractions, Client.Hardware adapters, optional POS integration). 1794 tests, 0 warnings; Stage 11 not started.
+Last updated: 2026-10-06 - Stage 12 complete (offline and failure testing; atomic checkout and purchase receive; Stage 11 re-verified under failure). 2254 tests, 0 warnings; Stage 13 not started.

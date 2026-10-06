@@ -8,6 +8,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Catalog.Application\Catalog.Application.csproj" />
     <ProjectReference Include="..\Catalog.Contracts\Catalog.Contracts.csproj" />
-    <ProjectReference Include="..\..\..\Client\Client.Host\Client.Host.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />
   </ItemGroup>
 </Project>

@@ -164,22 +164,7 @@ public sealed class DatabaseBoundaryTests
                 "but Client.Host types themselves must not import EF Core namespaces."));
     }
 
-    [Fact(DisplayName = "ARCH-008 (deferred): Client.Desktop DbContext isolation — deferred (different TFM)")]
-    [Trait("Status", "Deferred")]
-    [Trait("Stage", "5")]
-    public void ARCH008_Desktop_DbContextIsolation_StillDeferred()
-    {
-        // Client.Desktop targets net10.0-windows. This test project targets net10.0.
-        // Cannot reference Client.Desktop here.
-        //
-        // MANUAL VERIFICATION (Stage 3):
-        // Client.Desktop.csproj references only: Client.Host, Client.ModuleHost
-        // It does NOT reference Platform.Infrastructure, EF Core, or SQLite.
-        // Verified: Client.Desktop has NO access to PlatformDbContext.
-        Assert.True(true,
-            "ARCH-008 for Client.Desktop is manually verified via csproj inspection. " +
-            "Automated test deferred pending a Windows-TFM test project.");
-    }
+    // Client.Desktop (net10.0-windows) is covered by the project-graph rules ARCH-SOL-006/008/009 (Solution/SolutionArchitectureRules.cs).
 
     private static string FormatFailure(string ruleId, TestResult result, string description)
     {

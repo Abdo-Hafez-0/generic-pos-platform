@@ -186,13 +186,28 @@ internal static class Assemblies
         LicenseServerInfrastructure
     ];
 
-    internal static IReadOnlyList<Assembly> AllBusinessModuleAssemblies =>
+    /// <summary>Every business module's Domain, Contracts, Application and Infrastructure assembly (all 13 modules; UI excluded - TFM gap).</summary>
+    internal static IReadOnlyList<Assembly> AllBusinessModuleAssemblies => AllModuleAssemblies;
+
+    /// <summary>
+    /// All 13 modules. ARCH-SOL-002 fails when a module project exists that is missing here, so a new module cannot silently escape the
+    /// type-level rules (it happened before Stage 13: several generic rules only saw the first five modules).
+    /// </summary>
+    internal static IReadOnlyList<Assembly> AllModuleAssemblies =>
     [
         .. AllCatalogAssemblies,
         .. AllInventoryAssemblies,
         .. AllSalesAssemblies,
         .. AllPOSAssemblies,
-        .. AllCustomersAssemblies
+        .. AllCustomersAssemblies,
+        .. AllSuppliersAssemblies,
+        .. AllPurchasingAssemblies,
+        .. AllPricingAssemblies,
+        .. AllPaymentsAssemblies,
+        .. AllUsersAssemblies,
+        .. AllAuditAssemblies,
+        .. AllCashManagementAssemblies,
+        .. AllReportingAssemblies
     ];
 
     // Update system + shared security assemblies (Stage 7)
@@ -229,8 +244,7 @@ internal static class Assemblies
         ClientUpdaterHttp,
         UpdateServerApplication,
         ModulePackager,
-        UpdatePublisher,
-        .. AllCustomersAssemblies
+        UpdatePublisher
     ];
 
     // Customers module assemblies (Stage 8)
@@ -444,10 +458,7 @@ internal static class Assemblies
     [
         .. AllPlatformAssemblies,
         .. AllClientAssemblies,
-        .. AllCatalogAssemblies,
-        .. AllInventoryAssemblies,
-        .. AllSalesAssemblies,
-        .. AllPOSAssemblies,
+        .. AllModuleAssemblies,
         LicensingContracts,
         ClientLicensingHttp,
         .. AllLicenseServerAssemblies,
@@ -459,7 +470,6 @@ internal static class Assemblies
         UpdateServerApplication,
         ModulePackager,
         UpdatePublisher,
-        .. AllSuppliersAssemblies,
         .. AllCloudServerAssemblies,
         ClientHardware,
         ClientSecurity

@@ -182,36 +182,7 @@ public sealed class ClientLayerDependencyTests
                 "Update implementation is deferred to Stage 7."));
     }
 
-    // -----------------------------------------------------------------------
-    // Deferred tests — Client.Desktop
-    // -----------------------------------------------------------------------
-
-    [Fact(DisplayName = "ARCH-008 (partial): Client.Desktop boundary — DEFERRED (different TFM)")]
-    [Trait("Status", "Deferred")]
-    [Trait("Stage", "3")]
-    public void ARCH008_Deferred_ClientDesktop_BoundaryVerification()
-    {
-        // Client.Desktop targets net10.0-windows.
-        // This Architecture.Tests project targets net10.0.
-        // Cross-TFM project references are not allowed between non-Windows and Windows-specific assemblies.
-        //
-        // MANUAL VERIFICATION (confirmed at Stage 2 completion):
-        // Client.Desktop.csproj only references:
-        //   - Client.Host
-        //   - Client.ModuleHost
-        // It does NOT reference:
-        //   - Platform.Infrastructure
-        //   - Microsoft.EntityFrameworkCore
-        //   - Microsoft.Data.Sqlite
-        //   - Any business module assembly
-        //
-        // ARCH-008 (UI → DbContext) will be tested when Stage 3 introduces DbContext
-        // and a multi-TFM test project is established for Windows-specific assemblies.
-
-        Assert.True(true,
-            "Client.Desktop boundary is manually verified via csproj inspection. " +
-            "Automated NetArchTest coverage deferred until a Windows-TFM test project exists.");
-    }
+    // Client.Desktop (net10.0-windows) is covered by the project-graph rules ARCH-SOL-006/008/009 (Solution/SolutionArchitectureRules.cs).
 
     private static string FormatFailure(string ruleName, TestResult result, string description)
     {

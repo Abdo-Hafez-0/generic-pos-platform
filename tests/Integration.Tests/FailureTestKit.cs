@@ -126,4 +126,37 @@ public static class FailureTestKit
     {
         public async ValueTask DisposeAsync() => await ExecuteAsync(host, $"DROP TRIGGER IF EXISTS {trigger}");
     }
+
+    // ------------------------------------------------------------------ interrupting the commit
+
+    /// <summary>
+    /// Test-only: finishes the operation's work inside its transaction and then makes the commit fail (<see cref="Mode.Fail"/>) or the database connection
+    /// vanish without COMMIT or ROLLBACK (<see cref="Mode.Crash"/>, what the database sees when the process is killed at that instant).
+    /// </summary>
+    public sealed class InterruptCommit : Client.Host.Hosting.IHostingModule
+    {
+        public enum Mode { None, Fail, Crash }
+
+        public Mode Next { get; set; }
+
+        public void RegisterServices(Microsoft.Extensions.Hosting.HostBuilderContext context, IServiceCollection services)
+            => services.AddScoped<Platform.Application.Abstractions.Data.IAtomicOperation>(sp =>
+                new Decorator(sp.GetRequiredService<Platform.Infrastructure.Persistence.SharedDatabaseScope>(), this));
+
+        private sealed class Decorator(Platform.Infrastructure.Persistence.SharedDatabaseScope inner, InterruptCommit owner) : Platform.Application.Abstractions.Data.IAtomicOperation
+        {
+            public bool IsActive => inner.IsActive;
+
+            public Task<Platform.Core.Results.Result<T>> ExecuteAsync<T>(Func<Task<Platform.Core.Results.Result<T>>> work, CancellationToken cancellationToken = default)
+                => inner.ExecuteAsync(async () =>
+                {
+                    var result = await work();
+                    if (!result.IsSuccess || owner.Next == Mode.None) return result;
+
+                    var mode = owner.Next;
+                    if (mode == Mode.Crash) inner.Dispose();   // the connection is gone with the transaction still open
+                    throw new IOException(mode == Mode.Crash ? "injected: the process was killed before the commit" : "injected: the commit could not be written");
+                }, cancellationToken);
+        }
+    }
 }

@@ -83,11 +83,19 @@ internal sealed class OfflineDesktop : IAsyncDisposable
     public FakeReceiptPrinter Printer { get; }
     public FakeCashDrawer Drawer { get; }
 
-    public static Task<OfflineDesktop> StartAsync(string? reuseFolder = null, bool keepFiles = false)
-        => StartAsync(reuseFolder, keepFiles, licenses: null, clock: null);
+    public static Task<OfflineDesktop> StartAsync(string? reuseFolder = null, bool keepFiles = false, IEnumerable<IHostingModule>? extra = null)
+        => StartAsync(reuseFolder, keepFiles, licenses: null, clock: null, extra);
+
+    /// <summary>A licensed installation for desktops that are restarted: the caller owns it and disposes it after the last restart.</summary>
+    public static SignedLicenseWorld NewLicenses(TestClock clock)
+    {
+        var licenses = new SignedLicenseWorld(Start, clock);
+        licenses.Issue(Start, Start.AddDays(30), AllModules);
+        return licenses;
+    }
 
     /// <summary>Starts the offline desktop. A restart passes the previous <paramref name="licenses"/>/<paramref name="clock"/> so the same installation comes back.</summary>
-    public static async Task<OfflineDesktop> StartAsync(string? reuseFolder, bool keepFiles, SignedLicenseWorld? licenses, TestClock? clock)
+    public static async Task<OfflineDesktop> StartAsync(string? reuseFolder, bool keepFiles, SignedLicenseWorld? licenses, TestClock? clock, IEnumerable<IHostingModule>? extra = null)
     {
         clock ??= new TestClock(Start);
         var ownsLicenses = licenses is null;
@@ -115,7 +123,7 @@ internal sealed class OfflineDesktop : IAsyncDisposable
                 [
                     new ClientSecurityHostingModule(), .. licenses.HostModules(), new LicenseHttpHostingModule(),
                     new UpdaterHostingModule(), new UpdateHttpHostingModule(),
-                    new OfflineNetworkModule(network), new FakeHardwareHostingModule(printer, drawer)
+                    new OfflineNetworkModule(network), new FakeHardwareHostingModule(printer, drawer), .. extra ?? []
                 ]);
             host.KeepFiles = keepFiles;
             return new OfflineDesktop(host, licenses, ownsLicenses, updaterFolder, clock, network, printer, drawer);

@@ -1,12 +1,7 @@
 using System.Security.Cryptography;
 using Catalog.Application.Commands;
-using Client.Host.Hosting;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Platform.Application.Abstractions.Data;
-using Platform.Core.Results;
-using Platform.Infrastructure.Persistence;
 using POS.Contracts.Interfaces;
 using static Integration.Tests.FailureTestKit;
 
@@ -124,45 +119,23 @@ public sealed class DatabaseFailureTests
 
     // ------------------------------------------------------------------ failure at commit time
 
-    /// <summary>Test-only: lets the work finish inside the transaction and then fails before COMMIT, like a disk error at commit.</summary>
-    private sealed class FailBeforeCommitModule(FailBeforeCommitModule.Switch toggle) : IHostingModule
-    {
-        public sealed class Switch { public bool FailNextCommit { get; set; } }
-
-        public void RegisterServices(HostBuilderContext context, IServiceCollection services)
-            => services.AddScoped<IAtomicOperation>(sp => new Decorator(sp.GetRequiredService<SharedDatabaseScope>(), toggle));
-
-        private sealed class Decorator(SharedDatabaseScope inner, Switch toggle) : IAtomicOperation
-        {
-            public bool IsActive => inner.IsActive;
-
-            public Task<Result<T>> ExecuteAsync<T>(Func<Task<Result<T>>> work, CancellationToken cancellationToken = default)
-                => inner.ExecuteAsync(async () =>
-                {
-                    var result = await work();
-                    if (toggle.FailNextCommit && result.IsSuccess) throw new IOException("injected: the commit could not be written");
-                    return result;
-                }, cancellationToken);
-        }
-    }
-
     [Fact]
     public async Task SaleDoesNotModifyInventory_WhenTheTransactionCommitFails_AndTheRetrySucceeds()
     {
-        var toggle = new FailBeforeCommitModule.Switch();
-        await using var host = await IntegrationHost.StartAllAsync(extra: [new FailBeforeCommitModule(toggle)]);
+        var interrupt = new InterruptCommit();
+        await using var host = await IntegrationHost.StartAllAsync(extra: [interrupt]);
         var shop = await CreateShopAsync(host.Services);
         var (_, cartId) = await OpenCartAsync(host.Services, shop, 2m);
         var before = await BusinessState.ReadAsync(host);
 
-        toggle.FailNextCommit = true;
+        interrupt.Next = InterruptCommit.Mode.Fail;
         var failed = await CheckoutAsync(host.Services, cartId);   // every write was made; the commit never happened
 
         Assert.Equal("POS.Checkout.NotSaved", failed.ErrorCode);
         Assert.Equal(before, await BusinessState.ReadAsync(host));
         Assert.Equal(10m, await OnHandAsync(host, shop.ProductId));
 
-        toggle.FailNextCommit = false;
+        interrupt.Next = InterruptCommit.Mode.None;
         Assert.True((await CheckoutAsync(host.Services, cartId)).IsSuccess);
         Assert.Equal(8m, await OnHandAsync(host, shop.ProductId));
         Assert.Equal(before.Sales + 1, (await BusinessState.ReadAsync(host)).Sales);

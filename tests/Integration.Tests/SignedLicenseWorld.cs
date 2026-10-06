@@ -42,10 +42,14 @@ internal sealed class SignedLicenseWorld : IDisposable
     public string Directory { get; }
 
     public void Issue(DateTimeOffset now, DateTimeOffset validUntil, params string[] modules)
+        => Issue(now, validUntil, LicenseStatusClaim.Active, validUntil, validUntil, modules);
+
+    /// <summary>Signs and stores a license with an explicit status (Revoked/Suspended) and lease/grace window.</summary>
+    public void Issue(DateTimeOffset now, DateTimeOffset validUntil, LicenseStatusClaim status, DateTimeOffset leaseUntil, DateTimeOffset graceUntil, params string[] modules)
     {
         var payload = new LicensePayload(
             Guid.NewGuid(), "customer-1", _installationId, "genericpos", 1, now, now.AddDays(-1), validUntil,
-            validUntil, validUntil, LicenseStatusClaim.Active, modules, [], "integration test", "it-key");
+            leaseUntil, graceUntil, status, modules, [], "integration test", "it-key");
         var bytes = LicenseSerializer.SerializePayloadBytes(payload);
         var signature = _key.SignData(bytes, HashAlgorithmName.SHA256, DSASignatureFormat.IeeeP1363FixedFieldConcatenation);
         var license = new SignedLicense(LicenseSerializer.ToPayloadText(bytes), "it-key", LicenseSigning.Algorithm, Convert.ToBase64String(signature));

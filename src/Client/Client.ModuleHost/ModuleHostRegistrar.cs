@@ -1,5 +1,6 @@
 using Client.Host.Hosting;
 using Client.ModuleHost.Discovery;
+using Client.ModuleHost.Lifecycle;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Platform.Application.Modules;
@@ -20,11 +21,10 @@ namespace Client.ModuleHost;
 ///   IModuleDiscoveryService      → FileSystemModuleDiscoveryService   (Singleton)
 ///   IModuleRegistry              → ModuleRegistry                     (Singleton)
 ///   IModuleDependencyResolver    → ModuleDependencyResolver           (Singleton)
+///   ModuleLifecycleService       (hosted) validate → initialize → register → start the composed modules, stop them on shutdown (Stage 13)
 ///
-/// Services NOT registered here (deferred to their stages):
-///   - IModule loading/activation and assembly loading (Stage 4 deferred to runtime host)
-///   - License entitlement checking                   (Stage 6)
-///   - Assembly signature validation                  (Stage 7)
+/// Not done here: loading module assemblies from disk (the composed modules are compiled in; adopting updater-deployed versions needs
+/// a launcher), license enforcement (Platform.Application AuthorizationService), package signature validation (Client.Updater).
 ///
 /// Note on IHostingModule vs IModule:
 ///   This registrar implements IHostingModule — it handles DI wiring at host-build time.
@@ -44,5 +44,8 @@ public sealed class ModuleHostRegistrar : IHostingModule
 
         // Dependency resolver: validates dependency graphs and produces activation order.
         services.AddSingleton<IModuleDependencyResolver, ModuleDependencyResolver>();
+
+        // Lifecycle: runs after every hosted service (databases are ready), fails the start on an invalid composition.
+        services.AddHostedService<ModuleLifecycleService>();
     }
 }

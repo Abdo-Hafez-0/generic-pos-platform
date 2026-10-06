@@ -25,6 +25,8 @@
     <!-- Stage 10: the real hardware adapters + fake hardware -->
     <ProjectReference Include="..\..\src\Client\Client.Hardware\Client.Hardware.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.Licensing\Client.Licensing.csproj" />
+    <ProjectReference Include="..\..\src\Client\Client.Licensing.Http\Client.Licensing.Http.csproj" />
+    <ProjectReference Include="..\..\src\Client\Client.Updater.Http\Client.Updater.Http.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.Security\Client.Security.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.Updater\Client.Updater.csproj" />
     <ProjectReference Include="..\..\src\Licensing\Licensing.Contracts\Licensing.Contracts.csproj" />

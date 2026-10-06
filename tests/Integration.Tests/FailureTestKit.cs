@@ -26,6 +26,7 @@ public static class FailureTestKit
 
         var category = await p.GetRequiredService<CreateCategoryCommandHandler>().HandleAsync(new CreateCategoryCommand("Cat-" + sku));
         var unit = await p.GetRequiredService<CreateUnitCommandHandler>().HandleAsync(new CreateUnitCommand("Piece-" + sku, "p" + sku.ToLowerInvariant()));
+        Assert.True(category.IsSuccess && unit.IsSuccess, "category/unit: " + (category.IsFailure ? category.Error : unit.IsFailure ? unit.Error : null));
         var product = await p.GetRequiredService<CreateProductCommandHandler>()
             .HandleAsync(new CreateProductCommand(sku, name, category.Value.Value, unit.Value.Value, salePrice, 1m));
         Assert.True(product.IsSuccess, product.IsFailure ? product.Error.ToString() : null);

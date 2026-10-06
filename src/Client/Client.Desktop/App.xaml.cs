@@ -34,8 +34,8 @@ namespace Client.Desktop;
 ///   3. Register hosting modules (Client.ModuleHost first; future modules added here in Stage 5+)
 ///   4. Build the host
 ///   5. Start the host asynchronously (DI, logging, config, services are initialized)
-///   6. Resolve the main window from DI
-///   7. Show the main window
+///   6. Show the sign-in window (Stage 11: first-run setup / sign-in / password change); closing it exits
+///   7. Resolve the main window from DI and show it
 ///   8. On exit: stop the host gracefully
 ///
 /// IMPORTANT rules for this class:
@@ -92,10 +92,22 @@ public partial class App : Application
                 "GenericPOS application started. Environment: {Environment}",
                 Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production");
 
+            // Stage 11: nobody reaches the shell without signing in. The start screen handles first-run setup (create the first
+            // administrator), sign-in and the forced change of a temporary password. Closing it exits the application.
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            var signIn = _applicationHost.Services.GetRequiredService<SignInWindow>();
+            if (signIn.ShowDialog() != true)
+            {
+                logger.LogInformation("Nobody signed in; the application exits.");
+                Shutdown(exitCode: 0);
+                return;
+            }
+
             // Create and show the main window.
             // The MainWindow is resolved from DI so it can receive services via constructor injection.
             var mainWindow = _applicationHost.Services.GetRequiredService<MainWindow>();
             MainWindow = mainWindow;
+            ShutdownMode = ShutdownMode.OnMainWindowClose;
             mainWindow.Show();
         }
         catch (Exception ex)

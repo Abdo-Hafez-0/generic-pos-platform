@@ -1,0 +1,62 @@
+<Window x:Class="Client.Desktop.SignInWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Generic POS Platform - Sign in"
+        Width="420"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E2E">
+
+    <!--
+        STAGE 11 START SCREEN
+        Shown before the shell. It is glue only: every decision (first run, sign-in, lockout, password policy, forced password change)
+        is made by Users.Application.Security.InteractiveSignInService and the handlers behind it. Passwords are read from PasswordBox
+        controls at the moment of use and are never bound, stored or logged.
+    -->
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="Margin" Value="0,8,0,2"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+        <Style TargetType="PasswordBox">
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+    </Window.Resources>
+
+    <StackPanel Margin="24">
+        <TextBlock x:Name="Heading" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,4" Text="Sign in"/>
+        <TextBlock x:Name="Explanation" TextWrapping="Wrap" Foreground="#A6ADC8" Margin="0,0,0,8"/>
+
+        <!-- first-run setup and sign-in -->
+        <StackPanel x:Name="IdentityPanel">
+            <TextBlock Text="User name"/>
+            <TextBox x:Name="UsernameBox"/>
+            <StackPanel x:Name="DisplayNamePanel">
+                <TextBlock Text="Your name"/>
+                <TextBox x:Name="DisplayNameBox"/>
+            </StackPanel>
+            <TextBlock x:Name="PasswordLabel" Text="Password"/>
+            <PasswordBox x:Name="PasswordBox"/>
+        </StackPanel>
+
+        <!-- new password (first run, or replacing a temporary password) -->
+        <StackPanel x:Name="NewPasswordPanel">
+            <TextBlock Text="New password (at least 10 characters)"/>
+            <PasswordBox x:Name="NewPasswordBox"/>
+            <TextBlock Text="Repeat the new password"/>
+            <PasswordBox x:Name="ConfirmPasswordBox"/>
+        </StackPanel>
+
+        <TextBlock x:Name="ErrorText" Foreground="#F38BA8" TextWrapping="Wrap" Margin="0,12,0,0"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button x:Name="CancelButton" Content="Exit" Width="90" Margin="0,0,8,0" Padding="4" IsCancel="True" Click="OnCancel"/>
+            <Button x:Name="PrimaryButton" Content="Sign in" Width="140" Padding="4" IsDefault="True" Click="OnPrimary"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

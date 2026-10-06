@@ -40,7 +40,7 @@ public sealed class HttpUpdateClient(HttpClient httpClient) : IUpdateClient
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
         {
             if (cancellationToken.IsCancellationRequested) throw;
-            return UpdateCheckResponse.Failure(UpdateErrorCodes.ServerUnavailable, "Could not contact the update server: " + ex.Message);
+            return UpdateCheckResponse.Failure(UpdateErrorCodes.ServerUnavailable, "The update server could not be reached. Local operation is not affected; try again later.");
         }
     }
 
@@ -59,7 +59,7 @@ public sealed class HttpUpdateClient(HttpClient httpClient) : IUpdateClient
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException or IOException)
         {
             if (cancellationToken.IsCancellationRequested) throw;
-            return Error.Failure(UpdateErrorCodes.ServerUnavailable, "Could not download from the update server: " + ex.Message);
+            return Error.Failure(UpdateErrorCodes.ServerUnavailable, "The update could not be downloaded. Nothing was installed and local operation is not affected; try again later.");
         }
     }
 }

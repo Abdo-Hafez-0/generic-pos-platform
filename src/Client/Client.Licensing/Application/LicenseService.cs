@@ -150,7 +150,7 @@ public sealed class LicenseService(
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return Result.Failure<LicenseEvaluation>(Error.Failure(
-                    LicenseErrorCodes.ServerUnreachable, "Could not contact the license server: " + ex.Message));
+                    LicenseErrorCodes.ServerUnreachable, "The license server could not be reached. Local operation is not affected; try again when the connection is back."));
             }
 
             if (!response.IsSuccess || response.License is null)
@@ -194,7 +194,7 @@ public sealed class LicenseService(
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return Result.Failure<LicenseEvaluation>(Error.Failure(
-                    LicenseErrorCodes.ServerUnreachable, "Could not contact the license server: " + ex.Message));
+                    LicenseErrorCodes.ServerUnreachable, "The license server could not be reached. Local operation is not affected; try again when the connection is back."));
             }
 
             if (!response.IsSuccess || response.License is null)

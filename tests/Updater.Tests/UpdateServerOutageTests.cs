@@ -61,6 +61,7 @@ public sealed class UpdateServerOutageTests : IDisposable
 
         Assert.True(failed.IsFailure);
         Assert.Equal(UpdateErrorCodes.ServerUnavailable, failed.Error.Code);
+        Assert.DoesNotContain("   at ", failed.Error.Description);
         Assert.Null(_w.Store.ReadActive("catalog"));
         AssertNoPackageFilesLeftBehind();
 

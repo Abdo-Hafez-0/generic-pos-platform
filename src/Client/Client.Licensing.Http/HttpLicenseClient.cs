@@ -60,7 +60,7 @@ public sealed class HttpLicenseClient(HttpClient httpClient) : ILicenseClient
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
         {
             if (cancellationToken.IsCancellationRequested) throw;
-            return (false, null, LicenseErrorCodes.ServerUnreachable, "Could not contact the license server: " + ex.Message);
+            return (false, null, LicenseErrorCodes.ServerUnreachable, "The license server could not be reached. Local operation is not affected; try again when the connection is back.");
         }
     }
 }

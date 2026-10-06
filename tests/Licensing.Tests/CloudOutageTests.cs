@@ -103,7 +103,10 @@ public sealed class LicenseServerOutageTests : IClassFixture<LicenseServerOutage
         Assert.Null(client.Store.Stored);
         Assert.Equal(LicenseState.Unlicensed, service.State);
         if (IsTransportFault(fault))
+        {
             Assert.Equal(LicenseErrorCodes.ServerUnreachable, result.Error.Code);
+            Assert.Contains("Local operation is not affected", result.Error.Description);   // says what the cashier needs to know
+        }
         Assert.DoesNotContain("   at ", result.Error.Description);   // no stack trace reaches the user
 
         // Recovery: the same key activates normally once the server is back.

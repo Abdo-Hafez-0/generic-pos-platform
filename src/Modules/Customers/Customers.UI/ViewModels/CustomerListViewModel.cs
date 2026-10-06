@@ -23,15 +23,23 @@ public sealed class CustomerListViewModel(
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
-        await RunAsync(async () => Replace((await list.HandleAsync(new ListCustomersQuery(), cancellationToken)).Items));
+        await RunAsync(async () => Show(await list.HandleAsync(new ListCustomersQuery(), cancellationToken)));
     }
 
     public async Task SearchAsync(CancellationToken cancellationToken = default)
     {
         await RunAsync(async () =>
-            Replace(string.IsNullOrWhiteSpace(SearchText)
-                ? (await list.HandleAsync(new ListCustomersQuery(), cancellationToken)).Items
-                : await search.HandleAsync(new SearchCustomersQuery(SearchText), cancellationToken)));
+        {
+            if (string.IsNullOrWhiteSpace(SearchText))
+            {
+                Show(await list.HandleAsync(new ListCustomersQuery(), cancellationToken));
+                return;
+            }
+
+            var found = await search.HandleAsync(new SearchCustomersQuery(SearchText), cancellationToken);
+            if (found.IsFailure) { ErrorMessage = found.Error.Description; return; }
+            Replace(found.Value);
+        });
     }
 
     public async Task CreateAsync(string code, string name, string? email, string? phone, CancellationToken cancellationToken = default)
@@ -41,8 +49,15 @@ public sealed class CustomerListViewModel(
             var result = await create.HandleAsync(new CreateCustomerCommand(code, name, email, phone), cancellationToken);
             if (result.IsFailure) { ErrorMessage = result.Error.Description; return; }
 
-            Replace((await list.HandleAsync(new ListCustomersQuery(), cancellationToken)).Items);
+            Show(await list.HandleAsync(new ListCustomersQuery(), cancellationToken));
         });
+    }
+
+    /// <summary>Shows a page, or the reason it may not be shown (customers are personal data: customers.customer.view).</summary>
+    private void Show(Platform.Core.Results.Result<CustomerPageDto> page)
+    {
+        if (page.IsFailure) { ErrorMessage = page.Error.Description; return; }
+        Replace(page.Value.Items);
     }
 
     private void Replace(IEnumerable<CustomerListItemDto> items)

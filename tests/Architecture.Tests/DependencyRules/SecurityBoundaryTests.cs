@@ -131,6 +131,7 @@ public sealed class SecurityBoundaryTests
     private static readonly string[] ProtectedQueryHandlers =
     [
         "GetUserQueryHandler", "ListUsersQueryHandler", "GetRoleQueryHandler", "ListRolesQueryHandler",
+        "GetCustomerByIdQueryHandler", "ListCustomersQueryHandler", "SearchCustomersQueryHandler",
         "GetAuditEntryQueryHandler", "QueryAuditEntriesQueryHandler",
         "GetSalesReportQueryHandler", "GetInventorySnapshotQueryHandler", "GetPurchasingOverviewQueryHandler",
         "GetCustomerSummaryQueryHandler", "GetSupplierSummaryQueryHandler", "GetBusinessOverviewQueryHandler"

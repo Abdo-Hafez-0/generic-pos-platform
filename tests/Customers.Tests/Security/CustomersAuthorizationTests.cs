@@ -53,7 +53,40 @@ public sealed class CustomersAuthorizationTests
         }
 
         Assert.All(auth.Asked, c => Assert.Equal(CustomersCapabilities.ManageCustomers, c));
-        Assert.Equal(0, (await sp.GetRequiredService<ListCustomersQueryHandler>().HandleAsync(new ListCustomersQuery())).Total);
+        auth.Asked.Clear();
+        auth.Allowed.Add(CustomersCapabilities.ViewCustomers);
+        Assert.Equal(0, (await sp.GetRequiredService<ListCustomersQueryHandler>().HandleAsync(new ListCustomersQuery())).Value.Total);
+    }
+
+    [Fact]
+    public async Task Reading_customer_personal_data_needs_customers_customer_view_and_managing_does_not_imply_it()
+    {
+        var (db, auth) = await StartAsync(CustomersCapabilities.ManageCustomers);
+        await using var _ = db;
+        using var scope = db.CreateScope();
+        var sp = scope.ServiceProvider;
+        var id = (await sp.GetRequiredService<CreateCustomerCommandHandler>().HandleAsync(new CreateCustomerCommand("C-1", "Ann", "ann@example.test"))).Value;
+
+        var one = await sp.GetRequiredService<GetCustomerByIdQueryHandler>().HandleAsync(new GetCustomerByIdQuery(id));
+        var page = await sp.GetRequiredService<ListCustomersQueryHandler>().HandleAsync(new ListCustomersQuery());
+        var found = await sp.GetRequiredService<SearchCustomersQueryHandler>().HandleAsync(new SearchCustomersQuery("Ann"));
+
+        Assert.Equal(SecurityErrors.ForbiddenCode, one.Error.Code);
+        Assert.Equal(SecurityErrors.ForbiddenCode, page.Error.Code);
+        Assert.Equal(SecurityErrors.ForbiddenCode, found.Error.Code);
+
+        auth.Allowed.Add(CustomersCapabilities.ViewCustomers);
+        Assert.Equal("ann@example.test", (await sp.GetRequiredService<GetCustomerByIdQueryHandler>().HandleAsync(new GetCustomerByIdQuery(id))).Value!.Email);
+        Assert.Single((await sp.GetRequiredService<SearchCustomersQueryHandler>().HandleAsync(new SearchCustomersQuery("Ann"))).Value);
+    }
+
+    [Fact]
+    public void Viewing_customers_is_sensitive_and_available_in_every_license_state()
+    {
+        var view = new CapabilityCatalog([new CustomersCapabilityProvider()]).Find(CustomersCapabilities.ViewCustomers)!;
+
+        Assert.True(view.IsSensitive);
+        Assert.Equal(LicenseRequirement.None, view.License);
     }
 
     [Fact]

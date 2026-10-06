@@ -3,6 +3,8 @@ using Customers.Application.Repositories;
 using Customers.Domain.Entities;
 using Customers.Domain.Enums;
 using Customers.Domain.ValueObjects;
+using Platform.Application.Abstractions.Authorization;
+using Platform.Core.Results;
 
 namespace Customers.Application.Queries;
 
@@ -20,28 +22,37 @@ internal static class CustomerMapping
 
 public sealed record GetCustomerByIdQuery(Guid CustomerId);
 
-public sealed class GetCustomerByIdQueryHandler(ICustomerRepository repository)
+public sealed class GetCustomerByIdQueryHandler(ICustomerRepository repository, IAuthorizationService authorization)
 {
-    public async Task<CustomerDto?> HandleAsync(GetCustomerByIdQuery query, CancellationToken cancellationToken = default)
-        => (await repository.GetByIdAsync(new CustomerId(query.CustomerId), cancellationToken))?.ToDto();
+    /// <summary>Success with a null value means "no such customer"; a failure means the caller may not view customers.</summary>
+    public async Task<Result<CustomerDto?>> HandleAsync(GetCustomerByIdQuery query, CancellationToken cancellationToken = default)
+    {
+        var allowed = await authorization.AuthorizeAsync(Customers.Application.Security.CustomersCapabilities.ViewCustomers, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<CustomerDto?>(allowed.Error);
+
+        return Result.Success((await repository.GetByIdAsync(new CustomerId(query.CustomerId), cancellationToken))?.ToDto());
+    }
 }
 
 // ---- ListCustomers (paged)
 
 public sealed record ListCustomersQuery(int Skip = 0, int Take = 50, CustomerStatus? Status = null);
 
-public sealed class ListCustomersQueryHandler(ICustomerRepository repository)
+public sealed class ListCustomersQueryHandler(ICustomerRepository repository, IAuthorizationService authorization)
 {
     public const int MaxPageSize = 200;
 
-    public async Task<CustomerPageDto> HandleAsync(ListCustomersQuery query, CancellationToken cancellationToken = default)
+    public async Task<Result<CustomerPageDto>> HandleAsync(ListCustomersQuery query, CancellationToken cancellationToken = default)
     {
+        var allowed = await authorization.AuthorizeAsync(Customers.Application.Security.CustomersCapabilities.ViewCustomers, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<CustomerPageDto>(allowed.Error);
+
         var skip = Math.Max(0, query.Skip);
         var take = Math.Clamp(query.Take, 1, MaxPageSize);
 
         var items = await repository.ListAsync(skip, take, query.Status, cancellationToken);
         var total = await repository.CountAsync(query.Status, cancellationToken);
-        return new CustomerPageDto(items.Select(c => c.ToListItem()).ToList(), total, skip, take);
+        return Result.Success(new CustomerPageDto(items.Select(c => c.ToListItem()).ToList(), total, skip, take));
     }
 }
 
@@ -49,13 +60,16 @@ public sealed class ListCustomersQueryHandler(ICustomerRepository repository)
 
 public sealed record SearchCustomersQuery(string Text, int Take = 25);
 
-public sealed class SearchCustomersQueryHandler(ICustomerRepository repository)
+public sealed class SearchCustomersQueryHandler(ICustomerRepository repository, IAuthorizationService authorization)
 {
-    public async Task<IReadOnlyList<CustomerListItemDto>> HandleAsync(SearchCustomersQuery query, CancellationToken cancellationToken = default)
+    public async Task<Result<IReadOnlyList<CustomerListItemDto>>> HandleAsync(SearchCustomersQuery query, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(query.Text)) return [];
+        var allowed = await authorization.AuthorizeAsync(Customers.Application.Security.CustomersCapabilities.ViewCustomers, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<IReadOnlyList<CustomerListItemDto>>(allowed.Error);
+
+        if (string.IsNullOrWhiteSpace(query.Text)) return Result.Success<IReadOnlyList<CustomerListItemDto>>([]);
 
         var found = await repository.SearchAsync(query.Text.Trim(), Math.Clamp(query.Take, 1, ListCustomersQueryHandler.MaxPageSize), cancellationToken);
-        return found.Select(c => c.ToListItem()).ToList();
+        return Result.Success<IReadOnlyList<CustomerListItemDto>>(found.Select(c => c.ToListItem()).ToList());
     }
 }

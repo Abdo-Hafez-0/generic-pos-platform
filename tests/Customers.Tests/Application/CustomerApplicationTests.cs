@@ -27,6 +27,14 @@ public sealed class CustomerApplicationTests
 
     private static Task<T> Q<T>(TestModuleDatabase<CustomersDbContext> db, Func<IServiceProvider, Task<T>> f) => db.InScopeAsync(f);
 
+    /// <summary>The read handlers return Result (customers.customer.view); these business tests run with a permissive authorization.</summary>
+    private static async Task<T> Q<T>(TestModuleDatabase<CustomersDbContext> db, Func<IServiceProvider, Task<Platform.Core.Results.Result<T>>> f)
+    {
+        var result = await db.InScopeAsync(f);
+        Assert.True(result.IsSuccess, result.IsFailure ? result.Error.ToString() : null);
+        return result.Value;
+    }
+
     [Fact]
     public async Task Create_PersistsCustomer_AndGetReturnsIt()
     {

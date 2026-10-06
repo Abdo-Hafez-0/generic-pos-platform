@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Catalog.Application.Commands;
+using Client.Host.Hosting;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Contracts.Interfaces;
@@ -185,7 +186,13 @@ public sealed class DatabaseFailureTests
             await File.WriteAllBytesAsync(path, System.Text.Encoding.ASCII.GetBytes(new string('x', 8192)));   // not a SQLite file
             var before = Hash(path);
 
-            await Assert.ThrowsAnyAsync<Exception>(() => IntegrationHost.StartAllAsync(folder));
+            var failure = await Assert.ThrowsAnyAsync<Exception>(() => IntegrationHost.StartAllAsync(folder));
+
+            // what the user is told: a plain statement, not the database's own words or the file's path
+            var message = StartupFailure.Describe(failure);
+            Assert.Equal(StartupFailure.Database, message);
+            Assert.DoesNotContain("SQLite", message, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(folder, message);
 
             Assert.True(File.Exists(path));
             Assert.Equal(before, Hash(path));   // the evidence is untouched: nothing was deleted, recreated or "repaired"
@@ -308,6 +315,25 @@ public sealed class DatabaseFailureTests
         finally
         {
             IntegrationHost.DeleteFolder(folder);
+        }
+    }
+
+    [Fact]
+    public void StartupFailures_AreDescribedInPlainWords_WithoutExceptionTextOrPaths()
+    {
+        const string secret = "C:/Users/someone/AppData/GenericPOS/genericpos.db";
+
+        Assert.Equal(StartupFailure.Database, StartupFailure.Describe(new SqliteException("unable to open database file " + secret, 14)));
+        Assert.Equal(StartupFailure.Database, StartupFailure.Describe(new InvalidOperationException("host failed", new SqliteException("malformed " + secret, 11))));
+        Assert.Equal(StartupFailure.Database, StartupFailure.Describe(new AggregateException(new SqliteException("x " + secret, 1))));
+        Assert.Equal(StartupFailure.Files, StartupFailure.Describe(new UnauthorizedAccessException("denied " + secret)));
+        Assert.Equal(StartupFailure.Files, StartupFailure.Describe(new IOException("disk " + secret)));
+        Assert.Equal(StartupFailure.Unknown, StartupFailure.Describe(new InvalidOperationException("boom " + secret)));
+
+        foreach (var text in new[] { StartupFailure.Database, StartupFailure.Files, StartupFailure.Unknown })
+        {
+            Assert.DoesNotContain(secret, text);
+            Assert.Contains("Nothing was changed or deleted", text);
         }
     }
 }

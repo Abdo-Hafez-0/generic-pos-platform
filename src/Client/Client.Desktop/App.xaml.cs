@@ -112,9 +112,19 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            // If host startup fails, show an error and exit cleanly.
+            // If host startup fails, show a plain statement and exit cleanly. The exception itself (database text, paths) goes to the log only.
+            try
+            {
+                _applicationHost?.Services.GetService<ILogger<App>>()?.LogCritical(ex, "The application failed to start.");
+            }
+            catch (Exception)
+            {
+                // logging is best effort here: the host may be half started
+            }
+
+            System.Diagnostics.Debug.WriteLine(ex);
             MessageBox.Show(
-                $"Application failed to start:\n\n{ex.Message}",
+                StartupFailure.Describe(ex),
                 "Startup Error",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);

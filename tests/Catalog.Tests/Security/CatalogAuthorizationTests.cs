@@ -81,6 +81,55 @@ public sealed class CatalogAuthorizationTests
         Assert.Equal(1, await CategoryCountAsync(db));
     }
 
+    private static async Task<Guid> SeedProductAsync(CatalogTestDatabase db, ScriptedAuthorizationService auth)
+    {
+        auth.Allowed.UnionWith([CatalogCapabilities.ManageCategories, CatalogCapabilities.ManageUnits, CatalogCapabilities.CreateProduct, CatalogCapabilities.EditProduct]);
+        using var scope = db.CreateScope();
+        var sp = scope.ServiceProvider;
+        var category = (await sp.GetRequiredService<CreateCategoryCommandHandler>().HandleAsync(new CreateCategoryCommand("Drinks"))).Value.Value;
+        var unit = (await sp.GetRequiredService<CreateUnitCommandHandler>().HandleAsync(new CreateUnitCommand("Piece", "pcs"))).Value.Value;
+        var product = (await sp.GetRequiredService<CreateProductCommandHandler>().HandleAsync(new CreateProductCommand("COLA", "Cola", category, unit, 2.5m, 1.1m))).Value.Value;
+        await sp.GetRequiredService<AssignBarcodeCommandHandler>().HandleAsync(new AssignBarcodeCommand(product, "4006381333931"));
+        auth.Allowed.Clear();
+        return product;
+    }
+
+    [Fact]
+    public async Task Product_reads_carry_no_cost_price_without_catalog_cost_view_but_are_not_refused()
+    {
+        var (db, auth) = await StartAsync();
+        await using var _ = db;
+        var product = await SeedProductAsync(db, auth);
+        using var scope = db.CreateScope();
+        var sp = scope.ServiceProvider;
+
+        var byId = await sp.GetRequiredService<GetProductByIdQueryHandler>().HandleAsync(new GetProductByIdQuery(product));
+        var bySku = await sp.GetRequiredService<GetProductBySkuQueryHandler>().HandleAsync(new GetProductBySkuQuery("COLA"));
+        var byBarcode = await sp.GetRequiredService<FindProductByBarcodeQueryHandler>().HandleAsync(new FindProductByBarcodeQuery("4006381333931"));
+
+        Assert.True(byId.IsSuccess && bySku.IsSuccess && byBarcode.IsSuccess);
+        Assert.Null(byId.Value.CostPrice);
+        Assert.Null(bySku.Value.CostPrice);
+        Assert.Null(byBarcode.Value.CostPrice);
+        Assert.Equal(2.5m, byId.Value.SalePrice);
+    }
+
+    [Fact]
+    public async Task Holders_of_catalog_cost_view_see_the_cost_price()
+    {
+        var (db, auth) = await StartAsync();
+        await using var _ = db;
+        var product = await SeedProductAsync(db, auth);
+        auth.Allowed.Add(CatalogCapabilities.ViewCost);
+        using var scope = db.CreateScope();
+
+        var byId = await scope.ServiceProvider.GetRequiredService<GetProductByIdQueryHandler>().HandleAsync(new GetProductByIdQuery(product));
+        var byBarcode = await scope.ServiceProvider.GetRequiredService<FindProductByBarcodeQueryHandler>().HandleAsync(new FindProductByBarcodeQuery("4006381333931"));
+
+        Assert.Equal(1.1m, byId.Value.CostPrice);
+        Assert.Equal(1.1m, byBarcode.Value.CostPrice);
+    }
+
     [Fact]
     public void Every_capability_is_declared_once_and_owned_by_catalog()
     {

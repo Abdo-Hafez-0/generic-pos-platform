@@ -15,7 +15,8 @@ public sealed record FindProductByBarcodeQuery(string BarcodeValue);
 public sealed class FindProductByBarcodeQueryHandler(
     IBarcodeRepository barcodeRepository,
     ICategoryRepository categoryRepository,
-    IUnitRepository unitRepository)
+    IUnitRepository unitRepository,
+    Platform.Application.Abstractions.Authorization.IAuthorizationService authorization)
 {
     public async Task<Result<ProductLookupResult>> HandleAsync(
         FindProductByBarcodeQuery query,
@@ -40,7 +41,7 @@ public sealed class FindProductByBarcodeQueryHandler(
             unit?.Name ?? "Unknown",
             unit?.Abbreviation ?? "",
             product.SalePrice,
-            product.CostPrice,
+            await authorization.IsAllowedAsync(Catalog.Application.Security.CatalogCapabilities.ViewCost, cancellationToken) ? product.CostPrice : null,
             (ProductStatusContract)(int)product.Status);
 
         return Result.Success(result);

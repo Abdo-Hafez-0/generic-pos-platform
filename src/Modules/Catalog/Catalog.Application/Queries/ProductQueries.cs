@@ -4,6 +4,7 @@ using Catalog.Application.Repositories;
 using Catalog.Domain.ValueObjects;
 using Catalog.Contracts.Interfaces;
 using Catalog.Contracts.Models;
+using Platform.Application.Abstractions.Authorization;
 using Platform.Core.Results;
 
 namespace Catalog.Application.Queries;
@@ -17,7 +18,8 @@ public sealed record GetProductByIdQuery(Guid ProductId);
 public sealed class GetProductByIdQueryHandler(
     IProductRepository productRepository,
     ICategoryRepository categoryRepository,
-    IUnitRepository unitRepository)
+    IUnitRepository unitRepository,
+    IAuthorizationService authorization)
 {
     public async Task<Result<ProductDto>> HandleAsync(
         GetProductByIdQuery query,
@@ -37,7 +39,7 @@ public sealed class GetProductByIdQueryHandler(
             unit?.Name ?? "Unknown",
             unit?.Abbreviation ?? "");
 
-        return Result.Success(dto);
+        return Result.Success(await CostVisibility.ApplyAsync(dto, authorization, cancellationToken));
     }
 }
 
@@ -50,7 +52,8 @@ public sealed record GetProductBySkuQuery(string Sku);
 public sealed class GetProductBySkuQueryHandler(
     IProductRepository productRepository,
     ICategoryRepository categoryRepository,
-    IUnitRepository unitRepository)
+    IUnitRepository unitRepository,
+    IAuthorizationService authorization)
 {
     public async Task<Result<ProductDto>> HandleAsync(
         GetProductBySkuQuery query,
@@ -70,6 +73,6 @@ public sealed class GetProductBySkuQueryHandler(
             unit?.Name ?? "Unknown",
             unit?.Abbreviation ?? "");
 
-        return Result.Success(dto);
+        return Result.Success(await CostVisibility.ApplyAsync(dto, authorization, cancellationToken));
     }
 }

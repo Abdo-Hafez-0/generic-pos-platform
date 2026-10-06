@@ -40,7 +40,7 @@ namespace POS.Application.Commands;
 /// Payments module is not installed the request is rejected up front; without a request nothing is
 /// recorded. No real payment processing is performed. If stock issue fails the payment is voided.
 ///
-/// CONSISTENCY: steps 3-8 run as ONE database transaction (IAtomicOperation) across the Sales, Payments, Inventory and POS
+/// CONSISTENCY: steps 1-8 run as ONE database transaction (IAtomicOperation) across the Sales, Payments, Inventory and POS
 /// contexts: the sale, its lines, the payment, the stock movements and the checked-out cart are committed together or not at
 /// all. Any failure (a rejected step, an exception, a crash) leaves NO partial state, and the database does the rolling back -
 /// nothing is cancelled or voided afterwards. Hosts that register no IAtomicOperation (unit-test hosts) fall back to the earlier
@@ -78,50 +78,9 @@ public sealed class CheckoutCartCommandHandler(
         var allowed = await authorization.AuthorizeAsync(POS.Application.Security.POSCapabilities.CreateSale, cancellationToken);
         if (allowed.IsFailure) return Result.Failure<CheckoutOutcome>(allowed.Error);
 
-        // 1. Cart and session
-        var cart = await cartRepository.GetByIdAsync(new PosCartId(command.CartId), cancellationToken);
-        if (cart is null)
-            return Result.Failure<CheckoutOutcome>(Error.NotFound(
-                "POS.Checkout.CartNotFound", $"Cart '{command.CartId}' was not found."));
-
-        if (cart.Status != PosCartStatus.Open)
-            return Result.Failure<CheckoutOutcome>(Error.Conflict(
-                "POS.Checkout.CartNotOpen", "Only an open cart can be checked out."));
-
-        if (cart.Items.Count == 0)
-            return Result.Failure<CheckoutOutcome>(Error.Validation(
-                "POS.Checkout.CartEmpty", "An empty cart cannot be checked out."));
-
-        var session = await sessionRepository.GetByIdAsync(cart.SessionId, cancellationToken);
-        if (session is null || session.Status != PosSessionStatus.Open)
-            return Result.Failure<CheckoutOutcome>(Error.Conflict(
-                "POS.Checkout.SessionNotOpen", "The cart's POS session is not open."));
-
-        // 1b. Optional payment: needs the Payments module and, for cash, enough money tendered
-        if (command.Payment is not null)
-        {
-            if (paymentService is null)
-                return Result.Failure<CheckoutOutcome>(Error.Conflict(
-                    "POS.Checkout.PaymentsUnavailable", "A payment was requested but the Payments module is not installed."));
-
-            if (command.Payment.TenderedAmount is { } tendered && tendered < cart.Total.Amount)
-                return Result.Failure<CheckoutOutcome>(Error.Validation(
-                    "POS.Checkout.TenderInsufficient", $"The cash tendered ({tendered}) does not cover the total ({cart.Total.Amount})."));
-        }
-
-        // 2. Stock re-validation (stock may have changed since items were added)
-        foreach (var item in cart.Items)
-        {
-            var available = await stockAvailabilityChecker.IsAvailableAsync(
-                item.CatalogProductId, session.WarehouseId, item.Quantity.Value, cancellationToken);
-            if (!available)
-                return Result.Failure<CheckoutOutcome>(Error.Conflict(
-                    "POS.Checkout.InsufficientStock",
-                    $"Insufficient stock for '{item.ProductName}' (quantity {item.Quantity.Value})."));
-        }
-
-        // 3-8. One transaction: either the whole sale is stored or none of it is.
-        Func<Task<Result<Committed>>> commit = () => CommitSaleAsync(command, cart, session, cancellationToken);
+        // 1-8. One transaction, started BEFORE the cart is read: two checkouts of the same cart (a double click, two terminals) are
+        // serialised by the database, and the second one finds the cart already checked out instead of selling it twice.
+        Func<Task<Result<Committed>>> commit = () => CommitSaleAsync(command, cancellationToken);
         var committed = atomicOperation is null
             ? await commit()
             : await atomicOperation.ExecuteAsync(commit, cancellationToken);
@@ -133,8 +92,50 @@ public sealed class CheckoutCartCommandHandler(
         return Result.Success(new CheckoutOutcome(done.SaleId, done.PaymentId, done.ChangeDue, notices));
     }
 
-    private async Task<Result<Committed>> CommitSaleAsync(CheckoutCartCommand command, PosCart cart, PosSession session, CancellationToken cancellationToken)
+    private async Task<Result<Committed>> CommitSaleAsync(CheckoutCartCommand command, CancellationToken cancellationToken)
     {
+        // 1. Cart and session
+        var cart = await cartRepository.GetByIdAsync(new PosCartId(command.CartId), cancellationToken);
+        if (cart is null)
+            return Result.Failure<Committed>(Error.NotFound(
+                "POS.Checkout.CartNotFound", $"Cart '{command.CartId}' was not found."));
+
+        if (cart.Status != PosCartStatus.Open)
+            return Result.Failure<Committed>(Error.Conflict(
+                "POS.Checkout.CartNotOpen", "Only an open cart can be checked out."));
+
+        if (cart.Items.Count == 0)
+            return Result.Failure<Committed>(Error.Validation(
+                "POS.Checkout.CartEmpty", "An empty cart cannot be checked out."));
+
+        var session = await sessionRepository.GetByIdAsync(cart.SessionId, cancellationToken);
+        if (session is null || session.Status != PosSessionStatus.Open)
+            return Result.Failure<Committed>(Error.Conflict(
+                "POS.Checkout.SessionNotOpen", "The cart's POS session is not open."));
+
+        // 1b. Optional payment: needs the Payments module and, for cash, enough money tendered
+        if (command.Payment is not null)
+        {
+            if (paymentService is null)
+                return Result.Failure<Committed>(Error.Conflict(
+                    "POS.Checkout.PaymentsUnavailable", "A payment was requested but the Payments module is not installed."));
+
+            if (command.Payment.TenderedAmount is { } tendered && tendered < cart.Total.Amount)
+                return Result.Failure<Committed>(Error.Validation(
+                    "POS.Checkout.TenderInsufficient", $"The cash tendered ({tendered}) does not cover the total ({cart.Total.Amount})."));
+        }
+
+        // 2. Stock re-validation (stock may have changed since items were added)
+        foreach (var item in cart.Items)
+        {
+            var available = await stockAvailabilityChecker.IsAvailableAsync(
+                item.CatalogProductId, session.WarehouseId, item.Quantity.Value, cancellationToken);
+            if (!available)
+                return Result.Failure<Committed>(Error.Conflict(
+                    "POS.Checkout.InsufficientStock",
+                    $"Insufficient stock for '{item.ProductName}' (quantity {item.Quantity.Value})."));
+        }
+
         // 3. Create the sale in Sales (through Sales.Contracts only)
         var created = await salesService.CreateSaleAsync(
             reference: $"POS-{command.CartId:N}",

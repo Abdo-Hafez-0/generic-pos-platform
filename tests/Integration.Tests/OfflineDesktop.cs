@@ -56,7 +56,7 @@ internal sealed class OfflineDesktop : IAsyncDisposable
 
     private static readonly string[] EnvironmentKeys =
     [
-        "GENERICPOS_Licensing__ServerBaseUrl", "GENERICPOS_Updater__StorageDirectory", "GENERICPOS_Updater__ServerBaseUrl",
+        "GENERICPOS_Licensing__ServerBaseUrl", "GENERICPOS_Updater__UpdateRoot", "GENERICPOS_Updater__ServerBaseUrl",
         "GENERICPOS_Licensing__AllowLegacyPlaintextIdentity"
     ];
 

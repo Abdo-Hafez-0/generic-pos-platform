@@ -17,8 +17,15 @@ namespace Audit.Infrastructure.Services;
 /// lengths) is dropped with a log line rather than blocking the ones behind it. Events cannot carry secrets: SecurityEvent has no field for one
 /// and sanitises its text.
 /// </summary>
-internal sealed class AuditSecurityEventListener(IServiceScopeFactory scopes, ILogger<AuditSecurityEventListener>? logger = null) : ISecurityEventListener
+internal sealed class AuditSecurityEventListener(
+    IServiceScopeFactory scopes,
+    ILogger<AuditSecurityEventListener>? logger = null,
+    bool waitForStore = false) : ISecurityEventListener
 {
+    // In the host the audit tables only exist once AuditDatabaseInitializer has run: until then events are only buffered, so a fresh start
+    // does not log failing writes against missing tables. Without an initializer (tests) writes are attempted immediately.
+    private volatile bool _storeReady = !waitForStore;
+
     public const int MaxBuffered = 500;
 
     private readonly ConcurrentQueue<SecurityEvent> _pending = new();
@@ -32,7 +39,14 @@ internal sealed class AuditSecurityEventListener(IServiceScopeFactory scopes, IL
         while (_pending.Count > MaxBuffered && _pending.TryDequeue(out _))
             logger?.LogWarning("The security-event buffer is full; the oldest event was dropped.");
 
-        await DrainAsync(cancellationToken);
+        if (_storeReady) await DrainAsync(cancellationToken);
+    }
+
+    /// <summary>Called by the audit initializer once the audit tables exist; writes everything buffered so far.</summary>
+    public Task MarkStoreReadyAsync(CancellationToken cancellationToken = default)
+    {
+        _storeReady = true;
+        return DrainAsync(cancellationToken);
     }
 
     /// <summary>Writes the buffered events in order. Stops at the first one the audit store cannot take yet (it stays buffered).</summary>

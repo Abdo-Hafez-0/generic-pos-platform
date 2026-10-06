@@ -129,3 +129,38 @@ public sealed class AuditSecurityEventListenerTests
         Assert.Equal("security.ok", Assert.Single((await SecurityEntries(db)).Items).Action);
     }
 }
+
+public sealed class AuditSecurityEventListenerStartupTests
+{
+    private sealed class CountingRecorder : IAuditRecorder
+    {
+        public int Attempts { get; private set; }
+
+        public Task<AuditRecordResult> RecordAsync(AuditRecordRequest request, CancellationToken cancellationToken = default)
+        {
+            Attempts++;
+            return Task.FromResult(AuditRecordResult.Success(Guid.NewGuid()));
+        }
+    }
+
+    [Fact]
+    public async Task In_the_host_events_are_only_buffered_until_the_audit_store_is_ready_then_written_in_order()
+    {
+        var recorder = new CountingRecorder();
+        var services = new ServiceCollection();
+        services.AddSingleton<IAuditRecorder>(recorder);
+        await using var provider = services.BuildServiceProvider();
+        var listener = new AuditSecurityEventListener(provider.GetRequiredService<IServiceScopeFactory>(), waitForStore: true);
+
+        await listener.OnEventAsync(SecurityEvent.Create("security.license.loaded", SecurityEventOutcome.Success));
+        Assert.Equal(0, recorder.Attempts);          // no write against tables that do not exist yet
+        Assert.Equal(1, listener.PendingCount);
+
+        await listener.MarkStoreReadyAsync();
+        Assert.Equal(1, recorder.Attempts);
+        Assert.Equal(0, listener.PendingCount);
+
+        await listener.OnEventAsync(SecurityEvent.Create("security.signin.succeeded", SecurityEventOutcome.Success));
+        Assert.Equal(2, recorder.Attempts);
+    }
+}

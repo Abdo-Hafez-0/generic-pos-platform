@@ -34,7 +34,10 @@ public static class AuditServicesExtensions
         services.AddAuditCore();
 
         // Security events (sign-ins, denials, license and update verdicts...) are written to the audit log through this listener.
-        services.AddSingleton<Audit.Infrastructure.Services.AuditSecurityEventListener>();
+        services.AddSingleton(sp => new Audit.Infrastructure.Services.AuditSecurityEventListener(
+            sp.GetRequiredService<IServiceScopeFactory>(),
+            sp.GetService<Microsoft.Extensions.Logging.ILogger<Audit.Infrastructure.Services.AuditSecurityEventListener>>(),
+            waitForStore: true));
         services.AddSingleton<Platform.Application.Abstractions.Security.ISecurityEventListener>(
             sp => sp.GetRequiredService<Audit.Infrastructure.Services.AuditSecurityEventListener>());
 

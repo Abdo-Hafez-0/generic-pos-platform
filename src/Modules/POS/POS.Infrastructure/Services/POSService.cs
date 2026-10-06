@@ -72,8 +72,21 @@ internal sealed class POSService(
     public async Task<POSCheckoutResult> CheckoutAsync(
         Guid cartId, string? transactionReference = null, POSPaymentRequest? payment = null, CancellationToken cancellationToken = default)
     {
-        var result = await checkoutHandler.HandleAsync(
-            new CheckoutCartCommand(cartId, transactionReference, payment), cancellationToken);
+        Result<CheckoutOutcome> result;
+        try
+        {
+            result = await checkoutHandler.HandleAsync(
+                new CheckoutCartCommand(cartId, transactionReference, payment), cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The sale ran inside one database transaction, so an unexpected failure (disk, lock, corruption) saved nothing.
+            // The cashier gets a plain statement of that; the details (which may name tables or files) go to the log only.
+            _logger.LogError(ex, "Checkout of cart {CartId} failed unexpectedly; the database transaction was rolled back.", cartId);
+            return POSCheckoutResult.Failure("POS.Checkout.NotSaved",
+                "The sale could not be saved and nothing was changed. Try again; if it keeps failing, contact support.");
+        }
+
         if (result.IsFailure)
             return POSCheckoutResult.Failure(result.Error.Code, result.Error.Description);
 

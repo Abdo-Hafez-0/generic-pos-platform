@@ -18,9 +18,9 @@ public static class CashManagementServicesExtensions
         configuration.GetSection(DatabaseOptions.SectionName).Bind(dbOptions);
         var connectionString = dbOptions.BuildConnectionString();
 
-        services.AddDbContext<CashManagementDbContext>(options =>
+        services.AddAtomicOperations().AddDbContext<CashManagementDbContext>((sp, options) =>
         {
-            options.UseSqlite(connectionString, sqliteOptions =>
+            options.UseSharedSqlite(sp, connectionString, sqliteOptions =>
             {
                 sqliteOptions.MigrationsAssembly(typeof(CashManagementDbContext).Assembly.FullName);
             });

@@ -51,9 +51,9 @@ public static class InventoryServicesExtensions
 
         // Register InventoryDbContext with the same SQLite file.
         // Migration assembly = Inventory.Infrastructure (owns Inventory migrations).
-        services.AddDbContext<InventoryDbContext>(options =>
+        services.AddAtomicOperations().AddDbContext<InventoryDbContext>((sp, options) =>
         {
-            options.UseSqlite(connectionString, sqliteOptions =>
+            options.UseSharedSqlite(sp, connectionString, sqliteOptions =>
             {
                 sqliteOptions.MigrationsAssembly(typeof(InventoryDbContext).Assembly.FullName);
             });

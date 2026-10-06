@@ -18,9 +18,9 @@ public static class CustomersServicesExtensions
         configuration.GetSection(DatabaseOptions.SectionName).Bind(dbOptions);
         var connectionString = dbOptions.BuildConnectionString();
 
-        services.AddDbContext<CustomersDbContext>(options =>
+        services.AddAtomicOperations().AddDbContext<CustomersDbContext>((sp, options) =>
         {
-            options.UseSqlite(connectionString, sqliteOptions =>
+            options.UseSharedSqlite(sp, connectionString, sqliteOptions =>
             {
                 sqliteOptions.MigrationsAssembly(typeof(CustomersDbContext).Assembly.FullName);
             });

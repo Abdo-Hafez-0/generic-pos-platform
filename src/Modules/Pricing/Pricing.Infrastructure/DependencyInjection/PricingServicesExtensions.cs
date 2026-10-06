@@ -18,9 +18,9 @@ public static class PricingServicesExtensions
         configuration.GetSection(DatabaseOptions.SectionName).Bind(dbOptions);
         var connectionString = dbOptions.BuildConnectionString();
 
-        services.AddDbContext<PricingDbContext>(options =>
+        services.AddAtomicOperations().AddDbContext<PricingDbContext>((sp, options) =>
         {
-            options.UseSqlite(connectionString, sqliteOptions =>
+            options.UseSharedSqlite(sp, connectionString, sqliteOptions =>
             {
                 sqliteOptions.MigrationsAssembly(typeof(PricingDbContext).Assembly.FullName);
             });

@@ -36,9 +36,9 @@ public static class POSServicesExtensions
         configuration.GetSection(DatabaseOptions.SectionName).Bind(dbOptions);
         var connectionString = dbOptions.BuildConnectionString();
 
-        services.AddDbContext<POSDbContext>(options =>
+        services.AddAtomicOperations().AddDbContext<POSDbContext>((sp, options) =>
         {
-            options.UseSqlite(connectionString, sqliteOptions =>
+            options.UseSharedSqlite(sp, connectionString, sqliteOptions =>
             {
                 sqliteOptions.MigrationsAssembly(typeof(POSDbContext).Assembly.FullName);
             });

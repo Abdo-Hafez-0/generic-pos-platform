@@ -1,4 +1,5 @@
 using Platform.Application.Abstractions.Authorization;
+using Platform.Application.Abstractions.Data;
 using Catalog.Contracts.Interfaces;
 using Catalog.Contracts.Models;
 using Inventory.Contracts.Interfaces;
@@ -224,13 +225,23 @@ public sealed class ReceivePurchaseOrderCommandHandler(
     IPurchaseOrderRepository repository,
     IStockReceiptService stockReceipts,
     IPurchasingUnitOfWork unitOfWork,
-    IAuthorizationService authorization)
+    IAuthorizationService authorization,
+    IAtomicOperation? atomicOperation = null)
 {
     public async Task<Result<int>> HandleAsync(ReceivePurchaseOrderCommand command, CancellationToken cancellationToken = default)
     {
         var allowed = await authorization.AuthorizeAsync(Purchasing.Application.Security.PurchasingCapabilities.ReceiveOrder, cancellationToken);
         if (allowed.IsFailure) return Result.Failure<int>(allowed.Error);
 
+        // With a transaction the whole receipt is all-or-nothing: every line's stock and the order's progress are committed together
+        // or not at all. Without one (unit-test hosts) receiving is resumable: progress is kept after every line.
+        return atomicOperation is null
+            ? await ReceiveAsync(command, transactional: false, cancellationToken)
+            : await atomicOperation.ExecuteAsync(() => ReceiveAsync(command, transactional: true, cancellationToken), cancellationToken);
+    }
+
+    private async Task<Result<int>> ReceiveAsync(ReceivePurchaseOrderCommand command, bool transactional, CancellationToken cancellationToken)
+    {
         var (order, error) = await OrderLoader.LoadAsync(repository, command.OrderId, "Receive", cancellationToken);
         if (order is null) return Result.Failure<int>(error!);
 
@@ -246,6 +257,10 @@ public sealed class ReceivePurchaseOrderCommandHandler(
 
             if (!receipt.IsSuccess)
             {
+                if (transactional)
+                    return Result.Failure<int>(Error.Failure("Purchasing.Receive.StockReceiptFailed",
+                        $"Could not receive '{line.ProductName}': [{receipt.ErrorCode}] {receipt.ErrorMessage} Nothing was received: no stock was changed and the order is unchanged."));
+
                 await unitOfWork.SaveChangesAsync(cancellationToken);   // keep the progress made so far
                 var outstanding = order.Lines.Count(l => !l.IsReceived);
                 return Result.Failure<int>(Error.Failure("Purchasing.Receive.StockReceiptFailed",

@@ -1,4 +1,5 @@
 using Platform.Application.Abstractions.Authorization;
+using Platform.Application.Abstractions.Data;
 using Inventory.Contracts.Interfaces;
 using Payments.Contracts.Interfaces;
 using Payments.Contracts.Models;
@@ -39,11 +40,11 @@ namespace POS.Application.Commands;
 /// Payments module is not installed the request is rejected up front; without a request nothing is
 /// recorded. No real payment processing is performed. If stock issue fails the payment is voided.
 ///
-/// CONSISTENCY: Catalog, Inventory, Sales and POS use separate DbContexts; there is no distributed
-/// transaction. Failures before stock is issued cancel the sale (nothing else changed). A failure while
-/// issuing stock cancels the sale but cannot roll back lines already issued (Inventory.Contracts has no
-/// reversal operation yet) — the error says so. A failure completing the sale after stock was issued
-/// leaves the sale Confirmed and the cart open, and the error says so.
+/// CONSISTENCY: steps 3-8 run as ONE database transaction (IAtomicOperation) across the Sales, Payments, Inventory and POS
+/// contexts: the sale, its lines, the payment, the stock movements and the checked-out cart are committed together or not at
+/// all. Any failure (a rejected step, an exception, a crash) leaves NO partial state, and the database does the rolling back -
+/// nothing is cancelled or voided afterwards. Hosts that register no IAtomicOperation (unit-test hosts) fall back to the earlier
+/// step-by-step flow with compensation (cancel the sale, void the payment).
 /// </summary>
 public sealed record CheckoutCartCommand(Guid CartId, string? TransactionReference = null, POSPaymentRequest? Payment = null);
 
@@ -62,8 +63,14 @@ public sealed class CheckoutCartCommandHandler(
     IReceiptPrinter? receiptPrinter = null,
     ICashDrawer? cashDrawer = null,
     PosReceiptOptions? receiptOptions = null,
-    TimeProvider? timeProvider = null)
+    TimeProvider? timeProvider = null,
+    IAtomicOperation? atomicOperation = null)
 {
+    /// <summary>What a committed checkout leaves behind for the peripherals step.</summary>
+    private sealed record Committed(PosCart Cart, PosSession Session, Guid SaleId, Guid? PaymentId, decimal ChangeDue);
+
+    private bool Transactional => atomicOperation is not null;
+
     public async Task<Result<CheckoutOutcome>> HandleAsync(
         CheckoutCartCommand command,
         CancellationToken cancellationToken = default)
@@ -113,13 +120,28 @@ public sealed class CheckoutCartCommandHandler(
                     $"Insufficient stock for '{item.ProductName}' (quantity {item.Quantity.Value})."));
         }
 
+        // 3-8. One transaction: either the whole sale is stored or none of it is.
+        Func<Task<Result<Committed>>> commit = () => CommitSaleAsync(command, cart, session, cancellationToken);
+        var committed = atomicOperation is null
+            ? await commit()
+            : await atomicOperation.ExecuteAsync(commit, cancellationToken);
+        if (committed.IsFailure) return Result.Failure<CheckoutOutcome>(committed.Error);
+
+        // 9. Peripherals. The sale is complete and saved; from here on only hardware can go wrong, and that can never undo it.
+        var done = committed.Value;
+        var notices = await RunPeripheralsAsync(done.Cart, done.Session, done.SaleId, command.Payment, done.ChangeDue);
+        return Result.Success(new CheckoutOutcome(done.SaleId, done.PaymentId, done.ChangeDue, notices));
+    }
+
+    private async Task<Result<Committed>> CommitSaleAsync(CheckoutCartCommand command, PosCart cart, PosSession session, CancellationToken cancellationToken)
+    {
         // 3. Create the sale in Sales (through Sales.Contracts only)
         var created = await salesService.CreateSaleAsync(
             reference: $"POS-{command.CartId:N}",
             notes: $"POS cashier: {session.CashierReference}",
             cancellationToken: cancellationToken);
         if (!created.IsSuccess)
-            return Result.Failure<CheckoutOutcome>(Error.Failure(
+            return Result.Failure<Committed>(Error.Failure(
                 "POS.Checkout.CreateSaleFailed", Describe(created.ErrorCode, created.ErrorMessage)));
 
         var saleId = created.SaleId;
@@ -138,9 +160,9 @@ public sealed class CheckoutCartCommandHandler(
             if (!added.IsSuccess)
             {
                 await CancelQuietlyAsync(saleId, "POS checkout failed while adding items.", cancellationToken);
-                return Result.Failure<CheckoutOutcome>(Error.Failure(
+                return Result.Failure<Committed>(Error.Failure(
                     "POS.Checkout.AddItemFailed",
-                    $"Sales rejected '{item.ProductName}': {Describe(added.ErrorCode, added.ErrorMessage)} The sale was cancelled."));
+                    $"Sales rejected '{item.ProductName}': {Describe(added.ErrorCode, added.ErrorMessage)} {Outcome}"));
             }
         }
 
@@ -149,9 +171,9 @@ public sealed class CheckoutCartCommandHandler(
         if (!confirmed.IsSuccess)
         {
             await CancelQuietlyAsync(saleId, "POS checkout failed while confirming.", cancellationToken);
-            return Result.Failure<CheckoutOutcome>(Error.Failure(
+            return Result.Failure<Committed>(Error.Failure(
                 "POS.Checkout.ConfirmFailed",
-                $"{Describe(confirmed.ErrorCode, confirmed.ErrorMessage)} The sale was cancelled."));
+                $"{Describe(confirmed.ErrorCode, confirmed.ErrorMessage)} {Outcome}"));
         }
 
         // 5b. Record the payment (optional Payments module) for the full cart total
@@ -166,9 +188,9 @@ public sealed class CheckoutCartCommandHandler(
             if (!payment.IsSuccess)
             {
                 await CancelQuietlyAsync(saleId, "POS checkout failed while recording the payment.", cancellationToken);
-                return Result.Failure<CheckoutOutcome>(Error.Failure(
+                return Result.Failure<Committed>(Error.Failure(
                     "POS.Checkout.PaymentFailed",
-                    $"The payment could not be recorded: {Describe(payment.ErrorCode, payment.ErrorMessage)} The sale was cancelled."));
+                    $"The payment could not be recorded: {Describe(payment.ErrorCode, payment.ErrorMessage)} {Outcome}"));
             }
 
             paymentId = payment.PaymentId;
@@ -188,16 +210,16 @@ public sealed class CheckoutCartCommandHandler(
 
             if (!issue.IsSuccess)
             {
-                if (paymentId is { } recorded)   // compensate: the payment was taken for a sale that will not complete
+                if (!Transactional && paymentId is { } recorded)   // compensate: the payment was taken for a sale that will not complete
                     await paymentService!.VoidPaymentAsync(recorded, "POS checkout failed while issuing stock.", cancellationToken);
 
                 await CancelQuietlyAsync(saleId, "POS checkout failed while issuing stock.", cancellationToken);
-                var note = issued > 0
+                var note = !Transactional && issued > 0
                     ? $" {issued} line(s) were already issued from Inventory and need a manual stock correction."
                     : string.Empty;
-                return Result.Failure<CheckoutOutcome>(Error.Failure(
+                return Result.Failure<Committed>(Error.Failure(
                     "POS.Checkout.StockIssueFailed",
-                    $"Could not issue stock for '{item.ProductName}': {Describe(issue.ErrorCode, issue.ErrorMessage)} The sale was cancelled.{note}"));
+                    $"Could not issue stock for '{item.ProductName}': {Describe(issue.ErrorCode, issue.ErrorMessage)} {Outcome}{note}"));
             }
 
             issued++;
@@ -206,20 +228,20 @@ public sealed class CheckoutCartCommandHandler(
         // 7. Complete the sale
         var completed = await salesService.CompleteSaleAsync(saleId, command.TransactionReference, cancellationToken);
         if (!completed.IsSuccess)
-            return Result.Failure<CheckoutOutcome>(Error.Failure(
+            return Result.Failure<Committed>(Error.Failure(
                 "POS.Checkout.CompleteSaleFailed",
-                $"Stock was issued but Sales could not complete sale '{saleId}': {Describe(completed.ErrorCode, completed.ErrorMessage)} The sale remains Confirmed and the cart open.{(paymentId is null ? string.Empty : $" Payment '{paymentId}' stays recorded.")}"));
+                Transactional
+                    ? $"Sales could not complete the sale: {Describe(completed.ErrorCode, completed.ErrorMessage)} {Outcome}"
+                    : $"Stock was issued but Sales could not complete sale '{saleId}': {Describe(completed.ErrorCode, completed.ErrorMessage)} The sale remains Confirmed and the cart open.{(paymentId is null ? string.Empty : $" Payment '{paymentId}' stays recorded.")}"));
 
         // 8. Record the outcome in POS
         var checkedOut = cart.MarkCheckedOut(saleId);
         if (checkedOut.IsFailure)
-            return Result.Failure<CheckoutOutcome>(checkedOut.Error);
+            return Result.Failure<Committed>(checkedOut.Error);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // 9. Peripherals. The sale is complete and saved; from here on only hardware can go wrong, and that can never undo it.
-        var notices = await RunPeripheralsAsync(cart, session, saleId, command.Payment, changeDue);
-        return Result.Success(new CheckoutOutcome(saleId, paymentId, changeDue, notices));
+        return Result.Success(new Committed(cart, session, saleId, paymentId, changeDue));
     }
 
     private async Task<IReadOnlyList<POSHardwareNotice>> RunPeripheralsAsync(
@@ -263,8 +285,16 @@ public sealed class CheckoutCartCommandHandler(
             notices.Add(new POSHardwareNotice(device, result.Error.Code, $"The sale was completed and saved, but {what}: {result.Error.Description}"));
     }
 
+    /// <summary>What the cashier is told about the state of the data after a failed checkout.</summary>
+    private string Outcome => Transactional
+        ? "Nothing was saved: no sale, payment or stock change was made."
+        : "The sale was cancelled.";
+
     private async Task CancelQuietlyAsync(Guid saleId, string reason, CancellationToken cancellationToken)
     {
+        // The transaction rolls the sale back; only the step-by-step fallback has to cancel it by hand.
+        if (Transactional) return;
+
         // Best effort: the original failure is what the cashier needs to see.
         await salesService.CancelSaleAsync(saleId, reason, cancellationToken);
     }

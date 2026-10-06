@@ -49,9 +49,9 @@ public static class SalesServicesExtensions
 
         // Register SalesDbContext with the same SQLite file.
         // Migration assembly = Sales.Infrastructure (owns Sales migrations).
-        services.AddDbContext<SalesDbContext>(options =>
+        services.AddAtomicOperations().AddDbContext<SalesDbContext>((sp, options) =>
         {
-            options.UseSqlite(connectionString, sqliteOptions =>
+            options.UseSharedSqlite(sp, connectionString, sqliteOptions =>
             {
                 sqliteOptions.MigrationsAssembly(typeof(SalesDbContext).Assembly.FullName);
             });

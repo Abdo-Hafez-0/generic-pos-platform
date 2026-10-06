@@ -49,9 +49,9 @@ public static class CatalogServicesExtensions
 
         // Register CatalogDbContext with the same SQLite file.
         // Migration assembly = Catalog.Infrastructure (owns Catalog migrations).
-        services.AddDbContext<CatalogDbContext>(options =>
+        services.AddAtomicOperations().AddDbContext<CatalogDbContext>((sp, options) =>
         {
-            options.UseSqlite(connectionString, sqliteOptions =>
+            options.UseSharedSqlite(sp, connectionString, sqliteOptions =>
             {
                 sqliteOptions.MigrationsAssembly(typeof(CatalogDbContext).Assembly.FullName);
             });

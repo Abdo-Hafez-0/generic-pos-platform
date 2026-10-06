@@ -18,9 +18,9 @@ public static class PaymentsServicesExtensions
         configuration.GetSection(DatabaseOptions.SectionName).Bind(dbOptions);
         var connectionString = dbOptions.BuildConnectionString();
 
-        services.AddDbContext<PaymentsDbContext>(options =>
+        services.AddAtomicOperations().AddDbContext<PaymentsDbContext>((sp, options) =>
         {
-            options.UseSqlite(connectionString, sqliteOptions =>
+            options.UseSharedSqlite(sp, connectionString, sqliteOptions =>
             {
                 sqliteOptions.MigrationsAssembly(typeof(PaymentsDbContext).Assembly.FullName);
             });

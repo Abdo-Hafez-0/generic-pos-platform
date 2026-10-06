@@ -18,9 +18,9 @@ public static class PurchasingServicesExtensions
         configuration.GetSection(DatabaseOptions.SectionName).Bind(dbOptions);
         var connectionString = dbOptions.BuildConnectionString();
 
-        services.AddDbContext<PurchasingDbContext>(options =>
+        services.AddAtomicOperations().AddDbContext<PurchasingDbContext>((sp, options) =>
         {
-            options.UseSqlite(connectionString, sqliteOptions =>
+            options.UseSharedSqlite(sp, connectionString, sqliteOptions =>
             {
                 sqliteOptions.MigrationsAssembly(typeof(PurchasingDbContext).Assembly.FullName);
             });

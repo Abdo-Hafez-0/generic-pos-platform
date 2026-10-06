@@ -12,10 +12,12 @@ public enum NetworkFault
     NoNetwork,
     DnsFailure,
     ConnectionRefused,
-    /// <summary>The TCP connection never completes.</summary>
+    /// <summary>The TCP connection never completes: the HTTP client's timeout fires (raised at once, exactly as HttpClient raises it).</summary>
     ConnectionTimeout,
-    /// <summary>The connection is fine but the server never answers.</summary>
+    /// <summary>The connection is fine but the server never answers: the HTTP client's timeout fires (raised at once, exactly as HttpClient raises it).</summary>
     RequestTimeout,
+    /// <summary>The server never answers and nothing raises anything: the call ends only when the client's own timeout cancels it. Slow by nature, so only dedicated tests use it.</summary>
+    HangUntilTimeout,
     Server500,
     ServerUnavailable503,
     /// <summary>HTTP 200 whose body is not what the protocol says.</summary>
@@ -59,6 +61,9 @@ public sealed class FaultInjectingHandler : DelegatingHandler
                 throw new HttpRequestException(HttpRequestError.ConnectionError, "Connection refused.", new SocketException((int)SocketError.ConnectionRefused));
             case NetworkFault.ConnectionTimeout:
             case NetworkFault.RequestTimeout:
+                // what HttpClient throws when its Timeout elapses: a TaskCanceledException caused by a TimeoutException, while the caller's token is NOT cancelled
+                throw new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout elapsing.", new TimeoutException("The operation timed out."));
+            case NetworkFault.HangUntilTimeout:
                 await Task.Delay(Timeout.Infinite, cancellationToken);   // ends only when the client's own timeout cancels the call
                 throw new InvalidOperationException("unreachable");
             case NetworkFault.Server500:

@@ -35,7 +35,7 @@ public sealed class UpdateServerOutageTests : IDisposable
             b.ConfigureAppConfiguration((_, c) => c.AddInMemoryCollection(new Dictionary<string, string?> { ["UpdateServer:PackageDirectory"] = _packages }));
         });
         _faults = new FaultInjectingHandler(_server.Server.CreateHandler());
-        var http = new HttpClient(_faults) { BaseAddress = new Uri("http://localhost/"), Timeout = TimeSpan.FromMilliseconds(500) };
+        var http = new HttpClient(_faults) { BaseAddress = new Uri("http://localhost/"), Timeout = TimeSpan.FromSeconds(60) };
         _service = new UpdateService(_w.Store, _w.PackageVerifier, new HttpUpdateClient(http), _w.Installed, _w.Migrations, _w.Safeguard, _w.Options, _w.Clock,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<UpdateService>.Instance);
     }
@@ -49,7 +49,7 @@ public sealed class UpdateServerOutageTests : IDisposable
     private void AssertNoPackageFilesLeftBehind()
         => Assert.Empty(Directory.Exists(_w.Store.DownloadsDir) ? Directory.GetFiles(_w.Store.DownloadsDir) : []);
 
-    public static IEnumerable<object[]> Faults() => Enum.GetValues<NetworkFault>().Where(f => f != NetworkFault.None).Select(f => new object[] { f });
+    public static IEnumerable<object[]> Faults() => Enum.GetValues<NetworkFault>().Where(f => f is not (NetworkFault.None or NetworkFault.HangUntilTimeout)).Select(f => new object[] { f });
 
     [Theory]
     [MemberData(nameof(Faults))]
@@ -93,5 +93,19 @@ public sealed class UpdateServerOutageTests : IDisposable
         var installed = await _service.InstallAsync(download.Value);
         Assert.True(installed.IsSuccess, installed.IsFailure ? installed.Error.ToString() : null);
         Assert.Equal("1.3.0", _w.Store.ReadActive("catalog")!.Version);
+    }
+
+    [Fact]
+    public async Task AServerThatNeverAnswers_IsEndedByTheClientTimeout_AsAnUnavailableServer()
+    {
+        // the one real timeout: the call is ended by HttpClient.Timeout itself (the outcome does not depend on how slow the machine is)
+        var hang = new FaultInjectingHandler { Fault = NetworkFault.HangUntilTimeout };
+        var client = new HttpUpdateClient(new HttpClient(hang) { BaseAddress = new Uri("http://localhost/"), Timeout = TimeSpan.FromMilliseconds(150) });
+
+        var check = await client.CheckAsync(new UpdateCheckRequest("1.0.0", "net10.0", []));
+        var download = await client.DownloadAsync(Guid.NewGuid(), new MemoryStream());
+
+        Assert.Equal(UpdateErrorCodes.ServerUnavailable, check.ErrorCode);
+        Assert.True(download.IsFailure);
     }
 }

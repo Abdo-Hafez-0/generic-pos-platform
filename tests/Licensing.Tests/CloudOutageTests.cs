@@ -73,7 +73,7 @@ public sealed class LicenseServerOutageTests : IClassFixture<LicenseServerOutage
         var faults = new FaultInjectingHandler(_factory.Server.CreateHandler());
         var store = new InMemoryLicenseStore();
         var identity = new InMemoryIdentityStore();
-        var http = new HttpClient(faults) { BaseAddress = new Uri("http://localhost/"), Timeout = TimeSpan.FromMilliseconds(400) };
+        var http = new HttpClient(faults) { BaseAddress = new Uri("http://localhost/"), Timeout = TimeSpan.FromSeconds(60) };
 
         return new OutageClient
         {
@@ -84,10 +84,10 @@ public sealed class LicenseServerOutageTests : IClassFixture<LicenseServerOutage
         };
     }
 
-    public static IEnumerable<object[]> Faults() => Enum.GetValues<NetworkFault>().Where(f => f != NetworkFault.None).Select(f => new object[] { f });
+    public static IEnumerable<object[]> Faults() => Enum.GetValues<NetworkFault>().Where(f => f is not (NetworkFault.None or NetworkFault.HangUntilTimeout)).Select(f => new object[] { f });
 
     private static bool IsTransportFault(NetworkFault fault) => fault is NetworkFault.NoNetwork or NetworkFault.DnsFailure or NetworkFault.ConnectionRefused
-        or NetworkFault.ConnectionTimeout or NetworkFault.RequestTimeout or NetworkFault.TlsCertificateFailure or NetworkFault.ConnectionResetDuringBody;
+        or NetworkFault.ConnectionTimeout or NetworkFault.RequestTimeout or NetworkFault.HangUntilTimeout or NetworkFault.TlsCertificateFailure or NetworkFault.ConnectionResetDuringBody;
 
     [Theory]
     [MemberData(nameof(Faults))]
@@ -143,6 +143,19 @@ public sealed class LicenseServerOutageTests : IClassFixture<LicenseServerOutage
         Assert.True(renewed.IsSuccess, renewed.IsFailure ? renewed.Error.ToString() : null);
         Assert.True(renewed.Value.Payload!.LicenseVersion > versionBefore);
         Assert.Equal(LicenseState.Active, restarted.State);
+    }
+
+    [Fact]
+    public async Task AServerThatNeverAnswers_IsEndedByTheClientTimeout_AsServerUnreachable()
+    {
+        // the one real timeout: the call is ended by HttpClient.Timeout itself (the outcome does not depend on how slow the machine is)
+        var hang = new FaultInjectingHandler { Fault = NetworkFault.HangUntilTimeout };
+        var http = new HttpClient(hang) { BaseAddress = new Uri("http://localhost/"), Timeout = TimeSpan.FromMilliseconds(150) };
+
+        var response = await new HttpLicenseClient(http).ActivateAsync(new ActivationRequest("K", Guid.NewGuid(), "genericpos"));
+
+        Assert.False(response.IsSuccess);
+        Assert.Equal(LicenseErrorCodes.ServerUnreachable, response.ErrorCode);
     }
 
     [Fact]

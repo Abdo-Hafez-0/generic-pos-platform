@@ -26,7 +26,20 @@ determined by customer license entitlements.
 
 ## Current Implementation Phase
 
-**Stage 12 COMPLETE (offline and failure testing): the platform is proven correct and usable when things fail - no network, a cloud that fails in every way, a locked or damaged database, dying peripherals, interrupted operations**
+**Stage 13 COMPLETE (architecture and integration verification): the architecture was audited against the repository, the twelve mandatory dependency rules are enforced on every project (including the WPF ones), and the module lifecycle now really runs**
+
+Stage 13 audited the code, not the documents, and found that the runtime module lifecycle of sections 11/14/39-41 had never been executed: the module registry was empty in the real desktop, so the updater could not see the installed modules and a module composed without its dependencies started half-working. The fix was approved before it was made.
+
+    Composed modules (IModule of each hosting module)
+        ---> ModuleLifecycleService (Client.ModuleHost, after every hosted service, i.e. after the databases are ready)
+                 Validate (ModuleDependencyResolver) -> Initialize -> Register (IModuleRegistry) -> Start, in dependency order; Stop in reverse on shutdown
+                 invalid composition / init or start failure => the application does not start; the user sees a plain sentence (ModuleCompositionException)
+        ---> IModuleRegistry ---> InstalledStateProvider (updater): downgrades, schema and dependent checks see the real installed modules
+    Architecture rules: Architecture.Tests Solution/ (ARCH-SOL-001..022) read the .csproj graph, the module folders, manifests, migrations and contract surfaces
+
+Implemented and tested: see "Stage 13 Summary" (audit, dependency map, document comparison, defects, rule matrix, verification status per area, limitations) and "Stage 13" under Completed Work.
+
+### Previous phase - Stage 12 COMPLETE (offline and failure testing): the platform is proven correct and usable when things fail - no network, a cloud that fails in every way, a locked or damaged database, dying peripherals, interrupted operations**
 
 Stage 12 proved the offline-first claim with real SQLite, the real desktop composition and deterministic failure injection, and in doing so found and fixed the one structural weakness: a business operation that spans modules was not one transaction.
 
@@ -472,11 +485,21 @@ Scope source: the Stage 12 task text (the roadmap file is not in the repository)
 - [x] Build: 0 errors, 0 warnings (120 projects, --no-incremental); all 2254 tests pass (22 test projects), 0 failed, 0 skipped.
 - [x] Not done by design (see the Stage 12 limitations): a real process kill, a real full disk, the real OS certificate store, physical devices, UI automation of the WPF screens, load testing.
 
+### Stage 13 - Architecture & Integration Verification (COMPLETE)
+Scope source: the Stage 13 task text (the roadmap file is not in the repository). Goal: prove the architecture, module boundaries, contracts, persistence boundaries, licensing, updates, offline behavior and the main vertical slice still hold together; fix only concrete violations; make every violated rule hard to violate again.
+- [x] Audit first (repository, not documents): project-reference/package map of all 120 projects, module/runtime dependencies, DbContexts and table prefixes, contracts, DI/hosting, licensing and update wiring, compared with "Architecture & Solution Design.md" (results: "Stage 13 Summary").
+- [x] Significant defect stopped and reported before any change; the user chose "lifecycle host, fail fast": Client.ModuleHost ModuleLifecycleService + Platform.Application ModuleCompositionException + Client.Host StartupFailure.Modules.
+- [x] Catalog.UI no longer references Client.Host (it reached Platform.Infrastructure/EF Core/SQLite; Rule 6).
+- [x] Architecture.Tests: ARCH-SOL-001..016 (Solution/SolutionArchitectureRules.cs, project graph + manifests), ARCH-SOL-017..022 (Solution/OwnershipAndContractRules.cs, contracts, table ownership, shared transaction); the assembly registry now covers all 13 modules; six always-passing placeholder tests removed.
+- [x] Tests: Platform.ModuleContract.Tests +9 (ModuleLifecycleServiceTests); Integration.Tests +18 (ModuleLifecycleIntegrationTests, VerticalSliceOwnershipTests, ModuleIntegrationTests, LicensingIntegrationTests, UpdateIntegrationTests, ArchitectureCompositionTests); OfflineDesktop now really isolates the updater folder (Updater:UpdateRoot).
+- [x] Build: 0 errors, 0 warnings (120 projects, --no-incremental); all 2297 tests pass (22 test projects), 0 failed, 0 skipped; the 18 new real-host tests passed 5 consecutive runs.
+- [x] Real Client.Desktop.exe smoke runs (isolated folders, UI Automation, console log captured): first-run setup, shell, sign-out, sign-in, close (exit 0); restart on the same files: sign-in (not first run), wrong password refused in plain words, sign-in, close (exit 0); both runs logged 13 modules running in dependency order, host stopped, no error lines. No business workflow through the UI (the shell hosts no business screens yet).
+
 ---
 
 ## Current Task
 
-**Stage 12 - COMPLETE (Offline/Failure Testing). Stopped: Stage 13 has not been started.**
+**Stage 13 - COMPLETE (Architecture & Integration Verification). Stopped: Stage 14 has not been started.**
 
 ---
 
@@ -484,7 +507,7 @@ Scope source: the Stage 12 task text (the roadmap file is not in the repository)
 
 **Awaiting instruction (technical lead decides).**
 
-Next roadmap stage: Stage 13 (Verification campaign) - only when instructed. Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; hosting the sign-in screen, first-run administrator setup, PosView and the Stage 8 view models in MainWindow (the desktop currently has NO screen that signs a user in - see Stage 11 deferred work); forwarding key presses to IKeyboardInputSink; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
+Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; hosting the sign-in screen, first-run administrator setup, PosView and the Stage 8 view models in MainWindow (the desktop currently has NO screen that signs a user in - see Stage 11 deferred work); forwarding key presses to IKeyboardInputSink; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
 
 ---
 
@@ -2043,14 +2066,100 @@ Translate unexpected failures at the other module services when their screens ar
 ### Stage 12 commit history (all on master, each built and tested before committing)
 dedbc1d one SQLite transaction for checkout and purchase receive | d048360 atomicity failure tests | d5578f0 cloud outage tests | d269e8b safe cloud failure messages | 2df6fd7 offline POS scenarios | 54de606 consistent contexts after failed saves, plain POS failures, busy timeout | 46bba7c database failure tests | 2cd1e8e cart read inside the checkout transaction (double submit) | eb63199 restart and interrupted-operation tests | e9635b6 hardware failure tests | 185b25c ARCH-RES-001..008 | c0d6dd7 plain startup-failure message | 586806e licensing and security failure tests | 388354b shared-transaction unit tests | d8b7fdc deterministic timeout tests | (docs commit)
 
+## Stage 13 Summary
+
+Verification labels used below: **[AT]** automated test (unit/architecture), **[IT]** integration test on the real host (real modules, real SQLite; "offline desktop" = production-like composition with licensing, updater, HTTP transports, security, a network that refuses every request), **[SMOKE]** real Client.Desktop.exe run, **[STATIC]** statically inspected only, **[NOT VERIFIED]**.
+
+### Audit: the dependency map as the repository has it (120 projects)
+- Platform: Core (no refs) <- Contracts <- Application <- Infrastructure (EF Core/SQLite). No Platform project reaches a module, client, server or tool. [AT ARCH-SOL-003]
+- Modules (13 x Domain/Application/Contracts/Infrastructure/UI): Domain -> Platform.Core only; Contracts -> Platform.Core only; Application -> own Domain/Contracts + Platform.Core/Application + other modules' Contracts; Infrastructure -> own layers + Platform.Infrastructure + Client.Host (for IHostingModule) + other Contracts; UI -> own Application/Contracts + Platform.Core. [AT ARCH-SOL-004..008]
+- Cross-module (Contracts only): Inventory->Catalog; Sales->Catalog,Inventory; POS->Catalog,Inventory,Sales (declared) + Pricing,Payments (optional); Pricing->Catalog; Purchasing->Catalog,Suppliers,Inventory; Reporting->Sales,Inventory,Purchasing,Customers,Suppliers (all optional). Acyclic at project and module level. [AT ARCH-SOL-005, 013, 014]
+- Database: one SQLite file; 12 module DbContexts + PlatformDbContext (maps nothing); prefixes cat_ inv_ sal_ pos_ cus_ sup_ pur_ pri_ pay_ usr_ aud_ cash_ (Reporting owns no tables); each module's migrations in its Infrastructure; EF's __EFMigrationsHistory/__EFMigrationsLock are shared bookkeeping. 10 contexts join the shared transaction (UseSharedSqlite), Users and Audit stay independent (Stage 12 decision). [AT ARCH-SOL-019..022, ARCH-RES-003; IT ArchitectureCompositionTests, RealHostMigrationTests]
+- Client: Desktop (composition root, references every module Infrastructure + UI) -> Host, ModuleHost, Licensing(+Http), Updater(+Http), Hardware, Security. HTTP only in Client.Licensing.Http and Client.Updater.Http. Licensing/updater/security reach no business module. [AT ARCH-SOL-006, 010, 015; ARCH-LIC/UPD/SEC]
+- Cloud: Cloud.Contracts/Infrastructure/Hosting, LicenseServer, UpdateServer, AdminPortal, BackupServer - reached by no module or Platform project [AT ARCH-SOL-010, ARCH-CLD, ARCH-RES-006] and not referenced by Client.Desktop [STATIC; ServerIndependenceTests IT for the composition].
+- Tools: ModulePackager, UpdatePublisher (signing) - referenced only by tests.
+
+### Comparison with "Architecture & Solution Design.md" (discrepancies and the decision for each)
+| # | Document | Implementation | Decision |
+|---|---|---|---|
+| 1 | Sections 11/14/39-41: Client.Host/ModuleHost discover, validate, register, activate modules | Nothing ran the lifecycle; registry empty at runtime | **Implementation wrong - fixed** (ModuleLifecycleService, approved). Disk discovery of packaged modules is still not used (modules are compiled in; launcher deferred). |
+| 2 | Section 20 / Rule 6: UI does not manipulate EF Core or SQLite | Catalog.UI referenced Client.Host (reaching Platform.Infrastructure, EF Core, SQLite) | **Implementation wrong - fixed** (reference replaced by Platform.Core). |
+| 3 | Section 40: IModule has ConfigureServices/RegisterUI | IHostingModule (DI) and IModule (lifecycle) are separate; no RegisterUI | Document is conceptual ("exact interface designed during implementation"); Stage 4 decision 1 stands. No change. |
+| 4 | Section 14: ModuleHost checks entitlements | License enforcement is central in AuthorizationService (Stage 11) | Deliberate Stage 11 decision; modules stay compiled in and unlicensed work is refused per capability. No change. |
+| 5 | Section 71: the Audit implementation belongs to the platform | Platform owns the abstraction (ISecurityEventSink); the Audit module stores; business actions are not audited yet | Consistent with "modules CAN record"; adoption is the documented Stage 8 limitation. No change. |
+| 6 | Module UI uses Application only | Catalog/Payments/CashManagement UI use their OWN Domain enums/value objects (via Application) | Same module, no persistence path, Rule 3 is about Domain->UI. Recorded, not changed. |
+Nothing in the architecture was changed silently; the document needed no edit (its rules hold; the gaps were in the implementation).
+
+### Defects found by Stage 13 and fixed
+| # | Defect | Fix | Evidence |
+|---|---|---|---|
+| 1 | The module lifecycle never ran: IModuleRegistry empty in the real desktop; the updater's installed state saw no module, so a signed DOWNGRADE of an installed module was accepted as a new install, schema and dependent checks compared against nothing, discovery reported no installed module; a module composed without its dependency started and failed on first use with a raw DI exception | ModuleLifecycleService (fail fast, user decision) + ModuleCompositionException + StartupFailure.Modules | ModuleLifecycleServiceTests (9), ModuleLifecycleIntegrationTests (4: the updater test fails on the old code), UpdateIntegrationTests (downgrade accepted when the lifecycle is disabled - checked), smoke runs (13 modules running) |
+| 2 | Catalog.UI could reach a DbContext (Rule 6) | project reference removed | ARCH-SOL-008 fails against the old project file |
+| 3 | Generic architecture rules (licensing, update, cycle detection) saw only 5 of 13 modules; six "deferred" tests always passed and claimed the desktop referenced no module infrastructure (false) | registry completed + ARCH-SOL-002 guards it; placeholders replaced by ARCH-SOL-006/008/009 | ARCH-SOL-002 |
+| 4 | The offline-desktop test harness set Updater:StorageDirectory (not a setting), so the updater used the real %LOCALAPPDATA% folder (nothing had been written there) | Updater:UpdateRoot | UpdateIntegrationTests run isolated |
+
+### Architecture rules - how each of the 12 mandatory rules is enforced now
+| Rule | Enforced by |
+|---|---|
+| 1 Platform.Core/Platform never depend on modules | ARCH-SOL-003 (project closure), ARCH-001*, per-module ARCH-xxx-012 [AT] |
+| 2, 3 Domain knows no infrastructure, no UI | ARCH-SOL-004 (every Domain: refs Platform.Core only, no packages, no WPF) [AT] |
+| 4 No other module's Infrastructure | ARCH-SOL-005/006 (only the composition root references module Infrastructure) [AT] |
+| 5 Contracts only | ARCH-SOL-005/007 (project graph), ARCH-SOL-017/018 (contract surfaces: no EF/SQLite/ADO/WPF/HTTP/IQueryable/expressions, no Domain/Application/Infrastructure type) [AT] |
+| 6 UI never accesses the database | ARCH-SOL-008 (no UI closure reaches Infrastructure/Client.Host/EF/SQLite), ARCH-SOL-009 (desktop shell code has no DbContext/connection/SQL) [AT] |
+| 7 No HTTP in business logic | ARCH-SOL-010 (project + package closure), ARCH-SOL-011 (types) [AT] |
+| 8 Cloud not required offline | ARCH-SOL-010, ARCH-RES-006 [AT]; Stage 12 OfflineWorkflowTests + Stage 13 vertical slice and reporting with 0 network requests, ServerIndependenceTests [IT] |
+| 9 Explicit module dependencies | ARCH-SOL-012 (one manifest per module, the full set resolves), ARCH-SOL-013 (declared deps are real; undeclared ones are optional constructor parameters) [AT]; enforced at startup by the lifecycle [IT, SMOKE] |
+| 10 No cycles | ARCH-SOL-014 (project and module graphs), ARCH-010, resolver at startup [AT] |
+| 11 No module modifies another's tables | ARCH-SOL-019 (migrations), 020 (no foreign table name in module code), 021 (no business SQL in Client/Platform), 022 (shared transaction) [AT]; ArchitectureCompositionTests (EF models), RealHostMigrationTests, vertical slice before/after table comparison [IT] |
+| 12 Licensing has no business logic | ARCH-SOL-015 (licensing and modules never reach each other), ARCH-SOL-016 (capabilities owned by the declaring module's manifest ID), ARCH-SEC-005 [AT] |
+
+### Shared SQLite transaction (Stage 12) - evaluated against the architecture
+Kept, confirmed sound: it shares a CONNECTION per DI scope, never a DbContext; IAtomicOperation exposes only Result-returning work (no context, connection or SQL) and SharedDatabaseScope's connection API is internal [AT ARCH-SOL-022]; no module names SharedDatabaseScope, modules join only by registering their OWN context [AT ARCH-SOL-022, ARCH-RES-003]; only Application-layer use cases open it (section 35) [AT ARCH-SOL-022]; rollback is atomic [IT Stage 12 AtomicityFailureTests]; the checkout wrote only to the owners' tables [IT VerticalSliceOwnershipTests].
+
+### Verification status by area
+| Area | Status |
+|---|---|
+| Module isolation (remove optional module: core starts and sells; absent module's tables/contracts absent) | [IT] OptionalModuleIsolationTests, ModuleLifecycleIntegrationTests |
+| Dependent functionality when a dependency is missing | [IT] start refused with a plain message naming the module (fail fast by decision) |
+| "Disabled" module | There is no runtime enable/disable switch: a module is absent (not composed) or unlicensed (capabilities refused) - both [IT] |
+| Module lifecycle (valid, missing, duplicate, incompatible version, cycle, init failure, start failure, shutdown order, stop failure) | [AT] ModuleLifecycleServiceTests; full composition and missing dependency [IT]; real process [SMOKE] |
+| Contracts | [AT] ARCH-SOL-017/018 |
+| Database ownership | [AT] + [IT] (see rule 11) |
+| Vertical slice (product, stock, POS, find, cart, Pricing price, sale, payment, stock issue + movement, cashier attribution, audit) offline + licensed + signed in | [IT] VerticalSliceOwnershipTests. Audit: security events only - a completed sale is NOT audited [NOT VERIFIED: not implemented, Stage 8 limitation] |
+| Catalog<->Inventory, Catalog<->POS, POS<->Sales, Sales<->Inventory, POS<->Payments | [IT] ModuleIntegrationTests, VerticalSliceOwnershipTests, Stage 12 suites |
+| POS<->Users/Authorization, Business<->Audit | [IT] SecurityIntegrationTests (Stage 11), vertical slice |
+| Modules<->Licensing (licensed, unlicensed, expired, revoked, suspended, grace period, entitlement isolation on writes, data intact, authentication separate) | [IT] LicensingIntegrationTests + SecurityIntegrationTests + LicenseAndSecurityFailureTests |
+| Modules<->Update (valid, invalid signature, unknown key, invalid hash, incompatible host, downgrade, same version, dependency conflict, missing dependency, unlicensed module, schema, failed migration + restore point + rollback with data restore, recovery) | [IT] UpdateIntegrationTests; crash recovery, interrupted install, binary rollback in depth [AT] Updater.Tests (Stage 7/12) |
+| Client<->Cloud | [IT/AT] Stage 12 outage suites, ServerIndependenceTests; desktop never calls AdminPortal/BackupServer (no client exists) |
+| Security controls (authentication, capabilities, cashier identity, session ownership, customer data, cost price, password policy, audit, installation identity, license protection, update signatures, HTTPS, throttling, clock rollback) | Unchanged and green: Security.Tests, Users.Tests, ARCH-SEC-001..017, Cloud.Tests, Stage 11/12 integration suites; cashier identity on a session re-verified in the vertical slice [IT] |
+| Desktop | [SMOKE] start, first-run setup, shell, sign-out, sign-in, wrong password, restart, clean shutdown (exit 0), 13 modules running. No business workflow through the UI: the shell hosts no business screens yet. |
+
+### Decisions introduced
+1. **The runtime module lifecycle fails fast** (user decision): an invalid composition or a module that cannot initialize/start stops the start with a plain message; an absent optional module is never a failure.
+2. **Architecture rules are discovered, not listed**: projects from the .csproj files, modules from src/Modules, prefixes from migrations, manifests from the IModule types. A new module is checked without editing a rule.
+3. Cross-module read contracts track entities (EF default); this is safe under the Stage 12 rule "one DI scope per user action" and Stage 13 tests follow it. A scope that outlives one action can read a stale product (observed in a test that broke the rule).
+
+### Remaining limitations (not fixed in Stage 13; owners)
+- Modules are compiled in; ModuleHost's file-system discovery and updater-activated versions are not loaded at runtime (launcher - Stage 14). ConfirmHealthyAsync is still not called by the host (Stage 14).
+- Business actions are not audited (Audit adoption by modules - follow-up); CashManagement not fed by POS (Stage 8).
+- Only POS translates unexpected failures into plain results (Stage 12 limitation).
+- Cross-module read contracts track entities; hosting the screens must keep one scope per action, or switch the readers to AsNoTracking.
+- Module UIs use their own Domain enums (Catalog, Payments, CashManagement) - accepted.
+- WPF screens: no UI automation of business workflows (the shell has none); smoke covers start/sign-in/shutdown only.
+- No load or soak testing; no real process kill, full disk or physical device (Stage 12 limitations unchanged).
+
+### Stage 13 commit history (all on master, each built and tested before committing)
+b4d4d5a Catalog.UI without Client.Host | 23c90bd ARCH-SOL-001..016 | d50be5f ARCH-SOL-017..022 | 33c3e75 module lifecycle (fail fast) | 2211930 offline desktop updater folder | 52db999 vertical slice ownership + module integration | 7b5bd9a licensing integration | 9dd9889 update integration | 0295d64 EF model ownership | c44e1c3 analyzer warning | (docs commit)
+
 ---
 
 ## Known Issues / Blockers
 
-None blocking. Stage 12 is complete.
+None blocking. Stage 13 is complete.
 Build: 0 errors, 0 warnings (120 projects, verified with `dotnet build --no-incremental`).
-All 2254 tests pass (Architecture 354, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Platform.ModuleContract 112, Integration 104, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
-Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 11 had 2125; Stage 12 added 129.
+All 2297 tests pass (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
+Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 12 had 2254; Stage 13 added 43 (Architecture +22 new and -6 placeholders removed, Platform.ModuleContract +9, Integration +18).
+Stage 13 limitations: see "Stage 13 Summary - Remaining limitations".
 Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
 Not defects but known gaps (see the Stage 11 deferred-limitations register): no user-administration / license-activation screen yet; backup encryption not built.
 Resolved during Stage 9: stress-running Cloud.Tests exposed rare random failures (about 1 run in 8, different tests each time, SQLite connection-open errors). Cause: the test teardown called the
@@ -2118,4 +2227,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-06 - Stage 12 complete (offline and failure testing; atomic checkout and purchase receive; Stage 11 re-verified under failure). 2254 tests, 0 warnings; Stage 13 not started.
+Last updated: 2026-10-06 - Stage 13 complete (architecture and integration verification; the module lifecycle runs and refuses an invalid composition; ARCH-SOL-001..022). 2297 tests, 0 warnings; Stage 14 not started.

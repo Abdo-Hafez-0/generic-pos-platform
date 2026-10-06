@@ -1,7 +1,7 @@
 # CLAUDE_CONTEXT.md
 
 Practical onboarding snapshot for future Claude sessions. `PROJECT_STATE.md` remains the formal state document.
-Repository source code is the source of truth; last updated 2026-10-05 when Stage 11 was completed.
+Repository source code is the source of truth; last updated 2026-10-06 when Stage 13 was completed.
 
 ## 1. Project purpose
 Generic, modular, offline-first Inventory & POS platform meant to serve many business types (retail, wholesale,
@@ -36,13 +36,14 @@ App must work with no internet. No cloud calls in the operational path.
 
 ## 9. Implemented stages (committed)
 Stage 1 Foundation, 2 Client Host, 3 Database Foundation, 4 Module Contract, 5A Catalog, 5B Inventory, 5C Sales, 5D POS,
-6 Licensing (foundation), 7 Update System (foundation), 8 Additional Business Modules, 9 Cloud Services & Administration, 10 Hardware & Device Integration, 11 Security Hardening. Roadmap:
-12 Offline/Failure Testing, 13 Architecture/Integration Verification, 14 Packaging, 15 Production Readiness. Never skip ahead.
+6 Licensing (foundation), 7 Update System (foundation), 8 Additional Business Modules, 9 Cloud Services & Administration, 10 Hardware & Device Integration, 11 Security Hardening,
+12 Offline/Failure Testing, 13 Architecture/Integration Verification. Roadmap: 14 Packaging, 15 Production Readiness. Never skip ahead.
 
 ## 10. Current stage
-Stage 11 (Security Hardening) is COMPLETE. Next roadmap stage is 12 (Offline/Failure Testing) - only when instructed. Do not start it unprompted.
+Stage 13 (Architecture & Integration Verification) is COMPLETE. Next roadmap stage is 14 (Packaging) - only when instructed. Do not start it unprompted.
 
 ## 11. Stage results worth knowing
+**Stage 13 (Architecture & Integration Verification) - rules every future change must respect:** (1) **The module lifecycle runs**: `Client.ModuleHost` `ModuleLifecycleService` validates the composed `IModule` manifests (ModuleDependencyResolver), initializes, registers (IModuleRegistry) and starts them in dependency order after the databases are ready, stops them in reverse; an invalid composition or a failing module STOPS THE START (`ModuleCompositionException`, plain `StartupFailure.Modules` message) - user decision "fail fast". A module that needs another module must declare it in its manifest; an undeclared use must be an optional (defaulted) constructor parameter (ARCH-SOL-013). (2) **Architecture rules are discovered**: `tests/Architecture.Tests/Solution` ARCH-SOL-001..022 read every .csproj (WPF projects included), module folders, manifests, migrations and contract surfaces; a new module must be added to `Assemblies.AllModuleAssemblies` (ARCH-SOL-002 fails otherwise). (3) Contracts expose no EF/SQLite/ADO/WPF/HTTP/IQueryable and no Domain/Application/Infrastructure type; a module's code never names another module's table. (4) Cross-module read contracts track entities: keep one DI scope per user action. 2297 tests. Decisions, discrepancy table, verification matrix: PROJECT_STATE.md "Stage 13 Summary".
 **Stage 11 (Security Hardening) - rules every future change must respect:** (1) **Every mutating business handler authorizes first**: it takes `IAuthorizationService` (Platform.Application) and calls `AuthorizeAsync(<Module>Capabilities.X)` before doing anything; the answer is live (Users' `IPermissionProvider` is asked
 on every call) and fails closed. ARCH-SEC-006 fails the build if a new `*CommandHandler` lacks it unless it is on the documented exception list; ARCH-SEC-007 does the same for the user/audit/report reads. A new module declares its capabilities in `<Module>.Application/Security/<Module>Capabilities.cs`
 (`ICapabilityProvider`, registered in its `Add<M>Core`), codes are lower-case dotted (`pos.sale.create`). (2) **Trusted contract calls are not authorized twice**: a handler used by a person AND by another module's contract authorizes in `HandleAsync` and delegates to an `internal ExecuteAsync`
@@ -137,7 +138,7 @@ Clean after the Stage 5C commit is pushed (check `git status` at session start a
 The Stage 11 commits (`feat(security): ...`, `feat(licensing): ...`, `feat(updates): ...`, `feat(audit): ...`, `feat(cloud): ...`, `test(architecture): ...`; see `git log --oneline d4f6a05..`); before them the `feat(hardware): ...` Stage 10 commit (d4f6a05), the `feat(cloud): ...` Stage 9 commit, and before that the `feat(stage8): ...` commits and the Stage 8 integration tests + documentation commit. Before Stage 8: `60a8123`-era `feat(update): implement secure update system`.
 
 ## 20. Exact next task
-None assigned. Wait for the technical lead. Next roadmap stage: Stage 12 (Offline/Failure Testing). Follow-ups (not in any stage): the user/role administration and license-activation screens and hosting the module view models in MainWindow (the start screen exists),
+None assigned. Wait for the technical lead. Next roadmap stage: Stage 14 (Packaging). Follow-ups (not in any stage): the user/role administration and license-activation screens and hosting the module view models in MainWindow (the start screen exists),
 launcher/ModuleHost adoption of activated updates + calling ConfirmHealthyAsync, IModuleMigrator in the business modules, the client-side CloudBackup module (IBackupClient talking to BackupServer.Api; declares backup.* capabilities) and backup encryption (needs a key-management design),
 a browser UI for AdminPortal, stock-reversal contract, adopting Audit/CashManagement/Customers from POS and Sales.
 

@@ -64,6 +64,12 @@ public sealed class DatabaseOptions
     public string ApplicationSubDirectory { get; init; } = "GenericPOS";
 
     /// <summary>
+    /// How long (seconds) a database call waits for another connection's lock before failing with "database is locked".
+    /// Unset keeps the SQLite driver default (30 seconds). Bounded 1..600 (the driver treats 0 as "wait forever", which is never allowed).
+    /// </summary>
+    public int? BusyTimeoutSeconds { get; init; }
+
+    /// <summary>
     /// Resolves the full absolute path to the database file based on these options.
     /// </summary>
     public string ResolveDatabasePath()
@@ -90,6 +96,8 @@ public sealed class DatabaseOptions
     public string BuildConnectionString()
     {
         var path = ResolveDatabasePath();
-        return $"Data Source={path}";
+        return BusyTimeoutSeconds is { } seconds
+            ? $"Data Source={path};Default Timeout={Math.Clamp(seconds, 1, 600)}"
+            : $"Data Source={path}";
     }
 }

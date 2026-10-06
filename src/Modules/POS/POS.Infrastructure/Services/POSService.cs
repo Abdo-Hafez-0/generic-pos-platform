@@ -25,49 +25,74 @@ internal sealed class POSService(
 {
     private readonly ILogger _logger = logger ?? NullLogger<POSService>.Instance;
 
-    public async Task<POSOpenSessionResult> OpenSessionAsync(
+    public Task<POSOpenSessionResult> OpenSessionAsync(
         string cashierReference, Guid warehouseId, CancellationToken cancellationToken = default)
-    {
-        var result = await openSessionHandler.HandleAsync(
-            new OpenPosSessionCommand(cashierReference, warehouseId), cancellationToken);
-        return result.IsSuccess
-            ? POSOpenSessionResult.Success(result.Value)
-            : POSOpenSessionResult.Failure(result.Error.Code, result.Error.Description);
-    }
+        => GuardAsync("open session", POSOpenSessionResult.Failure, async () =>
+        {
+            var result = await openSessionHandler.HandleAsync(
+                new OpenPosSessionCommand(cashierReference, warehouseId), cancellationToken);
+            return result.IsSuccess
+                ? POSOpenSessionResult.Success(result.Value)
+                : POSOpenSessionResult.Failure(result.Error.Code, result.Error.Description);
+        });
 
-    public async Task<POSOperationResult> CloseSessionAsync(Guid sessionId, CancellationToken cancellationToken = default)
-        => ToOperation(await closeSessionHandler.HandleAsync(new ClosePosSessionCommand(sessionId), cancellationToken));
+    public Task<POSOperationResult> CloseSessionAsync(Guid sessionId, CancellationToken cancellationToken = default)
+        => GuardAsync("close session", POSOperationResult.Failure, async () =>
+            ToOperation(await closeSessionHandler.HandleAsync(new ClosePosSessionCommand(sessionId), cancellationToken)));
 
-    public async Task<POSStartCartResult> StartCartAsync(Guid sessionId, CancellationToken cancellationToken = default)
-    {
-        var result = await startCartHandler.HandleAsync(new StartCartCommand(sessionId), cancellationToken);
-        return result.IsSuccess
-            ? POSStartCartResult.Success(result.Value)
-            : POSStartCartResult.Failure(result.Error.Code, result.Error.Description);
-    }
+    public Task<POSStartCartResult> StartCartAsync(Guid sessionId, CancellationToken cancellationToken = default)
+        => GuardAsync("start cart", POSStartCartResult.Failure, async () =>
+        {
+            var result = await startCartHandler.HandleAsync(new StartCartCommand(sessionId), cancellationToken);
+            return result.IsSuccess
+                ? POSStartCartResult.Success(result.Value)
+                : POSStartCartResult.Failure(result.Error.Code, result.Error.Description);
+        });
 
-    public async Task<POSAddItemResult> AddProductAsync(
+    public Task<POSAddItemResult> AddProductAsync(
         Guid cartId, string productCode, decimal quantity = 1m, CancellationToken cancellationToken = default)
-    {
-        var result = await addProductHandler.HandleAsync(
-            new AddProductToCartCommand(cartId, productCode, quantity), cancellationToken);
-        return result.IsSuccess
-            ? POSAddItemResult.Success(result.Value)
-            : POSAddItemResult.Failure(result.Error.Code, result.Error.Description);
-    }
+        => GuardAsync("add product", POSAddItemResult.Failure, async () =>
+        {
+            var result = await addProductHandler.HandleAsync(
+                new AddProductToCartCommand(cartId, productCode, quantity), cancellationToken);
+            return result.IsSuccess
+                ? POSAddItemResult.Success(result.Value)
+                : POSAddItemResult.Failure(result.Error.Code, result.Error.Description);
+        });
 
-    public async Task<POSOperationResult> RemoveProductAsync(
+    public Task<POSOperationResult> RemoveProductAsync(
         Guid cartId, Guid productId, CancellationToken cancellationToken = default)
-        => ToOperation(await removeProductHandler.HandleAsync(
-            new RemoveProductFromCartCommand(cartId, productId), cancellationToken));
+        => GuardAsync("remove product", POSOperationResult.Failure, async () =>
+            ToOperation(await removeProductHandler.HandleAsync(
+                new RemoveProductFromCartCommand(cartId, productId), cancellationToken)));
 
-    public async Task<POSOperationResult> ChangeQuantityAsync(
+    public Task<POSOperationResult> ChangeQuantityAsync(
         Guid cartId, Guid productId, decimal quantity, CancellationToken cancellationToken = default)
-        => ToOperation(await changeQuantityHandler.HandleAsync(
-            new ChangeCartQuantityCommand(cartId, productId, quantity), cancellationToken));
+        => GuardAsync("change quantity", POSOperationResult.Failure, async () =>
+            ToOperation(await changeQuantityHandler.HandleAsync(
+                new ChangeCartQuantityCommand(cartId, productId, quantity), cancellationToken)));
 
-    public async Task<POSOperationResult> ClearCartAsync(Guid cartId, CancellationToken cancellationToken = default)
-        => ToOperation(await clearCartHandler.HandleAsync(new ClearCartCommand(cartId), cancellationToken));
+    public Task<POSOperationResult> ClearCartAsync(Guid cartId, CancellationToken cancellationToken = default)
+        => GuardAsync("clear cart", POSOperationResult.Failure, async () =>
+            ToOperation(await clearCartHandler.HandleAsync(new ClearCartCommand(cartId), cancellationToken)));
+
+    /// <summary>
+    /// An unexpected failure (database locked or unavailable, disk error) must reach the cashier as a plain statement that the action did not
+    /// happen - never as an exception, a stack trace or database text. The details go to the log only.
+    /// </summary>
+    private async Task<T> GuardAsync<T>(string operation, Func<string, string, T> failure, Func<Task<T>> run)
+    {
+        try
+        {
+            return await run();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "POS operation '{Operation}' failed unexpectedly; nothing was changed.", operation);
+            return failure("POS.OperationFailed",
+                "The operation could not be completed and nothing was changed. Try again; if it keeps failing, contact support.");
+        }
+    }
 
     public async Task<POSCheckoutResult> CheckoutAsync(
         Guid cartId, string? transactionReference = null, POSPaymentRequest? payment = null, CancellationToken cancellationToken = default)

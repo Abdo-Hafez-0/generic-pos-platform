@@ -24,8 +24,25 @@ namespace Platform.Infrastructure.Persistence;
 public sealed class SharedDatabaseScope : IAtomicOperation, IDisposable
 {
     private readonly Dictionary<string, SqliteConnection> _connections = new(StringComparer.Ordinal);
+    private readonly HashSet<DbContext> _writers = [];
 
     public bool IsActive { get; private set; }
+
+    /// <summary>Remembers a context that saved inside the running operation, so a rollback can also discard what it still tracks.</summary>
+    internal void NoteWriter(DbContext context)
+    {
+        if (IsActive) _writers.Add(context);
+    }
+
+    /// <summary>
+    /// After a rollback the database no longer holds what the contexts believe they saved. Their tracked entities would describe a state that
+    /// does not exist, so they are discarded: the next read in this scope sees the database as it really is.
+    /// </summary>
+    private void DiscardTrackedState()
+    {
+        foreach (var context in _writers) context.ChangeTracker.Clear();
+        _writers.Clear();
+    }
 
     internal SqliteConnection GetConnection(string connectionString)
     {
@@ -62,6 +79,7 @@ public sealed class SharedDatabaseScope : IAtomicOperation, IDisposable
             if (result.IsFailure)
             {
                 await EndAsync(begun, "ROLLBACK");
+                DiscardTrackedState();
                 return result;
             }
 
@@ -73,11 +91,13 @@ public sealed class SharedDatabaseScope : IAtomicOperation, IDisposable
         catch
         {
             await EndAsync(begun.Concat(_connections.Values).Distinct().ToList(), "ROLLBACK", swallow: true);
+            DiscardTrackedState();
             throw;
         }
         finally
         {
             IsActive = false;
+            _writers.Clear();
             foreach (var connection in _connections.Values)
                 if (connection.State == System.Data.ConnectionState.Open) await connection.CloseAsync();
         }
@@ -135,11 +155,22 @@ public sealed class AtomicSaveChangesInterceptor : SaveChangesInterceptor
         return ValueTask.FromResult(result);
     }
 
+    /// <summary>A save that failed left entities in a state the database never reached: forget them so the context matches the database again.</summary>
+    public override void SaveChangesFailed(DbContextErrorEventData eventData) => eventData.Context?.ChangeTracker.Clear();
+
+    public override Task SaveChangesFailedAsync(DbContextErrorEventData eventData, CancellationToken cancellationToken = default)
+    {
+        eventData.Context?.ChangeTracker.Clear();
+        return Task.CompletedTask;
+    }
+
     private static void Adjust(DbContext? context)
     {
         if (context is null) return;
-        var services = context.GetService<IDbContextOptions>().FindExtension<Microsoft.EntityFrameworkCore.Infrastructure.CoreOptionsExtension>()?.ApplicationServiceProvider;
-        var active = services?.GetService<SharedDatabaseScope>()?.IsActive == true;
+        var services = context.GetService<IDbContextOptions>().FindExtension<CoreOptionsExtension>()?.ApplicationServiceProvider;
+        var scope = services?.GetService<SharedDatabaseScope>();
+        var active = scope?.IsActive == true;
+        if (active) scope!.NoteWriter(context);
         context.Database.AutoTransactionBehavior = active ? AutoTransactionBehavior.Never : AutoTransactionBehavior.WhenNeeded;
     }
 }
@@ -159,7 +190,7 @@ public static class SharedDatabaseExtensions
     /// Without the shared scope registered it behaves exactly like UseSqlite.
     /// </summary>
     public static DbContextOptionsBuilder UseSharedSqlite(
-        this DbContextOptionsBuilder options, IServiceProvider services, string connectionString, Action<Microsoft.EntityFrameworkCore.Infrastructure.SqliteDbContextOptionsBuilder>? configure = null)
+        this DbContextOptionsBuilder options, IServiceProvider services, string connectionString, Action<SqliteDbContextOptionsBuilder>? configure = null)
     {
         var scope = services.GetService<SharedDatabaseScope>();
         if (scope is null) return options.UseSqlite(connectionString, configure);

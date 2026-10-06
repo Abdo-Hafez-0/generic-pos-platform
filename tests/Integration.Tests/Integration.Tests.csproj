@@ -32,6 +32,9 @@
     <ProjectReference Include="..\..\src\Licensing\Licensing.Contracts\Licensing.Contracts.csproj" />
     <ProjectReference Include="..\Tests.Common\Tests.Common.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.ModuleHost\Client.ModuleHost.csproj" />
+    <!-- Stage 13: the vendor's packaging tools, to build signed update packages for the update-integration tests (test-only; no server code) -->
+    <ProjectReference Include="..\..\tools\ModulePackager\ModulePackager.csproj" />
+    <ProjectReference Include="..\..\tools\UpdatePublisher\UpdatePublisher.csproj" />
 
     <ProjectReference Include="..\..\src\Modules\Catalog\Catalog.Infrastructure\Catalog.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Inventory\Inventory.Infrastructure\Inventory.Infrastructure.csproj" />

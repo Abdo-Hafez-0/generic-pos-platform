@@ -12,6 +12,16 @@ internal sealed class EfPosSessionRepository(POSDbContext dbContext) : IPosSessi
     public async Task<PosSession?> GetByIdAsync(PosSessionId id, CancellationToken cancellationToken = default)
         => await dbContext.Sessions.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
+    public async Task<PosSession?> GetOpenSessionForCashierAsync(string cashierReference, CancellationToken cancellationToken = default)
+    {
+        // A cashier has very few open sessions (normally one); order in memory like the cart lookup below.
+        var sessions = await dbContext.Sessions
+            .Where(s => s.CashierReference == cashierReference && s.Status == PosSessionStatus.Open)
+            .ToListAsync(cancellationToken);
+
+        return sessions.OrderByDescending(s => s.OpenedAt).FirstOrDefault();
+    }
+
     public async Task AddAsync(PosSession session, CancellationToken cancellationToken = default)
         => await dbContext.Sessions.AddAsync(session, cancellationToken);
 }

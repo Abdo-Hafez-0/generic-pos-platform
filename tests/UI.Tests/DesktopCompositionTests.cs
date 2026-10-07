@@ -96,6 +96,38 @@ public sealed class DesktopCompositionTests
         => Assert.Contains("is Scoped", Assert.Single(NonSingletonDependencies(typeof(HoldsAScopedService), Services.Value)));
 
     [Fact]
+    public void Every_declared_screen_view_loads_its_xaml()
+    {
+        using var provider = Services.Value.BuildServiceProvider();
+        var screens = provider.GetServices<IScreenProvider>().SelectMany(p => p.GetScreens()).ToList();
+        Assert.NotEmpty(screens);
+
+        // XAML is parsed when the view is constructed (a missing resource or a bad binding path in markup throws there), on an STA thread.
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                foreach (var screen in screens)
+                {
+                    var view = (System.Windows.FrameworkElement)Activator.CreateInstance(screen.ViewType)!;
+                    view.Measure(new System.Windows.Size(1000, 700));
+                    view.Arrange(new System.Windows.Rect(0, 0, 1000, 700));
+                }
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        Assert.Null(failure);
+    }
+
+    [Fact]
     public void Every_declared_screen_is_valid_and_names_a_capability_some_module_declares()
     {
         using var provider = Services.Value.BuildServiceProvider();

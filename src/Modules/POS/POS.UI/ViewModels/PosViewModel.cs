@@ -1,209 +1,347 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using System.Globalization;
+using System.Windows.Input;
+using Platform.Application.Abstractions.Authorization;
+using Platform.Presentation.Actions;
+using Platform.Presentation.Mvvm;
+using Platform.Presentation.Screens;
 using POS.Contracts.Interfaces;
 using POS.Contracts.Models;
+using POS.UI.Resources;
 
 namespace POS.UI.ViewModels;
 
 /// <summary>
-/// Minimal cashier screen view model: product/barcode input, current cart, totals and checkout.
+/// The cashier screen (FIX-01b): open or resume the signed-in user's till, add products by barcode/SKU, remove lines, check out, close the till.
 ///
-/// Talks only to POS.Contracts (IPOSService / IPOSReader). No DbContext, repositories, EF Core or
-/// module infrastructure is referenced. Fully offline: no network access of any kind.
+/// Talks only to POS.Contracts (IPOSService / IPOSReader), and only through <see cref="IUiActionRunner"/>: every click runs in its own DI
+/// scope, so the screen can stay open all day without holding a database context, and an unexpected failure shows a plain sentence.
+/// The cashier is whoever is signed in (the session command attributes the till to that user, whatever the screen passes). Fully offline.
 /// </summary>
-public sealed class PosViewModel : INotifyPropertyChanged
+public sealed class PosViewModel : ViewModelBase, INavigationAware
 {
-    private readonly IPOSService _service;
-    private readonly IPOSReader _reader;
+    private readonly IUiActionRunner _runner;
+    private readonly ICurrentUser _currentUser;
 
     private Guid? _sessionId;
     private Guid? _cartId;
+    private POSWarehouseResult? _selectedWarehouse;
     private string _productCode = string.Empty;
-    private decimal _quantity = 1m;
+    private string _quantityText = "1";
     private decimal _subtotal;
     private decimal _total;
-    private string? _statusMessage;
-    private string? _errorMessage;
     private string? _hardwareMessage;
-    private bool _isBusy;
+    private bool _hasNoWarehouses;
 
-    public PosViewModel(IPOSService service, IPOSReader reader)
+    public PosViewModel(IUiActionRunner runner, ICurrentUser currentUser)
     {
-        _service = service;
-        _reader = reader;
-        Items = [];
+        _runner = runner;
+        _currentUser = currentUser;
+
+        OpenSessionCommand = Command(OpenSessionAsync, () => !HasOpenSession && SelectedWarehouse is not null);
+        AddCommand = Command(AddProductAsync, () => HasOpenSession && !string.IsNullOrWhiteSpace(ProductCode));
+        RemoveCommand = Command<POSCartItemResult>(item => item is null ? Task.CompletedTask : RemoveProductAsync(item.ProductId), item => item is not null && HasOpenSession);
+        CheckoutCommand = Command(CheckoutAsync, () => CanCheckout);
+        CloseSessionCommand = Command(CloseSessionAsync, () => HasOpenSession && Items.Count == 0);
     }
 
-    public ObservableCollection<POSCartItemResult> Items { get; }
+    public ObservableCollection<POSWarehouseResult> Warehouses { get; } = [];
+
+    public ObservableCollection<POSCartItemResult> Items { get; } = [];
+
+    public ICommand OpenSessionCommand { get; }
+    public ICommand AddCommand { get; }
+    public ICommand RemoveCommand { get; }
+    public ICommand CheckoutCommand { get; }
+    public ICommand CloseSessionCommand { get; }
+
+    public string CashierText => string.Format(CultureInfo.CurrentCulture, PosText.Cashier, _currentUser.DisplayName);
+
+    public POSWarehouseResult? SelectedWarehouse
+    {
+        get => _selectedWarehouse;
+        set => Set(ref _selectedWarehouse, value);
+    }
+
+    /// <summary>True when there is no active warehouse, so no till can be opened (the screen says what to do).</summary>
+    public bool HasNoWarehouses
+    {
+        get => _hasNoWarehouses;
+        private set => Set(ref _hasNoWarehouses, value);
+    }
 
     public string ProductCode
     {
         get => _productCode;
-        set { _productCode = value; OnPropertyChanged(); }
+        set => Set(ref _productCode, value);
     }
 
-    public decimal Quantity
+    /// <summary>The quantity as typed (parsed in the current culture when the product is added).</summary>
+    public string QuantityText
     {
-        get => _quantity;
-        set { _quantity = value; OnPropertyChanged(); }
+        get => _quantityText;
+        set => Set(ref _quantityText, value);
     }
 
     public decimal Subtotal
     {
         get => _subtotal;
-        private set { _subtotal = value; OnPropertyChanged(); }
+        private set => Set(ref _subtotal, value);
     }
 
     public decimal Total
     {
         get => _total;
-        private set { _total = value; OnPropertyChanged(); }
-    }
-
-    public string? StatusMessage
-    {
-        get => _statusMessage;
-        private set { _statusMessage = value; OnPropertyChanged(); }
+        private set => Set(ref _total, value);
     }
 
     /// <summary>A peripheral problem after a completed sale (for example the receipt could not be printed). Not an error: the sale is valid.</summary>
     public string? HardwareMessage
     {
         get => _hardwareMessage;
-        private set { _hardwareMessage = value; OnPropertyChanged(); }
-    }
-
-    public string? ErrorMessage
-    {
-        get => _errorMessage;
-        private set { _errorMessage = value; OnPropertyChanged(); }
-    }
-
-    public bool IsBusy
-    {
-        get => _isBusy;
-        private set { _isBusy = value; OnPropertyChanged(); }
+        private set => Set(ref _hardwareMessage, value);
     }
 
     public bool HasOpenSession => _sessionId.HasValue;
+
+    /// <summary>True while no till is open (the warehouse choice is shown).</summary>
+    public bool NeedsSession => !HasOpenSession;
+
     public bool CanCheckout => _cartId.HasValue && Items.Count > 0 && !IsBusy;
 
-    /// <summary>Opens a cashier session and starts the first cart.</summary>
-    public async Task OpenSessionAsync(string cashierReference, Guid warehouseId, CancellationToken cancellationToken = default)
+    public Guid? SessionId => _sessionId;
+
+    public Guid? CartId => _cartId;
+
+    /// <summary>Each time the screen is shown: resume the cashier's open till (with its cart), or offer the warehouses to open one.</summary>
+    public Task OnNavigatedToAsync(CancellationToken cancellationToken = default) => BusyAsync(async () =>
     {
-        await RunAsync(async () =>
+        if (HasOpenSession)
         {
-            var session = await _service.OpenSessionAsync(cashierReference, warehouseId, cancellationToken);
-            if (!session.IsSuccess) { Fail(session.ErrorMessage); return; }
-
-            _sessionId = session.SessionId;
-            var cart = await _service.StartCartAsync(session.SessionId, cancellationToken);
-            if (!cart.IsSuccess) { Fail(cart.ErrorMessage); return; }
-
-            _cartId = cart.CartId;
-            StatusMessage = "Session opened.";
             await RefreshCartAsync(cancellationToken);
+            return;
+        }
+
+        var cashier = _currentUser.UserName;
+        var resumed = await _runner.QueryAsync(async (scope, ct) =>
+        {
+            var reader = scope.Get<IPOSReader>();
+            var session = await reader.FindOpenSessionAsync(cashier, ct);
+            if (session is null)
+                return new Resume(null, null, await reader.GetWarehousesAsync(ct), null);
+
+            var cart = await reader.GetCurrentCartAsync(session.SessionId, ct);
+            if (cart is not null)
+                return new Resume(session.SessionId, cart, [], null);
+
+            var started = await scope.Get<IPOSService>().StartCartAsync(session.SessionId, ct);
+            return started.IsSuccess
+                ? new Resume(session.SessionId, await reader.GetCartAsync(started.CartId, ct), [], null)
+                : new Resume(session.SessionId, null, [], started.ErrorMessage ?? PosText.ActionFailed);
+        }, cancellationToken);
+
+        if (!Accept(resumed)) return;
+
+        if (resumed.Value.SessionId is { } sessionId)
+        {
+            SetSession(sessionId, resumed.Value.Cart);
+            if (resumed.Value.Error is { } error) Fail(error);
+            else StatusMessage = PosText.SessionResumed;
+            return;
+        }
+
+        ShowWarehouses(resumed.Value.Warehouses);
+    });
+
+    private sealed record Resume(Guid? SessionId, POSCartResult? Cart, IReadOnlyList<POSWarehouseResult> Warehouses, string? Error);
+
+    private sealed record CartChange(bool IsSuccess, string? ErrorMessage, POSCartResult? Cart);
+
+    private sealed record CheckoutOutcome(POSCheckoutResult Result, POSCartResult? Next);
+
+    private sealed record CloseOutcome(bool IsSuccess, string? ErrorMessage, IReadOnlyList<POSWarehouseResult> Warehouses);
+
+    private async Task OpenSessionAsync()
+    {
+        if (SelectedWarehouse is not { } warehouse) return;
+
+        var cashier = _currentUser.UserName;
+        var opened = await _runner.QueryAsync(async (scope, ct) =>
+        {
+            var service = scope.Get<IPOSService>();
+            var session = await service.OpenSessionAsync(cashier, warehouse.WarehouseId, ct);
+            if (!session.IsSuccess)
+                return new Resume(null, null, [], session.ErrorMessage ?? PosText.ActionFailed);
+
+            var cart = await service.StartCartAsync(session.SessionId, ct);
+            return cart.IsSuccess
+                ? new Resume(session.SessionId, await scope.Get<IPOSReader>().GetCartAsync(cart.CartId, ct), [], null)
+                : new Resume(session.SessionId, null, [], cart.ErrorMessage ?? PosText.ActionFailed);
         });
-        OnPropertyChanged(nameof(HasOpenSession));
+
+        if (!Accept(opened)) return;
+        if (opened.Value.SessionId is not { } sessionId)
+        {
+            Fail(opened.Value.Error);
+            return;
+        }
+
+        SetSession(sessionId, opened.Value.Cart);
+        if (opened.Value.Error is { } error) Fail(error);
+        else StatusMessage = PosText.SessionOpened;
     }
 
-    /// <summary>Adds the typed barcode/SKU with the entered quantity, then clears the input.</summary>
-    public async Task AddProductAsync(CancellationToken cancellationToken = default)
+    private async Task AddProductAsync()
     {
-        if (_cartId is not { } cartId) { Fail("Open a session first."); return; }
-
-        await RunAsync(async () =>
+        if (_cartId is not { } cartId) return;
+        if (!decimal.TryParse(QuantityText, NumberStyles.Number, CultureInfo.CurrentCulture, out var quantity) || quantity <= 0)
         {
-            var result = await _service.AddProductAsync(cartId, ProductCode, Quantity, cancellationToken);
-            if (!result.IsSuccess) { Fail(result.ErrorMessage); return; }
+            Fail(PosText.QuantityInvalid);
+            return;
+        }
 
-            ProductCode = string.Empty;
-            Quantity = 1m;
-            StatusMessage = "Item added.";
-            await RefreshCartAsync(cancellationToken);
+        var code = ProductCode.Trim();
+        var added = await _runner.QueryAsync(async (scope, ct) =>
+        {
+            var result = await scope.Get<IPOSService>().AddProductAsync(cartId, code, quantity, ct);
+            return new CartChange(result.IsSuccess, result.ErrorMessage, await scope.Get<IPOSReader>().GetCartAsync(cartId, ct));
         });
+
+        if (!Accept(added)) return;
+        ShowCart(added.Value.Cart);
+        if (!added.Value.IsSuccess)
+        {
+            Fail(added.Value.ErrorMessage);
+            return;
+        }
+
+        ProductCode = string.Empty;
+        QuantityText = "1";
+        StatusMessage = PosText.ItemAdded;
     }
 
-    public async Task RemoveProductAsync(Guid productId, CancellationToken cancellationToken = default)
+    private async Task RemoveProductAsync(Guid productId)
     {
-        if (_cartId is not { } cartId) { Fail("Open a session first."); return; }
+        if (_cartId is not { } cartId) return;
 
-        await RunAsync(async () =>
+        var removed = await _runner.QueryAsync(async (scope, ct) =>
         {
-            var result = await _service.RemoveProductAsync(cartId, productId, cancellationToken);
-            if (!result.IsSuccess) { Fail(result.ErrorMessage); return; }
-
-            StatusMessage = "Item removed.";
-            await RefreshCartAsync(cancellationToken);
+            var result = await scope.Get<IPOSService>().RemoveProductAsync(cartId, productId, ct);
+            return new CartChange(result.IsSuccess, result.ErrorMessage, await scope.Get<IPOSReader>().GetCartAsync(cartId, ct));
         });
+
+        if (!Accept(removed)) return;
+        ShowCart(removed.Value.Cart);
+        if (removed.Value.IsSuccess) StatusMessage = PosText.ItemRemoved;
+        else Fail(removed.Value.ErrorMessage);
     }
 
-    public async Task CheckoutAsync(CancellationToken cancellationToken = default)
+    private async Task CheckoutAsync()
     {
-        if (_cartId is not { } cartId || _sessionId is not { } sessionId) { Fail("Open a session first."); return; }
+        if (_cartId is not { } cartId || _sessionId is not { } sessionId) return;
 
-        await RunAsync(async () =>
+        var total = Total;
+        var checkedOut = await _runner.QueryAsync(async (scope, ct) =>
         {
-            var result = await _service.CheckoutAsync(cartId, cancellationToken: cancellationToken);
-            if (!result.IsSuccess) { Fail(result.ErrorMessage); return; }
-
-            StatusMessage = $"Sale completed ({result.SaleId}).";
-
-            // The sale is complete whatever the peripherals did; tell the cashier what must be done by hand.
-            HardwareMessage = result.HardwareNotices is { Count: > 0 } notices
-                ? string.Join(" ", notices.Select(n => n.Message))
-                : null;
+            var service = scope.Get<IPOSService>();
+            var result = await service.CheckoutAsync(cartId, cancellationToken: ct);
+            if (!result.IsSuccess)
+                return new CheckoutOutcome(result, null);
 
             // Ready for the next customer.
-            var next = await _service.StartCartAsync(sessionId, cancellationToken);
-            _cartId = next.IsSuccess ? next.CartId : null;
-            await RefreshCartAsync(cancellationToken);
+            var next = await service.StartCartAsync(sessionId, ct);
+            return new CheckoutOutcome(result, next.IsSuccess ? await scope.Get<IPOSReader>().GetCartAsync(next.CartId, ct) : null);
         });
+
+        if (!Accept(checkedOut)) return;
+        var (sale, nextCart) = (checkedOut.Value.Result, checkedOut.Value.Next);
+        if (!sale.IsSuccess)
+        {
+            Fail(sale.ErrorMessage);
+            return;
+        }
+
+        // The sale is complete whatever the peripherals did; tell the cashier what must be done by hand.
+        HardwareMessage = sale.HardwareNotices is { Count: > 0 } notices ? string.Join(" ", notices.Select(n => n.Message)) : null;
+        _cartId = nextCart?.CartId;
+        ShowCart(nextCart);
+        StatusMessage = string.Format(CultureInfo.CurrentCulture, PosText.SaleCompleted, total);
+    }
+
+    private async Task CloseSessionAsync()
+    {
+        if (_sessionId is not { } sessionId) return;
+
+        var closed = await _runner.QueryAsync(async (scope, ct) =>
+        {
+            var result = await scope.Get<IPOSService>().CloseSessionAsync(sessionId, ct);
+            return new CloseOutcome(result.IsSuccess, result.ErrorMessage, result.IsSuccess ? await scope.Get<IPOSReader>().GetWarehousesAsync(ct) : []);
+        });
+
+        if (!Accept(closed)) return;
+        if (!closed.Value.IsSuccess)
+        {
+            Fail(closed.Value.ErrorMessage);
+            return;
+        }
+
+        _sessionId = null;
+        _cartId = null;
+        HardwareMessage = null;
+        ShowCart(null);
+        RaiseSessionChanged();
+        ShowWarehouses(closed.Value.Warehouses);
+        StatusMessage = PosText.SessionClosed;
     }
 
     private async Task RefreshCartAsync(CancellationToken cancellationToken)
     {
-        POSCartResult? cart = _cartId is { } id
-            ? await _reader.GetCartAsync(id, cancellationToken)
-            : null;
+        if (_cartId is not { } cartId) return;
+        var cart = await _runner.QueryAsync((scope, ct) => scope.Get<IPOSReader>().GetCartAsync(cartId, ct), cancellationToken);
+        if (Accept(cart)) ShowCart(cart.Value);
+    }
 
+    private void SetSession(Guid sessionId, POSCartResult? cart)
+    {
+        _sessionId = sessionId;
+        _cartId = cart?.CartId;
+        Warehouses.Clear();
+        HasNoWarehouses = false;
+        ShowCart(cart);
+        RaiseSessionChanged();
+    }
+
+    private void ShowWarehouses(IReadOnlyList<POSWarehouseResult> warehouses)
+    {
+        Warehouses.Clear();
+        foreach (var warehouse in warehouses) Warehouses.Add(warehouse);
+        HasNoWarehouses = Warehouses.Count == 0;
+        SelectedWarehouse = Warehouses.Count == 1 ? Warehouses[0] : null;
+        if (!HasNoWarehouses && StatusMessage is null) StatusMessage = PosText.ChooseWarehouse;
+    }
+
+    private void ShowCart(POSCartResult? cart)
+    {
         Items.Clear();
         if (cart is not null)
             foreach (var item in cart.Items) Items.Add(item);
 
         Subtotal = cart?.Subtotal ?? 0m;
         Total = cart?.Total ?? 0m;
-        OnPropertyChanged(nameof(CanCheckout));
+        Raise(nameof(CanCheckout));
     }
 
-    private async Task RunAsync(Func<Task> action)
+    private void RaiseSessionChanged()
     {
-        IsBusy = true;
-        ErrorMessage = null;
-        try
-        {
-            await action();
-        }
-        catch (Exception ex)
-        {
-            Fail(ex.Message);
-        }
-        finally
-        {
-            IsBusy = false;
-            OnPropertyChanged(nameof(CanCheckout));
-        }
+        Raise(nameof(HasOpenSession));
+        Raise(nameof(NeedsSession));
+        Raise(nameof(SessionId));
+        Raise(nameof(CanCheckout));
     }
 
     private void Fail(string? message)
     {
-        ErrorMessage = message ?? "The operation failed.";
+        ErrorMessage = string.IsNullOrWhiteSpace(message) ? PosText.ActionFailed : message;
         StatusMessage = null;
     }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }

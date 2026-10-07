@@ -1,0 +1,152 @@
+using POS.Contracts.Interfaces;
+using POS.Contracts.Models;
+
+namespace UI.Tests.Pos;
+
+/// <summary>
+/// An in-memory till behind IPOSService/IPOSReader for view-model tests. The STATE is shared (like a database); the service objects are
+/// created per DI scope, so <see cref="Instances"/> shows how many scopes (user actions) were used.
+/// </summary>
+internal sealed class FakeTill
+{
+    public List<POSWarehouseResult> Warehouses { get; } = [];
+    public Dictionary<string, (Guid ProductId, string Name, decimal Price)> Products { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<Guid, POSSessionResult> Sessions { get; } = [];
+    public Dictionary<Guid, List<POSCartItemResult>> Carts { get; } = [];
+    public Dictionary<Guid, Guid> CartSession { get; } = [];
+    public HashSet<Guid> CheckedOut { get; } = [];
+    public List<string> Calls { get; } = [];
+    public int Instances { get; set; }
+    public Exception? Throw { get; set; }
+    public string? CheckoutRefusal { get; set; }
+    public IReadOnlyList<POSHardwareNotice>? HardwareNotices { get; set; }
+
+    public Guid AddWarehouse(string name)
+    {
+        var id = Guid.NewGuid();
+        Warehouses.Add(new POSWarehouseResult(id, name.ToUpperInvariant(), name));
+        return id;
+    }
+
+    public Guid OpenSessionFor(string cashier, Guid warehouseId)
+    {
+        var id = Guid.NewGuid();
+        Sessions[id] = new POSSessionResult(id, cashier, warehouseId, POSSessionStatusContract.Open, DateTime.UtcNow, null);
+        return id;
+    }
+
+    public Guid StartCart(Guid sessionId)
+    {
+        var id = Guid.NewGuid();
+        Carts[id] = [];
+        CartSession[id] = sessionId;
+        return id;
+    }
+
+    public POSCartResult? Cart(Guid cartId)
+    {
+        if (!Carts.TryGetValue(cartId, out var items)) return null;
+        var total = items.Sum(i => i.LineTotal);
+        return new POSCartResult(cartId, CartSession[cartId], CheckedOut.Contains(cartId) ? POSCartStatusContract.CheckedOut : POSCartStatusContract.Open,
+            items.ToList(), total, total, null, DateTime.UtcNow, null);
+    }
+}
+
+internal sealed class FakePosService : IPOSService, IPOSReader
+{
+    private readonly FakeTill _till;
+
+    public FakePosService(FakeTill till)
+    {
+        _till = till;
+        till.Instances++;
+    }
+
+    private void Enter(string call)
+    {
+        _till.Calls.Add(call);
+        if (_till.Throw is { } failure) throw failure;
+    }
+
+    public Task<POSOpenSessionResult> OpenSessionAsync(string cashierReference, Guid warehouseId, CancellationToken cancellationToken = default)
+    {
+        Enter($"open:{cashierReference}:{warehouseId}");
+        return Task.FromResult(POSOpenSessionResult.Success(_till.OpenSessionFor(cashierReference, warehouseId)));
+    }
+
+    public Task<POSOperationResult> CloseSessionAsync(Guid sessionId, CancellationToken cancellationToken = default)
+    {
+        Enter("close");
+        var openCart = _till.CartSession.Where(c => c.Value == sessionId && !_till.CheckedOut.Contains(c.Key)).Select(c => c.Key).FirstOrDefault();
+        if (openCart != Guid.Empty && _till.Carts[openCart].Count > 0)
+            return Task.FromResult(POSOperationResult.Failure("POS.CloseSession.OpenCartHasItems", "The open cart still has items."));
+
+        var session = _till.Sessions[sessionId];
+        _till.Sessions[sessionId] = session with { Status = POSSessionStatusContract.Closed };
+        return Task.FromResult(POSOperationResult.Success());
+    }
+
+    public Task<POSStartCartResult> StartCartAsync(Guid sessionId, CancellationToken cancellationToken = default)
+    {
+        Enter("start-cart");
+        return Task.FromResult(POSStartCartResult.Success(_till.StartCart(sessionId)));
+    }
+
+    public Task<POSAddItemResult> AddProductAsync(Guid cartId, string productCode, decimal quantity = 1, CancellationToken cancellationToken = default)
+    {
+        Enter($"add:{productCode}:{quantity}");
+        if (!_till.Products.TryGetValue(productCode, out var product))
+            return Task.FromResult(POSAddItemResult.Failure("POS.AddItem.ProductNotFound", $"No product with code '{productCode}'."));
+
+        var item = new POSCartItemResult(Guid.NewGuid(), product.ProductId, productCode, product.Name, quantity, product.Price, product.Price * quantity);
+        _till.Carts[cartId].Add(item);
+        return Task.FromResult(POSAddItemResult.Success(item.ItemId));
+    }
+
+    public Task<POSOperationResult> RemoveProductAsync(Guid cartId, Guid productId, CancellationToken cancellationToken = default)
+    {
+        Enter("remove");
+        _till.Carts[cartId].RemoveAll(i => i.ProductId == productId);
+        return Task.FromResult(POSOperationResult.Success());
+    }
+
+    public Task<POSOperationResult> ChangeQuantityAsync(Guid cartId, Guid productId, decimal quantity, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException();
+
+    public Task<POSOperationResult> ClearCartAsync(Guid cartId, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException();
+
+    public Task<POSCheckoutResult> CheckoutAsync(Guid cartId, string? transactionReference = null, POSPaymentRequest? payment = null, CancellationToken cancellationToken = default)
+    {
+        Enter("checkout");
+        if (_till.CheckoutRefusal is { } refusal)
+            return Task.FromResult(POSCheckoutResult.Failure("POS.Checkout.Refused", refusal));
+
+        _till.CheckedOut.Add(cartId);
+        return Task.FromResult(POSCheckoutResult.Success(Guid.NewGuid(), hardwareNotices: _till.HardwareNotices));
+    }
+
+    public Task<POSSessionResult?> GetSessionAsync(Guid sessionId, CancellationToken cancellationToken = default)
+        => Task.FromResult(_till.Sessions.GetValueOrDefault(sessionId));
+
+    public Task<POSCartResult?> GetCartAsync(Guid cartId, CancellationToken cancellationToken = default)
+        => Task.FromResult(_till.Cart(cartId));
+
+    public Task<POSCartResult?> GetCurrentCartAsync(Guid sessionId, CancellationToken cancellationToken = default)
+    {
+        var cartId = _till.CartSession.Where(c => c.Value == sessionId && !_till.CheckedOut.Contains(c.Key)).Select(c => c.Key).LastOrDefault();
+        return Task.FromResult(cartId == Guid.Empty ? null : _till.Cart(cartId));
+    }
+
+    public Task<POSSessionResult?> FindOpenSessionAsync(string cashierReference, CancellationToken cancellationToken = default)
+    {
+        Enter("find-open");
+        return Task.FromResult(_till.Sessions.Values.LastOrDefault(s => s.CashierReference == cashierReference && s.Status == POSSessionStatusContract.Open));
+    }
+
+    public Task<IReadOnlyList<POSWarehouseResult>> GetWarehousesAsync(CancellationToken cancellationToken = default)
+    {
+        Enter("warehouses");
+        return Task.FromResult<IReadOnlyList<POSWarehouseResult>>(_till.Warehouses.ToList());
+    }
+}

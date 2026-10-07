@@ -11,5 +11,15 @@
     <ProjectReference Include="..\POS.Application\POS.Application.csproj" />
     <ProjectReference Include="..\POS.Contracts\POS.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />
+    <!-- FIX-01b: the screen declaration, the per-action runner and the view-model base of the shell -->
+    <ProjectReference Include="..\..\..\Platform\Platform.Presentation\Platform.Presentation.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\PosText.resx"
+                      StronglyTypedLanguage="CSharp"
+                      StronglyTypedClassName="PosText"
+                      StronglyTypedNamespace="POS.UI.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)PosText.Designer.cs"
+                      PublicClass="true" />
   </ItemGroup>
 </Project>

@@ -22,6 +22,9 @@ public sealed record POSSessionResult(
     DateTime? ClosedAt);
 
 /// <summary>Read model of one cart line (prices are snapshots taken when the line was added).</summary>
+/// <summary>A warehouse a till session can sell from.</summary>
+public sealed record POSWarehouseResult(Guid WarehouseId, string Code, string Name);
+
 public sealed record POSCartItemResult(
     Guid ItemId,
     Guid ProductId,

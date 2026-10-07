@@ -20,6 +20,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- FIX-01b: UI.Tests drives the real screens on the same production-like offline desktop (OfflineDesktop, IntegrationHost). -->
+    <InternalsVisibleTo Include="UI.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The real host and the real module hosting modules (no stubs): every module is reached only through its Infrastructure + Contracts. -->
     <ProjectReference Include="..\..\src\Client\Client.Host\Client.Host.csproj" />
     <!-- Stage 10: the real hardware adapters + fake hardware -->

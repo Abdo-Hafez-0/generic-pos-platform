@@ -77,12 +77,7 @@
                       StronglyTypedFileName="$(IntermediateOutputPath)ShellText.Designer.cs"
                       PublicClass="true" />
   </ItemGroup>
-
-  <!--
-    WPF compiles a temporary assembly for XAML markup (the *_wpftmp project) BEFORE the normal resource generation runs, so the
-    strongly typed resource classes would not exist there. Generating them right before every compile covers both builds.
-  -->
-  <Target Name="GenerateStronglyTypedResourcesBeforeCompile" BeforeTargets="CoreCompile" DependsOnTargets="PrepareResourceNames;ResGen" />
+  <!-- The XAML temporary-assembly compile also needs the generated resource classes: src/Directory.Build.targets. -->
 
   <!-- EF Core design-time tools: required for 'dotnet ef migrations' command -->
   <ItemGroup>

@@ -1,3 +1,4 @@
+using Inventory.Contracts.Interfaces;
 using POS.Application.Mapping;
 using POS.Application.Repositories;
 using POS.Contracts.Models;
@@ -42,5 +43,43 @@ public sealed class GetCurrentCartQueryHandler(IPosCartRepository cartRepository
     {
         var cart = await cartRepository.GetOpenCartForSessionAsync(new PosSessionId(query.SessionId), cancellationToken);
         return cart?.ToResult();
+    }
+}
+
+/// <summary>
+/// The till session the cashier left open (for example before signing out or closing the application), so the cashier screen can resume it
+/// instead of opening a second one. Null when the cashier has no open session.
+/// </summary>
+public sealed record GetOpenSessionForCashierQuery(string CashierReference);
+
+public sealed class GetOpenSessionForCashierQueryHandler(IPosSessionRepository sessionRepository)
+{
+    public async Task<POSSessionResult?> HandleAsync(
+        GetOpenSessionForCashierQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query.CashierReference))
+            return null;
+
+        var session = await sessionRepository.GetOpenSessionForCashierAsync(query.CashierReference.Trim(), cancellationToken);
+        return session?.ToResult();
+    }
+}
+
+/// <summary>The active warehouses a till session can sell from (read through Inventory.Contracts), ordered by name.</summary>
+public sealed record GetSaleWarehousesQuery;
+
+public sealed class GetSaleWarehousesQueryHandler(IInventoryReader inventory)
+{
+    public async Task<IReadOnlyList<POSWarehouseResult>> HandleAsync(
+        GetSaleWarehousesQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        var warehouses = await inventory.GetAllWarehousesAsync(cancellationToken);
+        return warehouses
+            .Where(w => w.IsActive)
+            .OrderBy(w => w.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Select(w => new POSWarehouseResult(w.WarehouseId, w.Code, w.Name))
+            .ToList();
     }
 }

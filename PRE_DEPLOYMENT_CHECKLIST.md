@@ -30,7 +30,11 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
     - [x] `UI.Tests` project (net10.0-windows) for view models and navigation; architecture rules ARCH-SOL-023/024 for `Platform.Presentation`
     - [x] Smoke run: first-run setup -> shell -> sign out -> sign in -> close (exit 0)
     - Carried forward: SignInWindow texts still inline (FIX-13); per-module `ViewModelBase` copies replaced in FIX-01c/d; WPF resource target moved to a shared import in FIX-01b
-  - [ ] **FIX-01b POS screen**: host PosView; cashier = signed-in user; warehouse picker; no exception text shown; runner-based
+  - [x] **FIX-01b POS screen** (2026-10-07): host PosView; cashier = signed-in user; warehouse picker; no exception text shown; runner-based
+    - [x] Resume the cashier's open till and cart after sign-out/restart (new POS reads: open session by cashier, active warehouses)
+    - [x] Tests: view model (20), real offline desktop (3: sell, resume, unknown code), every screen view loads its XAML; smoke: POS entry locked on an unlicensed install
+    - Carried forward: payment method / tendered amount at checkout (FIX-10); scanner (FIX-02); change-quantity and clear-cart buttons
+    - **Found**: a fresh install is Unlicensed and cannot be activated from the desktop until FIX-01e, so POS stays locked in the real app until then
   - [ ] **FIX-01c Catalog, Inventory, Sales screens** (convert existing views/view models, add the missing views)
   - [ ] **FIX-01d Back-office screens**: Customers, Suppliers, Purchasing, Pricing, Payments, CashManagement, Reporting, Audit
   - [ ] **FIX-01e Administration screens**: users, roles and permissions (new view model), license activation and status (new view model)
@@ -130,4 +134,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | Date | Item(s) | Commit(s) | Notes |
 |---|---|---|---|
 | 2026-10-07 | FIX-01 plan | f6ab63d | Decisions recorded |
-| 2026-10-07 | FIX-01a | (this commit) | Shell foundation; 2343 tests, 0 warnings, 122 projects |
+| 2026-10-07 | FIX-01a | c4fceab | Shell foundation; 2343 tests, 0 warnings, 122 projects |
+| 2026-10-07 | FIX-01b | (this commit) | POS screen; 2370 tests, 0 warnings |

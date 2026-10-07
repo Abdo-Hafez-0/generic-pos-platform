@@ -1,0 +1,15 @@
+<Project>
+
+  <!--
+    FIX-01: strongly typed resource classes (EmbeddedResource with StronglyTyped* metadata) in WPF projects.
+
+    WPF compiles a temporary assembly for XAML markup (the *_wpftmp project) BEFORE the normal resource generation runs, so the
+    generated resource classes would not exist there and "{x:Static res:...}" or code using them would not compile. Generating the
+    resources right before every compile covers both builds. Projects that are not WPF do not need this (ResGen runs before compile).
+  -->
+  <Target Name="GenerateStronglyTypedResourcesBeforeCompile"
+          BeforeTargets="CoreCompile"
+          DependsOnTargets="PrepareResourceNames;ResGen"
+          Condition="'$(UseWPF)' == 'true'" />
+
+</Project>

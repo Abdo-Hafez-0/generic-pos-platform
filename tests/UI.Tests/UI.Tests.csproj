@@ -27,6 +27,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Platform\Platform.Presentation\Platform.Presentation.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.Desktop\Client.Desktop.csproj" />
+    <!-- the production-like offline desktop (real SQLite, signed license, signed-in user) for screens on the real composition -->
+    <ProjectReference Include="..\Integration.Tests\Integration.Tests.csproj" />
   </ItemGroup>
 
 </Project>

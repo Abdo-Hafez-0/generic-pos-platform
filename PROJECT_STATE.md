@@ -499,13 +499,14 @@ Scope source: the Stage 13 task text (the roadmap file is not in the repository)
 
 ## Current Task
 
-**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01a COMPLETE (shell foundation); next: FIX-01b (POS screen). Stage 14 has not been started.**
+**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01a (shell foundation) and FIX-01b (POS screen) COMPLETE; next: FIX-01c (Catalog, Inventory, Sales screens). Stage 14 has not been started.**
 
 ---
 
 ## Next Task
 
-**FIX-01b - host the POS screen in the shell (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
+**FIX-01c - Catalog, Inventory and Sales screens in the shell (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
+Note: a fresh installation is Unlicensed and has no activation screen until FIX-01e, so the POS screen is shown locked in the real application until then.
 
 Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; hosting PosView and the module view models in the shell (FIX-01b..e; the sign-in/first-run start screen exists since the Stage 11 review and the shell since FIX-01a); forwarding key presses to IKeyboardInputSink; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
 
@@ -2173,11 +2174,25 @@ Scope source: PRE_DEPLOYMENT_CHECKLIST.md FIX-01a. Decisions (user, 2026-10-07):
 
 ---
 
+## FIX-01b Summary - POS screen in the shell (2026-10-07)
+
+- **Screen**: POS.UI Screens/PosScreens declares "pos.sell" (group Sales, capability pos.sale.create); registered in DesktopServicesRegistrar. POS.UI references Platform.Presentation; texts in Resources/PosText.resx.
+- **PosViewModel rewritten** on ViewModelBase + IUiActionRunner + ICurrentUser (no service held; one scope per click): on navigation it RESUMES the signed-in cashier's open till and cart (or starts a cart for it), otherwise lists the active warehouses (the only one is preselected; none -> plain instruction). Commands: open till, add by barcode/SKU (Enter key; quantity parsed in the current culture, > 0), remove selected line, checkout (then a new cart; total shown; peripheral notices shown separately, the sale stands), close till (only with an empty cart). No exception text reaches the screen (Stage 5D view model showed ex.Message). The cashier is the signed-in user (the session command already enforced it).
+- **PosView rewritten**: bindings to commands only (code-behind keeps the barcode box focused), dark cart grid, numbers aligned at the end, no left/right-specific placement.
+- **POS backend**: IPOSReader.FindOpenSessionAsync(cashierReference) and GetWarehousesAsync() (contract model POSWarehouseResult); POS.Application GetOpenSessionForCashierQuery (IPosSessionRepository.GetOpenSessionForCashierAsync) and GetSaleWarehousesQuery (active warehouses through Inventory.Contracts IInventoryReader, a declared POS dependency).
+- **Build**: src/Directory.Build.targets runs ResGen before CoreCompile in every WPF project (the XAML temporary assembly needs the generated resource classes); removed from Client.Desktop.csproj.
+- **Tests**: UI.Tests +24 (PosViewModelTests 20 against an in-memory till through the real runner; PosScreenOnRealDesktopTests 3 on the production-like OfflineDesktop: sell offline and stock goes down, the open till and cart are resumed by a new screen, an unknown code is refused in plain words; DesktopCompositionTests: every declared screen view loads its XAML on an STA thread). UI.Tests references Integration.Tests (InternalsVisibleTo) for OfflineDesktop. POS.Tests +3 (PosScreenQueriesTests); PosTestDatabase registers the new handlers and an IInventoryReader stub.
+- **Real executable**: the menu shows "Point of sale" under Sales; on the unlicensed installation it is marked Locked and opening it shows "Not included in the current license (Unlicensed). Your data is safe and unchanged."; exit 0, no error log lines.
+- **Not done here (owners)**: payment method choice and tendered amount at checkout (FIX-10 with split payments); scanner input (FIX-02); change quantity / clear cart commands exist in IPOSService but have no button yet.
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 13 and FIX-01a are complete.
+None blocking. Stage 13, FIX-01a and FIX-01b are complete.
+Observed once (2026-10-07, FIX-01b final run): the Cloud.Tests test host crashed with "Internal CLR error (0x80131506)" while all 23 test projects ran in parallel; Cloud.Tests then passed 207/207 three times in a row on its own. Not reproduced; watch for it in later full runs.
 Build: 0 errors, 0 warnings (122 projects, verified with `dotnet build --no-incremental`).
-All 2343 tests pass (FIX-01a: UI 44 new, Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
+All 2370 tests pass (FIX-01b: UI 68, POS 153; FIX-01a: Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
 Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 12 had 2254; Stage 13 added 43 (Architecture +22 new and -6 placeholders removed, Platform.ModuleContract +9, Integration +18).
 Stage 13 limitations: see "Stage 13 Summary - Remaining limitations".
 Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
@@ -2247,4 +2262,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-07 - FIX-01a complete (shell foundation: Platform.Presentation, navigation by permission and license, one DI scope per user action, UI.Tests; ARCH-SOL-023..024). 2343 tests, 0 warnings, 122 projects; Stage 14 not started.
+Last updated: 2026-10-07 - FIX-01b complete (POS screen in the shell: resume the cashier's till, warehouses, add/remove/checkout/close through the per-action runner). 2370 tests, 0 warnings, 122 projects; Stage 14 not started.

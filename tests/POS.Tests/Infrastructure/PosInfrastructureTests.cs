@@ -170,6 +170,7 @@ public sealed class PosInfrastructureTests
         services.AddSingleton<Catalog.Contracts.Interfaces.IProductBarcodeResolver>(stubs.Catalog);
         services.AddSingleton<Inventory.Contracts.Interfaces.IStockAvailabilityChecker>(stubs.Inventory);
         services.AddSingleton<Inventory.Contracts.Interfaces.IStockIssueService>(stubs.Inventory);
+        services.AddSingleton<Inventory.Contracts.Interfaces.IInventoryReader>(stubs.Inventory);
         services.AddSingleton<Sales.Contracts.Interfaces.ISalesService>(stubs.Sales);
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = false });
     }

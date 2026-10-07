@@ -81,6 +81,8 @@ public static class POSServicesExtensions
         services.AddTransient<GetPosSessionQueryHandler>();
         services.AddTransient<GetCartQueryHandler>();
         services.AddTransient<GetCurrentCartQueryHandler>();
+        services.AddTransient<GetOpenSessionForCashierQueryHandler>();
+        services.AddTransient<GetSaleWarehousesQueryHandler>();
 
         services.AddTransient<PrintReceiptCommandHandler>();
         services.AddTransient<OpenCashDrawerCommandHandler>();

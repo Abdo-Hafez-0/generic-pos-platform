@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Platform.Presentation.Actions;
 using Platform.Presentation.Screens;
+using POS.UI.Screens;
 using Users.Application.Security;
 
 namespace Client.Desktop;
@@ -37,7 +38,8 @@ internal sealed class DesktopServicesRegistrar : IHostingModule
         services.AddSingleton<IScreenFactory, WpfScreenFactory>();
         services.AddSingleton<ShellViewModel>();
 
-        // Screens declared by the module UIs (IScreenProvider). Added module by module from FIX-01b on.
+        // Screens declared by the module UIs (IScreenProvider), one per module UI.
+        services.AddSingleton<IScreenProvider, PosScreens>();   // FIX-01b
     }
 }
 

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ScreenTitle" xml:space="preserve">
+    <value>Point of sale</value>
+  </data>
+  <data name="Cashier" xml:space="preserve">
+    <value>Cashier: {0}</value>
+  </data>
+  <data name="Warehouse" xml:space="preserve">
+    <value>Sell from</value>
+  </data>
+  <data name="OpenSession" xml:space="preserve">
+    <value>Open till</value>
+  </data>
+  <data name="CloseSession" xml:space="preserve">
+    <value>Close till</value>
+  </data>
+  <data name="ProductCode" xml:space="preserve">
+    <value>Barcode / SKU</value>
+  </data>
+  <data name="Quantity" xml:space="preserve">
+    <value>Qty</value>
+  </data>
+  <data name="Add" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="Product" xml:space="preserve">
+    <value>Product</value>
+  </data>
+  <data name="UnitPrice" xml:space="preserve">
+    <value>Unit price</value>
+  </data>
+  <data name="LineTotal" xml:space="preserve">
+    <value>Line total</value>
+  </data>
+  <data name="Subtotal" xml:space="preserve">
+    <value>Subtotal</value>
+  </data>
+  <data name="Total" xml:space="preserve">
+    <value>Total</value>
+  </data>
+  <data name="RemoveSelected" xml:space="preserve">
+    <value>Remove selected</value>
+  </data>
+  <data name="Checkout" xml:space="preserve">
+    <value>Checkout</value>
+  </data>
+  <data name="ChooseWarehouse" xml:space="preserve">
+    <value>Choose where you sell from, then open the till.</value>
+  </data>
+  <data name="NoWarehouses" xml:space="preserve">
+    <value>There is no active warehouse to sell from yet. Create one under Products and stock first.</value>
+  </data>
+  <data name="SessionOpened" xml:space="preserve">
+    <value>The till is open.</value>
+  </data>
+  <data name="SessionResumed" xml:space="preserve">
+    <value>Your open till was resumed.</value>
+  </data>
+  <data name="SessionClosed" xml:space="preserve">
+    <value>The till is closed.</value>
+  </data>
+  <data name="ItemAdded" xml:space="preserve">
+    <value>Item added.</value>
+  </data>
+  <data name="ItemRemoved" xml:space="preserve">
+    <value>Item removed.</value>
+  </data>
+  <data name="SaleCompleted" xml:space="preserve">
+    <value>Sale completed: {0:N2}.</value>
+  </data>
+  <data name="QuantityInvalid" xml:space="preserve">
+    <value>Enter a quantity greater than zero.</value>
+  </data>
+  <data name="ActionFailed" xml:space="preserve">
+    <value>That did not work. Please try again.</value>
+  </data>
+</root>

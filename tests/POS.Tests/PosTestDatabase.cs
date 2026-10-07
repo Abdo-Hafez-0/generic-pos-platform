@@ -68,6 +68,7 @@ public sealed class PosTestDatabase : IAsyncDisposable
         services.AddSingleton<IProductBarcodeResolver>(catalog);
         services.AddSingleton<IStockAvailabilityChecker>(inventory);
         services.AddSingleton<IStockIssueService>(inventory);
+        services.AddSingleton<IInventoryReader>(inventory);
         services.AddSingleton<ISalesService>(sales);
         if (priceResolver is not null) services.AddSingleton(priceResolver);   // OPTIONAL integration
         if (paymentService is not null) services.AddSingleton(paymentService); // OPTIONAL integration
@@ -97,6 +98,8 @@ public sealed class PosTestDatabase : IAsyncDisposable
         services.AddTransient<GetPosSessionQueryHandler>();
         services.AddTransient<GetCartQueryHandler>();
         services.AddTransient<GetCurrentCartQueryHandler>();
+        services.AddTransient<GetOpenSessionForCashierQueryHandler>();
+        services.AddTransient<GetSaleWarehousesQueryHandler>();
 
         var provider = services.BuildServiceProvider();
 
@@ -146,9 +149,20 @@ public sealed class StubCatalog : IProductLookup, IProductBarcodeResolver
         => Task.FromResult(_barcodes.TryGetValue(barcodeValue, out var id) ? _products[id] : null);
 }
 
-/// <summary>Stub of Inventory.Contracts: stock availability + stock issue.</summary>
-public sealed class StubInventory : IStockAvailabilityChecker, IStockIssueService
+/// <summary>Stub of Inventory.Contracts: stock availability + stock issue + the warehouse list the cashier screen offers.</summary>
+public sealed class StubInventory : IStockAvailabilityChecker, IStockIssueService, IInventoryReader
 {
+    public List<WarehouseDto> Warehouses { get; } = [];
+
+    public Task<IReadOnlyList<WarehouseDto>> GetAllWarehousesAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<WarehouseDto>>(Warehouses.ToList());
+
+    public Task<StockLevelDto?> GetStockLevelAsync(Guid stockItemId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+    public Task<StockLevelDto?> GetStockLevelByProductAsync(Guid catalogProductId, Guid warehouseId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+    public Task<IReadOnlyList<StockLevelDto>> GetAllStockLevelsAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
     private readonly Dictionary<Guid, decimal> _onHand = [];
     private readonly HashSet<Guid> _failIssueFor = [];
 

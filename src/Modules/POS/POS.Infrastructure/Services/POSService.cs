@@ -131,7 +131,9 @@ internal sealed class POSService(
 internal sealed class POSReader(
     GetPosSessionQueryHandler sessionHandler,
     GetCartQueryHandler cartHandler,
-    GetCurrentCartQueryHandler currentCartHandler) : IPOSReader
+    GetCurrentCartQueryHandler currentCartHandler,
+    GetOpenSessionForCashierQueryHandler openSessionHandler,
+    GetSaleWarehousesQueryHandler warehousesHandler) : IPOSReader
 {
     public Task<POSSessionResult?> GetSessionAsync(Guid sessionId, CancellationToken cancellationToken = default)
         => sessionHandler.HandleAsync(new GetPosSessionQuery(sessionId), cancellationToken);
@@ -141,4 +143,10 @@ internal sealed class POSReader(
 
     public Task<POSCartResult?> GetCurrentCartAsync(Guid sessionId, CancellationToken cancellationToken = default)
         => currentCartHandler.HandleAsync(new GetCurrentCartQuery(sessionId), cancellationToken);
+
+    public Task<POSSessionResult?> FindOpenSessionAsync(string cashierReference, CancellationToken cancellationToken = default)
+        => openSessionHandler.HandleAsync(new GetOpenSessionForCashierQuery(cashierReference), cancellationToken);
+
+    public Task<IReadOnlyList<POSWarehouseResult>> GetWarehousesAsync(CancellationToken cancellationToken = default)
+        => warehousesHandler.HandleAsync(new GetSaleWarehousesQuery(), cancellationToken);
 }

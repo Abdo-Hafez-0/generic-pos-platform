@@ -16,8 +16,13 @@ public sealed record AssignBarcodeCommand(
     string BarcodeValue,
     BarcodeFormat Format = BarcodeFormat.EAN13);
 
+/// <summary>
+/// Adds a barcode to a product. A barcode identifies ONE product: a value already carried by another product is refused, because a
+/// scan at the till must never pick one of two products at random (FIX-01c).
+/// </summary>
 public sealed class AssignBarcodeCommandHandler(
     IProductRepository productRepository,
+    IBarcodeRepository barcodeRepository,
     ICatalogUnitOfWork unitOfWork,
     IAuthorizationService authorization)
 {
@@ -32,6 +37,12 @@ public sealed class AssignBarcodeCommandHandler(
         if (product is null)
             return Result.Failure<BarcodeId>(
                 Error.NotFound("Catalog.Product.NotFound", $"Product '{command.ProductId}' was not found."));
+
+        if (!string.IsNullOrWhiteSpace(command.BarcodeValue)
+            && await barcodeRepository.GetProductByBarcodeValueAsync(command.BarcodeValue, cancellationToken) is { } owner
+            && owner.Id != product.Id)
+            return Result.Failure<BarcodeId>(Error.Conflict(
+                "Catalog.Barcode.InUse", $"The barcode '{command.BarcodeValue.Trim()}' already belongs to product {owner.Sku} ({owner.Name})."));
 
         var result = product.AssignBarcode(command.BarcodeValue, command.Format);
         if (result.IsFailure)

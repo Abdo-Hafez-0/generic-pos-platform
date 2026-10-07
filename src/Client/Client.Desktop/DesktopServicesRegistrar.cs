@@ -1,3 +1,4 @@
+using Catalog.UI.Screens;
 using Client.Desktop.Screens;
 using Client.Desktop.Shell;
 using Client.Host.Hosting;
@@ -43,6 +44,7 @@ internal sealed class DesktopServicesRegistrar : IHostingModule
         // Screens declared by the module UIs (IScreenProvider), one per module UI.
         services.AddSingleton<IScreenProvider, DesktopScreens>(); // license screen (FIX-01e, done first)
         services.AddSingleton<IScreenProvider, PosScreens>();   // FIX-01b
+        services.AddSingleton<IScreenProvider, CatalogScreens>(); // FIX-01c
     }
 }
 

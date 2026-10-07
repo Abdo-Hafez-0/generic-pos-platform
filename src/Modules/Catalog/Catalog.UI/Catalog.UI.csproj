@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -9,5 +9,15 @@
     <ProjectReference Include="..\Catalog.Application\Catalog.Application.csproj" />
     <ProjectReference Include="..\Catalog.Contracts\Catalog.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />
+    <!-- FIX-01c: the screen declarations, the per-action runner and the view-model base of the shell -->
+    <ProjectReference Include="..\..\..\Platform\Platform.Presentation\Platform.Presentation.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\CatalogText.resx"
+                      StronglyTypedLanguage="CSharp"
+                      StronglyTypedClassName="CatalogText"
+                      StronglyTypedNamespace="Catalog.UI.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)CatalogText.Designer.cs"
+                      PublicClass="true" />
   </ItemGroup>
 </Project>

@@ -61,6 +61,7 @@ public sealed class CatalogTestDatabase : IAsyncDisposable
         // Application: Query handlers
         services.AddTransient<GetProductByIdQueryHandler>();
         services.AddTransient<GetProductBySkuQueryHandler>();
+        services.AddTransient<SearchProductsQueryHandler>();
         services.AddTransient<FindProductByBarcodeQueryHandler>();
         services.AddTransient<GetAllCategoriesQueryHandler>();
         services.AddTransient<GetAllUnitsQueryHandler>();

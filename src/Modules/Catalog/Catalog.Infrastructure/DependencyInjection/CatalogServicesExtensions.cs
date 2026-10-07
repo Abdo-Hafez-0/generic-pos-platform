@@ -93,6 +93,7 @@ public static class CatalogServicesExtensions
         // Query handlers (Transient — stateless)
         services.AddTransient<GetProductByIdQueryHandler>();
         services.AddTransient<GetProductBySkuQueryHandler>();
+        services.AddTransient<SearchProductsQueryHandler>();
         services.AddTransient<FindProductByBarcodeQueryHandler>();
         services.AddTransient<GetAllCategoriesQueryHandler>();
         services.AddTransient<GetAllUnitsQueryHandler>();

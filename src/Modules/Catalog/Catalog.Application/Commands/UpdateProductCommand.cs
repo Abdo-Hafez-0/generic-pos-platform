@@ -45,7 +45,13 @@ public sealed class UpdateProductCommandHandler(
         if (!await unitRepository.ExistsAsync(unitId, cancellationToken))
             return Result.Failure(Error.NotFound("Catalog.Product.UnitNotFound", $"Unit '{command.UnitId}' was not found."));
 
-        var updateResult = product.Update(command.Name, categoryId, unitId, command.SalePrice, command.CostPrice, command.Description);
+        // Reads hide the cost price from callers without catalog.cost.view (they see null). Such a caller cannot set it either: their
+        // edit keeps the stored cost, so editing a name or a price never erases a cost they were not allowed to see (FIX-01c).
+        var costPrice = await authorization.IsAllowedAsync(Catalog.Application.Security.CatalogCapabilities.ViewCost, cancellationToken)
+            ? command.CostPrice
+            : product.CostPrice;
+
+        var updateResult = product.Update(command.Name, categoryId, unitId, command.SalePrice, costPrice, command.Description);
         if (updateResult.IsFailure)
             return updateResult;
 

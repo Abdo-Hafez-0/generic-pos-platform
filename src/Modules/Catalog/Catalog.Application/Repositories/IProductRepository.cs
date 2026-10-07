@@ -15,6 +15,12 @@ public interface IProductRepository
     Task<Product?> GetBySkuAsync(string sku, CancellationToken cancellationToken = default);
     Task<bool> ExistsBySkuAsync(string sku, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Product>> GetAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Products whose name or SKU contains <paramref name="search"/> (case-insensitive) or that carry exactly that barcode; every product when
+    /// the search is empty. Ordered by name, at most <paramref name="take"/> rows. Inactive and discontinued products only when asked for.
+    /// </summary>
+    Task<IReadOnlyList<Product>> SearchAsync(string? search, bool includeInactive, int take, CancellationToken cancellationToken = default);
     Task AddAsync(Product product, CancellationToken cancellationToken = default);
     void Update(Product product);
 }

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ProductsTitle" xml:space="preserve"><value>Products</value></data>
+  <data name="CategoriesTitle" xml:space="preserve"><value>Categories and units</value></data>
+  <data name="Search" xml:space="preserve"><value>Search</value></data>
+  <data name="SearchHint" xml:space="preserve"><value>Name, SKU or barcode</value></data>
+  <data name="IncludeInactive" xml:space="preserve"><value>Show inactive products</value></data>
+  <data name="NewProduct" xml:space="preserve"><value>New product</value></data>
+  <data name="EditProduct" xml:space="preserve"><value>Edit selected</value></data>
+  <data name="Deactivate" xml:space="preserve"><value>Deactivate selected</value></data>
+  <data name="Save" xml:space="preserve"><value>Save</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Sku" xml:space="preserve"><value>SKU</value></data>
+  <data name="Name" xml:space="preserve"><value>Name</value></data>
+  <data name="Category" xml:space="preserve"><value>Category</value></data>
+  <data name="Unit" xml:space="preserve"><value>Unit</value></data>
+  <data name="SalePrice" xml:space="preserve"><value>Sale price</value></data>
+  <data name="CostPrice" xml:space="preserve"><value>Cost price</value></data>
+  <data name="Description" xml:space="preserve"><value>Description</value></data>
+  <data name="Barcodes" xml:space="preserve"><value>Barcodes</value></data>
+  <data name="AddBarcode" xml:space="preserve"><value>Add barcode</value></data>
+  <data name="Status" xml:space="preserve"><value>Status</value></data>
+  <data name="StatusActive" xml:space="preserve"><value>Active</value></data>
+  <data name="StatusInactive" xml:space="preserve"><value>Inactive</value></data>
+  <data name="StatusDiscontinued" xml:space="preserve"><value>Discontinued</value></data>
+  <data name="Truncated" xml:space="preserve"><value>Only the first {0} products are shown. Narrow the search to find others.</value></data>
+  <data name="NoProducts" xml:space="preserve"><value>No product matches.</value></data>
+  <data name="Created" xml:space="preserve"><value>Product {0} was created.</value></data>
+  <data name="Saved" xml:space="preserve"><value>Product {0} was saved.</value></data>
+  <data name="Deactivated" xml:space="preserve"><value>Product {0} is no longer sold. Its history is kept.</value></data>
+  <data name="PriceInvalid" xml:space="preserve"><value>Enter the sale price as a number of zero or more.</value></data>
+  <data name="CostInvalid" xml:space="preserve"><value>Enter the cost price as a number of zero or more, or leave it empty.</value></data>
+  <data name="ChooseCategoryUnit" xml:space="preserve"><value>Choose a category and a unit.</value></data>
+  <data name="NeedCategoriesAndUnits" xml:space="preserve"><value>Create at least one category and one unit under Categories and units before adding products.</value></data>
+  <data name="CostHidden" xml:space="preserve"><value>Cost prices are not shown for your account; saving keeps the stored cost.</value></data>
+  <data name="Categories" xml:space="preserve"><value>Categories</value></data>
+  <data name="Units" xml:space="preserve"><value>Units</value></data>
+  <data name="Abbreviation" xml:space="preserve"><value>Abbreviation</value></data>
+  <data name="AddCategory" xml:space="preserve"><value>Add category</value></data>
+  <data name="AddUnit" xml:space="preserve"><value>Add unit</value></data>
+  <data name="CategoryAdded" xml:space="preserve"><value>Category {0} was added.</value></data>
+  <data name="UnitAdded" xml:space="preserve"><value>Unit {0} was added.</value></data>
+</root>

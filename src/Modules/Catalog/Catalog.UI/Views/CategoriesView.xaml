@@ -1,0 +1,89 @@
+<UserControl x:Class="Catalog.UI.Views.CategoriesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:res="clr-namespace:Catalog.UI.Resources"
+             xmlns:vm="clr-namespace:Catalog.UI.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:CategoriesViewModel}">
+
+    <!-- CATEGORIES AND UNITS (FIX-01c). DataContext: CategoriesViewModel. Texts: Resources/CatalogText.resx. -->
+    <UserControl.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="Heading" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,4"/>
+            <Setter Property="MinWidth" Value="90"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="#181825"/>
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="BorderBrush" Value="#313244"/>
+            <Setter Property="MinHeight" Value="200"/>
+            <Setter Property="Margin" Value="0,8,0,0"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="24"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Column="0">
+            <TextBlock DockPanel.Dock="Top" Style="{StaticResource Heading}" Text="{x:Static res:CatalogText.Categories}"/>
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+                <TextBox x:Name="CategoryNameBox" Width="160" Text="{Binding NewCategoryName, UpdateSourceTrigger=PropertyChanged}"
+                         AutomationProperties.Name="{x:Static res:CatalogText.Name}" ToolTip="{x:Static res:CatalogText.Name}"/>
+                <TextBox x:Name="CategoryDescriptionBox" Width="160" Text="{Binding NewCategoryDescription, UpdateSourceTrigger=PropertyChanged}"
+                         AutomationProperties.Name="{x:Static res:CatalogText.Description}" ToolTip="{x:Static res:CatalogText.Description}"/>
+                <Button x:Name="AddCategoryButton" Content="{x:Static res:CatalogText.AddCategory}" Command="{Binding AddCategoryCommand}"/>
+            </StackPanel>
+            <ListBox x:Name="CategoryList" ItemsSource="{Binding Categories}" DisplayMemberPath="Name" AutomationProperties.Name="{x:Static res:CatalogText.Categories}"/>
+        </DockPanel>
+
+        <DockPanel Grid.Column="2">
+            <TextBlock DockPanel.Dock="Top" Style="{StaticResource Heading}" Text="{x:Static res:CatalogText.Units}"/>
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+                <TextBox x:Name="UnitNameBox" Width="160" Text="{Binding NewUnitName, UpdateSourceTrigger=PropertyChanged}"
+                         AutomationProperties.Name="{x:Static res:CatalogText.Name}" ToolTip="{x:Static res:CatalogText.Name}"/>
+                <TextBox x:Name="UnitAbbreviationBox" Width="80" Text="{Binding NewUnitAbbreviation, UpdateSourceTrigger=PropertyChanged}"
+                         AutomationProperties.Name="{x:Static res:CatalogText.Abbreviation}" ToolTip="{x:Static res:CatalogText.Abbreviation}"/>
+                <Button x:Name="AddUnitButton" Content="{x:Static res:CatalogText.AddUnit}" Command="{Binding AddUnitCommand}"/>
+            </StackPanel>
+            <ListBox x:Name="UnitList" ItemsSource="{Binding Units}" AutomationProperties.Name="{x:Static res:CatalogText.Units}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock>
+                            <Run Text="{Binding Name, Mode=OneWay}"/>
+                            <Run Text=" (" Foreground="#6C7086"/><Run Text="{Binding Abbreviation, Mode=OneWay}" Foreground="#6C7086"/><Run Text=")" Foreground="#6C7086"/>
+                        </TextBlock>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+
+        <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0">
+            <TextBlock x:Name="CategoriesStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" TextWrapping="Wrap"/>
+            <TextBlock x:Name="CategoriesErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

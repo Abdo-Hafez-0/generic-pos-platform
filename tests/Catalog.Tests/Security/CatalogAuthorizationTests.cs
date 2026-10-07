@@ -131,6 +131,47 @@ public sealed class CatalogAuthorizationTests
     }
 
     [Fact]
+    public async Task Editing_a_product_without_catalog_cost_view_keeps_the_cost_price_it_could_not_see()
+    {
+        var (db, auth) = await StartAsync();
+        await using var _ = db;
+        var product = await SeedProductAsync(db, auth);   // stored cost 1.1
+        auth.Allowed.Add(CatalogCapabilities.EditProduct);
+        using var scope = db.CreateScope();
+        var sp = scope.ServiceProvider;
+        var seen = (await sp.GetRequiredService<GetProductByIdQueryHandler>().HandleAsync(new GetProductByIdQuery(product))).Value;
+        Assert.Null(seen.CostPrice);
+
+        // the screen sends back what it was shown (no cost) together with a new name and price
+        var edited = await sp.GetRequiredService<UpdateProductCommandHandler>().HandleAsync(
+            new UpdateProductCommand(product, "Cola 330ml", seen.CategoryId, seen.UnitId, 2.75m, seen.CostPrice, seen.Description));
+        Assert.True(edited.IsSuccess);
+
+        auth.Allowed.Add(CatalogCapabilities.ViewCost);
+        using var read = db.CreateScope();
+        var after = (await read.ServiceProvider.GetRequiredService<GetProductByIdQueryHandler>().HandleAsync(new GetProductByIdQuery(product))).Value;
+        Assert.Equal(("Cola 330ml", 2.75m, 1.1m), (after.Name, after.SalePrice, after.CostPrice));
+    }
+
+    [Fact]
+    public async Task Holders_of_catalog_cost_view_can_change_or_clear_the_cost_price()
+    {
+        var (db, auth) = await StartAsync();
+        await using var _ = db;
+        var product = await SeedProductAsync(db, auth);
+        auth.Allowed.UnionWith([CatalogCapabilities.EditProduct, CatalogCapabilities.ViewCost]);
+        using var scope = db.CreateScope();
+        var sp = scope.ServiceProvider;
+        var seen = (await sp.GetRequiredService<GetProductByIdQueryHandler>().HandleAsync(new GetProductByIdQuery(product))).Value;
+
+        Assert.True((await sp.GetRequiredService<UpdateProductCommandHandler>().HandleAsync(
+            new UpdateProductCommand(product, seen.Name, seen.CategoryId, seen.UnitId, seen.SalePrice, null, seen.Description))).IsSuccess);
+
+        using var read = db.CreateScope();
+        Assert.Null((await read.ServiceProvider.GetRequiredService<GetProductByIdQueryHandler>().HandleAsync(new GetProductByIdQuery(product))).Value.CostPrice);
+    }
+
+    [Fact]
     public void Every_capability_is_declared_once_and_owned_by_catalog()
     {
         var catalog = new CapabilityCatalog([new CatalogCapabilityProvider()]);

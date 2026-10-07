@@ -52,17 +52,28 @@ namespace CashManagement.Application.Commands
     using CashManagement.Application.Abstractions;
     using CashManagement.Application.Repositories;
 
+    /// <summary>
+    /// Who did it: the SIGNED-IN user whenever someone is signed in, whatever name the caller passed (the same rule as the POS till session,
+    /// Stage 11), so a drawer can never be opened, counted or paid out in someone else's name. The supplied name is used only by hosts without
+    /// authentication.
+    /// </summary>
+    internal static class CashActor
+    {
+        public static string? Resolve(ICurrentUser? currentUser, string? supplied)
+            => currentUser is { IsAuthenticated: true } ? currentUser.UserName : supplied;
+    }
+
     /// <summary>Opens a shift for a drawer. A drawer can have only one open session.</summary>
     public sealed record OpenCashSessionCommand(string DrawerCode, string OpenedBy, decimal OpeningFloat, string? Notes = null);
 
-    public sealed class OpenCashSessionCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork, IAuthorizationService authorization)
+    public sealed class OpenCashSessionCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null)
     {
         public async Task<Result<Guid>> HandleAsync(OpenCashSessionCommand command, CancellationToken cancellationToken = default)
         {
             var allowed = await authorization.AuthorizeAsync(CashManagement.Application.Security.CashManagementCapabilities.ManageSessions, cancellationToken);
             if (allowed.IsFailure) return Result.Failure<Guid>(allowed.Error);
 
-            var created = CashSession.Open(command.DrawerCode, command.OpenedBy, command.OpeningFloat, command.Notes);
+            var created = CashSession.Open(command.DrawerCode, CashActor.Resolve(currentUser, command.OpenedBy)!, command.OpeningFloat, command.Notes);
             if (created.IsFailure) return Result.Failure<Guid>(created.Error);
 
             if (await sessions.GetOpenByDrawerAsync(created.Value.DrawerCode, cancellationToken) is not null)
@@ -81,7 +92,7 @@ namespace CashManagement.Application.Commands
 
     public sealed record RecordedCashMovement(Guid MovementId, decimal BalanceAfter);
 
-    public sealed class RecordCashMovementCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork, IAuthorizationService authorization)
+    public sealed class RecordCashMovementCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null)
     {
         public async Task<Result<RecordedCashMovement>> HandleAsync(RecordCashMovementCommand command, CancellationToken cancellationToken = default)
         {
@@ -101,7 +112,7 @@ namespace CashManagement.Application.Commands
                     "CashManagement.RecordMovement.SessionNotFound", $"Cash session '{command.SessionId}' was not found."));
 
             var recorded = session.RecordMovement(
-                command.Kind, command.Amount, command.Reason, command.ReferenceType, command.ReferenceId, command.RecordedBy);
+                command.Kind, command.Amount, command.Reason, command.ReferenceType, command.ReferenceId, CashActor.Resolve(currentUser, command.RecordedBy));
             if (recorded.IsFailure) return Result.Failure<RecordedCashMovement>(recorded.Error);
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -114,7 +125,7 @@ namespace CashManagement.Application.Commands
 
     public sealed record ClosedCashSession(decimal ExpectedAmount, decimal CountedAmount, decimal Variance);
 
-    public sealed class CloseCashSessionCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork, IAuthorizationService authorization)
+    public sealed class CloseCashSessionCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null)
     {
         public async Task<Result<ClosedCashSession>> HandleAsync(CloseCashSessionCommand command, CancellationToken cancellationToken = default)
         {
@@ -126,7 +137,7 @@ namespace CashManagement.Application.Commands
                 return Result.Failure<ClosedCashSession>(Error.NotFound(
                     "CashManagement.CloseSession.SessionNotFound", $"Cash session '{command.SessionId}' was not found."));
 
-            var closed = session.Close(command.CountedAmount, command.ClosedBy, command.Notes);
+            var closed = session.Close(command.CountedAmount, CashActor.Resolve(currentUser, command.ClosedBy)!, command.Notes);
             if (closed.IsFailure) return Result.Failure<ClosedCashSession>(closed.Error);
 
             await unitOfWork.SaveChangesAsync(cancellationToken);

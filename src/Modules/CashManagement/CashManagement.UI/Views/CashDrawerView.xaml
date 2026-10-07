@@ -1,0 +1,154 @@
+<UserControl x:Class="CashManagement.UI.Views.CashDrawerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:res="clr-namespace:CashManagement.UI.Resources"
+             xmlns:vm="clr-namespace:CashManagement.UI.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:CashDrawerViewModel}">
+
+    <!-- CASH DRAWER (FIX-01d). DataContext: CashDrawerViewModel. Texts: Resources/CashText.resx. -->
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="Label" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+        </Style>
+        <Style x:Key="Heading" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,14,0,6"/>
+        </Style>
+        <Style x:Key="Cell" TargetType="TextBlock">
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="Number" TargetType="TextBlock" BasedOn="{StaticResource Cell}">
+            <Setter Property="TextAlignment" Value="Right"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,4"/>
+            <Setter Property="MinWidth" Value="90"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Margin" Value="0,0,12,0"/>
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="Background" Value="#181825"/>
+            <Setter Property="RowBackground" Value="#1E1E2E"/>
+            <Setter Property="AlternatingRowBackground" Value="#232336"/>
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="BorderBrush" Value="#313244"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#313244"/>
+            <Setter Property="RowHeight" Value="26"/>
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- which drawer -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:CashText.Drawer}"/>
+            <TextBox x:Name="DrawerCodeBox" Width="120" Text="{Binding DrawerCode, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CashText.Drawer}">
+                <TextBox.InputBindings>
+                    <KeyBinding Key="Enter" Command="{Binding ShowCommand}"/>
+                </TextBox.InputBindings>
+            </TextBox>
+            <Button x:Name="ShowDrawerButton" Content="{x:Static res:CashText.Show}" Command="{Binding ShowCommand}"/>
+        </StackPanel>
+
+        <!-- no open shift: open one -->
+        <StackPanel Grid.Row="1" Visibility="{Binding HasNoOpenShift, Converter={StaticResource VisibleWhenTrue}}">
+            <TextBlock x:Name="NoShiftText" Text="{x:Static res:CashText.NoOpenSession}" Foreground="#F9E2AF" Margin="0,0,0,8"/>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:CashText.OpeningFloat}"/>
+                <TextBox x:Name="OpeningFloatBox" Width="100" Text="{Binding OpeningFloat, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CashText.OpeningFloat}"/>
+                <Button x:Name="OpenShiftButton" Content="{x:Static res:CashText.OpenShift}" Command="{Binding OpenCommand}"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- open shift: balance, movements, pay in/out, close -->
+        <DockPanel Grid.Row="1" Visibility="{Binding HasOpenShift, Converter={StaticResource VisibleWhenTrue}}" LastChildFill="False" Margin="0,0,0,8">
+            <TextBlock DockPanel.Dock="Left" x:Name="OpenedText" Text="{Binding OpenedText}" Foreground="#A6ADC8"/>
+            <TextBlock DockPanel.Dock="Right" x:Name="BalanceText" Text="{Binding Session.Balance, StringFormat=N2}" FontSize="18" FontWeight="Bold"/>
+            <TextBlock DockPanel.Dock="Right" Style="{StaticResource Label}" Text="{x:Static res:CashText.Balance}" Margin="0,0,8,0"/>
+        </DockPanel>
+
+        <DataGrid Grid.Row="2" x:Name="MovementGrid" ItemsSource="{Binding Movements}" Visibility="{Binding HasOpenShift, Converter={StaticResource VisibleWhenTrue}}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="{x:Static res:CashText.Time}" Binding="{Binding TimeText}" Width="140" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:CashText.Kind}" Binding="{Binding KindText}" Width="110" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:CashText.Reason}" Binding="{Binding Movement.Reason}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:CashText.By}" Binding="{Binding Movement.RecordedBy}" Width="110" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:CashText.Amount}" Binding="{Binding Movement.SignedAmount, StringFormat=+0.00;-0.00}" Width="100" ElementStyle="{StaticResource Number}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <StackPanel Grid.Row="3" Visibility="{Binding HasOpenShift, Converter={StaticResource VisibleWhenTrue}}">
+            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:CashText.MovementHeading}"/>
+            <WrapPanel>
+                <ComboBox x:Name="MovementKindBox" Width="110" ItemsSource="{Binding Kinds}" SelectedItem="{Binding Kind}" DisplayMemberPath="Name" AutomationProperties.Name="{x:Static res:CashText.Kind}"/>
+                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:CashText.Amount}"/>
+                <TextBox x:Name="MovementAmountBox" Width="90" Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CashText.Amount}"/>
+                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:CashText.Reason}"/>
+                <TextBox x:Name="MovementReasonBox" Width="240" Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CashText.Reason}"/>
+                <Button x:Name="RecordMovementButton" Content="{x:Static res:CashText.Record}" Command="{Binding RecordCommand}"/>
+            </WrapPanel>
+            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:CashText.CloseHeading}"/>
+            <WrapPanel>
+                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:CashText.Counted}"/>
+                <TextBox x:Name="CountedBox" Width="100" Text="{Binding Counted, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CashText.Counted}"/>
+                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:CashText.Notes}"/>
+                <TextBox x:Name="CloseNotesBox" Width="240" Text="{Binding CloseNotes, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CashText.Notes}"/>
+                <Button x:Name="CloseShiftButton" Content="{x:Static res:CashText.CloseShift}" Command="{Binding CloseCommand}"/>
+            </WrapPanel>
+        </StackPanel>
+
+        <DockPanel Grid.Row="4" Margin="0,12,0,0">
+            <TextBlock DockPanel.Dock="Top" Style="{StaticResource Heading}" Text="{x:Static res:CashText.RecentHeading}" Margin="0,0,0,6"/>
+            <DataGrid x:Name="ShiftGrid" ItemsSource="{Binding RecentShifts}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="{x:Static res:CashText.Opened}" Binding="{Binding OpenedText}" Width="150" ElementStyle="{StaticResource Cell}"/>
+                    <DataGridTextColumn Header="{x:Static res:CashText.By}" Binding="{Binding Shift.OpenedBy}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                    <DataGridTextColumn Header="{x:Static res:CashText.Closed}" Binding="{Binding ClosedText}" Width="150" ElementStyle="{StaticResource Cell}"/>
+                    <DataGridTextColumn Header="{x:Static res:CashText.Variance}" Binding="{Binding Shift.Variance, StringFormat=+0.00;-0.00;0.00}" Width="100" ElementStyle="{StaticResource Number}"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
+
+        <StackPanel Grid.Row="5" Margin="0,8,0,0">
+            <TextBlock x:Name="CashStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" TextWrapping="Wrap"/>
+            <TextBlock x:Name="CashErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

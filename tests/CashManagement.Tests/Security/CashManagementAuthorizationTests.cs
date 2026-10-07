@@ -28,6 +28,37 @@ public sealed class CashManagementAuthorizationTests
     private static Task<int> SessionCountAsync(TestModuleDatabase<CashManagementDbContext> db)
         => db.InScopeAsync(sp => sp.GetRequiredService<CashManagementDbContext>().CashSessions.CountAsync());
 
+    private sealed class SignedIn(string userName) : ICurrentUser
+    {
+        public bool IsAuthenticated => true;
+        public Guid UserId { get; } = Guid.NewGuid();
+        public string UserName => userName;
+        public string DisplayName => userName;
+    }
+
+    [Fact]
+    public async Task The_drawer_records_the_signed_in_user_whatever_name_the_caller_passes()
+    {
+        var auth = new ScriptedAuthorizationService(CashManagementCapabilities.ManageSessions, CashManagementCapabilities.RecordMovement);
+        await using var db = await TestModuleDatabase<CashManagementDbContext>.CreateAsync(s =>
+        {
+            s.AddCashManagementCore();
+            s.AddSingleton<IAuthorizationService>(auth);
+            s.AddSingleton<ICurrentUser>(new SignedIn("ann"));
+        });
+        using var scope = db.CreateScope();
+        var sp = scope.ServiceProvider;
+
+        var id = (await sp.GetRequiredService<OpenCashSessionCommandHandler>().HandleAsync(new OpenCashSessionCommand("main", "bob", 100m))).Value;
+        Assert.True((await sp.GetRequiredService<RecordCashMovementCommandHandler>().HandleAsync(
+            new RecordCashMovementCommand(id, global::CashManagement.Domain.Enums.CashMovementKind.PayOut, 20m, "milk", RecordedBy: "bob"))).IsSuccess);
+        Assert.True((await sp.GetRequiredService<CloseCashSessionCommandHandler>().HandleAsync(new CloseCashSessionCommand(id, 80m, "bob"))).IsSuccess);
+
+        var session = await sp.GetRequiredService<global::CashManagement.Application.Queries.GetCashSessionQueryHandler>()
+            .HandleAsync(new global::CashManagement.Application.Queries.GetCashSessionQuery(id));
+        Assert.Equal(("ann", "ann", "ann"), (session!.OpenedBy, session.ClosedBy, Assert.Single(session.Movements).RecordedBy));
+    }
+
     [Fact]
     public async Task Opening_closing_and_recording_cash_each_need_their_capability()
     {

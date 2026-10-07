@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="ScreenTitle" xml:space="preserve"><value>Cash drawer</value></data>
+  <data name="Drawer" xml:space="preserve"><value>Drawer</value></data>
+  <data name="Show" xml:space="preserve"><value>Show</value></data>
+  <data name="NoOpenSession" xml:space="preserve"><value>This drawer has no open shift.</value></data>
+  <data name="OpeningFloat" xml:space="preserve"><value>Opening float</value></data>
+  <data name="OpenShift" xml:space="preserve"><value>Open shift</value></data>
+  <data name="OpenedBy" xml:space="preserve"><value>Opened by {0} at {1}</value></data>
+  <data name="Balance" xml:space="preserve"><value>Expected in drawer</value></data>
+  <data name="MovementHeading" xml:space="preserve"><value>Pay in or pay out</value></data>
+  <data name="Kind" xml:space="preserve"><value>Type</value></data>
+  <data name="PayIn" xml:space="preserve"><value>Pay in</value></data>
+  <data name="PayOut" xml:space="preserve"><value>Pay out</value></data>
+  <data name="CashSale" xml:space="preserve"><value>Cash sale</value></data>
+  <data name="CashRefund" xml:space="preserve"><value>Cash refund</value></data>
+  <data name="Amount" xml:space="preserve"><value>Amount</value></data>
+  <data name="Reason" xml:space="preserve"><value>Reason</value></data>
+  <data name="Record" xml:space="preserve"><value>Record</value></data>
+  <data name="CloseHeading" xml:space="preserve"><value>Count and close the shift</value></data>
+  <data name="Counted" xml:space="preserve"><value>Counted cash</value></data>
+  <data name="Notes" xml:space="preserve"><value>Notes</value></data>
+  <data name="CloseShift" xml:space="preserve"><value>Close shift</value></data>
+  <data name="Time" xml:space="preserve"><value>Time</value></data>
+  <data name="By" xml:space="preserve"><value>By</value></data>
+  <data name="RecentHeading" xml:space="preserve"><value>Recent shifts</value></data>
+  <data name="Opened" xml:space="preserve"><value>Opened</value></data>
+  <data name="Closed" xml:space="preserve"><value>Closed</value></data>
+  <data name="Variance" xml:space="preserve"><value>Variance</value></data>
+  <data name="ShiftOpened" xml:space="preserve"><value>The shift of drawer {0} is open.</value></data>
+  <data name="MovementRecorded" xml:space="preserve"><value>Recorded. Expected in drawer: {0:N2}.</value></data>
+  <data name="ShiftClosed" xml:space="preserve"><value>Shift closed. Expected {0:N2}, counted {1:N2}, difference {2:+0.00;-0.00;0.00}.</value></data>
+  <data name="AmountInvalid" xml:space="preserve"><value>Enter an amount greater than zero.</value></data>
+  <data name="FloatInvalid" xml:space="preserve"><value>Enter the opening float as zero or more.</value></data>
+  <data name="CountInvalid" xml:space="preserve"><value>Enter the counted cash as zero or more.</value></data>
+  <data name="DrawerRequired" xml:space="preserve"><value>Enter the drawer code.</value></data>
+</root>

@@ -1,3 +1,4 @@
+using CashManagement.UI.Screens;
 using Catalog.UI.Screens;
 using Client.Desktop.Screens;
 using Client.Desktop.Shell;
@@ -53,6 +54,7 @@ internal sealed class DesktopServicesRegistrar : IHostingModule
         services.AddSingleton<IScreenProvider, SalesScreens>();     // FIX-01c
         services.AddSingleton<IScreenProvider, CustomersScreens>(); // FIX-01d
         services.AddSingleton<IScreenProvider, SuppliersScreens>(); // FIX-01d
+        services.AddSingleton<IScreenProvider, CashScreens>();      // FIX-01d
     }
 }
 

@@ -68,6 +68,7 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 - [ ] **FIX-10 POS split payments** (Stage 8): offer the split payments the Payments API already supports
 - [ ] **FIX-11 Customer on a sale** (Stage 8): a sale can carry an optional customer
 - [ ] **FIX-12 Sales report limit** (Stage 8): Sales.Contracts exposes a ranged query so the report no longer stops at 2000 sales
+  - [ ] The daily breakdown uses UTC dates; a shop outside UTC sees sales near midnight on the wrong day (found in FIX-01d; the overview screen lists only days with sales meanwhile)
 - [ ] **FIX-13 Arabic / non-ASCII support** (Stage 10)
   - [ ] Receipts: code pages (Arabic etc. print as `?` today)
   - [ ] UI: localization resources and right-to-left layout

@@ -1,0 +1,100 @@
+<UserControl x:Class="Reporting.UI.Views.BusinessOverviewView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:res="clr-namespace:Reporting.UI.Resources"
+             xmlns:vm="clr-namespace:Reporting.UI.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:BusinessOverviewViewModel}">
+
+    <!-- BUSINESS OVERVIEW (FIX-01d, read-only). DataContext: BusinessOverviewViewModel. Texts: Resources/ReportsText.resx. -->
+    <UserControl.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="Label" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+        </Style>
+        <Style x:Key="Cell" TargetType="TextBlock">
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="Number" TargetType="TextBlock" BasedOn="{StaticResource Cell}">
+            <Setter Property="TextAlignment" Value="Right"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,4"/>
+            <Setter Property="MinWidth" Value="90"/>
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:ReportsText.From}"/>
+            <DatePicker x:Name="ReportFromPicker" Width="170" SelectedDate="{Binding FromDate}" AutomationProperties.Name="{x:Static res:ReportsText.From}"/>
+            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:ReportsText.To}" Margin="12,0,6,0"/>
+            <DatePicker x:Name="ReportToPicker" Width="170" SelectedDate="{Binding ToDate}" AutomationProperties.Name="{x:Static res:ReportsText.To}"/>
+            <Button x:Name="ShowReportButton" Content="{x:Static res:ReportsText.Show}" Margin="12,0,0,0" Command="{Binding ShowCommand}"/>
+        </StackPanel>
+
+        <!-- one card per section -->
+        <ItemsControl Grid.Row="1" x:Name="ReportCards" ItemsSource="{Binding Cards}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Background="#181825" BorderBrush="#313244" BorderThickness="1" Padding="14,10" Margin="0,0,12,12" Width="300" MinHeight="120">
+                        <StackPanel>
+                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,8" AutomationProperties.Name="{Binding Title}"/>
+                            <ItemsControl ItemsSource="{Binding Lines}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel Margin="0,2">
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding Value}" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Label}" Foreground="#A6ADC8" TextWrapping="Wrap" Margin="0,0,8,0"/>
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="{Binding Message}" Foreground="#F9E2AF" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- sales per day -->
+        <DataGrid Grid.Row="2" x:Name="DailySalesGrid" ItemsSource="{Binding Days}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                  HeadersVisibility="Column" Background="#181825" RowBackground="#1E1E2E" AlternatingRowBackground="#232336" Foreground="#CDD6F4"
+                  BorderBrush="#313244" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#313244" RowHeight="26" MaxWidth="612" HorizontalAlignment="Left"
+                  AutomationProperties.Name="{x:Static res:ReportsText.SalesCard}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="{x:Static res:ReportsText.Day}" Binding="{Binding Date, StringFormat=d}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:ReportsText.SaleCount}" Binding="{Binding SaleCount}" Width="140" ElementStyle="{StaticResource Number}"/>
+                <DataGridTextColumn Header="{x:Static res:ReportsText.SalesTotal}" Binding="{Binding Total, StringFormat=N2}" Width="140" ElementStyle="{StaticResource Number}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <TextBlock Grid.Row="3" x:Name="ReportErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap" Margin="0,8,0,0"/>
+    </Grid>
+</UserControl>

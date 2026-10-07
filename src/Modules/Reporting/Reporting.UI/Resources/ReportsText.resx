@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="ScreenTitle" xml:space="preserve"><value>Business overview</value></data>
+  <data name="From" xml:space="preserve"><value>From</value></data>
+  <data name="To" xml:space="preserve"><value>To</value></data>
+  <data name="Show" xml:space="preserve"><value>Show</value></data>
+  <data name="SalesCard" xml:space="preserve"><value>Sales</value></data>
+  <data name="SaleCount" xml:space="preserve"><value>Completed sales</value></data>
+  <data name="SalesTotal" xml:space="preserve"><value>Takings</value></data>
+  <data name="AverageSale" xml:space="preserve"><value>Average sale</value></data>
+  <data name="SalesTruncated" xml:space="preserve"><value>Only the most recent sales were counted; the start of this period may be missing. Choose a shorter period.</value></data>
+  <data name="InventoryCard" xml:space="preserve"><value>Stock</value></data>
+  <data name="StockItems" xml:space="preserve"><value>Stock lines</value></data>
+  <data name="Products" xml:space="preserve"><value>Products in stock records</value></data>
+  <data name="TotalOnHand" xml:space="preserve"><value>Units on hand</value></data>
+  <data name="OutOfStock" xml:space="preserve"><value>Out of stock lines</value></data>
+  <data name="PurchasingCard" xml:space="preserve"><value>Purchasing</value></data>
+  <data name="Orders" xml:space="preserve"><value>Orders</value></data>
+  <data name="OrdersByStatus" xml:space="preserve"><value>Draft / submitted / received / cancelled</value></data>
+  <data name="OpenValue" xml:space="preserve"><value>Value still to receive</value></data>
+  <data name="ReceivedValue" xml:space="preserve"><value>Value received</value></data>
+  <data name="CustomersCard" xml:space="preserve"><value>Customers</value></data>
+  <data name="SuppliersCard" xml:space="preserve"><value>Suppliers</value></data>
+  <data name="PartyCounts" xml:space="preserve"><value>Active / inactive</value></data>
+  <data name="Total" xml:space="preserve"><value>Total</value></data>
+  <data name="Day" xml:space="preserve"><value>Day</value></data>
+  <data name="RangeInvalid" xml:space="preserve"><value>The end date must not be before the start date.</value></data>
+</root>

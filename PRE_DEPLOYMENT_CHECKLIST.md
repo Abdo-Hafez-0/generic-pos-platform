@@ -12,13 +12,27 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 ### A1. High priority - features that exist but are not connected
 
 - [ ] **FIX-01 Host the business screens in the shell** (Stages 5-11)
-  - [ ] Replace the Stage 2 placeholder content in `MainWindow.xaml` with a real shell (navigation, content area)
-  - [ ] Navigation entries shown/hidden by the signed-in user's capabilities
-  - [ ] Host PosView (POS)
-  - [ ] Host Catalog, Inventory, Sales views
-  - [ ] Host the Stage 8 view models (Customers, Suppliers, Purchasing, Pricing, Payments, CashManagement, Reporting)
-  - [ ] User / role administration screen (handlers exist and are authorized)
-  - [ ] License activation and license status screen
+
+  Decisions (2026-10-07, user):
+  1. **DI scope per user action**: view models call `IUiActionRunner`, which opens a fresh scope per action, disposes it, logs unexpected exceptions and returns a plain message (also covers FIX-07 and the UI side of FIX-06).
+  2. **Unlicensed modules**: navigation entry stays visible but locked with a plain sentence; entries the user has no permission for are hidden.
+  3. **Handwritten MVVM**: one shared `ViewModelBase` / async command in `Platform.Presentation` (no new package); replaces the per-module copies.
+  4. **Resources from the start**: every UI string in `.resx`, layouts safe for `FlowDirection=RightToLeft`; English only for now (prepares FIX-13).
+
+  Findings: only PosView, ProductListView, CreateProductView have XAML; no view model is registered in DI; view models take scoped handlers directly; PosViewModel shows `ex.Message` and asks for a free-text cashier and a warehouse id; view models have no tests; no view model exists for roles/permissions or licensing.
+
+  - [ ] **FIX-01a Shell foundation**
+    - [ ] New `Platform.Presentation` project (net10.0, no WPF/EF): `ScreenDescriptor` (id, title resource, group, required capability, view factory), `IScreenProvider`, `IUiActionRunner`, `ViewModelBase`, async command
+    - [ ] Each module UI declares its screens through `IScreenProvider` (no Module.UI -> Client.Host reference, Rule 6)
+    - [ ] `MainWindow` becomes the shell: grouped navigation + content area; Stage 2 placeholder text removed
+    - [ ] Navigation filtered by permission, license-locked entries explained
+    - [ ] Resource (.resx) infrastructure for shell strings
+    - [ ] `UI.Tests` project (net10.0-windows) for view models and navigation; architecture rules for `Platform.Presentation`
+    - [ ] Smoke run: sign in -> shell with navigation -> sign out
+  - [ ] **FIX-01b POS screen**: host PosView; cashier = signed-in user; warehouse picker; no exception text shown; runner-based
+  - [ ] **FIX-01c Catalog, Inventory, Sales screens** (convert existing views/view models, add the missing views)
+  - [ ] **FIX-01d Back-office screens**: Customers, Suppliers, Purchasing, Pricing, Payments, CashManagement, Reporting, Audit
+  - [ ] **FIX-01e Administration screens**: users, roles and permissions (new view model), license activation and status (new view model)
 - [ ] **FIX-02 Barcode scanner input** (Stage 10)
   - [ ] Forward key presses from the window to `IKeyboardInputSink`
   - [ ] Bind `IPOSBarcodeInput` to the POS view model

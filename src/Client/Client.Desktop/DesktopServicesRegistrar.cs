@@ -3,12 +3,14 @@ using Client.Desktop.Screens;
 using Client.Desktop.Shell;
 using Inventory.UI.Screens;
 using Client.Host.Hosting;
+using Customers.UI.Screens;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Platform.Presentation.Actions;
 using Platform.Presentation.Screens;
 using POS.UI.Screens;
 using Sales.UI.Screens;
+using Suppliers.UI.Screens;
 using Users.Application.Security;
 
 namespace Client.Desktop;
@@ -49,6 +51,8 @@ internal sealed class DesktopServicesRegistrar : IHostingModule
         services.AddSingleton<IScreenProvider, CatalogScreens>(); // FIX-01c
         services.AddSingleton<IScreenProvider, InventoryScreens>(); // FIX-01c
         services.AddSingleton<IScreenProvider, SalesScreens>();     // FIX-01c
+        services.AddSingleton<IScreenProvider, CustomersScreens>(); // FIX-01d
+        services.AddSingleton<IScreenProvider, SuppliersScreens>(); // FIX-01d
     }
 }
 

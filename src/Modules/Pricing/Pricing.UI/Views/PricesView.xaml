@@ -85,7 +85,9 @@
         <StackPanel Grid.Row="0">
             <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:PricingText.ListsHeading}"/>
             <WrapPanel Margin="0,0,0,6">
+                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.Code}"/>
                 <TextBox x:Name="ListCodeBox" Width="100" Text="{Binding NewListCode, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.Code}" ToolTip="{x:Static res:PricingText.Code}"/>
+                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.Name}"/>
                 <TextBox x:Name="ListNameBox" Width="180" Text="{Binding NewListName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.Name}" ToolTip="{x:Static res:PricingText.Name}"/>
                 <CheckBox x:Name="ListDefaultBox" Content="{x:Static res:PricingText.MakeDefault}" IsChecked="{Binding NewListDefault}"/>
                 <Button x:Name="AddListButton" Content="{x:Static res:PricingText.AddList}" Command="{Binding AddListCommand}"/>

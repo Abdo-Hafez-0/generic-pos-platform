@@ -213,11 +213,10 @@ public sealed class CancelPurchaseOrderCommandHandler(IPurchaseOrderRepository r
 /// <summary>
 /// Receives a Submitted order into a warehouse, line by line, through Inventory.Contracts (IStockReceiptService).
 ///
-/// CONSISTENCY: Purchasing and Inventory have separate databases contexts, so there is no cross-module transaction. Each line is
-/// received in Inventory first, then recorded as received on the order and SAVED immediately. If a line fails, the order stays
-/// Submitted with the lines received so far marked; calling Receive again continues with the remaining lines and never receives a
-/// line twice. (The only unrecoverable window - a crash after Inventory accepted a line but before the order was saved - would
-/// duplicate that single line on retry; the stock movement reference carries the order number and line ID so it can be audited.)
+/// CONSISTENCY (Stage 12): in the desktop the whole receipt - every line in Inventory and the order's progress - is ONE transaction
+/// (IAtomicOperation): it commits completely or not at all. Only hosts without IAtomicOperation (unit-test hosts) use the fallback below,
+/// where each line is received in Inventory first and then saved on the order immediately, so a retry continues with the remaining lines
+/// and never receives a line twice; the stock movement reference carries the order number and line ID.
 /// </summary>
 public sealed record ReceivePurchaseOrderCommand(Guid OrderId, Guid WarehouseId);
 

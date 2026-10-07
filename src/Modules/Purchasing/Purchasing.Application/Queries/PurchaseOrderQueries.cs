@@ -42,3 +42,42 @@ public sealed class ListPurchaseOrdersQueryHandler(IPurchaseOrderRepository repo
         return new PurchaseOrderPageDto(items.Select(o => o.ToListItem()).ToList(), total, skip, take);
     }
 }
+
+// ---- for the purchase orders screen (FIX-01d)
+
+/// <summary>A supplier an order can be placed with.</summary>
+public sealed record OrderSupplierDto(Guid SupplierId, string Code, string Name);
+
+/// <summary>ACTIVE suppliers whose code, name, e-mail or phone contains the text (through Suppliers.Contracts), ordered by name.</summary>
+public sealed record FindOrderSuppliersQuery(string Text);
+
+public sealed class FindOrderSuppliersQueryHandler(Suppliers.Contracts.Interfaces.ISupplierReader suppliers)
+{
+    public async Task<IReadOnlyList<OrderSupplierDto>> HandleAsync(FindOrderSuppliersQuery query, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query.Text)) return [];
+
+        var found = await suppliers.SearchAsync(query.Text.Trim(), 50, cancellationToken);
+        return found
+            .Where(s => s.Status == Suppliers.Contracts.Models.SupplierStatusContract.Active)
+            .OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Select(s => new OrderSupplierDto(s.SupplierId, s.Code, s.Name))
+            .ToList();
+    }
+}
+
+/// <summary>A warehouse an order can be received into.</summary>
+public sealed record ReceivingWarehouseDto(Guid WarehouseId, string Code, string Name);
+
+/// <summary>The active warehouses (through Inventory.Contracts), ordered by name.</summary>
+public sealed record ListReceivingWarehousesQuery;
+
+public sealed class ListReceivingWarehousesQueryHandler(Inventory.Contracts.Interfaces.IInventoryReader inventory)
+{
+    public async Task<IReadOnlyList<ReceivingWarehouseDto>> HandleAsync(ListReceivingWarehousesQuery query, CancellationToken cancellationToken = default)
+        => (await inventory.GetAllWarehousesAsync(cancellationToken))
+            .Where(w => w.IsActive)
+            .OrderBy(w => w.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Select(w => new ReceivingWarehouseDto(w.WarehouseId, w.Code, w.Name))
+            .ToList();
+}

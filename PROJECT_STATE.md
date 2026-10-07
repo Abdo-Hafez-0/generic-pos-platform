@@ -499,13 +499,13 @@ Scope source: the Stage 13 task text (the roadmap file is not in the repository)
 
 ## Current Task
 
-**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01a (shell), FIX-01b (POS screen), the license screen of FIX-01e and FIX-01c (Catalog, Inventory, Sales screens) COMPLETE; next: FIX-01d (back-office screens of the Stage 8 modules). Stage 14 has not been started.**
+**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01a (shell), FIX-01b (POS screen), FIX-01c (Catalog, Inventory, Sales), FIX-01d (Stage 8 back-office screens) and the license screen of FIX-01e COMPLETE; next: the rest of FIX-01e (users, roles and permissions screens). Stage 14 has not been started.**
 
 ---
 
 ## Next Task
 
-**FIX-01d - back-office screens (Customers, Suppliers, Purchasing, Pricing, Payments, CashManagement, Reporting, Audit) (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
+**FIX-01e (rest) - users, roles and permissions screens (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
 A fresh installation can now be set up and sell through the desktop alone: activate (License), categories/units, products, warehouse, receive stock, sell at the till, sales history (verified end to end in the real executable against a real local LicenseServer.Api).
 
 Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; hosting PosView and the module view models in the shell (FIX-01b..e; the sign-in/first-run start screen exists since the Stage 11 review and the shell since FIX-01a); forwarding key presses to IKeyboardInputSink; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
@@ -2220,12 +2220,31 @@ Screens (group, capability that shows them): Products (Products and stock, catal
 
 ---
 
+## FIX-01d Summary - Stage 8 back-office screens (2026-10-07)
+
+Screens (group, capability that shows them): Customers (Customers and suppliers, customers.customer.view), Suppliers (suppliers.supplier.manage), Prices (Products and stock, pricing.price.manage), Purchase orders (Purchasing, purchasing.order.create), Cash drawer (Cash and payments, cash.session.manage), Business overview (Reports, reporting.view), Audit log (Administration, audit.view). All through IUiActionRunner, texts in resources; the Stage 8 view models and their eight private ViewModelBase copies are removed (every module UI now uses Platform.Presentation).
+
+- **Customers / Suppliers**: search (code, name, e-mail, phone), list 200 at a time with a count, show inactive, create/edit (the editor loads the full record, notes kept), deactivate/reactivate. Addresses and contacts have handlers but no screen yet.
+- **Prices**: price lists (add, optionally as the one used for sales; choose it; deactivate) and the prices of a product found by SKU or barcode (Pricing.Application FindPricingProductQuery): add a dated price per list with a quantity break and an included end day (stored end exclusive), deactivate, and "price at the till now" or "the catalog price applies".
+- **Purchase orders**: list by status; new order for an ACTIVE supplier found by code/name (Purchasing.Application FindOrderSuppliersQuery through Suppliers.Contracts ISupplierReader); while Draft: add lines by SKU (unit cost defaults to the product cost), remove, place; cancel a draft or placed order with a reason; receive a placed order into a warehouse (ListReceivingWarehousesQuery through Inventory.Contracts) - one transaction with Inventory (Stage 12).
+- **Cash drawer**: per drawer code: open a shift with a float, pay in / pay out with a reason, count and close (expected amount and difference kept and shown), recent shifts with their difference.
+- **Business overview**: a period of local days (this month by default), one card per section (sales, stock, purchasing, customers, suppliers; a missing module shows why), and the sales per day (days with sales only).
+- **Audit log**: newest first, filter by module, action and local days (last 7 by default), 100 per page, details of the selected entry; read-only.
+- **Defect fixed**: the cash handlers took OpenedBy/ClosedBy/RecordedBy from the caller, so a drawer could be opened, paid out or closed in someone else's name. They now record the signed-in user whenever someone is signed in (CashActor, the POS till rule of Stage 11); the supplied name is used only by hosts without authentication. Test: CashManagementAuthorizationTests.
+- **Found, recorded under FIX-12**: the sales report's daily breakdown uses UTC dates, so a shop outside UTC sees sales near midnight on the wrong day; the overview lists only days with sales meanwhile.
+- **Decided**: no Payments screen. Payments has no list query and only "void"; voiding a payment of a completed sale from a separate screen would leave the sale inconsistent. Payment handling belongs to checkout (FIX-10).
+- **Display fixes found in the real executable**: text inside the screens' data templates inherited a dark default colour (implicit TextBlock styles stop at template boundaries) - the shell now sets TextElement.Foreground on the screen host; unlabeled fields in Prices and Purchase orders got labels; the menu is denser so its 14 entries fit the default window.
+- **Tests**: CashManagement.Tests +1, UI.Tests +13 on the real offline desktop (customers 2, suppliers 1, cash 2, overview 2, audit 2, prices 2 incl. the till charging the price set on the screen, purchase orders 2 incl. received stock 10 -> 22).
+- **Real executable**: with a real local license server: activate, then every one of the 14 menu entries opens with no error and no lock; exit 0, no error log lines.
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 13, FIX-01a, FIX-01b, the license screen and FIX-01c are complete.
+None blocking. Stage 13, FIX-01a..d and the license screen are complete.
 Observed once (2026-10-07, FIX-01b final run): the Cloud.Tests test host crashed with "Internal CLR error (0x80131506)" while all 23 test projects ran in parallel; Cloud.Tests then passed 207/207 three times in a row on its own. Not reproduced; watch for it in later full runs.
 Build: 0 errors, 0 warnings (122 projects, verified with `dotnet build --no-incremental`).
-All 2409 tests pass (FIX-01c: UI 94, Catalog 79, Inventory 99, Sales 105; FIX-01b: POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
+All 2423 tests pass (FIX-01d: UI 107, CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
 Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 12 had 2254; Stage 13 added 43 (Architecture +22 new and -6 placeholders removed, Platform.ModuleContract +9, Integration +18).
 Stage 13 limitations: see "Stage 13 Summary - Remaining limitations".
 Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
@@ -2295,4 +2314,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-07 - FIX-01c complete (Products, Categories and units, Stock, Warehouses, Sales history screens; cost-erasure and duplicate-barcode defects fixed; a shop can be set up and sell through the desktop alone). 2409 tests, 0 warnings, 122 projects; Stage 14 not started.
+Last updated: 2026-10-07 - FIX-01d complete (Customers, Suppliers, Prices, Purchase orders, Cash drawer, Business overview, Audit log screens; cash actor defect fixed; all 14 screens open in the real executable). 2423 tests, 0 warnings, 122 projects; Stage 14 not started.

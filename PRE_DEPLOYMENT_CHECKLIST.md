@@ -40,7 +40,11 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
     - [x] Fixed on the way: editing without cost permission erased the cost; one barcode could belong to two products
     - [x] Real exe end to end: activate -> set up -> receive -> sell by barcode -> stock and history updated
     - Carried forward: remove a barcode from a product (no command yet); export/refund in sales history (Stage 8 limits)
-  - [ ] **FIX-01d Back-office screens**: Customers, Suppliers, Purchasing, Pricing, Payments, CashManagement, Reporting, Audit
+  - [x] **FIX-01d Back-office screens** (2026-10-07): Customers, Suppliers, Prices, Purchase orders, Cash drawer, Business overview, Audit log
+    - [x] Fixed on the way: cash drawer records were attributed to whatever name the caller passed (now the signed-in user)
+    - [x] Real exe: all 14 menu entries open without error once licensed
+    - Decided: no standalone Payments screen (only "void" exists; belongs to checkout, FIX-10)
+    - Carried forward: customer/supplier addresses and contacts (handlers exist, no screen yet)
   - [ ] **FIX-01e Administration screens**
     - [x] License activation and status screen (2026-10-07, done before FIX-01c): activate / renew, shell unlocks at once; verified end to end with a real local license server
     - [ ] Users, roles and permissions (new view model)
@@ -144,4 +148,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-07 | FIX-01a | c4fceab | Shell foundation; 2343 tests, 0 warnings, 122 projects |
 | 2026-10-07 | FIX-01b | 43b0cf7 | POS screen; 2370 tests, 0 warnings |
 | 2026-10-07 | FIX-01e (license) | 79cb067 | License screen; 2378 tests, 0 warnings; real end-to-end activation |
-| 2026-10-07 | FIX-01c | c2cc6f8, a36467d, (this commit) | Catalog, Inventory, Sales screens; 2 defects fixed; 2409 tests, 0 warnings |
+| 2026-10-07 | FIX-01c | c2cc6f8, a36467d, 2cddbad | Catalog, Inventory, Sales screens; 2 defects fixed; 2409 tests, 0 warnings |
+| 2026-10-07 | FIX-01d | 03e5399, b2cad75, 9dd8cac, 50a2307, db4fb2a, (this commit) | Stage 8 back-office screens; cash actor defect fixed; 2423 tests, 0 warnings |

@@ -12,6 +12,7 @@ using Platform.Presentation.Actions;
 using Platform.Presentation.Screens;
 using POS.UI.Screens;
 using Pricing.UI.Screens;
+using Purchasing.UI.Screens;
 using Reporting.UI.Screens;
 using Sales.UI.Screens;
 using Suppliers.UI.Screens;
@@ -61,6 +62,7 @@ internal sealed class DesktopServicesRegistrar : IHostingModule
         services.AddSingleton<IScreenProvider, ReportingScreens>(); // FIX-01d
         services.AddSingleton<IScreenProvider, AuditScreens>();     // FIX-01d
         services.AddSingleton<IScreenProvider, PricingScreens>();   // FIX-01d
+        services.AddSingleton<IScreenProvider, PurchasingScreens>(); // FIX-01d
     }
 }
 

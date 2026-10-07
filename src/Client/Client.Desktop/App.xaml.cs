@@ -1,26 +1,8 @@
-using Catalog.Infrastructure.Module;
-using Inventory.Infrastructure.Module;
-using Client.Hardware;
-using Client.Licensing.Http;
-using Client.Security;
-using Client.Licensing.Infrastructure;
-using Client.Updater.Http;
-using Client.Updater.Infrastructure;
-using POS.Infrastructure.Module;
-using Reporting.Infrastructure.Module;
-using CashManagement.Infrastructure.Module;
-using Audit.Infrastructure.Module;
-using Users.Infrastructure.Module;
-using Payments.Infrastructure.Module;
-using Pricing.Infrastructure.Module;
-using Purchasing.Infrastructure.Module;
-using Suppliers.Infrastructure.Module;
-using Customers.Infrastructure.Module;
-using Sales.Infrastructure.Module;
 using Client.Host.Hosting;
-using Client.ModuleHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Platform.Presentation.Localization;
 using System.Windows;
 
 namespace Client.Desktop;
@@ -31,7 +13,7 @@ namespace Client.Desktop;
 /// Startup sequence:
 ///   1. WPF Application.OnStartup fires
 ///   2. Create the application host via ApplicationHostBuilder
-///   3. Register hosting modules (Client.ModuleHost first; future modules added here in Stage 5+)
+///   3. Register the hosting modules of DesktopComposition
 ///   4. Build the host
 ///   5. Start the host asynchronously (DI, logging, config, services are initialized)
 ///   6. Show the sign-in window (Stage 11: first-run setup / sign-in / password change); closing it exits
@@ -55,33 +37,11 @@ public partial class App : Application
 
         try
         {
-            // Build the application host.
-            // Client.ModuleHost registers module discovery services.
-            // Future business modules will add their own IHostingModule instances here in Stage 5+.
-            _applicationHost = ApplicationHostBuilder
-                .Create()
-                .WithModule(new DesktopServicesRegistrar())
-                .WithModule(new ModuleHostRegistrar())
-                .WithModule(new ClientSecurityHostingModule())  // Stage 11: operating-system data protection (DPAPI) for local security state
-                .WithModule(new LicensingHostingModule())       // Stage 6: offline license evaluation
-                .WithModule(new LicenseHttpHostingModule())     // Stage 6: HTTP transport to the license server
-                .WithModule(new UpdaterHostingModule())         // Stage 7: update verification, staging, recovery (local only)
-                .WithModule(new UpdateHttpHostingModule())      // Stage 7: HTTP transport to the update server
-                .WithModule(new HardwareHostingModule())        // Stage 10: optional peripherals (all "None" unless configured)
-                .WithModule(new CatalogHostingModule())  // Stage 5A: Catalog module
-                .WithModule(new InventoryHostingModule()) // Stage 5B: Inventory module
-                .WithModule(new SalesHostingModule())     // Stage 5C: Sales module
-                .WithModule(new POSHostingModule())       // Stage 5D: POS module
-                .WithModule(new ReportingHostingModule())       // Stage 8: Reporting module
-                .WithModule(new CashManagementHostingModule())       // Stage 8: CashManagement module
-                .WithModule(new AuditHostingModule())       // Stage 8: Audit module
-                .WithModule(new UsersHostingModule())       // Stage 8: Users module
-                .WithModule(new PaymentsHostingModule())       // Stage 8: Payments module
-                .WithModule(new PricingHostingModule())       // Stage 8: Pricing module
-                .WithModule(new PurchasingHostingModule())       // Stage 8: Purchasing module
-                .WithModule(new SuppliersHostingModule())       // Stage 8: Suppliers module
-                .WithModule(new CustomersHostingModule())       // Stage 8: Customers module
-                .Build();
+            // Build the application host from the desktop composition (DesktopComposition: platform, client components, every module).
+            var builder = ApplicationHostBuilder.Create();
+            foreach (var module in DesktopComposition.HostingModules())
+                builder.WithModule(module);
+            _applicationHost = builder.Build();
 
             // Start all hosted services (logging, configuration, module discovery, etc.)
             await _applicationHost.StartAsync();
@@ -91,6 +51,10 @@ public partial class App : Application
             logger.LogInformation(
                 "GenericPOS application started. Environment: {Environment}",
                 Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production");
+
+            // FIX-01a: the display language (Ui:Culture, default English) before the first window; an unknown value falls back to English.
+            var culture = UiCulture.Apply(_applicationHost.Services.GetRequiredService<IConfiguration>()["Ui:Culture"]);
+            logger.LogInformation("Display language: {Culture}.", culture.Name);
 
             // Stage 11: nobody reaches the shell without signing in. The start screen handles first-run setup (create the first
             // administrator), sign-in and the forced change of a temporary password. Closing it exits the application.

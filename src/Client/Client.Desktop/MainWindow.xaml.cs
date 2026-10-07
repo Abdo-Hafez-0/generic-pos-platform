@@ -1,6 +1,6 @@
-using Client.Licensing.Application;
+using Client.Desktop.Shell;
 using Microsoft.Extensions.Logging;
-using Platform.Application.Abstractions.Authorization;
+using Platform.Presentation.Localization;
 using System.Windows;
 
 namespace Client.Desktop;
@@ -8,9 +8,9 @@ namespace Client.Desktop;
 /// <summary>
 /// The application shell window.
 ///
-/// It contains no business logic, navigation, or module content (modules are hosted here in a later stage). Since Stage 11 it
-/// only ever opens after someone has signed in (see <see cref="App"/>), shows who that is and the license state in plain
-/// words, and offers sign-out, which returns to the start screen.
+/// It contains no business logic. It only ever opens after someone has signed in (see <see cref="App"/>); its state - who is signed in,
+/// the navigation that person may use, the open screen, the license notice - is <see cref="ShellViewModel"/> (FIX-01a). The window
+/// itself only handles what a window must: the reading direction of the language and sign-out, which returns to the start screen.
 ///
 /// Services are injected via constructor injection.
 /// Do NOT use the service locator pattern here or in derived windows.
@@ -18,39 +18,30 @@ namespace Client.Desktop;
 public partial class MainWindow : Window
 {
     private readonly ILogger<MainWindow> _logger;
-    private readonly ICurrentUser _currentUser;
+    private readonly ShellViewModel _shell;
     private readonly Func<SignInWindow> _signInWindow;
     private readonly Func<Task> _signOut;
-    private readonly ILicenseService? _licenses;
 
     public MainWindow(
         ILogger<MainWindow> logger,
-        ICurrentUser currentUser,
+        ShellViewModel shell,
         Func<SignInWindow> signInWindow,
-        DesktopSignOut signOut,
-        ILicenseService? licenses = null)
+        DesktopSignOut signOut)
     {
         _logger = logger;
-        _currentUser = currentUser;
+        _shell = shell;
         _signInWindow = signInWindow;
         _signOut = signOut.SignOutAsync;
-        _licenses = licenses;
         InitializeComponent();
-        Refresh();
-    }
-
-    private void Refresh()
-    {
-        SignedInText.Text = _currentUser.IsAuthenticated ? $"Signed in as {_currentUser.DisplayName} ({_currentUser.UserName})" : string.Empty;
-
-        var notice = _licenses is null ? null : LicenseNotice.Describe(_licenses.Current);
-        LicenseText.Text = notice?.Message ?? string.Empty;
-        StatusText.Text = _licenses is null ? "Ready" : $"Ready - license: {_licenses.Current.State}";
+        FlowDirection = UiCulture.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+        DataContext = shell;
+        Loaded += async (_, _) => await _shell.RefreshAsync();
     }
 
     private async void OnSignOut(object sender, RoutedEventArgs e)
     {
         await _signOut();
+        _shell.Reset();
         _logger.LogInformation("User signed out; returning to the start screen.");
 
         Hide();
@@ -61,8 +52,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        Refresh();
         Show();
+        await _shell.RefreshAsync();
     }
 
     protected override void OnContentRendered(EventArgs e)

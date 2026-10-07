@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    UI.Tests (FIX-01a): the desktop shell and the module view models. It targets net10.0-windows so that it can reference the WPF projects
+    (Client.Desktop and the module UIs) that the net10.0 test projects cannot see (the "TFM gap" of Stages 5-13). Tests drive view models
+    and the shell state; nothing here opens a window.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Platform\Platform.Presentation\Platform.Presentation.csproj" />
+    <ProjectReference Include="..\..\src\Client\Client.Desktop\Client.Desktop.csproj" />
+  </ItemGroup>
+
+</Project>

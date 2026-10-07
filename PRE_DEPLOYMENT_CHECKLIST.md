@@ -21,14 +21,15 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 
   Findings: only PosView, ProductListView, CreateProductView have XAML; no view model is registered in DI; view models take scoped handlers directly; PosViewModel shows `ex.Message` and asks for a free-text cashier and a warehouse id; view models have no tests; no view model exists for roles/permissions or licensing.
 
-  - [ ] **FIX-01a Shell foundation**
-    - [ ] New `Platform.Presentation` project (net10.0, no WPF/EF): `ScreenDescriptor` (id, title resource, group, required capability, view factory), `IScreenProvider`, `IUiActionRunner`, `ViewModelBase`, async command
-    - [ ] Each module UI declares its screens through `IScreenProvider` (no Module.UI -> Client.Host reference, Rule 6)
-    - [ ] `MainWindow` becomes the shell: grouped navigation + content area; Stage 2 placeholder text removed
-    - [ ] Navigation filtered by permission, license-locked entries explained
-    - [ ] Resource (.resx) infrastructure for shell strings
-    - [ ] `UI.Tests` project (net10.0-windows) for view models and navigation; architecture rules for `Platform.Presentation`
-    - [ ] Smoke run: sign in -> shell with navigation -> sign out
+  - [x] **FIX-01a Shell foundation** (2026-10-07)
+    - [x] New `Platform.Presentation` project (net10.0, no WPF/EF): `ScreenDescriptor` (id, title resource, group, required capability, view/view-model types), `IScreenProvider`, `IUiActionRunner`, `ViewModelBase`, async commands
+    - [x] Each module UI declares its screens through `IScreenProvider` (no Module.UI -> Client.Host reference, Rule 6)
+    - [x] `MainWindow` becomes the shell: grouped navigation + content area; Stage 2 placeholder text removed
+    - [x] Navigation filtered by permission, license-locked entries explained
+    - [x] Resource (.resx) infrastructure for shell strings (`Ui:Culture` setting, RTL-ready `FlowDirection`)
+    - [x] `UI.Tests` project (net10.0-windows) for view models and navigation; architecture rules ARCH-SOL-023/024 for `Platform.Presentation`
+    - [x] Smoke run: first-run setup -> shell -> sign out -> sign in -> close (exit 0)
+    - Carried forward: SignInWindow texts still inline (FIX-13); per-module `ViewModelBase` copies replaced in FIX-01c/d; WPF resource target moved to a shared import in FIX-01b
   - [ ] **FIX-01b POS screen**: host PosView; cashier = signed-in user; warehouse picker; no exception text shown; runner-based
   - [ ] **FIX-01c Catalog, Inventory, Sales screens** (convert existing views/view models, add the missing views)
   - [ ] **FIX-01d Back-office screens**: Customers, Suppliers, Purchasing, Pricing, Payments, CashManagement, Reporting, Audit
@@ -128,4 +129,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 
 | Date | Item(s) | Commit(s) | Notes |
 |---|---|---|---|
-| | | | |
+| 2026-10-07 | FIX-01 plan | f6ab63d | Decisions recorded |
+| 2026-10-07 | FIX-01a | (this commit) | Shell foundation; 2343 tests, 0 warnings, 122 projects |

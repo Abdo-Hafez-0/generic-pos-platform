@@ -1,91 +1,148 @@
-<Window x:Class="Client.Desktop.MainWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d"
-        Title="Generic POS Platform"
-        Height="600"
-        Width="1000"
-        WindowStartupLocation="CenterScreen"
-        Background="#1E1E2E">
-
-    <!--
-        APPLICATION SHELL — Stage 2
-
-        This is the main window skeleton.
-        No business UI, navigation, or functionality here.
-        Business module UIs will be hosted here starting in Stage 5.
-    -->
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-
-        <!-- Header bar -->
-        <Border Grid.Row="0" Background="#313244" Padding="16,12">
-            <DockPanel LastChildFill="False">
-                <TextBlock
-                    DockPanel.Dock="Left"
-                    Text="Generic POS Platform"
-                    Foreground="#CDD6F4"
-                    FontSize="18"
-                    FontWeight="SemiBold"
-                    FontFamily="Segoe UI"/>
-                <!-- Stage 11: who is signed in, and the way out -->
-                <Button x:Name="SignOutButton" DockPanel.Dock="Right" Content="Sign out" Padding="10,2" Click="OnSignOut"/>
-                <TextBlock x:Name="SignedInText" DockPanel.Dock="Right" Margin="0,0,12,0" VerticalAlignment="Center"
-                           Foreground="#A6ADC8" FontFamily="Segoe UI"/>
-            </DockPanel>
-        </Border>
-
-        <!-- Main content area — modules will be hosted here in Stage 5 -->
-        <Grid Grid.Row="1">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                <TextBlock
-                    Text="Application host started successfully."
-                    Foreground="#A6E3A1"
-                    FontSize="16"
-                    FontFamily="Segoe UI"
-                    HorizontalAlignment="Center"/>
-                <TextBlock
-                    Margin="0,8,0,0"
-                    Text="Stage 2 — Client Host, Module Host, DI, Configuration, and Logging are operational."
-                    Foreground="#89DCEB"
-                    FontSize="12"
-                    FontFamily="Segoe UI"
-                    HorizontalAlignment="Center"/>
-                <TextBlock
-                    Margin="0,4,0,0"
-                    Text="Business modules will be loaded here in Stage 5."
-                    Foreground="#6C7086"
-                    FontSize="11"
-                    FontFamily="Segoe UI"
-                    HorizontalAlignment="Center"/>
-                <!-- Stage 11: the license state in plain words (restrictions never touch data) -->
-                <TextBlock
-                    x:Name="LicenseText"
-                    Margin="0,16,0,0"
-                    MaxWidth="700"
-                    TextWrapping="Wrap"
-                    TextAlignment="Center"
-                    Foreground="#F9E2AF"
-                    FontSize="12"
-                    FontFamily="Segoe UI"
-                    HorizontalAlignment="Center"/>
-            </StackPanel>
-        </Grid>
-
-        <!-- Status bar -->
-        <Border Grid.Row="2" Background="#181825" Padding="16,6">
-            <TextBlock
-                x:Name="StatusText"
-                Text="Ready"
-                Foreground="#6C7086"
-                FontSize="11"
-                FontFamily="Segoe UI"/>
-        </Border>
-    </Grid>
-</Window>
+<Window x:Class="Client.Desktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:res="clr-namespace:Client.Desktop.Resources"
+        xmlns:shell="clr-namespace:Client.Desktop.Shell"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=shell:ShellViewModel}"
+        Title="{x:Static res:ShellText.ApplicationTitle}"
+        Height="700"
+        Width="1200"
+        MinHeight="480"
+        MinWidth="800"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E2E">
+
+    <!--
+        APPLICATION SHELL (FIX-01a)
+
+        Glue only: the navigation the signed-in user may use (ShellViewModel + Platform.Presentation NavigationBuilder) and the open
+        screen. Screens are declared by the module UIs (IScreenProvider) and created by the shell. Every text comes from
+        Resources/ShellText.resx and the layout uses no left/right-specific placement, so FlowDirection can follow the language.
+    -->
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
+        <Style TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+        </Style>
+        <Style x:Key="NavigationButton" TargetType="Button">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="0,1"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header bar: application, who is signed in, sign out -->
+        <Border Grid.Row="0" Background="#313244" Padding="16,12">
+            <DockPanel LastChildFill="False">
+                <TextBlock DockPanel.Dock="Left" Text="{x:Static res:ShellText.ApplicationTitle}" FontSize="18" FontWeight="SemiBold"/>
+                <Button x:Name="SignOutButton" DockPanel.Dock="Right" Content="{x:Static res:ShellText.SignOut}" Padding="10,2" Click="OnSignOut"/>
+                <TextBlock x:Name="SignedInText" DockPanel.Dock="Right" Margin="12,0" VerticalAlignment="Center"
+                           Foreground="#A6ADC8" Text="{Binding SignedInText}"/>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="240"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Navigation: groups of screens the user may use; locked entries explain themselves when chosen -->
+            <Border Grid.Column="0" Background="#181825">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="Navigation" ItemsSource="{Binding Groups}" Margin="8">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,8,0,0">
+                                    <TextBlock Text="{Binding Title}" Foreground="#6C7086" FontSize="11" FontWeight="SemiBold" Margin="12,0,12,4"/>
+                                    <ItemsControl ItemsSource="{Binding Entries}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Style="{StaticResource NavigationButton}"
+                                                        AutomationProperties.Name="{Binding Title}"
+                                                        Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="{Binding Reason}">
+                                                    <DockPanel>
+                                                        <TextBlock x:Name="LockMark" DockPanel.Dock="Right" Text="{x:Static res:ShellText.Locked}"
+                                                                   Foreground="#F9E2AF" FontSize="10" VerticalAlignment="Center" Visibility="Collapsed"/>
+                                                        <TextBlock Text="{Binding Title}"/>
+                                                    </DockPanel>
+                                                </Button>
+                                                <DataTemplate.Triggers>
+                                                    <DataTrigger Binding="{Binding IsAvailable}" Value="False">
+                                                        <Setter TargetName="LockMark" Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </DataTemplate.Triggers>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+
+            <!-- Content: the open screen, a lock explanation, or the welcome text -->
+            <Grid Grid.Column="1" Margin="16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="{Binding CurrentTitle}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Grid.Row="1" x:Name="ErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                <ContentControl Grid.Row="2" x:Name="ScreenHost" Content="{Binding CurrentView}" Focusable="False"/>
+
+                <TextBlock Grid.Row="2" x:Name="LockedText" Text="{Binding LockedReason}" Foreground="#F9E2AF" TextWrapping="Wrap" FontSize="14"/>
+
+                <StackPanel Grid.Row="2" x:Name="Home" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="700"
+                            Visibility="{Binding IsHome, Converter={StaticResource VisibleWhenTrue}}">
+                    <TextBlock Text="{x:Static res:ShellText.Welcome}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="HomeHint" Text="{x:Static res:ShellText.ChooseScreen}" Margin="0,8,0,0"
+                               HorizontalAlignment="Center" TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                <Setter Property="Foreground" Value="#A6ADC8"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasNoScreens}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock x:Name="NoScreensText" Text="{x:Static res:ShellText.NoScreens}" Foreground="#A6ADC8" Margin="0,8,0,0"
+                               HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
+                               Visibility="{Binding HasNoScreens, Converter={StaticResource VisibleWhenTrue}}"/>
+                    <!-- Stage 11: the license state in plain words (restrictions never touch data) -->
+                    <TextBlock x:Name="LicenseText" Text="{Binding LicenseText}" Foreground="#F9E2AF" Margin="0,16,0,0"
+                               HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- Status bar -->
+        <Border Grid.Row="2" Background="#181825" Padding="16,6">
+            <TextBlock x:Name="StatusText" Text="{Binding StatusText}" Foreground="#6C7086" FontSize="11"/>
+        </Border>
+    </Grid>
+</Window>

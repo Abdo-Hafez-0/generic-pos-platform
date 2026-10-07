@@ -1,6 +1,9 @@
+using Client.Desktop.Shell;
 using Client.Host.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Platform.Presentation.Actions;
+using Platform.Presentation.Screens;
 using Users.Application.Security;
 
 namespace Client.Desktop;
@@ -13,6 +16,8 @@ namespace Client.Desktop;
 /// - MainWindow (Transient) — WPF shell window, created once per application lifetime.
 /// - SignInWindow (Transient) + a factory — the Stage 11 start screen (first-run setup / sign-in / password change).
 /// - DesktopSignOut — signs out through the Users flow in its own scope.
+/// - The shell (FIX-01a): IUiActionRunner (one DI scope per user action), NavigationBuilder, the WPF screen factory, ShellViewModel.
+/// - The screens of the module UIs (IScreenProvider), one registration per module UI.
 ///
 /// This registrar intentionally does NOT register business services (those belong to their modules) or database access.
 /// </summary>
@@ -24,6 +29,15 @@ internal sealed class DesktopServicesRegistrar : IHostingModule
         services.AddTransient<SignInWindow>();
         services.AddSingleton<Func<SignInWindow>>(sp => () => sp.GetRequiredService<SignInWindow>());
         services.AddSingleton<DesktopSignOut>();
+
+        // FIX-01a: the shell. Singletons only: a screen's view model lives as long as the signed-in session, and reaches scoped services
+        // (handlers, contexts) per action through IUiActionRunner.
+        services.AddSingleton<IUiActionRunner, UiActionRunner>();
+        services.AddSingleton<NavigationBuilder>();
+        services.AddSingleton<IScreenFactory, WpfScreenFactory>();
+        services.AddSingleton<ShellViewModel>();
+
+        // Screens declared by the module UIs (IScreenProvider). Added module by module from FIX-01b on.
     }
 }
 

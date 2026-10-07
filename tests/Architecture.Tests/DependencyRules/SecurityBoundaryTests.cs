@@ -302,7 +302,8 @@ public sealed class SecurityBoundaryTests
     [Fact(DisplayName = "ARCH-SEC-016: The desktop composition root registers the security modules (data protection, licensing, updater, users, audit)")]
     public void DesktopRegistersTheSecurityModules()
     {
-        var composition = File.ReadAllText(Path.Combine(RepoRoot(), "src", "Client", "Client.Desktop", "App.xaml.cs"));
+        // FIX-01a: the module list moved from App.xaml.cs to DesktopComposition.cs (App builds the host from it).
+        var composition = File.ReadAllText(Path.Combine(RepoRoot(), "src", "Client", "Client.Desktop", "DesktopComposition.cs"));
 
         foreach (var module in new[] { "ClientSecurityHostingModule", "LicensingHostingModule", "UpdaterHostingModule", "UsersHostingModule", "AuditHostingModule" })
             Assert.Contains($"new {module}()", composition);

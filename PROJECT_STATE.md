@@ -499,15 +499,15 @@ Scope source: the Stage 13 task text (the roadmap file is not in the repository)
 
 ## Current Task
 
-**Stage 13 - COMPLETE (Architecture & Integration Verification). Stopped: Stage 14 has not been started.**
+**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01a COMPLETE (shell foundation); next: FIX-01b (POS screen). Stage 14 has not been started.**
 
 ---
 
 ## Next Task
 
-**Awaiting instruction (technical lead decides).**
+**FIX-01b - host the POS screen in the shell (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
 
-Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; hosting the sign-in screen, first-run administrator setup, PosView and the Stage 8 view models in MainWindow (the desktop currently has NO screen that signs a user in - see Stage 11 deferred work); forwarding key presses to IKeyboardInputSink; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
+Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; hosting PosView and the module view models in the shell (FIX-01b..e; the sign-in/first-run start screen exists since the Stage 11 review and the shell since FIX-01a); forwarding key presses to IKeyboardInputSink; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
 
 ---
 
@@ -2153,11 +2153,31 @@ b4d4d5a Catalog.UI without Client.Host | 23c90bd ARCH-SOL-001..016 | d50be5f ARC
 
 ---
 
+## FIX-01a Summary - Shell foundation (2026-10-07)
+
+Scope source: PRE_DEPLOYMENT_CHECKLIST.md FIX-01a. Decisions (user, 2026-10-07): DI scope per user action; unlicensed modules shown locked with a reason, no-permission screens hidden; handwritten MVVM; every UI string in resources, RTL-safe layouts.
+
+    Module UI (IScreenProvider: ScreenDescriptor id, module, group, title resource, view type, view-model type, capability)
+        ---> Client.Desktop DesktopServicesRegistrar registers the providers (composition root; a module UI never references Client.Host)
+        ---> NavigationBuilder (Platform.Presentation): permissions held NOW (read through the runner) -> hidden / available / license-locked
+        ---> ShellViewModel + MainWindow: grouped menu, open screen, lock reason, welcome; screens created once per signed-in session, discarded at sign-out
+    View model action ---> IUiActionRunner: new async DI scope per action, disposed after it; an exception is logged and becomes PresentationText.OperationFailed
+
+- **Platform.Presentation (new, net10.0, no WPF/EF/HTTP)**: Screens/ (ScreenDescriptor + Validate, IScreenProvider, INavigationAware, ScreenGroups: sales, inventory, purchasing, people, finance, reports, administration; NavigationBuilder), Actions/ (IUiActionRunner, IActionScope, UiActionRunner, UiErrors), Mvvm/ViewModelBase (Set/Raise, IsBusy, ErrorMessage, StatusMessage, Accept(Result), Command/Command<T> that never let an exception reach the UI thread), Localization/UiCulture (Ui:Culture, unknown -> "en", IsRightToLeft), Resources/PresentationText.resx. Packages: Microsoft.Extensions.DependencyInjection.Abstractions and Logging.Abstractions 10.0.11.
+- **Client.Desktop**: Shell/ShellViewModel, Shell/ScreenFactory (WpfScreenFactory: view model via ActivatorUtilities from the application services, view via its parameterless constructor), Resources/ShellText.resx, MainWindow rewritten (menu + content; Stage 2 placeholder removed; FlowDirection from the culture), DesktopComposition (the hosting-module list, moved out of App.xaml.cs so tests use the same list), App applies Ui:Culture before the first window. appsettings: "Ui": { "Culture": "en" }.
+- **Resources**: strongly typed classes are generated by MSBuild (EmbeddedResource StronglyTyped* metadata); WPF projects also need target GenerateStronglyTypedResourcesBeforeCompile (the XAML *_wpftmp compile runs before ResGen). No generated file is committed.
+- **Rules for screens**: a view model may depend on singletons only (UI.Tests checks every declared screen against the real composition); scoped services are reached per action through the runner. Showing a screen is a convenience: handlers still authorize every action.
+- **Tests**: UI.Tests (new, net10.0-windows; closes the TFM gap for the shell and view models) 44: NavigationBuilderTests, UiActionRunnerTests, ViewModelBaseTests, UiCultureTests, ShellViewModelTests, DesktopCompositionTests. Architecture.Tests +2: ARCH-SOL-023 (Platform.Presentation is technology free), ARCH-SOL-024 (only the desktop and module UIs reference it); ARCH-SEC-016 and ARCH-HW-010 now read DesktopComposition.cs.
+- **Real executable** (isolated folders, UI Automation, window-only capture): first-run setup -> shell with menu area, signed-in name, license notice, "no screens yet" (no module declares a screen until FIX-01b) -> sign out -> sign in -> close, exit 0, no error log lines, 13 modules running, "Display language: en".
+- **Not done here (owners)**: SignInWindow texts are still inline (FIX-13); the per-module ViewModelBase copies are replaced when each module is converted (FIX-01c/d); the WPF resource target moves to a shared import when the first module UI gets resources (FIX-01b).
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 13 is complete.
-Build: 0 errors, 0 warnings (120 projects, verified with `dotnet build --no-incremental`).
-All 2297 tests pass (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
+None blocking. Stage 13 and FIX-01a are complete.
+Build: 0 errors, 0 warnings (122 projects, verified with `dotnet build --no-incremental`).
+All 2343 tests pass (FIX-01a: UI 44 new, Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
 Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 12 had 2254; Stage 13 added 43 (Architecture +22 new and -6 placeholders removed, Platform.ModuleContract +9, Integration +18).
 Stage 13 limitations: see "Stage 13 Summary - Remaining limitations".
 Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
@@ -2227,4 +2247,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-06 - Stage 13 complete (architecture and integration verification; the module lifecycle runs and refuses an invalid composition; ARCH-SOL-001..022). 2297 tests, 0 warnings; Stage 14 not started.
+Last updated: 2026-10-07 - FIX-01a complete (shell foundation: Platform.Presentation, navigation by permission and license, one DI scope per user action, UI.Tests; ARCH-SOL-023..024). 2343 tests, 0 warnings, 122 projects; Stage 14 not started.

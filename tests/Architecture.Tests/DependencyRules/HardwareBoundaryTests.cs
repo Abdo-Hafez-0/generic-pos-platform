@@ -215,7 +215,7 @@ public sealed class HardwareBoundaryTests
                 Assert.False(text.Contains(token, StringComparison.Ordinal), $"{file} mentions '{token}'.");
 
             if (text.Contains("Client.Hardware", StringComparison.Ordinal))
-                Assert.EndsWith("App.xaml.cs", file);
+                Assert.EndsWith("DesktopComposition.cs", file); // the composition root's module list (FIX-01a; was App.xaml.cs)
         }
     }
 

@@ -3,6 +3,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Client.Host\Client.Host.csproj" />
     <ProjectReference Include="..\Client.ModuleHost\Client.ModuleHost.csproj" />
+    <!-- FIX-01a: screen declarations, per-action scopes, shared view-model base, UI culture -->
+    <ProjectReference Include="..\..\Platform\Platform.Presentation\Platform.Presentation.csproj" />
     <!-- Catalog module (Stage 5A) — CatalogHostingModule lives in Catalog.Infrastructure -->
     <ProjectReference Include="..\..\Modules\Catalog\Catalog.Infrastructure\Catalog.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Catalog\Catalog.UI\Catalog.UI.csproj" />
@@ -65,6 +67,22 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
   </PropertyGroup>
+
+  <!-- FIX-01a: shell texts (resources from the start; FIX-01 decision 4) -->
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\ShellText.resx"
+                      StronglyTypedLanguage="CSharp"
+                      StronglyTypedClassName="ShellText"
+                      StronglyTypedNamespace="Client.Desktop.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)ShellText.Designer.cs"
+                      PublicClass="true" />
+  </ItemGroup>
+
+  <!--
+    WPF compiles a temporary assembly for XAML markup (the *_wpftmp project) BEFORE the normal resource generation runs, so the
+    strongly typed resource classes would not exist there. Generating them right before every compile covers both builds.
+  -->
+  <Target Name="GenerateStronglyTypedResourcesBeforeCompile" BeforeTargets="CoreCompile" DependsOnTargets="PrepareResourceNames;ResGen" />
 
   <!-- EF Core design-time tools: required for 'dotnet ef migrations' command -->
   <ItemGroup>

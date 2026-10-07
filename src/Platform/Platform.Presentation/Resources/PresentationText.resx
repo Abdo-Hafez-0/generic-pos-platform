@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="OperationFailed" xml:space="preserve">
+    <value>The operation could not be completed. Please try again; if it keeps failing, ask your administrator to check the application log.</value>
+  </data>
+  <data name="LicenseLocked" xml:space="preserve">
+    <value>Not included in the current license ({0}). Your data is safe and unchanged.</value>
+  </data>
+  <data name="GroupSales" xml:space="preserve">
+    <value>Sales</value>
+  </data>
+  <data name="GroupInventory" xml:space="preserve">
+    <value>Products and stock</value>
+  </data>
+  <data name="GroupPurchasing" xml:space="preserve">
+    <value>Purchasing</value>
+  </data>
+  <data name="GroupPeople" xml:space="preserve">
+    <value>Customers and suppliers</value>
+  </data>
+  <data name="GroupFinance" xml:space="preserve">
+    <value>Cash and payments</value>
+  </data>
+  <data name="GroupReports" xml:space="preserve">
+    <value>Reports</value>
+  </data>
+  <data name="GroupAdministration" xml:space="preserve">
+    <value>Administration</value>
+  </data>
+</root>

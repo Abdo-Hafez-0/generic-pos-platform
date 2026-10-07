@@ -1,0 +1,127 @@
+<UserControl x:Class="Inventory.UI.Views.StockView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:res="clr-namespace:Inventory.UI.Resources"
+             xmlns:vm="clr-namespace:Inventory.UI.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:StockViewModel}">
+
+    <!-- STOCK (FIX-01c). DataContext: StockViewModel. Texts: Resources/InventoryText.resx. -->
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="Label" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+        </Style>
+        <Style x:Key="Heading" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,12,0,6"/>
+        </Style>
+        <Style x:Key="Cell" TargetType="TextBlock">
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="Number" TargetType="TextBlock" BasedOn="{StaticResource Cell}">
+            <Setter Property="TextAlignment" Value="Right"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,4"/>
+            <Setter Property="MinWidth" Value="90"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Margin" Value="0,0,12,0"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- filter -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBox x:Name="StockSearchBox" Width="220" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                     AutomationProperties.Name="{x:Static res:InventoryText.SearchHint}" ToolTip="{x:Static res:InventoryText.SearchHint}">
+                <TextBox.InputBindings>
+                    <KeyBinding Key="Enter" Command="{Binding SearchCommand}"/>
+                </TextBox.InputBindings>
+            </TextBox>
+            <ComboBox x:Name="FilterWarehouseBox" Width="180" ItemsSource="{Binding FilterWarehouses}" SelectedItem="{Binding FilterWarehouse}" DisplayMemberPath="Name"
+                      AutomationProperties.Name="{x:Static res:InventoryText.Warehouse}"/>
+            <Button x:Name="StockSearchButton" Content="{x:Static res:InventoryText.Search}" Command="{Binding SearchCommand}"/>
+        </StackPanel>
+
+        <DataGrid Grid.Row="1" x:Name="StockGrid" ItemsSource="{Binding Stock}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True"
+                  CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column"
+                  Background="#181825" RowBackground="#1E1E2E" AlternatingRowBackground="#232336" Foreground="#CDD6F4"
+                  BorderBrush="#313244" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#313244" RowHeight="28"
+                  AutomationProperties.Name="{x:Static res:InventoryText.StockTitle}">
+            <DataGrid.ColumnHeaderStyle>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="Background" Value="#313244"/>
+                    <Setter Property="Foreground" Value="#A6ADC8"/>
+                    <Setter Property="Padding" Value="8,4"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                </Style>
+            </DataGrid.ColumnHeaderStyle>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="{x:Static res:InventoryText.Sku}" Binding="{Binding Sku}" Width="120" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:InventoryText.Product}" Binding="{Binding ProductName}" Width="*" MinWidth="160" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:InventoryText.Warehouse}" Binding="{Binding WarehouseName}" Width="160" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:InventoryText.OnHand}" Binding="{Binding OnHand, StringFormat=0.###}" Width="100" ElementStyle="{StaticResource Number}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- receive and correct -->
+        <StackPanel Grid.Row="2">
+            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:InventoryText.ReceiveHeading}"/>
+            <TextBlock x:Name="StockNoWarehousesText" Text="{x:Static res:InventoryText.NoWarehouses}" Foreground="#F9E2AF" Margin="0,0,0,6"
+                       Visibility="{Binding HasNoWarehouses, Converter={StaticResource VisibleWhenTrue}}"/>
+            <WrapPanel>
+                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:InventoryText.ProductCode}"/>
+                <TextBox x:Name="ReceiveCodeBox" Width="170" Text="{Binding ReceiveCode, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:InventoryText.ProductCode}"/>
+                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:InventoryText.Warehouse}"/>
+                <ComboBox x:Name="ReceiveWarehouseBox" Width="160" ItemsSource="{Binding Warehouses}" SelectedItem="{Binding ReceiveWarehouse}" DisplayMemberPath="Name"
+                          AutomationProperties.Name="{x:Static res:InventoryText.Warehouse}"/>
+                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:InventoryText.Quantity}"/>
+                <TextBox x:Name="ReceiveQuantityBox" Width="70" Text="{Binding ReceiveQuantity, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:InventoryText.Quantity}"/>
+                <TextBox x:Name="ReceiveReferenceBox" Width="200" Text="{Binding ReceiveReference, UpdateSourceTrigger=PropertyChanged}"
+                         AutomationProperties.Name="{x:Static res:InventoryText.Reference}" ToolTip="{x:Static res:InventoryText.Reference}"/>
+                <Button x:Name="ReceiveButton" Content="{x:Static res:InventoryText.Receive}" Command="{Binding ReceiveCommand}"/>
+            </WrapPanel>
+
+            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:InventoryText.AdjustHeading}"/>
+            <WrapPanel>
+                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:InventoryText.AdjustBy}"/>
+                <TextBox x:Name="AdjustByBox" Width="70" Text="{Binding AdjustBy, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:InventoryText.AdjustBy}"/>
+                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:InventoryText.Reason}"/>
+                <ComboBox x:Name="AdjustReasonBox" Width="190" ItemsSource="{Binding Reasons}" SelectedItem="{Binding AdjustReason}" DisplayMemberPath="Name"
+                          AutomationProperties.Name="{x:Static res:InventoryText.Reason}"/>
+                <TextBox x:Name="AdjustNotesBox" Width="200" Text="{Binding AdjustNotes, UpdateSourceTrigger=PropertyChanged}"
+                         AutomationProperties.Name="{x:Static res:InventoryText.Notes}" ToolTip="{x:Static res:InventoryText.Notes}"/>
+                <Button x:Name="AdjustButton" Content="{x:Static res:InventoryText.Adjust}" Command="{Binding AdjustCommand}"/>
+            </WrapPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Row="3" Margin="0,8,0,0">
+            <TextBlock x:Name="StockInfoText" Text="{Binding ResultInfo}" Foreground="#A6ADC8" TextWrapping="Wrap"/>
+            <TextBlock x:Name="StockStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" TextWrapping="Wrap"/>
+            <TextBlock x:Name="StockErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

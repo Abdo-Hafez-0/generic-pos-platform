@@ -11,5 +11,15 @@
     <ProjectReference Include="..\Inventory.Application\Inventory.Application.csproj" />
     <ProjectReference Include="..\Inventory.Contracts\Inventory.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />
+    <!-- FIX-01c: the screen declarations, the per-action runner and the view-model base of the shell -->
+    <ProjectReference Include="..\..\..\Platform\Platform.Presentation\Platform.Presentation.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\InventoryText.resx"
+                      StronglyTypedLanguage="CSharp"
+                      StronglyTypedClassName="InventoryText"
+                      StronglyTypedNamespace="Inventory.UI.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)InventoryText.Designer.cs"
+                      PublicClass="true" />
   </ItemGroup>
 </Project>

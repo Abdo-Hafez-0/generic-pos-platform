@@ -1,6 +1,7 @@
 using Catalog.UI.Screens;
 using Client.Desktop.Screens;
 using Client.Desktop.Shell;
+using Inventory.UI.Screens;
 using Client.Host.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -45,6 +46,7 @@ internal sealed class DesktopServicesRegistrar : IHostingModule
         services.AddSingleton<IScreenProvider, DesktopScreens>(); // license screen (FIX-01e, done first)
         services.AddSingleton<IScreenProvider, PosScreens>();   // FIX-01b
         services.AddSingleton<IScreenProvider, CatalogScreens>(); // FIX-01c
+        services.AddSingleton<IScreenProvider, InventoryScreens>(); // FIX-01c
     }
 }
 

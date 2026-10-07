@@ -76,6 +76,8 @@ public sealed class InventoryTestDatabase : IAsyncDisposable
         services.AddTransient<GetWarehousesQueryHandler>();
         services.AddTransient<GetStockLevelQueryHandler>();
         services.AddTransient<GetAllStockLevelsQueryHandler>();
+        services.AddTransient<GetStockOverviewQueryHandler>();
+        services.AddTransient<FindStockProductQueryHandler>();
         services.AddTransient<GetStockMovementsQueryHandler>();
 
         // Business tests are not about security; security tests pass their own (scripted or real) authorization.

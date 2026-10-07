@@ -100,6 +100,8 @@ public static class InventoryServicesExtensions
         services.AddTransient<GetWarehousesQueryHandler>();
         services.AddTransient<GetStockLevelQueryHandler>();
         services.AddTransient<GetAllStockLevelsQueryHandler>();
+        services.AddTransient<GetStockOverviewQueryHandler>();
+        services.AddTransient<FindStockProductQueryHandler>();
         services.AddTransient<GetStockMovementsQueryHandler>();
 
         return services;

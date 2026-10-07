@@ -195,7 +195,7 @@ public sealed class CatalogScreensOnRealDesktopTests
         // stock and a warehouse come from Inventory (its screens are tested in their own suite); here through the contracts directly
         var shop = await FailureTestKit.CreateShopAsync(desktop.Services, sku: "OTHER-1", name: "Other");
         using (var scope = desktop.Services.CreateScope())
-            Assert.True((await scope.ServiceProvider.GetRequiredService<Inventory.Contracts.Interfaces.IStockReceiptService>()
+            Assert.True((await scope.ServiceProvider.GetRequiredService<global::Inventory.Contracts.Interfaces.IStockReceiptService>()
                 .ReceiveStockAsync(product.Id, shop.WarehouseId, 5m, "test")).IsSuccess);
 
         var pos = new POS.UI.ViewModels.PosViewModel(Runner(desktop.Services), desktop.Services.GetRequiredService<Platform.Application.Abstractions.Authorization.ICurrentUser>());

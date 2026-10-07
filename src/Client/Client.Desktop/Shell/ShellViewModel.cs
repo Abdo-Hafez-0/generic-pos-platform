@@ -17,7 +17,7 @@ namespace Client.Desktop.Shell;
 /// Screens are created once per signed-in session and kept, so switching between screens keeps what the user was doing; signing out
 /// discards them all.
 /// </summary>
-public sealed class ShellViewModel : ViewModelBase
+public sealed class ShellViewModel : ViewModelBase, IShellNavigation
 {
     private readonly IUiActionRunner _runner;
     private readonly NavigationBuilder _navigation;

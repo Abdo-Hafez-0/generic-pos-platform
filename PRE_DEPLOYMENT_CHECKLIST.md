@@ -34,10 +34,12 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
     - [x] Resume the cashier's open till and cart after sign-out/restart (new POS reads: open session by cashier, active warehouses)
     - [x] Tests: view model (20), real offline desktop (3: sell, resume, unknown code), every screen view loads its XAML; smoke: POS entry locked on an unlicensed install
     - Carried forward: payment method / tendered amount at checkout (FIX-10); scanner (FIX-02); change-quantity and clear-cart buttons
-    - **Found**: a fresh install is Unlicensed and cannot be activated from the desktop until FIX-01e, so POS stays locked in the real app until then
+    - **Found**: a fresh install is Unlicensed and could not be activated from the desktop -> license screen done next (user decision)
   - [ ] **FIX-01c Catalog, Inventory, Sales screens** (convert existing views/view models, add the missing views)
   - [ ] **FIX-01d Back-office screens**: Customers, Suppliers, Purchasing, Pricing, Payments, CashManagement, Reporting, Audit
-  - [ ] **FIX-01e Administration screens**: users, roles and permissions (new view model), license activation and status (new view model)
+  - [ ] **FIX-01e Administration screens**
+    - [x] License activation and status screen (2026-10-07, done before FIX-01c): activate / renew, shell unlocks at once; verified end to end with a real local license server
+    - [ ] Users, roles and permissions (new view model)
 - [ ] **FIX-02 Barcode scanner input** (Stage 10)
   - [ ] Forward key presses from the window to `IKeyboardInputSink`
   - [ ] Bind `IPOSBarcodeInput` to the POS view model
@@ -135,4 +137,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 |---|---|---|---|
 | 2026-10-07 | FIX-01 plan | f6ab63d | Decisions recorded |
 | 2026-10-07 | FIX-01a | c4fceab | Shell foundation; 2343 tests, 0 warnings, 122 projects |
-| 2026-10-07 | FIX-01b | (this commit) | POS screen; 2370 tests, 0 warnings |
+| 2026-10-07 | FIX-01b | 43b0cf7 | POS screen; 2370 tests, 0 warnings |
+| 2026-10-07 | FIX-01e (license) | (this commit) | License screen; 2378 tests, 0 warnings; real end-to-end activation |

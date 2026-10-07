@@ -46,14 +46,17 @@ internal sealed class SignedLicenseWorld : IDisposable
 
     /// <summary>Signs and stores a license with an explicit status (Revoked/Suspended) and lease/grace window.</summary>
     public void Issue(DateTimeOffset now, DateTimeOffset validUntil, LicenseStatusClaim status, DateTimeOffset leaseUntil, DateTimeOffset graceUntil, params string[] modules)
+        => File.WriteAllText(Path.Combine(Directory, "license.json"), LicenseSerializer.Serialize(Sign(now, validUntil, status, leaseUntil, graceUntil, modules)));
+
+    /// <summary>A license for this installation signed with this world's trusted key, without storing it (what a license server would answer).</summary>
+    public SignedLicense Sign(DateTimeOffset now, DateTimeOffset validUntil, LicenseStatusClaim status, DateTimeOffset leaseUntil, DateTimeOffset graceUntil, params string[] modules)
     {
         var payload = new LicensePayload(
             Guid.NewGuid(), "customer-1", _installationId, "genericpos", 1, now, now.AddDays(-1), validUntil,
             leaseUntil, graceUntil, status, modules, [], "integration test", "it-key");
         var bytes = LicenseSerializer.SerializePayloadBytes(payload);
         var signature = _key.SignData(bytes, HashAlgorithmName.SHA256, DSASignatureFormat.IeeeP1363FixedFieldConcatenation);
-        var license = new SignedLicense(LicenseSerializer.ToPayloadText(bytes), "it-key", LicenseSigning.Algorithm, Convert.ToBase64String(signature));
-        File.WriteAllText(Path.Combine(Directory, "license.json"), LicenseSerializer.Serialize(license));
+        return new SignedLicense(LicenseSerializer.ToPayloadText(bytes), "it-key", LicenseSigning.Algorithm, Convert.ToBase64String(signature));
     }
 
     public IEnumerable<IHostingModule> HostModules() => [new LicensingHostingModule(), new ClockModule(Clock)];

@@ -22,6 +22,8 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <!-- WPF projects do not import System.IO implicitly -->
+    <Using Include="System.IO" />
   </ItemGroup>
 
   <ItemGroup>

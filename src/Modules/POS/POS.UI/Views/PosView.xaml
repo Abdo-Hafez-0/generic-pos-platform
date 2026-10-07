@@ -129,8 +129,8 @@
 
         <!-- What happened -->
         <StackPanel Grid.Row="3" Margin="0,8,0,0">
-            <TextBlock x:Name="StatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" TextWrapping="Wrap"/>
-            <TextBlock x:Name="ErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap"/>
+            <TextBlock x:Name="PosStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" TextWrapping="Wrap"/>
+            <TextBlock x:Name="PosErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap"/>
             <TextBlock x:Name="HardwareText" Text="{Binding HardwareMessage}" Foreground="#F9E2AF" TextWrapping="Wrap"/>
         </StackPanel>
     </Grid>

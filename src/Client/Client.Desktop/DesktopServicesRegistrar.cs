@@ -1,3 +1,4 @@
+using Client.Desktop.Screens;
 using Client.Desktop.Shell;
 using Client.Host.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,8 +38,10 @@ internal sealed class DesktopServicesRegistrar : IHostingModule
         services.AddSingleton<NavigationBuilder>();
         services.AddSingleton<IScreenFactory, WpfScreenFactory>();
         services.AddSingleton<ShellViewModel>();
+        services.AddSingleton<IShellNavigation>(sp => sp.GetRequiredService<ShellViewModel>());
 
         // Screens declared by the module UIs (IScreenProvider), one per module UI.
+        services.AddSingleton<IScreenProvider, DesktopScreens>(); // license screen (FIX-01e, done first)
         services.AddSingleton<IScreenProvider, PosScreens>();   // FIX-01b
     }
 }

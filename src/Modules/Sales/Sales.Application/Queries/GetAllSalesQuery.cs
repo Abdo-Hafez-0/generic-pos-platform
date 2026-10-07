@@ -1,5 +1,6 @@
 using Sales.Application.DTOs;
 using Sales.Application.Repositories;
+using Sales.Domain.Entities;
 
 namespace Sales.Application.Queries;
 
@@ -20,32 +21,38 @@ public sealed class GetAllSalesQueryHandler(ISaleRepository saleRepository)
     {
         var sales = await saleRepository.GetAllAsync(cancellationToken);
 
-        return sales.Select(sale => new SaleDto(
-            SaleId: sale.Id.Value,
-            Status: sale.Status,
-            Reference: sale.Reference,
-            Notes: sale.Notes,
-            SubTotal: sale.SubTotal.Amount,
-            TaxTotal: sale.TaxTotal.Amount,
-            GrandTotal: sale.GrandTotal.Amount,
-            CreatedAt: sale.CreatedAt,
-            UpdatedAt: sale.UpdatedAt,
-            CompletedAt: sale.CompletedAt,
-            CancelledAt: sale.CancelledAt,
-            CancellationReason: sale.CancellationReason,
-            Items: sale.Items.Select(i => new SaleItemDto(
-                SaleItemId: i.Id.Value,
-                CatalogProductId: i.CatalogProductId,
-                ProductName: i.ProductName,
-                ProductSku: i.ProductSku,
-                Quantity: i.Quantity.Value,
-                UnitPrice: i.UnitPrice.Amount,
-                Discount: i.Discount.Amount,
-                TaxRate: i.TaxRate,
-                SubTotal: i.SubTotal.Amount,
-                TaxAmount: i.TaxAmount.Amount,
-                LineTotal: i.LineTotal.Amount
-            )).ToList().AsReadOnly()
-        )).ToList().AsReadOnly();
+        return sales.Select(SaleDtoMapper.ToDto).ToList().AsReadOnly();
     }
+}
+
+/// <summary>Sale to DTO, shared by the list queries.</summary>
+internal static class SaleDtoMapper
+{
+    public static SaleDto ToDto(Sale sale) => new(
+        SaleId: sale.Id.Value,
+        Status: sale.Status,
+        Reference: sale.Reference,
+        Notes: sale.Notes,
+        SubTotal: sale.SubTotal.Amount,
+        TaxTotal: sale.TaxTotal.Amount,
+        GrandTotal: sale.GrandTotal.Amount,
+        CreatedAt: sale.CreatedAt,
+        UpdatedAt: sale.UpdatedAt,
+        CompletedAt: sale.CompletedAt,
+        CancelledAt: sale.CancelledAt,
+        CancellationReason: sale.CancellationReason,
+        Items: sale.Items.Select(i => new SaleItemDto(
+            SaleItemId: i.Id.Value,
+            CatalogProductId: i.CatalogProductId,
+            ProductName: i.ProductName,
+            ProductSku: i.ProductSku,
+            Quantity: i.Quantity.Value,
+            UnitPrice: i.UnitPrice.Amount,
+            Discount: i.Discount.Amount,
+            TaxRate: i.TaxRate,
+            SubTotal: i.SubTotal.Amount,
+            TaxAmount: i.TaxAmount.Amount,
+            LineTotal: i.LineTotal.Amount
+        )).ToList().AsReadOnly()
+    );
 }

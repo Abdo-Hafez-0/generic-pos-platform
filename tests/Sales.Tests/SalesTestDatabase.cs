@@ -73,6 +73,7 @@ public sealed class SalesTestDatabase : IAsyncDisposable
         // Application: Query handlers
         services.AddTransient<GetSaleByIdQueryHandler>();
         services.AddTransient<GetAllSalesQueryHandler>();
+        services.AddTransient<GetSalesHistoryQueryHandler>();
 
         var provider = services.BuildServiceProvider();
 

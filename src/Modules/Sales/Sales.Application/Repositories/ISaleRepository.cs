@@ -13,4 +13,7 @@ public interface ISaleRepository
     Task AddAsync(Sale sale, CancellationToken cancellationToken = default);
     void Update(Sale sale);
     Task<IReadOnlyList<Sale>> GetAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Sales created in [<paramref name="fromUtc"/>, <paramref name="toUtc"/>), newest first, at most <paramref name="take"/>.</summary>
+    Task<IReadOnlyList<Sale>> GetCreatedBetweenAsync(DateTime fromUtc, DateTime toUtc, int take, CancellationToken cancellationToken = default);
 }

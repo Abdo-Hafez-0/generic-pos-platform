@@ -499,14 +499,14 @@ Scope source: the Stage 13 task text (the roadmap file is not in the repository)
 
 ## Current Task
 
-**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01a (shell), FIX-01b (POS screen) and the license screen of FIX-01e (done first, user decision) COMPLETE; next: FIX-01c (Catalog, Inventory, Sales screens). Stage 14 has not been started.**
+**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01a (shell), FIX-01b (POS screen), the license screen of FIX-01e and FIX-01c (Catalog, Inventory, Sales screens) COMPLETE; next: FIX-01d (back-office screens of the Stage 8 modules). Stage 14 has not been started.**
 
 ---
 
 ## Next Task
 
-**FIX-01c - Catalog, Inventory and Sales screens in the shell (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
-A fresh installation can now be activated from Administration > License; POS then unlocks without a restart (verified end to end against a real local LicenseServer.Api).
+**FIX-01d - back-office screens (Customers, Suppliers, Purchasing, Pricing, Payments, CashManagement, Reporting, Audit) (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
+A fresh installation can now be set up and sell through the desktop alone: activate (License), categories/units, products, warehouse, receive stock, sell at the till, sales history (verified end to end in the real executable against a real local LicenseServer.Api).
 
 Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; hosting PosView and the module view models in the shell (FIX-01b..e; the sign-in/first-run start screen exists since the Stage 11 review and the shell since FIX-01a); forwarding key presses to IKeyboardInputSink; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
 
@@ -2202,12 +2202,30 @@ Why first: a fresh installation is Unlicensed and nothing on the desktop could a
 
 ---
 
+## FIX-01c Summary - Catalog, Inventory and Sales screens (2026-10-07)
+
+Screens (group, capability that shows them): Products (Products and stock, catalog.product.edit), Stock (inventory.stock.receive), Warehouses (inventory.location.manage), Categories and units (catalog.category.manage), Sales history (Sales, none: read-only; reading the shop's own sales needs no license or capability). All run through IUiActionRunner; texts in CatalogText/InventoryText/SalesText.resx; the Stage 5 view models/views (ProductList, CreateProduct, StockLevel, WarehouseList, SaleList) were removed.
+
+- **Products**: search by name/SKU (case-insensitive part) or exact barcode, show inactive, create/edit (category, unit, sale price, cost price, description, add a barcode; format inferred from the value: 13 digits EAN-13, 8 EAN-8, 12 UPC, else Code 128), deactivate (history kept). Without catalog.cost.view the cost field is disabled and explained. Catalog.Application SearchProductsQuery (IProductRepository.SearchAsync: LIKE with literal wildcards, MaxResults 500 + IsTruncated).
+- **Categories and units**: list and add (names are not unique by design - unchanged).
+- **Stock**: on hand per product and warehouse with readable names (Inventory.Application GetStockOverviewQuery: product SKU/name through Catalog.Contracts IProductLookup, warehouse names; a product Catalog no longer knows is shown by ID, never hidden), filter by warehouse and SKU/name, receive by SKU or barcode (FindStockProductQuery: SKU, then IProductBarcodeResolver when composed) with an optional reference, correct the selected line (+/-) with a reason (stock count, damaged, found, transfer in/out, opening balance, other) and notes.
+- **Warehouses**: list (with status) and add (duplicate code refused by the existing handler).
+- **Sales history**: a period of local days (today by default) converted to UTC, newest first, lines of the selected sale, "Completed sales: N, total X" counting COMPLETED sales only. Sales.Application GetSalesHistoryQuery (ISaleRepository.GetCreatedBetweenAsync, MaxResults 1000 + IsTruncated); the sale-to-DTO mapping is shared (SaleDtoMapper).
+- **Defects found and fixed while building the screens** (each has a test):
+  1. Editing a product without catalog.cost.view ERASED its stored cost (reads redact the cost to null, UpdateProductCommand wrote the null back). UpdateProductCommandHandler now keeps the stored cost for such callers.
+  2. A barcode could be assigned to two products (no rule, non-unique index), so a scan at the till picked one of them at random. AssignBarcodeCommandHandler now refuses a barcode another product carries ("Catalog.Barcode.InUse", naming the owner). Existing duplicates in a database are not cleaned up (none can exist from the desktop, which had no barcode screen before).
+- **Tests**: Catalog.Tests +9 (ProductSearchTests 6, BarcodeUniquenessTests 1, cost preservation 2), Inventory.Tests +2 (StockOverviewTests), Sales.Tests +2 (SalesHistoryTests), UI.Tests +18 on the real offline desktop (catalog 7 incl. a product created on screen and sold on POS; inventory 5 incl. the whole back office through screens only: product -> warehouse -> receive 12 -> sell 3 by barcode -> stock 9; sales history 2; every new view loads its XAML).
+- **Real executable end to end** (real exe + real local LicenseServer.Api): first-run setup, activate, add category/unit, product with barcode and cost, warehouse, receive 24 (reference DN-1001), open till, scan the barcode x3 (3.75), checkout, stock shows 21, sales history "Completed sales: 1, total 3.75"; exit 0, no error log lines.
+- **Not done here (owners)**: product edit cannot remove a barcode (no command exists); sales history has no export or refund (Stage 8 limits unchanged); category/unit names may repeat; the license-server dev-seeding bug is a separate task.
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 13, FIX-01a, FIX-01b and the license screen are complete.
+None blocking. Stage 13, FIX-01a, FIX-01b, the license screen and FIX-01c are complete.
 Observed once (2026-10-07, FIX-01b final run): the Cloud.Tests test host crashed with "Internal CLR error (0x80131506)" while all 23 test projects ran in parallel; Cloud.Tests then passed 207/207 three times in a row on its own. Not reproduced; watch for it in later full runs.
 Build: 0 errors, 0 warnings (122 projects, verified with `dotnet build --no-incremental`).
-All 2378 tests pass (license screen: UI 76; FIX-01b: POS 153; FIX-01a: Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
+All 2409 tests pass (FIX-01c: UI 94, Catalog 79, Inventory 99, Sales 105; FIX-01b: POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
 Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 12 had 2254; Stage 13 added 43 (Architecture +22 new and -6 placeholders removed, Platform.ModuleContract +9, Integration +18).
 Stage 13 limitations: see "Stage 13 Summary - Remaining limitations".
 Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
@@ -2277,4 +2295,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-07 - License screen complete (activate/renew from Administration > License; the shell unlocks licensed screens at once; verified end to end with a real local license server). 2378 tests, 0 warnings, 122 projects; Stage 14 not started.
+Last updated: 2026-10-07 - FIX-01c complete (Products, Categories and units, Stock, Warehouses, Sales history screens; cost-erasure and duplicate-barcode defects fixed; a shop can be set up and sell through the desktop alone). 2409 tests, 0 warnings, 122 projects; Stage 14 not started.

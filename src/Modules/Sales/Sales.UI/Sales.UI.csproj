@@ -6,10 +6,18 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
   <ItemGroup>
-    <!-- UI depends on Application (use cases) and Contracts (DTOs) only.
-         NO reference to Sales.Infrastructure or Sales.Domain directly. -->
     <ProjectReference Include="..\Sales.Application\Sales.Application.csproj" />
     <ProjectReference Include="..\Sales.Contracts\Sales.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />
+    <!-- FIX-01c: the screen declarations, the per-action runner and the view-model base of the shell -->
+    <ProjectReference Include="..\..\..\Platform\Platform.Presentation\Platform.Presentation.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\SalesText.resx"
+                      StronglyTypedLanguage="CSharp"
+                      StronglyTypedClassName="SalesText"
+                      StronglyTypedNamespace="Sales.UI.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)SalesText.Designer.cs"
+                      PublicClass="true" />
   </ItemGroup>
 </Project>

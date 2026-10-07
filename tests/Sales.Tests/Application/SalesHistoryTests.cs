@@ -1,0 +1,69 @@
+using Microsoft.Extensions.DependencyInjection;
+using Sales.Application.Commands;
+using Sales.Application.Queries;
+using Sales.Domain.Enums;
+
+namespace Sales.Tests.Application;
+
+/// <summary>FIX-01c: the sales history behind the sales screen - a date range, newest first, takings counted from completed sales only.</summary>
+public sealed class SalesHistoryTests
+{
+    private static readonly Guid Product = Guid.NewGuid();
+
+    private static async Task<SalesTestDatabase> StartAsync()
+    {
+        var lookup = new StubProductLookup();
+        lookup.Register(Product, sku: "SKU-A", name: "Product A", salePrice: 10m);
+        return await SalesTestDatabase.CreateAsync(lookup);
+    }
+
+    private static async Task<Guid> SaleAsync(SalesTestDatabase db, string reference, decimal quantity, SaleStatus finalStatus)
+    {
+        using var scope = db.CreateScope();
+        var sp = scope.ServiceProvider;
+        var id = (await sp.GetRequiredService<CreateSaleCommandHandler>().HandleAsync(new CreateSaleCommand(reference, null))).Value;
+        Assert.True((await sp.GetRequiredService<AddSaleItemCommandHandler>().HandleAsync(new AddSaleItemCommand(id, Product, quantity, 10m, 0m, 0m, null))).IsSuccess);
+        if (finalStatus is SaleStatus.Draft) return id;
+
+        Assert.True((await sp.GetRequiredService<ConfirmSaleCommandHandler>().HandleAsync(new ConfirmSaleCommand(id))).IsSuccess);
+        if (finalStatus is SaleStatus.Completed)
+            Assert.True((await sp.GetRequiredService<CompleteSaleCommandHandler>().HandleAsync(new CompleteSaleCommand(id))).IsSuccess);
+        if (finalStatus is SaleStatus.Cancelled)
+            Assert.True((await sp.GetRequiredService<CancelSaleCommandHandler>().HandleAsync(new CancelSaleCommand(id, "customer left"))).IsSuccess);
+        return id;
+    }
+
+    private static async Task<SalesHistory> HistoryAsync(SalesTestDatabase db, DateTime from, DateTime to)
+    {
+        using var scope = db.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<GetSalesHistoryQueryHandler>().HandleAsync(new GetSalesHistoryQuery(from, to));
+    }
+
+    [Fact]
+    public async Task The_range_lists_every_sale_newest_first_and_counts_only_completed_takings()
+    {
+        await using var db = await StartAsync();
+        await SaleAsync(db, "S-1", 1m, SaleStatus.Completed);
+        await SaleAsync(db, "S-2", 2m, SaleStatus.Cancelled);
+        await SaleAsync(db, "S-3", 3m, SaleStatus.Draft);
+        await SaleAsync(db, "S-4", 4m, SaleStatus.Completed);
+
+        var history = await HistoryAsync(db, DateTime.UtcNow.AddHours(-1), DateTime.UtcNow.AddHours(1));
+
+        Assert.Equal(["S-4", "S-3", "S-2", "S-1"], history.Sales.Select(s => s.Reference));
+        Assert.Equal((2, 50m), (history.CompletedCount, history.CompletedTotal));
+        Assert.Single(history.Sales[0].Items);
+        Assert.False(history.IsTruncated);
+    }
+
+    [Fact]
+    public async Task Sales_outside_the_range_are_left_out_and_an_empty_or_reversed_range_is_empty()
+    {
+        await using var db = await StartAsync();
+        await SaleAsync(db, "S-1", 1m, SaleStatus.Completed);
+
+        Assert.Empty((await HistoryAsync(db, DateTime.UtcNow.AddDays(-2), DateTime.UtcNow.AddDays(-1))).Sales);
+        Assert.Empty((await HistoryAsync(db, DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2))).Sales);
+        Assert.Empty((await HistoryAsync(db, DateTime.UtcNow.AddHours(1), DateTime.UtcNow.AddHours(-1))).Sales);
+    }
+}

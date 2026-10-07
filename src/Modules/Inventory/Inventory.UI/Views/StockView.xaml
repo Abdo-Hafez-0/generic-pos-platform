@@ -100,6 +100,7 @@
                           AutomationProperties.Name="{x:Static res:InventoryText.Warehouse}"/>
                 <TextBlock Style="{StaticResource Label}" Text="{x:Static res:InventoryText.Quantity}"/>
                 <TextBox x:Name="ReceiveQuantityBox" Width="70" Text="{Binding ReceiveQuantity, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:InventoryText.Quantity}"/>
+                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:InventoryText.ReferenceLabel}"/>
                 <TextBox x:Name="ReceiveReferenceBox" Width="200" Text="{Binding ReceiveReference, UpdateSourceTrigger=PropertyChanged}"
                          AutomationProperties.Name="{x:Static res:InventoryText.Reference}" ToolTip="{x:Static res:InventoryText.Reference}"/>
                 <Button x:Name="ReceiveButton" Content="{x:Static res:InventoryText.Receive}" Command="{Binding ReceiveCommand}"/>
@@ -112,6 +113,7 @@
                 <TextBlock Style="{StaticResource Label}" Text="{x:Static res:InventoryText.Reason}"/>
                 <ComboBox x:Name="AdjustReasonBox" Width="190" ItemsSource="{Binding Reasons}" SelectedItem="{Binding AdjustReason}" DisplayMemberPath="Name"
                           AutomationProperties.Name="{x:Static res:InventoryText.Reason}"/>
+                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:InventoryText.Notes}"/>
                 <TextBox x:Name="AdjustNotesBox" Width="200" Text="{Binding AdjustNotes, UpdateSourceTrigger=PropertyChanged}"
                          AutomationProperties.Name="{x:Static res:InventoryText.Notes}" ToolTip="{x:Static res:InventoryText.Notes}"/>
                 <Button x:Name="AdjustButton" Content="{x:Static res:InventoryText.Adjust}" Command="{Binding AdjustCommand}"/>

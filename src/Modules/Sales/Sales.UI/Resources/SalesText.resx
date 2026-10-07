@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ScreenTitle" xml:space="preserve"><value>Sales history</value></data>
+  <data name="From" xml:space="preserve"><value>From</value></data>
+  <data name="To" xml:space="preserve"><value>To</value></data>
+  <data name="Show" xml:space="preserve"><value>Show</value></data>
+  <data name="Time" xml:space="preserve"><value>Time</value></data>
+  <data name="Reference" xml:space="preserve"><value>Reference</value></data>
+  <data name="Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Items" xml:space="preserve"><value>Items</value></data>
+  <data name="Total" xml:space="preserve"><value>Total</value></data>
+  <data name="Product" xml:space="preserve"><value>Product</value></data>
+  <data name="Sku" xml:space="preserve"><value>SKU</value></data>
+  <data name="Quantity" xml:space="preserve"><value>Qty</value></data>
+  <data name="UnitPrice" xml:space="preserve"><value>Unit price</value></data>
+  <data name="LineTotal" xml:space="preserve"><value>Line total</value></data>
+  <data name="Summary" xml:space="preserve"><value>Completed sales: {0}, total {1:N2}</value></data>
+  <data name="Truncated" xml:space="preserve"><value>Only the newest {0} sales of this period are listed; the totals cover those. Choose a shorter period to see all.</value></data>
+  <data name="NoSales" xml:space="preserve"><value>No sales in this period.</value></data>
+  <data name="RangeInvalid" xml:space="preserve"><value>The end date must not be before the start date.</value></data>
+  <data name="StatusDraft" xml:space="preserve"><value>Open</value></data>
+  <data name="StatusConfirmed" xml:space="preserve"><value>Confirmed</value></data>
+  <data name="StatusCompleted" xml:space="preserve"><value>Completed</value></data>
+  <data name="StatusCancelled" xml:space="preserve"><value>Cancelled</value></data>
+  <data name="SelectSale" xml:space="preserve"><value>Select a sale to see its lines.</value></data>
+</root>

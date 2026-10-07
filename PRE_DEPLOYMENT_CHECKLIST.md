@@ -35,7 +35,11 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
     - [x] Tests: view model (20), real offline desktop (3: sell, resume, unknown code), every screen view loads its XAML; smoke: POS entry locked on an unlicensed install
     - Carried forward: payment method / tendered amount at checkout (FIX-10); scanner (FIX-02); change-quantity and clear-cart buttons
     - **Found**: a fresh install is Unlicensed and could not be activated from the desktop -> license screen done next (user decision)
-  - [ ] **FIX-01c Catalog, Inventory, Sales screens** (convert existing views/view models, add the missing views)
+  - [x] **FIX-01c Catalog, Inventory, Sales screens** (2026-10-07)
+    - [x] Products (search, create/edit with barcode, deactivate), Categories and units, Stock (overview, receive by SKU/barcode, correct with reason), Warehouses, Sales history (period, lines, takings)
+    - [x] Fixed on the way: editing without cost permission erased the cost; one barcode could belong to two products
+    - [x] Real exe end to end: activate -> set up -> receive -> sell by barcode -> stock and history updated
+    - Carried forward: remove a barcode from a product (no command yet); export/refund in sales history (Stage 8 limits)
   - [ ] **FIX-01d Back-office screens**: Customers, Suppliers, Purchasing, Pricing, Payments, CashManagement, Reporting, Audit
   - [ ] **FIX-01e Administration screens**
     - [x] License activation and status screen (2026-10-07, done before FIX-01c): activate / renew, shell unlocks at once; verified end to end with a real local license server
@@ -138,4 +142,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-07 | FIX-01 plan | f6ab63d | Decisions recorded |
 | 2026-10-07 | FIX-01a | c4fceab | Shell foundation; 2343 tests, 0 warnings, 122 projects |
 | 2026-10-07 | FIX-01b | 43b0cf7 | POS screen; 2370 tests, 0 warnings |
-| 2026-10-07 | FIX-01e (license) | (this commit) | License screen; 2378 tests, 0 warnings; real end-to-end activation |
+| 2026-10-07 | FIX-01e (license) | 79cb067 | License screen; 2378 tests, 0 warnings; real end-to-end activation |
+| 2026-10-07 | FIX-01c | c2cc6f8, a36467d, (this commit) | Catalog, Inventory, Sales screens; 2 defects fixed; 2409 tests, 0 warnings |

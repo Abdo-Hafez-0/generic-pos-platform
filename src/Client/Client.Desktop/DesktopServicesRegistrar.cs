@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Platform.Presentation.Actions;
 using Platform.Presentation.Screens;
 using POS.UI.Screens;
+using Sales.UI.Screens;
 using Users.Application.Security;
 
 namespace Client.Desktop;
@@ -47,6 +48,7 @@ internal sealed class DesktopServicesRegistrar : IHostingModule
         services.AddSingleton<IScreenProvider, PosScreens>();   // FIX-01b
         services.AddSingleton<IScreenProvider, CatalogScreens>(); // FIX-01c
         services.AddSingleton<IScreenProvider, InventoryScreens>(); // FIX-01c
+        services.AddSingleton<IScreenProvider, SalesScreens>();     // FIX-01c
     }
 }
 

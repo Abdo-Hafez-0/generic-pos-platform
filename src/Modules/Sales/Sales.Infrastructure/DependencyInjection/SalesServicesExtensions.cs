@@ -90,6 +90,7 @@ public static class SalesServicesExtensions
         // Query handlers (Transient — stateless)
         services.AddTransient<GetSaleByIdQueryHandler>();
         services.AddTransient<GetAllSalesQueryHandler>();
+        services.AddTransient<GetSalesHistoryQueryHandler>();
 
         return services;
     }

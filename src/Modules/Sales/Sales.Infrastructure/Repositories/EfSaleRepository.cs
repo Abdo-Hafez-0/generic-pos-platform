@@ -28,4 +28,12 @@ internal sealed class EfSaleRepository(SalesDbContext dbContext) : ISaleReposito
             .Include(s => s.Items)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Sale>> GetCreatedBetweenAsync(DateTime fromUtc, DateTime toUtc, int take, CancellationToken cancellationToken = default)
+        => await dbContext.Sales
+            .Include(s => s.Items)
+            .Where(s => s.CreatedAt >= fromUtc && s.CreatedAt < toUtc)
+            .OrderByDescending(s => s.CreatedAt)
+            .Take(take)
+            .ToListAsync(cancellationToken);
 }

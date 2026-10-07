@@ -61,3 +61,26 @@ public sealed class GetCurrentPriceQueryHandler(IPriceRepository prices, IPriceL
         return selected is null ? null : new CurrentPriceDto(selected.Id.Value, list.Id.Value, list.Code, selected.Amount.Amount);
     }
 }
+
+/// <summary>A product as the prices screen shows it: its catalog sale price is what applies when no price list price does.</summary>
+public sealed record PricingProductDto(Guid ProductId, string Sku, string Name, decimal CatalogSalePrice);
+
+/// <summary>The product a typed or scanned code means (FIX-01d: the prices screen): its SKU first, then a barcode when Catalog's resolver is composed.</summary>
+public sealed record FindPricingProductQuery(string Code);
+
+public sealed class FindPricingProductQueryHandler(Catalog.Contracts.Interfaces.IProductLookup productLookup, Catalog.Contracts.Interfaces.IProductBarcodeResolver? barcodes = null)
+{
+    public async Task<Platform.Core.Results.Result<PricingProductDto>> HandleAsync(FindPricingProductQuery query, CancellationToken cancellationToken = default)
+    {
+        var code = query.Code?.Trim() ?? string.Empty;
+        if (code.Length == 0)
+            return Platform.Core.Results.Result.Failure<PricingProductDto>(Platform.Core.Results.Error.Validation("Pricing.Product.CodeRequired", "Enter a SKU or scan a barcode."));
+
+        var product = await productLookup.FindBySkuAsync(code, cancellationToken)
+            ?? (barcodes is null ? null : await barcodes.ResolveAsync(code, cancellationToken));
+
+        return product is null
+            ? Platform.Core.Results.Result.Failure<PricingProductDto>(Platform.Core.Results.Error.NotFound("Pricing.Product.NotFound", $"No product has the SKU or barcode '{code}'."))
+            : Platform.Core.Results.Result.Success(new PricingProductDto(product.ProductId, product.Sku, product.Name, product.SalePrice));
+    }
+}

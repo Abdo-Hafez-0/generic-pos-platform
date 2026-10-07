@@ -56,6 +56,7 @@ public static class PricingServicesExtensions
         services.AddTransient<Pricing.Application.Queries.ListPricesForProductQueryHandler>();
         services.AddTransient<Pricing.Application.Queries.ListPriceListsQueryHandler>();
         services.AddTransient<Pricing.Application.Queries.GetCurrentPriceQueryHandler>();
+        services.AddTransient<Pricing.Application.Queries.FindPricingProductQueryHandler>();
         return services;
     }
 }

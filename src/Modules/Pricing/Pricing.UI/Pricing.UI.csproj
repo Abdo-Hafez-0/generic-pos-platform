@@ -10,5 +10,15 @@
     <ProjectReference Include="..\Pricing.Application\Pricing.Application.csproj" />
     <ProjectReference Include="..\Pricing.Contracts\Pricing.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />
+    <!-- FIX-01d: the screen declarations, the per-action runner and the view-model base of the shell -->
+    <ProjectReference Include="..\..\..\Platform\Platform.Presentation\Platform.Presentation.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\PricingText.resx"
+                      StronglyTypedLanguage="CSharp"
+                      StronglyTypedClassName="PricingText"
+                      StronglyTypedNamespace="Pricing.UI.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)PricingText.Designer.cs"
+                      PublicClass="true" />
   </ItemGroup>
 </Project>

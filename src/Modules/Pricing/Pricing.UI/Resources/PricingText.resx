@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="ScreenTitle" xml:space="preserve"><value>Prices</value></data>
+  <data name="ListsHeading" xml:space="preserve"><value>Price lists</value></data>
+  <data name="Code" xml:space="preserve"><value>Code</value></data>
+  <data name="Name" xml:space="preserve"><value>Name</value></data>
+  <data name="Default" xml:space="preserve"><value>Default</value></data>
+  <data name="Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Active" xml:space="preserve"><value>Active</value></data>
+  <data name="Inactive" xml:space="preserve"><value>Inactive</value></data>
+  <data name="Yes" xml:space="preserve"><value>Yes</value></data>
+  <data name="MakeDefault" xml:space="preserve"><value>Use for sales</value></data>
+  <data name="AddList" xml:space="preserve"><value>Add price list</value></data>
+  <data name="SetDefault" xml:space="preserve"><value>Use selected for sales</value></data>
+  <data name="DeactivateList" xml:space="preserve"><value>Deactivate selected list</value></data>
+  <data name="ProductHeading" xml:space="preserve"><value>Prices of a product</value></data>
+  <data name="ProductCode" xml:space="preserve"><value>SKU or barcode</value></data>
+  <data name="Find" xml:space="preserve"><value>Find</value></data>
+  <data name="CatalogPrice" xml:space="preserve"><value>{0} ({1}) - catalog price {2:N2}</value></data>
+  <data name="PriceNow" xml:space="preserve"><value>Price at the till now: {0:N2} (price list {1}).</value></data>
+  <data name="CatalogApplies" xml:space="preserve"><value>No price list price applies now: the till uses the catalog price {0:N2}.</value></data>
+  <data name="List" xml:space="preserve"><value>Price list</value></data>
+  <data name="Amount" xml:space="preserve"><value>Price</value></data>
+  <data name="MinimumQuantity" xml:space="preserve"><value>From qty</value></data>
+  <data name="ValidFrom" xml:space="preserve"><value>Valid from</value></data>
+  <data name="ValidUntil" xml:space="preserve"><value>Valid until</value></data>
+  <data name="ValidUntilHint" xml:space="preserve"><value>Leave empty for no end date. The end date is included.</value></data>
+  <data name="AddPrice" xml:space="preserve"><value>Add price</value></data>
+  <data name="DeactivatePrice" xml:space="preserve"><value>Deactivate selected price</value></data>
+  <data name="ListAdded" xml:space="preserve"><value>Price list {0} was added.</value></data>
+  <data name="DefaultSet" xml:space="preserve"><value>Price list {0} is now used for sales.</value></data>
+  <data name="ListDeactivated" xml:space="preserve"><value>Price list {0} is inactive.</value></data>
+  <data name="PriceAdded" xml:space="preserve"><value>Price added.</value></data>
+  <data name="PriceDeactivated" xml:space="preserve"><value>Price deactivated.</value></data>
+  <data name="AmountInvalid" xml:space="preserve"><value>Enter the price as a number of zero or more.</value></data>
+  <data name="QuantityInvalid" xml:space="preserve"><value>Enter the minimum quantity as a number greater than zero.</value></data>
+  <data name="ChooseList" xml:space="preserve"><value>Choose the price list.</value></data>
+  <data name="NoLists" xml:space="preserve"><value>Add a price list first.</value></data>
+  <data name="UntilBeforeFrom" xml:space="preserve"><value>The end date must not be before the start date.</value></data>
+</root>

@@ -499,13 +499,13 @@ Scope source: the Stage 13 task text (the roadmap file is not in the repository)
 
 ## Current Task
 
-**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01a (shell), FIX-01b (POS screen), FIX-01c (Catalog, Inventory, Sales), FIX-01d (Stage 8 back-office screens) and the license screen of FIX-01e COMPLETE; next: the rest of FIX-01e (users, roles and permissions screens). Stage 14 has not been started.**
+**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). Next checklist item: FIX-02 (barcode scanner input). Stage 14 has not been started.**
 
 ---
 
 ## Next Task
 
-**FIX-01e (rest) - users, roles and permissions screens (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
+**FIX-02 - barcode scanner input on the POS screen (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
 A fresh installation can now be set up and sell through the desktop alone: activate (License), categories/units, products, warehouse, receive stock, sell at the till, sales history (verified end to end in the real executable against a real local LicenseServer.Api).
 
 Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; hosting PosView and the module view models in the shell (FIX-01b..e; the sign-in/first-run start screen exists since the Stage 11 review and the shell since FIX-01a); forwarding key presses to IKeyboardInputSink; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
@@ -2239,12 +2239,26 @@ Screens (group, capability that shows them): Customers (Customers and suppliers,
 
 ---
 
+## FIX-01e Summary - Users, roles and permissions screens (2026-10-07)
+
+Decisions (user): (1) user administration can never lock itself out - enforced in the handlers; (2) the administrator types a temporary password (password box, never bound, shown or stored by the screen); the user must choose a new one at the first sign-in (the Stage 11 flow).
+
+- **Users screen** (Administration, users.view; changes need users.manage): search, show inactive, create a user with a temporary password (the configured password policy is checked BEFORE the user is created, so a refused password never leaves a user who cannot sign in), change name and e-mail, deactivate / reactivate, give and take away roles, set a new temporary password. The code-behind hands the password box content to the command at the moment of use and clears the box.
+- **Roles and permissions screen** (users.manage): roles, a new role, and for the selected role every capability the installed modules declare (ICapabilityCatalog) with area, name, sensitive flag and description; ticking grants, unticking revokes, immediately; the list is rebuilt from what was stored, so a refused change shows the old state again. A permission no installed module declares stays listed and removable.
+- **Lock-out rule (Users.Application AdministrationGuard)**: DeactivateUser, RemoveRole and RevokePermission(users.manage) are refused ("Users.LastAdministrator", plain words) when they would take the number of ACTIVE users holding users.manage through a role from one or more to zero; DeactivateUser refuses deactivating oneself ("Users.SelfDeactivation"). Evaluated on the stored state with the pending change as parameters (IUserRepository.GetActiveUserRolesAsync, new). When nobody holds users.manage already (hosts without authentication, test hosts) the change does not make anything worse and is allowed.
+- **Accessibility defect found by the real-executable smoke**: the permission ticks used a CheckBox Command, which UI Automation toggling (screen readers, automation tools) does not invoke - a tick could look granted without being granted. PermissionRow is now a two-way row: any way of ticking (mouse, keyboard, automation) asks the handler.
+- **Tests**: Users.Tests +5 (AdministrationGuardTests); UI.Tests +3 on the real offline desktop signed in as its only administrator (new user with temporary password -> refused weak password creates nothing -> role -> sign-in demands a new password -> permissions; the lock-out refusals through both screens; edit, new temporary password, deactivate).
+- **Real executable**: owner creates a Cashier role and grants Sell by UI Automation, creates Sara with a temporary password and gives her the role; Sara signs in, must choose her own password, then sees only Point of sale and Sales history; exit 0; no error log lines; no password in the log.
+- **Not done here (follow-ups)**: capabilities that go together are not suggested (a cashier needs both "Sell" and "Open and close POS sessions"); roles cannot be renamed or deleted (no command exists); usernames cannot be changed.
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 13, FIX-01a..d and the license screen are complete.
+None blocking. Stage 13 and FIX-01 (a..e) are complete.
 Observed once (2026-10-07, FIX-01b final run): the Cloud.Tests test host crashed with "Internal CLR error (0x80131506)" while all 23 test projects ran in parallel; Cloud.Tests then passed 207/207 three times in a row on its own. Not reproduced; watch for it in later full runs.
 Build: 0 errors, 0 warnings (122 projects, verified with `dotnet build --no-incremental`).
-All 2423 tests pass (FIX-01d: UI 107, CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
+All 2431 tests pass (FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
 Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 12 had 2254; Stage 13 added 43 (Architecture +22 new and -6 placeholders removed, Platform.ModuleContract +9, Integration +18).
 Stage 13 limitations: see "Stage 13 Summary - Remaining limitations".
 Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
@@ -2314,4 +2328,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-07 - FIX-01d complete (Customers, Suppliers, Prices, Purchase orders, Cash drawer, Business overview, Audit log screens; cash actor defect fixed; all 14 screens open in the real executable). 2423 tests, 0 warnings, 122 projects; Stage 14 not started.
+Last updated: 2026-10-07 - FIX-01 complete (users, roles and permissions screens; user administration cannot lock itself out; every module has its screens). 2431 tests, 0 warnings, 122 projects; Stage 14 not started.

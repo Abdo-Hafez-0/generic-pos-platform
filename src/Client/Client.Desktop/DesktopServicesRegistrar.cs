@@ -16,6 +16,7 @@ using Purchasing.UI.Screens;
 using Reporting.UI.Screens;
 using Sales.UI.Screens;
 using Suppliers.UI.Screens;
+using Users.UI.Screens;
 using Users.Application.Security;
 
 namespace Client.Desktop;
@@ -63,6 +64,7 @@ internal sealed class DesktopServicesRegistrar : IHostingModule
         services.AddSingleton<IScreenProvider, AuditScreens>();     // FIX-01d
         services.AddSingleton<IScreenProvider, PricingScreens>();   // FIX-01d
         services.AddSingleton<IScreenProvider, PurchasingScreens>(); // FIX-01d
+        services.AddSingleton<IScreenProvider, UsersScreens>();     // FIX-01e
     }
 }
 

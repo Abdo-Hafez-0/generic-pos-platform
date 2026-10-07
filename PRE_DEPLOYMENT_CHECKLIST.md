@@ -11,7 +11,7 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 
 ### A1. High priority - features that exist but are not connected
 
-- [ ] **FIX-01 Host the business screens in the shell** (Stages 5-11)
+- [x] **FIX-01 Host the business screens in the shell** (Stages 5-11) - done 2026-10-07
 
   Decisions (2026-10-07, user):
   1. **DI scope per user action**: view models call `IUiActionRunner`, which opens a fresh scope per action, disposes it, logs unexpected exceptions and returns a plain message (also covers FIX-07 and the UI side of FIX-06).
@@ -45,9 +45,12 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
     - [x] Real exe: all 14 menu entries open without error once licensed
     - Decided: no standalone Payments screen (only "void" exists; belongs to checkout, FIX-10)
     - Carried forward: customer/supplier addresses and contacts (handlers exist, no screen yet)
-  - [ ] **FIX-01e Administration screens**
+  - [x] **FIX-01e Administration screens**
     - [x] License activation and status screen (2026-10-07, done before FIX-01c): activate / renew, shell unlocks at once; verified end to end with a real local license server
-    - [ ] Users, roles and permissions (new view model)
+    - [x] Users, roles and permissions (2026-10-07): temporary passwords (changed at first sign-in), roles, permission ticks
+    - [x] User decision: administration can never lock itself out (last user who can manage users; no self-deactivation), enforced in the handlers
+    - [x] Fixed on the way: permission ticks did not work through UI Automation (screen readers)
+    - Carried forward: suggest capabilities that go together (Sell needs Open/close POS sessions); rename/delete roles; change usernames
 - [ ] **FIX-02 Barcode scanner input** (Stage 10)
   - [ ] Forward key presses from the window to `IKeyboardInputSink`
   - [ ] Bind `IPOSBarcodeInput` to the POS view model
@@ -149,4 +152,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-07 | FIX-01b | 43b0cf7 | POS screen; 2370 tests, 0 warnings |
 | 2026-10-07 | FIX-01e (license) | 79cb067 | License screen; 2378 tests, 0 warnings; real end-to-end activation |
 | 2026-10-07 | FIX-01c | c2cc6f8, a36467d, 2cddbad | Catalog, Inventory, Sales screens; 2 defects fixed; 2409 tests, 0 warnings |
-| 2026-10-07 | FIX-01d | 03e5399, b2cad75, 9dd8cac, 50a2307, db4fb2a, (this commit) | Stage 8 back-office screens; cash actor defect fixed; 2423 tests, 0 warnings |
+| 2026-10-07 | FIX-01d | 03e5399, b2cad75, 9dd8cac, 50a2307, db4fb2a, 1a7fd78 | Stage 8 back-office screens; cash actor defect fixed; 2423 tests, 0 warnings |
+| 2026-10-07 | FIX-01e (users) | (this commit) | Users, roles and permissions screens; lock-out rule; FIX-01 complete; 2431 tests, 0 warnings |

@@ -22,6 +22,9 @@ namespace Users.Application.Repositories
         Task AddAsync(User user, CancellationToken cancellationToken = default);
         Task<bool> AnyAsync(CancellationToken cancellationToken = default);
         Task<(IReadOnlyList<User> Items, int TotalCount)> ListAsync(string? search, bool includeInactive, int skip, int take, CancellationToken cancellationToken = default);
+
+        /// <summary>Every role assignment of every ACTIVE user, as stored (FIX-01e: who can still manage users).</summary>
+        Task<IReadOnlyList<(Guid UserId, Guid RoleId)>> GetActiveUserRolesAsync(CancellationToken cancellationToken = default);
     }
 
     /// <summary>Credential material (password hash, lockout state). Separate from <see cref="IUserRepository"/> so that ordinary user queries never touch it.</summary>
@@ -109,15 +112,22 @@ namespace Users.Application.Commands
 
     public sealed record DeactivateUserCommand(Guid UserId);
 
-    public sealed class DeactivateUserCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null, ISecurityEventSink? events = null)
+    public sealed class DeactivateUserCommandHandler(IUserRepository users, IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null, ISecurityEventSink? events = null)
     {
         public async Task<Result> HandleAsync(DeactivateUserCommand command, CancellationToken cancellationToken = default)
         {
             var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.Manage, cancellationToken);
             if (allowed.IsFailure) return allowed;
 
+            if (currentUser is { IsAuthenticated: true } && currentUser.UserId == command.UserId)
+                return Result.Failure(AdministrationGuard.SelfDeactivation());
+
             var user = await users.GetByIdAsync(new UserId(command.UserId), cancellationToken);
             if (user is null) return Result.Failure(UsersErrors.UserNotFound(command.UserId));
+
+            if (user.Status == Domain.Enums.UserStatus.Active
+                && !await AdministrationGuard.SomeoneCanStillManageAsync(users, roles, cancellationToken, deactivatedUser: command.UserId))
+                return Result.Failure(AdministrationGuard.LastAdministrator());
 
             var result = user.Deactivate();
             if (result.IsFailure) return result;
@@ -181,7 +191,7 @@ namespace Users.Application.Commands
 
     public sealed record RemoveRoleCommand(Guid UserId, Guid RoleId);
 
-    public sealed class RemoveRoleCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null, ISecurityEventSink? events = null)
+    public sealed class RemoveRoleCommandHandler(IUserRepository users, IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null, ISecurityEventSink? events = null)
     {
         public async Task<Result> HandleAsync(RemoveRoleCommand command, CancellationToken cancellationToken = default)
         {
@@ -190,6 +200,9 @@ namespace Users.Application.Commands
 
             var user = await users.GetByIdAsync(new UserId(command.UserId), cancellationToken);
             if (user is null) return Result.Failure(UsersErrors.UserNotFound(command.UserId));
+
+            if (!await AdministrationGuard.SomeoneCanStillManageAsync(users, roles, cancellationToken, removedRole: (command.UserId, command.RoleId)))
+                return Result.Failure(AdministrationGuard.LastAdministrator());
 
             var result = user.RemoveRole(new RoleId(command.RoleId));
             if (result.IsFailure) return result;
@@ -253,7 +266,7 @@ namespace Users.Application.Commands
 
     public sealed record RevokePermissionCommand(Guid RoleId, string Permission);
 
-    public sealed class RevokePermissionCommandHandler(IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null, ISecurityEventSink? events = null)
+    public sealed class RevokePermissionCommandHandler(IRoleRepository roles, IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null, ISecurityEventSink? events = null)
     {
         public async Task<Result> HandleAsync(RevokePermissionCommand command, CancellationToken cancellationToken = default)
         {
@@ -263,6 +276,11 @@ namespace Users.Application.Commands
             var role = await roles.GetByIdAsync(new RoleId(command.RoleId), cancellationToken);
             if (role is null) return Result.Failure(UsersErrors.RoleNotFound(command.RoleId));
 
+            var requested = string.Concat(command.Permission).Trim();   // null-safe without a null test on the command's value
+            if (string.Equals(requested, Users.Application.Security.UsersCapabilities.Manage, StringComparison.OrdinalIgnoreCase)
+                && !await AdministrationGuard.SomeoneCanStillManageAsync(users, roles, cancellationToken, revokedPermission: (command.RoleId, requested)))
+                return Result.Failure(AdministrationGuard.LastAdministrator());
+
             var result = role.Revoke(command.Permission);
             if (result.IsFailure) return result;
 
@@ -271,6 +289,61 @@ namespace Users.Application.Commands
                 "security.permission.revoked", SecurityEventOutcome.Success, currentUser?.UserId, currentUser?.UserName,
                 "role", command.RoleId.ToString(), $"permission {command.Permission} revoked"), cancellationToken);
             return Result.Success();
+        }
+    }
+
+    /// <summary>
+    /// FIX-01e (user decision): user administration can never lock itself out. A change is refused when, after it, NO active user would
+    /// hold users.manage through a role - there is no way back inside the application (first-run setup works only while no user exists).
+    /// The rule is evaluated on the stored state with the pending change applied as parameters (before anything is modified), so it does
+    /// not depend on how the change would be tracked.
+    /// </summary>
+    internal static class AdministrationGuard
+    {
+        public const string LastAdministratorCode = "Users.LastAdministrator";
+        public const string SelfDeactivationCode = "Users.SelfDeactivation";
+
+        public static Error LastAdministrator() => Error.Conflict(LastAdministratorCode,
+            "This would leave nobody who can manage users. Give another active user a role that can manage users first.");
+
+        public static Error SelfDeactivation() => Error.Conflict(SelfDeactivationCode,
+            "You cannot deactivate your own account. Another administrator can do it.");
+
+        /// <summary>
+        /// True unless the described change takes the number of active users holding users.manage from one or more to zero. (When nobody
+        /// holds it already - a host without authentication or a test host - the change does not make anything worse and is allowed.)
+        /// </summary>
+        public static async Task<bool> SomeoneCanStillManageAsync(
+            IUserRepository users,
+            IRoleRepository roles,
+            CancellationToken cancellationToken,
+            Guid? deactivatedUser = null,
+            (Guid UserId, Guid RoleId)? removedRole = null,
+            (Guid RoleId, string Permission)? revokedPermission = null)
+            => await AnyManagerAsync(users, roles, cancellationToken, deactivatedUser, removedRole, revokedPermission)
+               || !await AnyManagerAsync(users, roles, cancellationToken);
+
+        private static async Task<bool> AnyManagerAsync(
+            IUserRepository users,
+            IRoleRepository roles,
+            CancellationToken cancellationToken,
+            Guid? deactivatedUser = null,
+            (Guid UserId, Guid RoleId)? removedRole = null,
+            (Guid RoleId, string Permission)? revokedPermission = null)
+        {
+            var managingRoles = (await roles.ListAsync(cancellationToken))
+                .Where(r => r.Permissions.Any(p =>
+                    string.Equals(p.Permission, Users.Application.Security.UsersCapabilities.Manage, StringComparison.OrdinalIgnoreCase)
+                    && !(revokedPermission is { } revoked && r.Id.Value == revoked.RoleId
+                         && string.Equals(revoked.Permission?.Trim(), p.Permission, StringComparison.OrdinalIgnoreCase))))
+                .Select(r => r.Id.Value)
+                .ToHashSet();
+            if (managingRoles.Count == 0) return false;
+
+            return (await users.GetActiveUserRolesAsync(cancellationToken)).Any(a =>
+                a.UserId != deactivatedUser
+                && managingRoles.Contains(a.RoleId)
+                && !(removedRole is { } removed && removed.UserId == a.UserId && removed.RoleId == a.RoleId));
         }
     }
 

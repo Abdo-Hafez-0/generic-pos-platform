@@ -21,6 +21,17 @@ internal sealed class EfUserRepository(UsersDbContext dbContext) : IUserReposito
     public async Task<bool> AnyAsync(CancellationToken cancellationToken = default)
         => await dbContext.Users.AnyAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<(Guid UserId, Guid RoleId)>> GetActiveUserRolesAsync(CancellationToken cancellationToken = default)
+    {
+        // active users with their assignments (a shop has few users; the projection is done in memory because the SQLite provider
+        // cannot translate a SelectMany over the owned role collection)
+        var active = await dbContext.Users.AsNoTracking()
+            .Include(u => u.Roles)
+            .Where(u => u.Status == UserStatus.Active)
+            .ToListAsync(cancellationToken);
+        return active.SelectMany(u => u.Roles.Select(r => (u.Id.Value, r.RoleId.Value))).ToList();
+    }
+
     public async Task<(IReadOnlyList<User> Items, int TotalCount)> ListAsync(
         string? search, bool includeInactive, int skip, int take, CancellationToken cancellationToken = default)
     {

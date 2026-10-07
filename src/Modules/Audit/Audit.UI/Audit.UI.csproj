@@ -10,5 +10,15 @@
     <ProjectReference Include="..\Audit.Application\Audit.Application.csproj" />
     <ProjectReference Include="..\Audit.Contracts\Audit.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />
+    <!-- FIX-01d: the screen declarations, the per-action runner and the view-model base of the shell -->
+    <ProjectReference Include="..\..\..\Platform\Platform.Presentation\Platform.Presentation.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\AuditText.resx"
+                      StronglyTypedLanguage="CSharp"
+                      StronglyTypedClassName="AuditText"
+                      StronglyTypedNamespace="Audit.UI.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)AuditText.Designer.cs"
+                      PublicClass="true" />
   </ItemGroup>
 </Project>

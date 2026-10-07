@@ -1,0 +1,91 @@
+<UserControl x:Class="Audit.UI.Views.AuditLogView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:res="clr-namespace:Audit.UI.Resources"
+             xmlns:vm="clr-namespace:Audit.UI.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:AuditLogViewModel}">
+
+    <!-- AUDIT LOG (FIX-01d, read-only). DataContext: AuditLogViewModel. Texts: Resources/AuditText.resx. -->
+    <UserControl.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="Label" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+        </Style>
+        <Style x:Key="Cell" TargetType="TextBlock">
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,4"/>
+            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <WrapPanel Grid.Row="0" Margin="0,0,0,8">
+            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:AuditText.Module}"/>
+            <TextBox x:Name="AuditModuleBox" Width="120" Text="{Binding Module, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:AuditText.Module}"/>
+            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:AuditText.Action}"/>
+            <TextBox x:Name="AuditActionBox" Width="200" Text="{Binding Action, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:AuditText.Action}"/>
+            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:AuditText.From}"/>
+            <DatePicker x:Name="AuditFromPicker" Width="170" Margin="0,0,12,0" SelectedDate="{Binding FromDate}" AutomationProperties.Name="{x:Static res:AuditText.From}"/>
+            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:AuditText.To}"/>
+            <DatePicker x:Name="AuditToPicker" Width="170" Margin="0,0,12,0" SelectedDate="{Binding ToDate}" AutomationProperties.Name="{x:Static res:AuditText.To}"/>
+            <Button x:Name="ShowAuditButton" Content="{x:Static res:AuditText.Show}" Command="{Binding ShowCommand}"/>
+        </WrapPanel>
+
+        <DataGrid Grid.Row="1" x:Name="AuditGrid" ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True"
+                  CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column"
+                  Background="#181825" RowBackground="#1E1E2E" AlternatingRowBackground="#232336" Foreground="#CDD6F4"
+                  BorderBrush="#313244" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#313244" RowHeight="26"
+                  AutomationProperties.Name="{x:Static res:AuditText.ScreenTitle}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="{x:Static res:AuditText.Time}" Binding="{Binding TimeText}" Width="160" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:AuditText.Module}" Binding="{Binding Entry.Module}" Width="110" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:AuditText.Action}" Binding="{Binding Entry.Action}" Width="230" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:AuditText.Actor}" Binding="{Binding Entry.ActorName}" Width="110" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:AuditText.Summary}" Binding="{Binding Entry.Summary}" Width="*" ElementStyle="{StaticResource Cell}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <DockPanel Grid.Row="2" Margin="0,8,0,0" LastChildFill="False">
+            <TextBlock DockPanel.Dock="Left" x:Name="AuditPageInfo" Text="{Binding PageInfo}" Foreground="#A6ADC8"/>
+            <Button DockPanel.Dock="Right" x:Name="OlderButton" Content="{x:Static res:AuditText.Next}" Command="{Binding OlderCommand}" Margin="0"/>
+            <Button DockPanel.Dock="Right" x:Name="NewerButton" Content="{x:Static res:AuditText.Previous}" Command="{Binding NewerCommand}"/>
+        </DockPanel>
+
+        <StackPanel Grid.Row="3" Margin="0,8,0,0">
+            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:AuditText.Details}"/>
+            <TextBox x:Name="AuditDetailsBox" Text="{Binding DetailsText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="60" Margin="0,4,0,0"
+                     Background="#181825" Foreground="#CDD6F4" BorderBrush="#313244" VerticalContentAlignment="Top" AutomationProperties.Name="{x:Static res:AuditText.Details}"/>
+            <TextBlock x:Name="AuditErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

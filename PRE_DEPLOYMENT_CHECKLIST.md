@@ -56,8 +56,10 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Bind `IPOSBarcodeInput` to the POS view model (listens while the screen is shown; no cart bound during checkout/close; stops when another screen opens or on sign-out)
   - [x] Real exe: scans on the cart grid, on a focused Checkout button (no sale) and in the barcode box (added once); unknown code refused; scan on another screen ignored
   - Carried forward: a scan always adds quantity 1; physical scanner verification (MISS-07)
-- [ ] **FIX-03 Health confirmation after startup** (Stage 7)
-  - [ ] Call `UpdateService.ConfirmHealthyAsync` after a healthy start (today an activated update would be rolled back after `MaxStartupAttempts`)
+- [x] **FIX-03 Health confirmation after startup** (Stage 7) - done 2026-10-08
+  - [x] Call `UpdateService.ConfirmHealthyAsync` after a healthy start (today an activated update would be rolled back after `MaxStartupAttempts`)
+  - User decisions: confirm only updates whose version really runs in the process; healthy = host started + start screen rendered (no sign-in needed)
+  - Until PKG-01 the built-in binaries run, so an activated-but-not-loaded update is still rolled back (it never ran); PKG-01's launcher must set `Updater:RunningHostVersion`
   - [ ] (Runtime loading of activated versions is Part C, PKG-01)
 - [ ] **FIX-04 POS -> CashManagement** (Stage 8)
   - [ ] POS records cash sales / cash refunds into the open drawer session through an optional `ICashMovementRecorder`
@@ -156,4 +158,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-07 | FIX-01c | c2cc6f8, a36467d, 2cddbad | Catalog, Inventory, Sales screens; 2 defects fixed; 2409 tests, 0 warnings |
 | 2026-10-07 | FIX-01d | 03e5399, b2cad75, 9dd8cac, 50a2307, db4fb2a, 1a7fd78 | Stage 8 back-office screens; cash actor defect fixed; 2423 tests, 0 warnings |
 | 2026-10-07 | FIX-01e (users) | 3abdef0 | Users, roles and permissions screens; lock-out rule; FIX-01 complete; 2431 tests, 0 warnings |
-| 2026-10-08 | FIX-02 | (this commit) | Barcode scanner input; 2453 tests, 0 warnings; real exe with a keyboard-wedge scanner |
+| 2026-10-08 | FIX-02 | 4b94f7e | Barcode scanner input; 2453 tests, 0 warnings; real exe with a keyboard-wedge scanner |
+| 2026-10-08 | FIX-03 | (this commit) | Healthy-start confirmation of updates that really run; 2463 tests, 0 warnings; real exe |

@@ -807,7 +807,7 @@ public sealed class InstallRecoveryTests : IDisposable
         }
     }
 
-    private sealed class FakeRuntimeModule(string id, string version, string? dependsOn = null) : IModule
+    internal sealed class FakeRuntimeModule(string id, string version, string? dependsOn = null) : IModule
     {
         public IModuleManifest Manifest { get; } = new Manifest(id, version, dependsOn);
         public ModuleRuntimeStatus Status => ModuleRuntimeStatus.Running;

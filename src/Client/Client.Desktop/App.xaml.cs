@@ -1,4 +1,5 @@
 using Client.Host.Hosting;
+using Client.Updater.Application;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -16,7 +17,8 @@ namespace Client.Desktop;
 ///   3. Register the hosting modules of DesktopComposition
 ///   4. Build the host
 ///   5. Start the host asynchronously (DI, logging, config, services are initialized)
-///   6. Show the sign-in window (Stage 11: first-run setup / sign-in / password change); closing it exits
+///   6. Show the sign-in window (Stage 11: first-run setup / sign-in / password change); closing it exits.
+///      Once it has rendered, the start was healthy (FIX-03): activated updates that really run are confirmed
 ///   7. Resolve the main window from DI and show it
 ///   8. On exit: stop the host gracefully
 ///
@@ -60,6 +62,7 @@ public partial class App : Application
             // administrator), sign-in and the forced change of a temporary password. Closing it exits the application.
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
             var signIn = _applicationHost.Services.GetRequiredService<SignInWindow>();
+            signIn.ContentRendered += (_, _) => _ = ConfirmHealthyStartAsync(_applicationHost.Services, logger);
             if (signIn.ShowDialog() != true)
             {
                 logger.LogInformation("Nobody signed in; the application exits.");
@@ -94,6 +97,24 @@ public partial class App : Application
                 MessageBoxImage.Error);
 
             Shutdown(exitCode: 1);
+        }
+    }
+
+    /// <summary>
+    /// FIX-03: the host started (every hosted service, migrations, the fail-fast module lifecycle) and the start screen is shown - a
+    /// healthy start, without waiting for anyone to sign in. Never fails the application.
+    /// </summary>
+    private static async Task ConfirmHealthyStartAsync(IServiceProvider services, ILogger logger)
+    {
+        try
+        {
+            if (services.GetService<StartupHealthConfirmation>() is not { } confirmation) return;
+            foreach (var target in await confirmation.ConfirmAsync())
+                logger.LogInformation("Healthy start confirmed for the update of {Target}.", target);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Confirming the healthy start failed; the application continues.");
         }
     }
 

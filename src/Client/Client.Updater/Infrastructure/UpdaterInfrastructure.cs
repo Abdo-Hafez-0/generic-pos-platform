@@ -198,6 +198,12 @@ public sealed class UpdaterConfiguration
     /// <summary>The core version of the built-in installation (used until an update activates another).</summary>
     public string BaselineHostVersion { get; set; } = "1.0.0";
 
+    /// <summary>
+    /// FIX-03: the core version THIS process runs. Empty = <see cref="BaselineHostVersion"/> (the built-in installation, which is what runs
+    /// until the PKG-01 launcher starts an activated core; the launcher sets this for the version it starts).
+    /// </summary>
+    public string? RunningHostVersion { get; set; }
+
     public string TargetFramework { get; set; } = "net10.0";
 
     public int MaxStartupAttempts { get; set; } = 2;
@@ -207,6 +213,18 @@ public sealed class UpdaterConfiguration
 
     /// <summary>Base URL of the update server (used by Client.Updater.Http). HTTPS required except loopback.</summary>
     public string? ServerBaseUrl { get; set; }
+}
+
+/// <summary>
+/// FIX-03: what this process runs - the core version from configuration, each module at the version of the manifest the module host
+/// loaded (compiled-in modules today; modules from the updater's deployment directories once PKG-01 loads them).
+/// </summary>
+internal sealed class RunningVersions(IModuleRegistry registry, ModuleVersion runningHost) : IRunningVersions
+{
+    public ModuleVersion? Of(string targetId)
+        => targetId == PackageManifest.CoreTargetId
+            ? runningHost
+            : registry.GetAll().FirstOrDefault(m => m.Manifest.ModuleId.Value == targetId)?.Manifest.Version;
 }
 
 /// <summary>Used when no transport is registered: the updater works locally; discovery reports "unavailable".</summary>
@@ -273,6 +291,10 @@ public static class UpdaterServicesExtensions
         services.AddSingleton<PackageVerifier>();
         services.AddSingleton<UpdateService>();
         services.AddSingleton<IUpdateService>(sp => sp.GetRequiredService<UpdateService>());
+        // FIX-03: the host confirms a healthy start; only updates that really run are confirmed.
+        var runningHost = ModuleVersion.Parse(string.IsNullOrWhiteSpace(config.RunningHostVersion) ? config.BaselineHostVersion : config.RunningHostVersion);
+        services.AddSingleton<IRunningVersions>(sp => new RunningVersions(sp.GetRequiredService<IModuleRegistry>(), runningHost));
+        services.AddSingleton<StartupHealthConfirmation>();
         // Stage 11: the capability that guards installing/rolling back, and the user-facing handlers that check it.
         services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, UpdatesCapabilityProvider>();
         services.AddTransient<DownloadUpdateCommandHandler>();

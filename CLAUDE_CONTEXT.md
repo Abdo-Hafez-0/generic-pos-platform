@@ -68,7 +68,7 @@ rollback; persisted `UpdateState` journal; `Client.Updater.Http` is the only Htt
 orchestrates via `IModuleMigrator` (Platform.Application; none implemented yet, so migration is deferred to each module's startup initializer).
 Binary rollback != database rollback: DB restore is explicit only (`RollbackAsync(target, restoreData: true)`).
 **NOT wired yet (read before touching it):** no launcher/ModuleHost consumes the active pointers, so an Activated update does not change what
-runs; `ConfirmHealthyAsync` is not called by the host yet; no auto discovery/UI; servers are in-memory/directory-based and unauthenticated.
+runs; since FIX-03 the desktop confirms a healthy start (start screen shown), but only for updates whose version really runs in the process (StartupHealthConfirmation + IRunningVersions); no auto discovery/UI; servers are in-memory/directory-based and unauthenticated.
 168 updater tests, ARCH-UPD-001..022. Decisions: PROJECT_STATE.md "Stage 7 Architectural Decisions".
 
 **Stage 6 (Licensing):** signed, offline-evaluated licensing. Shared wire model `Licensing.Contracts` (SignedLicense = Base64 payload +
@@ -139,7 +139,7 @@ The Stage 11 commits (`feat(security): ...`, `feat(licensing): ...`, `feat(updat
 
 ## 20. Exact next task
 None assigned. Wait for the technical lead. Next roadmap stage: Stage 14 (Packaging). Follow-ups (not in any stage): the user/role administration and license-activation screens and hosting the module view models in MainWindow (the start screen exists),
-launcher/ModuleHost adoption of activated updates + calling ConfirmHealthyAsync, IModuleMigrator in the business modules, the client-side CloudBackup module (IBackupClient talking to BackupServer.Api; declares backup.* capabilities) and backup encryption (needs a key-management design),
+launcher/ModuleHost adoption of activated updates (the launcher must set Updater:RunningHostVersion for the core it starts - FIX-03), IModuleMigrator in the business modules, the client-side CloudBackup module (IBackupClient talking to BackupServer.Api; declares backup.* capabilities) and backup encryption (needs a key-management design),
 a browser UI for AdminPortal, stock-reversal contract, adopting Audit/CashManagement/Customers from POS and Sales.
 
 ## 21. Known limitations / inconsistencies
@@ -149,7 +149,7 @@ a browser UI for AdminPortal, stock-reversal contract, adopting Audit/CashManage
 - PosView exists but is not hosted in MainWindow; POS has no discounts/tax (Total == Subtotal).
 - WPF UI projects are not covered by architecture tests (net10.0-windows TFM gap).
 - Licensing IS enforced since Stage 11 (central gate in `AuthorizationService`) and clock rollback is detected (restricting licensed work, never data); nothing in the UI shows the state yet. The license server is durable and vendor-administered only when `CloudDatabase:ConnectionString` is configured (otherwise in-memory, Development only); activation key is its only customer credential.
-- Updates verify/stage/activate but nothing loads the activated versions yet (no launcher; ModuleHost uses compiled-in modules); ConfirmHealthyAsync is not called by the host; the update server is unauthenticated (publishing goes through AdminPortal.Api when the durable catalog is configured, otherwise it serves a package directory).
+- Updates verify/stage/activate but nothing loads the activated versions yet (no launcher; ModuleHost uses compiled-in modules); since FIX-03 the desktop confirms a healthy start (start screen shown), but only for updates whose version really runs in the process (StartupHealthConfirmation + IRunningVersions); the update server is unauthenticated (publishing goes through AdminPortal.Api when the durable catalog is configured, otherwise it serves a package directory).
 - Stage 8 limitations: Audit is fed by security events only (modules do not record business actions yet; Stage 11 resolved "Users has no authentication / nothing enforces permissions"); CashManagement is not fed by POS/Payments; sales carry no customer; Purchasing receives whole lines only; Reporting's sales report scans at most 2000 recent sales (IsTruncated).
 - Stage 9 limitations: no desktop client calls AdminPortal.Api or BackupServer.Api (CloudBackup module not built); admin authentication is static API keys; backups are opaque, protected by a per-license bearer token, no encryption yet; SQLite server database (single node; the docs name no server DB - decision to confirm); one installation per license; no vendor billing/support/telemetry areas.
 - Stage 11 limitations (all decided, see PROJECT_STATE.md "Stage 11 review"): no user-administration or license-activation screen yet (handlers exist); operational reads open to the signed-in operator by decision; backup encryption, client CloudBackup and device binding not built; trusted keys live in editable configuration (Stage 14); throttling per host/in memory.

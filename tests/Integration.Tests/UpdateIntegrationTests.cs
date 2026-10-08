@@ -58,6 +58,21 @@ public sealed class UpdateIntegrationTests
             return path;
         }
 
+        /// <summary>A signed core package (FIX-03).</summary>
+        public string Core(string version)
+        {
+            var payload = Path.Combine(Dir, $"payload-core-{version}-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(payload);
+            File.WriteAllText(Path.Combine(payload, "Client.Desktop.dll"), "binary core " + version);
+
+            var draft = ModulePackager.CreateDraft(new PackageSpec(PackageType.Core, "core", version, "1.0.0", "net10.0", "GenericPOS Platform", payload));
+            Assert.True(draft.IsSuccess, string.Join("; ", draft.Errors));
+            var path = Path.Combine(Dir, $"core-{version}-{Guid.NewGuid():N}.gpkg");
+            var published = UpdatePublisher.Publish(draft.Draft!, Signer, path);
+            Assert.True(published.IsSuccess, string.Join("; ", published.Errors));
+            return path;
+        }
+
         public void Dispose()
         {
             foreach (var key in TrustKeys) Environment.SetEnvironmentVariable(key, null);
@@ -190,5 +205,35 @@ public sealed class UpdateIntegrationTests
         Assert.Equal(before.Where(t => !t.Key.StartsWith("aud_", StringComparison.Ordinal)), (await VerticalSliceOwnershipTests.TableContentsAsync(desktop.Host)).Where(t => !t.Key.StartsWith("aud_", StringComparison.Ordinal)));
         var (_, cartId) = await OpenCartAsync(desktop.Services, shop, 1m);
         Assert.True((await CheckoutAsync(desktop.Services, cartId)).IsSuccess);   // the shop works again
+    }
+
+    [Fact]
+    public async Task AfterAHealthyStart_OnlyTheActivatedUpdatesThatReallyRunAreConfirmed()
+    {
+        // FIX-03. The core this process runs is 1.1.0 (as the PKG-01 launcher will say); the modules are the built-in ones the module host loaded.
+        const string RunningHost = "GENERICPOS_Updater__RunningHostVersion";
+        using var vendor = new Vendor();
+        Environment.SetEnvironmentVariable(RunningHost, "1.1.0");
+        try
+        {
+            await using var desktop = await OfflineDesktop.StartAsync();
+            Assert.Null(await InstallAsync(desktop.Services, vendor.Core("1.1.0")));
+            Assert.Null(await InstallAsync(desktop.Services, vendor.Module("catalog", "1.1.0", dependencies: [])));
+            var store = desktop.Services.GetRequiredService<Client.Updater.Infrastructure.UpdateStore>();
+
+            var confirmation = desktop.Services.GetRequiredService<StartupHealthConfirmation>();
+            Assert.Equal(["core"], await confirmation.ConfirmAsync());
+            Assert.Empty(await confirmation.ConfirmAsync());                               // once per process
+
+            var journals = store.ListJournals().ToDictionary(j => j.TargetId);
+            Assert.Equal(UpdateState.Confirmed, journals["core"].State);
+            Assert.Equal(UpdateState.Activated, journals["catalog"].State);                 // activated on disk, but catalog 1.0.0 runs
+            Assert.Equal(ModuleVersion.Parse("1.0.0"), desktop.Services.GetRequiredService<IRunningVersions>().Of("catalog"));
+            Assert.Equal(0, desktop.Network.Requests);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(RunningHost, null);
+        }
     }
 }

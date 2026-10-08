@@ -499,13 +499,13 @@ Scope source: the Stage 13 task text (the roadmap file is not in the repository)
 
 ## Current Task
 
-**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). Next checklist item: FIX-03 (health confirmation after startup). Stage 14 has not been started.**
+**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). FIX-03 COMPLETE (healthy-start confirmation of updates that really run). Next checklist item: FIX-04 (POS -> CashManagement). Stage 14 has not been started.**
 
 ---
 
 ## Next Task
 
-**FIX-03 - health confirmation after startup (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
+**FIX-04 - POS records cash sales and refunds into the open cash drawer session (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
 A fresh installation can now be set up and sell through the desktop alone: activate (License), categories/units, products, warehouse, receive stock, sell at the till, sales history (verified end to end in the real executable against a real local LicenseServer.Api).
 
 Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
@@ -2141,7 +2141,7 @@ Kept, confirmed sound: it shares a CONNECTION per DI scope, never a DbContext; I
 3. Cross-module read contracts track entities (EF default); this is safe under the Stage 12 rule "one DI scope per user action" and Stage 13 tests follow it. A scope that outlives one action can read a stale product (observed in a test that broke the rule).
 
 ### Remaining limitations (not fixed in Stage 13; owners)
-- Modules are compiled in; ModuleHost's file-system discovery and updater-activated versions are not loaded at runtime (launcher - Stage 14). ConfirmHealthyAsync is still not called by the host (Stage 14).
+- Modules are compiled in; ModuleHost's file-system discovery and updater-activated versions are not loaded at runtime (launcher - Stage 14). ConfirmHealthyAsync is still not called by the host (Stage 14). **[Done in FIX-03 for updates that really run; see "FIX-03 Summary".]**
 - Business actions are not audited (Audit adoption by modules - follow-up); CashManagement not fed by POS (Stage 8).
 - Only POS translates unexpected failures into plain results (Stage 12 limitation).
 - Cross-module read contracts track entities; hosting the screens must keep one scope per action, or switch the readers to AsNoTracking.
@@ -2265,12 +2265,24 @@ Decisions (user): (1) user administration can never lock itself out - enforced i
 
 ---
 
+## FIX-03 Summary - Healthy-start confirmation (2026-10-08)
+
+Decisions (user, 2026-10-08): (1) only what really runs is confirmed - an activated update is confirmed when the version running in this process equals the activated (and active) version; (2) a start is healthy when the host started (every hosted service: migrations, the fail-fast module lifecycle) and the start screen has rendered - nobody has to sign in.
+
+- **Client.Updater**: `StartupHealthConfirmation.ConfirmAsync` (once per process, never throws, logs) goes through the Activated journals (the latest per target, as ConfirmHealthyAsync picks it) and calls `ConfirmHealthyAsync` for each target that runs at that version. `IRunningVersions`: core = new `Updater:RunningHostVersion` (empty = `BaselineHostVersion`, the built-in installation); a module = the manifest version the module host loaded (IModuleRegistry).
+- **Client.Desktop**: `App` confirms when the sign-in window has rendered (`ContentRendered`); a failure is logged and never stops the application.
+- **Consequence until PKG-01**: the application runs its built-in binaries, so an update that is activated on disk is NOT confirmed (it never ran) and startup recovery rolls it back after MaxStartupAttempts starts, as designed; old versions are not pruned for an untested update. The PKG-01 launcher must set `Updater:RunningHostVersion` for the core it starts and the module host must load activated modules; then confirmation follows automatically.
+- **Tests (+10)**: Updater +9 (a running module update is confirmed and survives later starts; a non-running one is rolled back after the attempt limit; module not loaded; core only when that core runs; several targets; once per process; no update folder; a failure never escapes; running versions from configuration and the registry); Integration +1 on the real offline desktop (real signed core and catalog packages installed through the authorized handler: core 1.1.0 runs and is confirmed, catalog 1.1.0 stays activated because catalog 1.0.0 runs).
+- **Real executable** (isolated update folder and database; activated core 1.1.0 and catalog 1.1.0 journals; `Updater:RunningHostVersion=1.1.0`): at the start screen core is Confirmed, catalog stays Activated (start 1 of 2); exit 0.
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 13, FIX-01 (a..e) and FIX-02 are complete.
+None blocking. Stage 13, FIX-01 (a..e), FIX-02 and FIX-03 are complete.
 Observed once (2026-10-07, FIX-01b final run): the Cloud.Tests test host crashed with "Internal CLR error (0x80131506)" while all 23 test projects ran in parallel; Cloud.Tests then passed 207/207 three times in a row on its own. Not reproduced; watch for it in later full runs.
 Build: 0 errors, 0 warnings (122 projects, verified with `dotnet build --no-incremental`).
-All 2453 tests pass (FIX-02: UI 131, Hardware 98; FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
+All 2463 tests pass (FIX-03: Updater 218, Integration 123; FIX-02: UI 131, Hardware 98; FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
 Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 12 had 2254; Stage 13 added 43 (Architecture +22 new and -6 placeholders removed, Platform.ModuleContract +9, Integration +18).
 Stage 13 limitations: see "Stage 13 Summary - Remaining limitations".
 Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
@@ -2298,7 +2310,7 @@ Remaining limitations after Stage 7:
 - RUNTIME ADOPTION IS NOT WIRED: an Activated update changes the active pointer and leaves a verified, deployed version on disk, but nothing yet loads from
   `installed/<target>/<version>`: there is no launcher that starts the active core version, and ModuleHost still uses the modules compiled into the app
   (its file-system discovery scans `<AppBase>/modules`, not the updater's directories). Until that integration exists, installing an update does not change
-  what runs. The host must also call `UpdateService.ConfirmHealthyAsync` after a healthy start (not yet wired in App.xaml.cs; unconfirmed updates are
+  what runs. The host must also call `UpdateService.ConfirmHealthyAsync` after a healthy start [done in FIX-03: StartupHealthConfirmation, only for versions that really run] (not yet wired in App.xaml.cs; unconfirmed updates are
   rolled back after MaxStartupAttempts starts by design).
 - No business module implements `IModuleMigrator` yet; migrations are DEFERRED to each module's own startup initializer, so the pre-activation migration step
   is only exercised with test doubles. The restore point is a full database copy (disk usage) and RESTORE must run while the database is not in use.
@@ -2340,4 +2352,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-08 - FIX-02 complete (barcode scanner input: shell key forwarding, POS screen bound to IPOSBarcodeInput; verified in the real executable). 2453 tests, 0 warnings, 122 projects; Stage 14 not started.
+Last updated: 2026-10-08 - FIX-03 complete (healthy-start confirmation of the updates that really run; verified in the real executable). 2463 tests, 0 warnings, 122 projects; Stage 14 not started.

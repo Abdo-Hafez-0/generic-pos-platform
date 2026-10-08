@@ -499,13 +499,13 @@ Scope source: the Stage 13 task text (the roadmap file is not in the repository)
 
 ## Current Task
 
-**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). FIX-03 COMPLETE (healthy-start confirmation of updates that really run). Next checklist item: FIX-04 (POS -> CashManagement). Stage 14 has not been started.**
+**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). FIX-03 COMPLETE (healthy-start confirmation of updates that really run). FIX-04 COMPLETE (POS cash sales go into the open cash drawer shift). Next checklist item: FIX-05 (audit business actions). Stage 14 has not been started.**
 
 ---
 
 ## Next Task
 
-**FIX-04 - POS records cash sales and refunds into the open cash drawer session (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
+**FIX-05 - audit business actions (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
 A fresh installation can now be set up and sell through the desktop alone: activate (License), categories/units, products, warehouse, receive stock, sell at the till, sales history (verified end to end in the real executable against a real local LicenseServer.Api).
 
 Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
@@ -2142,7 +2142,7 @@ Kept, confirmed sound: it shares a CONNECTION per DI scope, never a DbContext; I
 
 ### Remaining limitations (not fixed in Stage 13; owners)
 - Modules are compiled in; ModuleHost's file-system discovery and updater-activated versions are not loaded at runtime (launcher - Stage 14). ConfirmHealthyAsync is still not called by the host (Stage 14). **[Done in FIX-03 for updates that really run; see "FIX-03 Summary".]**
-- Business actions are not audited (Audit adoption by modules - follow-up); CashManagement not fed by POS (Stage 8).
+- Business actions are not audited (Audit adoption by modules - follow-up); CashManagement not fed by POS (Stage 8). **[CashManagement: done in FIX-04.]**
 - Only POS translates unexpected failures into plain results (Stage 12 limitation).
 - Cross-module read contracts track entities; hosting the screens must keep one scope per action, or switch the readers to AsNoTracking.
 - Module UIs use their own Domain enums (Catalog, Payments, CashManagement) - accepted.
@@ -2277,12 +2277,25 @@ Decisions (user, 2026-10-08): (1) only what really runs is confirmed - an activa
 
 ---
 
+## FIX-04 Summary - POS cash sales into the cash drawer (2026-10-08)
+
+Decisions (user, 2026-10-08): (1) the cash is recorded INSIDE the checkout transaction, and a cash sale is REFUSED when the till's drawer has no open shift; (2) the drawer is configured per installation, `PosCash:DrawerCode` (default MAIN, the Cash drawer screen's default; one till = one drawer); (3) the POS screen takes the total in cash now (method choice, tendered amount, change and split payments stay FIX-10).
+
+- **Checkout** (`CheckoutCartCommandHandler`, optional `ICashMovementRecorder` + `ICashSessionReader` + `PosCashOptions`): for a Cash payment, step 1c finds the open shift of the configured drawer before anything is written (refusal "POS.Checkout.CashDrawerNotOpen": "The cash drawer 'MAIN' has no open shift. Open it on the Cash drawer screen before taking cash."); step 6b records a CashSale movement for the cart total (the change goes back to the customer) with the sale as reference ("sale" + sale id, idempotent per kind) and the cashier as recorder, in the same SQLite transaction as sale, payment, stock and cart. A drawer failure rolls everything back ("POS.Checkout.CashDrawerFailed"). Card / Other / payment-less checkouts never touch the drawer and do not need it open. Without the CashManagement module nothing changes.
+- **Dependencies**: POS.Application references CashManagement.Contracts only (optional, like Payments; not a manifest dependency). ARCH-POS-014 now also covers CashManagement; ARCH-RES-004 counts ICashMovementRecorder as a cross-module write that must be in IAtomicOperation.
+- **POS screen**: checkout passes a Cash payment for the total. Operational consequence: a shop opens the drawer shift (Cash drawer screen, cash.session.manage) before the first sale of the day.
+- **Not possible here**: cash REFUNDS - neither POS nor Sales.Contracts has a refund flow yet; CashRefund movements stay unused until one exists.
+- **Tests (+9)**: Integration +7 (CashDrawerIntegrationTests: cash into the shift with the sale reference and 50 + 5.00 balance; refused without a shift and nothing written, then sells once opened; the configured drawer TILL-2 is used and MAIN untouched; Card / Other / no payment never touch the drawer; AtomicityFailureTests + cash_Movements INSERT failure rolls the whole sale back and the retry succeeds once), UI +2 (the till refuses then sells once the Cash drawer screen opened the shift, the drawer screen shows the Cash sale; the screen pays in cash). Test kit: CreateShopAsync opens the MAIN shift (float 50) when the host has CashManagement; VerticalSliceOwnership now expects five owning modules (cash_ added) and reads the drawer balance back.
+- **Real executable** (isolated database, local LicenseServer.Api): activate, set up and stock a product; checkout without a shift -> refused with the plain sentence, the cart kept; Cash drawer screen: open with 100; checkout -> "Sale completed: 5.00."; Cash drawer screen: balance 105.00, one "Cash sale +5.00" by admin; exit 0.
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 13, FIX-01 (a..e), FIX-02 and FIX-03 are complete.
+None blocking. Stage 13, FIX-01 (a..e) and FIX-02..FIX-04 are complete.
 Observed once (2026-10-07, FIX-01b final run): the Cloud.Tests test host crashed with "Internal CLR error (0x80131506)" while all 23 test projects ran in parallel; Cloud.Tests then passed 207/207 three times in a row on its own. Not reproduced; watch for it in later full runs.
 Build: 0 errors, 0 warnings (122 projects, verified with `dotnet build --no-incremental`).
-All 2463 tests pass (FIX-03: Updater 218, Integration 123; FIX-02: UI 131, Hardware 98; FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
+All 2472 tests pass (FIX-04: Integration 130, UI 133; FIX-03: Updater 218, Integration 123; FIX-02: UI 131, Hardware 98; FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
 Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 12 had 2254; Stage 13 added 43 (Architecture +22 new and -6 placeholders removed, Platform.ModuleContract +9, Integration +18).
 Stage 13 limitations: see "Stage 13 Summary - Remaining limitations".
 Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
@@ -2297,7 +2310,7 @@ Database: %LOCALAPPDATA%\GenericPOS\genericpos.db (Platform + all module tables 
 Remaining limitations after Stage 8 (deferred work, none of it is a Stage 8 requirement):
 - AUDIT IS NOT ADOPTED: no module records to Audit yet. Adoption means giving a module an optional `IAuditRecorder` constructor parameter (the POS/Pricing pattern); it was left out to keep Stage 1-7 modules untouched.
 - USERS IS NOT AUTHENTICATION: no passwords, credentials, sessions or sign-in; permission codes are stored but no module checks them; the POS cashier is still a free-text reference not linked to a Users record.
-- CASHMANAGEMENT IS NOT CONNECTED TO POS/PAYMENTS: cash sales are not recorded into a drawer session automatically; `ICashMovementRecorder` is ready (idempotent per reference) for a later optional integration.
+- CASHMANAGEMENT IS NOT CONNECTED TO POS/PAYMENTS **[Superseded in FIX-04 for POS cash sales; see "FIX-04 Summary"]**: cash sales are not recorded into a drawer session automatically; `ICashMovementRecorder` is ready (idempotent per reference) for a later optional integration.
 - CUSTOMERS/SUPPLIERS: a sale does not carry a customer; the Catalog product has no supplier link; no credit, loyalty or statements.
 - PURCHASING: whole-line receiving only (no partial quantities, no supplier returns, no cost update back to Catalog); a failed multi-line receipt is resumable but not rolled back (no stock-reversal contract exists). **[Superseded in Stage 12: checkout and purchase receive now run as ONE SQLite transaction (IAtomicOperation); see Stage 12 Summary.]**
 - PRICING: price lists with effective periods and quantity breaks only; no customer-specific prices, promotions, discounts, tax or currency; POS still has Total == Subtotal.
@@ -2352,4 +2365,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-08 - FIX-03 complete (healthy-start confirmation of the updates that really run; verified in the real executable). 2463 tests, 0 warnings, 122 projects; Stage 14 not started.
+Last updated: 2026-10-08 - FIX-04 complete (POS cash sales go into the open drawer shift inside the checkout transaction; verified in the real executable). 2472 tests, 0 warnings, 122 projects; Stage 14 not started.

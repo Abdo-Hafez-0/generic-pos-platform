@@ -161,6 +161,13 @@ public sealed class InventoryScreensOnRealDesktopTests
         await Run(stock, stock.ReceiveCommand);
         Assert.Null(stock.ErrorMessage);
 
+        // Open the cash drawer shift (FIX-04: cash sales go into it)
+        var cash = new CashManagement.UI.ViewModels.CashDrawerViewModel(Runner(services), services.GetRequiredService<ICurrentUser>());
+        await cash.OnNavigatedToAsync();
+        cash.OpeningFloat = Number(50m);
+        await Run(cash, cash.OpenCommand);
+        Assert.Null(cash.ErrorMessage);
+
         // Sell three at the till by scanning the barcode
         var pos = new PosViewModel(Runner(services), services.GetRequiredService<ICurrentUser>());
         await pos.OnNavigatedToAsync();

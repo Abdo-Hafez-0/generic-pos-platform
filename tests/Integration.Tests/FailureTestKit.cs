@@ -1,3 +1,5 @@
+using CashManagement.Application.Commands;
+using CashManagement.Contracts.Interfaces;
 using Catalog.Application.Commands;
 using Inventory.Application.Commands;
 using Microsoft.Data.Sqlite;
@@ -35,7 +37,34 @@ public static class FailureTestKit
         var stocked = await p.GetRequiredService<AddStockCommandHandler>().HandleAsync(new AddStockCommand(product.Value.Value, warehouse, stock));
         Assert.True(stocked.IsSuccess, stocked.IsFailure ? stocked.Error.ToString() : null);
 
+        await OpenCashDrawerAsync(services);
         return new Shop(product.Value.Value, sku, warehouse);
+    }
+
+    /// <summary>
+    /// FIX-04: a cash sale needs an open shift of the till's drawer (PosCash:DrawerCode, default MAIN), as in a real shop. Opens one
+    /// (float 50) when the host has the CashManagement module and none is open yet.
+    /// </summary>
+    public static async Task OpenCashDrawerAsync(IServiceProvider services, string drawer = "MAIN", decimal openingFloat = 50m)
+    {
+        using var scope = services.CreateScope();
+        var p = scope.ServiceProvider;
+        if (p.GetService<OpenCashSessionCommandHandler>() is not { } open || p.GetService<ICashSessionReader>() is not { } shifts) return;
+        if (await shifts.GetOpenSessionAsync(drawer) is not null) return;
+
+        var opened = await open.HandleAsync(new OpenCashSessionCommand(drawer, "test", openingFloat));
+        Assert.True(opened.IsSuccess, opened.IsFailure ? opened.Error.ToString() : null);
+    }
+
+    /// <summary>FIX-04: closes the drawer's open shift (counted = expected), as at the end of a day.</summary>
+    public static async Task CloseCashDrawerAsync(IServiceProvider services, string drawer = "MAIN")
+    {
+        using var scope = services.CreateScope();
+        var p = scope.ServiceProvider;
+        var shift = await p.GetRequiredService<ICashSessionReader>().GetOpenSessionAsync(drawer);
+        Assert.NotNull(shift);
+        var closed = await p.GetRequiredService<CloseCashSessionCommandHandler>().HandleAsync(new CloseCashSessionCommand(shift.SessionId, shift.Balance, "test"));
+        Assert.True(closed.IsSuccess, closed.IsFailure ? closed.Error.ToString() : null);
     }
 
     /// <summary>Opens a till session and a cart holding <paramref name="quantity"/> of the shop's product (each in its own scope, like separate UI actions).</summary>

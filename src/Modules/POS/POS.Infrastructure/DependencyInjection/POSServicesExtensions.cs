@@ -61,6 +61,10 @@ public static class POSServicesExtensions
         var receiptOptions = new PosReceiptOptions();
         configuration.GetSection(PosReceiptOptions.SectionName).Bind(receiptOptions);
         services.AddSingleton(receiptOptions);
+        // FIX-04: the drawer that receives this till's cash sales (CashManagement is optional; its contracts are resolved only if installed).
+        var cashOptions = new PosCashOptions();
+        configuration.GetSection(PosCashOptions.SectionName).Bind(cashOptions);
+        services.AddSingleton(cashOptions);
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IPOSDevices, POSDevices>();
         services.AddSingleton<IPOSBarcodeInput, POSBarcodeInput>();

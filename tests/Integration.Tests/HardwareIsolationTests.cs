@@ -44,6 +44,7 @@ public sealed class HardwareIsolationTests
         var warehouse = await p.GetRequiredService<CreateWarehouseCommandHandler>().HandleAsync(new CreateWarehouseCommand("Main", "MAIN"));
         var stocked = await p.GetRequiredService<AddStockCommandHandler>().HandleAsync(new AddStockCommand(product.Value.Value, warehouse.Value, stock));
         Assert.True(product.IsSuccess && warehouse.IsSuccess && stocked.IsSuccess);
+        await FailureTestKit.OpenCashDrawerAsync(services);   // FIX-04: cash goes into an open drawer shift
         return new Shop(product.Value.Value, warehouse.Value);
     }
 

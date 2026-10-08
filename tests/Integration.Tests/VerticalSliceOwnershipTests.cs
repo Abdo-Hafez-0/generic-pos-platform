@@ -108,15 +108,18 @@ public sealed class VerticalSliceOwnershipTests
             var session = await sp.GetRequiredService<IPOSReader>().GetSessionAsync(sessionId);
             Assert.Equal(currentUser.UserName, session!.CashierReference);                                     // the signed-in user, not the typed text
 
+            var drawer = await sp.GetRequiredService<CashManagement.Contracts.Interfaces.ICashSessionReader>().GetOpenSessionAsync("MAIN");   // CashManagement owns the drawer (FIX-04)
+            Assert.Equal(50m + 6.0m, drawer!.Balance);                                                         // the float plus the sale total (the change went back)
+
             // Audit: what the platform audits today are security events (sign-in, refusals, license and update decisions). Business actions
             // such as a completed sale are NOT audited yet - a documented deferred limitation (Stage 8 "Audit is not adopted"), not a step here.
             var signIn = await sp.GetRequiredService<IAuditReader>().QueryAsync(new AuditEntryFilter(Module: "security", Action: "security.signin.succeeded"), pageSize: 10);
             Assert.Contains(signIn.Items, e => e.ActorName == currentUser.UserName);
         }
 
-        // ownership in the database: the checkout changed tables of exactly the four owning modules, each of them, and nothing else
+        // ownership in the database: the checkout changed tables of exactly the five owning modules, each of them, and nothing else
         var changed = after.Keys.Where(t => !before.TryGetValue(t, out var old) || old != after[t]).ToList();
-        string[] owners = ["sal_", "pay_", "inv_", "pos_"];
+        string[] owners = ["sal_", "pay_", "inv_", "pos_", "cash_"];
         Assert.All(changed, t => Assert.Contains(owners, o => t.StartsWith(o, StringComparison.Ordinal)));
         Assert.All(owners, o => Assert.Contains(changed, t => t.StartsWith(o, StringComparison.Ordinal)));
         Assert.Contains("inv_StockMovements", changed);

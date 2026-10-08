@@ -14,6 +14,18 @@ namespace POS.Application.Devices;
 /// Business-side receipt settings (store name, header/footer text, whether checkout prints and kicks the drawer by itself).
 /// Business configuration: it says WHAT goes on a receipt, never HOW or on which printer.
 /// </summary>
+/// <summary>
+/// FIX-04: which cash drawer this till's cash sales go into ("PosCash" configuration section). One till = one drawer: a second till PC
+/// sets its own code. The drawer shift itself is opened and counted on the Cash drawer screen (CashManagement).
+/// </summary>
+public sealed class PosCashOptions
+{
+    public const string SectionName = "PosCash";
+
+    /// <summary>The drawer code of the shift that receives this till's cash sales (the Cash drawer screen's default is MAIN).</summary>
+    public string DrawerCode { get; set; } = "MAIN";
+}
+
 public sealed class PosReceiptOptions
 {
     public const string SectionName = "PosReceipt";

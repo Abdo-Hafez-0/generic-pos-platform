@@ -307,6 +307,20 @@ public sealed class PosViewModelTests
         Assert.Equal(4, _till.Instances);   // one more scope per click, none kept
     }
 
+    [Fact]
+    public async Task Checkout_takes_the_total_in_cash()
+    {
+        // FIX-04: the cash goes into the drawer shift; method choice, tendered amount and split payments come with FIX-10
+        _till.Products["COLA-1"] = (Guid.NewGuid(), "Cola", 2.5m);
+        await OpenTillAsync();
+        _vm.ProductCode = "COLA-1";
+        await Run(_vm.AddCommand);
+
+        await Run(_vm.CheckoutCommand);
+
+        Assert.Equal(new POSPaymentRequest(POSPaymentMethod.Cash), _till.LastPayment);
+    }
+
     // FIX-02: the barcode scanner
 
     private async Task Eventually(Func<bool> condition)

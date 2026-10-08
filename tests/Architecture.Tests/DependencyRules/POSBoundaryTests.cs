@@ -126,7 +126,8 @@ public sealed class POSBoundaryTests
                 .Select(a => a.Name!)
                 .Where(n => n.StartsWith("Catalog.", StringComparison.Ordinal)
                          || n.StartsWith("Inventory.", StringComparison.Ordinal)
-                         || n.StartsWith("Sales.", StringComparison.Ordinal))
+                         || n.StartsWith("Sales.", StringComparison.Ordinal)
+                         || n.StartsWith("CashManagement.", StringComparison.Ordinal))   // FIX-04: optional drawer integration
                 .Where(n => !n.EndsWith(".Contracts", StringComparison.Ordinal))
                 .ToList();
 

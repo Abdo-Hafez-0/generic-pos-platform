@@ -1,3 +1,5 @@
+using CashManagement.Contracts.Interfaces;
+using CashManagement.Contracts.Models;
 using Platform.Application.Abstractions.Authorization;
 using Platform.Application.Abstractions.Data;
 using Inventory.Contracts.Interfaces;
@@ -40,6 +42,11 @@ namespace POS.Application.Commands;
 /// Payments module is not installed the request is rejected up front; without a request nothing is
 /// recorded. No real payment processing is performed. If stock issue fails the payment is voided.
 ///
+/// CASH DRAWER (optional CashManagement module, FIX-04; decisions by the user): a CASH payment is also recorded as a CashSale movement
+/// in the open shift of this till's drawer (<see cref="PosCashOptions.DrawerCode"/>), INSIDE the same transaction, for the cart total
+/// (the change goes back to the customer), with the sale as its idempotent reference. A cash sale is refused when that drawer has no
+/// open shift, so the drawer's expected balance always matches the cash taken. Without the CashManagement module nothing is recorded.
+///
 /// CONSISTENCY: steps 1-8 run as ONE database transaction (IAtomicOperation) across the Sales, Payments, Inventory and POS
 /// contexts: the sale, its lines, the payment, the stock movements and the checked-out cart are committed together or not at
 /// all. Any failure (a rejected step, an exception, a crash) leaves NO partial state, and the database does the rolling back -
@@ -64,12 +71,18 @@ public sealed class CheckoutCartCommandHandler(
     ICashDrawer? cashDrawer = null,
     PosReceiptOptions? receiptOptions = null,
     TimeProvider? timeProvider = null,
-    IAtomicOperation? atomicOperation = null)
+    IAtomicOperation? atomicOperation = null,
+    ICashMovementRecorder? cashRecorder = null,
+    ICashSessionReader? cashShifts = null,
+    PosCashOptions? cashOptions = null)
 {
     /// <summary>What a committed checkout leaves behind for the peripherals step.</summary>
     private sealed record Committed(PosCart Cart, PosSession Session, Guid SaleId, Guid? PaymentId, decimal ChangeDue);
 
     private bool Transactional => atomicOperation is not null;
+
+    /// <summary>Cash payments go into a drawer shift only when the CashManagement module is installed.</summary>
+    private bool TracksCash => cashRecorder is not null && cashShifts is not null;
 
     public async Task<Result<CheckoutOutcome>> HandleAsync(
         CheckoutCartCommand command,
@@ -123,6 +136,20 @@ public sealed class CheckoutCartCommandHandler(
             if (command.Payment.TenderedAmount is { } tendered && tendered < cart.Total.Amount)
                 return Result.Failure<Committed>(Error.Validation(
                     "POS.Checkout.TenderInsufficient", $"The cash tendered ({tendered}) does not cover the total ({cart.Total.Amount})."));
+        }
+
+        // 1c. Cash goes into an open drawer shift (FIX-04): without one the cash sale is refused before anything is written.
+        Guid? cashShiftId = null;
+        if (command.Payment?.Method == POSPaymentMethod.Cash && TracksCash)
+        {
+            var drawer = (cashOptions ?? new PosCashOptions()).DrawerCode;
+            var shift = await cashShifts!.GetOpenSessionAsync(drawer, cancellationToken);
+            if (shift is null)
+                return Result.Failure<Committed>(Error.Conflict(
+                    "POS.Checkout.CashDrawerNotOpen",
+                    $"The cash drawer '{drawer}' has no open shift. Open it on the Cash drawer screen before taking cash."));
+
+            cashShiftId = shift.SessionId;
         }
 
         // 2. Stock re-validation (stock may have changed since items were added)
@@ -224,6 +251,28 @@ public sealed class CheckoutCartCommandHandler(
             }
 
             issued++;
+        }
+
+        // 6b. The cash taken goes into the drawer shift (FIX-04), in the same transaction as the sale.
+        if (cashShiftId is { } cashShift)
+        {
+            var recorded = await cashRecorder!.RecordMovementAsync(new RecordCashMovementRequest(
+                cashShift, CashMovementKindContract.CashSale, cart.Total.Amount,
+                ReferenceType: "sale", ReferenceId: saleId, RecordedBy: session.CashierReference), cancellationToken);
+
+            if (!recorded.IsSuccess)
+            {
+                if (!Transactional && paymentId is { } taken)
+                    await paymentService!.VoidPaymentAsync(taken, "POS checkout failed while recording the cash in the drawer.", cancellationToken);
+
+                await CancelQuietlyAsync(saleId, "POS checkout failed while recording the cash in the drawer.", cancellationToken);
+                var stockNote = !Transactional && issued > 0
+                    ? $" {issued} line(s) were already issued from Inventory and need a manual stock correction."
+                    : string.Empty;
+                return Result.Failure<Committed>(Error.Failure(
+                    "POS.Checkout.CashDrawerFailed",
+                    $"The cash could not be recorded in the drawer: {Describe(recorded.ErrorCode, recorded.ErrorMessage)} {Outcome}{stockNote}"));
+            }
         }
 
         // 7. Complete the sale

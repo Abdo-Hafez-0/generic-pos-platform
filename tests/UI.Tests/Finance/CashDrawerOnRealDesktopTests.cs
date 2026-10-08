@@ -84,4 +84,43 @@ public sealed class CashDrawerOnRealDesktopTests
         Assert.Empty(vm.Movements);
         Assert.Equal(10m, vm.Session!.Balance);
     }
+
+    [Fact]
+    public async Task A_sale_at_the_till_needs_an_open_drawer_shift_and_its_cash_shows_on_the_drawer_screen()
+    {
+        // FIX-04 through the screens: the cashier is told to open the drawer, the sale is not made; once the shift is open the cash goes in.
+        await using var desktop = await OfflineDesktop.StartAsync();
+        var services = desktop.Services;
+        var user = services.GetRequiredService<ICurrentUser>();
+        var runner = new UiActionRunner(services.GetRequiredService<IServiceScopeFactory>(), NullLogger<UiActionRunner>.Instance);
+        var shop = await FailureTestKit.CreateShopAsync(services, salePrice: 2.5m, stock: 10m);
+
+        var drawer = new CashDrawerViewModel(runner, user);
+        await drawer.OnNavigatedToAsync();
+        drawer.Counted = Money(50m);
+        await Run(drawer, drawer.CloseCommand);                       // the kit opened MAIN: close it, as at the end of a day
+        Assert.True(drawer.HasNoOpenShift);
+
+        var till = new POS.UI.ViewModels.PosViewModel(runner, user);
+        await till.OnNavigatedToAsync();
+        await Run(till, till.OpenSessionCommand);
+        (till.ProductCode, till.QuantityText) = (shop.Sku, "2");
+        await Run(till, till.AddCommand);
+
+        await Run(till, till.CheckoutCommand);
+        Assert.Contains("Cash drawer screen", till.ErrorMessage);      // refused in plain words, nothing sold
+        Assert.Equal(2m, till.Items.Single().Quantity);
+
+        drawer.OpeningFloat = Money(100m);
+        await Run(drawer, drawer.OpenCommand);
+        await Run(till, till.CheckoutCommand);
+        Assert.Null(till.ErrorMessage);
+        Assert.Empty(till.Items);
+
+        await drawer.OnNavigatedToAsync();
+        Assert.Equal(105m, drawer.Session!.Balance);                  // float 100 + the 5.00 sale
+        var sale = Assert.Single(drawer.Movements);
+        Assert.Equal((CashText.CashSale, 5m, user.UserName), (sale.KindText, sale.Movement.Amount, sale.Movement.RecordedBy));
+        Assert.Equal(0, desktop.Network.Requests);
+    }
 }

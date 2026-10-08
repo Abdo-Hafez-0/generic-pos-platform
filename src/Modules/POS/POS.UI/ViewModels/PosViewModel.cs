@@ -233,6 +233,8 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
         if (ErrorMessage is null) StatusMessage = PosText.ItemAdded;
     }
 
+    private static readonly POSPaymentRequest CashPayment = new(POSPaymentMethod.Cash);
+
     private sealed record Resume(Guid? SessionId, POSCartResult? Cart, IReadOnlyList<POSWarehouseResult> Warehouses, string? Error);
 
     private sealed record CartChange(bool IsSuccess, string? ErrorMessage, POSCartResult? Cart);
@@ -337,7 +339,8 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
         var checkedOut = await _runner.QueryAsync(async (scope, ct) =>
         {
             var service = scope.Get<IPOSService>();
-            var result = await service.CheckoutAsync(cartId, cancellationToken: ct);
+            // FIX-04: the customer pays the total in cash (method choice, tendered amount and split payments come with FIX-10).
+            var result = await service.CheckoutAsync(cartId, payment: CashPayment, cancellationToken: ct);
             if (!result.IsSuccess)
                 return new CheckoutOutcome(result, null);
 

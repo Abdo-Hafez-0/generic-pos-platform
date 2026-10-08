@@ -43,6 +43,7 @@ public sealed class AtomicityFailureTests
     [InlineData("inv_InventoryBalances", "UPDATE")]
     [InlineData("sal_SalesTransactions", "INSERT")] // after stock has been issued
     [InlineData("pos_Carts", "UPDATE")]            // the very last write: everything else was already written
+    [InlineData("cash_Movements", "INSERT")]       // FIX-04: the cash going into the drawer shift, after stock was issued
     public async Task SaleRemainsAtomic_WhenAnyStepOfTheCheckoutFails_AndTheRetrySucceedsExactlyOnce(string table, string operation)
     {
         await using var host = await IntegrationHost.StartAllAsync();

@@ -100,7 +100,7 @@ public sealed class ResilienceBoundaryTests
         Assert.Empty(withContexts.Except(ParticipatingModules).Except(IndependentModules));
     }
 
-    [Fact(DisplayName = "ARCH-RES-004: A handler that writes through the Inventory, Sales or Payments contracts is one transaction (it takes IAtomicOperation)")]
+    [Fact(DisplayName = "ARCH-RES-004: A handler that writes through the Inventory, Sales, Payments or CashManagement contracts is one transaction (it takes IAtomicOperation)")]
     public void MultiModuleWriteOrchestrations_TakeAnAtomicOperation()
     {
         var writeContracts = new[]
@@ -108,7 +108,8 @@ public sealed class ResilienceBoundaryTests
             typeof(Inventory.Contracts.Interfaces.IStockIssueService),
             typeof(Inventory.Contracts.Interfaces.IStockReceiptService),
             typeof(Sales.Contracts.Interfaces.ISalesService),
-            typeof(Payments.Contracts.Interfaces.IPaymentService)
+            typeof(Payments.Contracts.Interfaces.IPaymentService),
+            typeof(CashManagement.Contracts.Interfaces.ICashMovementRecorder)   // FIX-04: the cash sale goes into the drawer in the checkout transaction
         };
 
         var orchestrators = new List<Type>();

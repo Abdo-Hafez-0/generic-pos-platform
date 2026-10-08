@@ -42,6 +42,7 @@ public sealed class PosVerticalSliceTests
         var stocked = await p.GetRequiredService<AddStockCommandHandler>().HandleAsync(new AddStockCommand(product.Value.Value, warehouse.Value, stock));
         Assert.True(stocked.IsSuccess, stocked.IsFailure ? stocked.Error.ToString() : null);
 
+        await FailureTestKit.OpenCashDrawerAsync(services);   // FIX-04: cash goes into an open drawer shift
         return new Shop(product.Value.Value, "COLA-1", warehouse.Value);
     }
 

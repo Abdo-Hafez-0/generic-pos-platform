@@ -61,9 +61,12 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - User decisions: confirm only updates whose version really runs in the process; healthy = host started + start screen rendered (no sign-in needed)
   - Until PKG-01 the built-in binaries run, so an activated-but-not-loaded update is still rolled back (it never ran); PKG-01's launcher must set `Updater:RunningHostVersion`
   - [ ] (Runtime loading of activated versions is Part C, PKG-01)
-- [ ] **FIX-04 POS -> CashManagement** (Stage 8)
-  - [ ] POS records cash sales / cash refunds into the open drawer session through an optional `ICashMovementRecorder`
-  - [ ] Decide: inside the checkout `IAtomicOperation` or after the commit (and document the decision)
+- [x] **FIX-04 POS -> CashManagement** (Stage 8) - done 2026-10-08
+  - [x] POS records cash sales / cash refunds into the open drawer session through an optional `ICashMovementRecorder` (cash SALES; refunds: no refund flow exists in POS or Sales.Contracts yet)
+  - [x] Decide: inside the checkout `IAtomicOperation` or after the commit (and document the decision) - user: INSIDE; a cash sale is refused without an open shift
+  - [x] Drawer per installation: `PosCash:DrawerCode` (default MAIN); the POS screen takes the total in cash (choice/tender/split: FIX-10)
+  - [x] Real exe: refused without a shift; after opening it on the Cash drawer screen the sale goes through and the drawer shows "Cash sale +5.00"
+  - Carried forward: cash refunds (needs a refund flow)
 - [ ] **FIX-05 Audit business actions** (Stage 8)
   - [ ] Optional `IAuditRecorder` in the business modules (POS/Pricing pattern)
   - [ ] Audit at least: completed sale, refund/return, void, stock adjustment, price change, purchase receive, cash pay-in/pay-out/close
@@ -159,4 +162,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-07 | FIX-01d | 03e5399, b2cad75, 9dd8cac, 50a2307, db4fb2a, 1a7fd78 | Stage 8 back-office screens; cash actor defect fixed; 2423 tests, 0 warnings |
 | 2026-10-07 | FIX-01e (users) | 3abdef0 | Users, roles and permissions screens; lock-out rule; FIX-01 complete; 2431 tests, 0 warnings |
 | 2026-10-08 | FIX-02 | 4b94f7e | Barcode scanner input; 2453 tests, 0 warnings; real exe with a keyboard-wedge scanner |
-| 2026-10-08 | FIX-03 | (this commit) | Healthy-start confirmation of updates that really run; 2463 tests, 0 warnings; real exe |
+| 2026-10-08 | FIX-03 | 061e377 | Healthy-start confirmation of updates that really run; 2463 tests, 0 warnings; real exe |
+| 2026-10-08 | FIX-04 | (this commit) | POS cash sales into the open drawer shift (inside the transaction); 2472 tests, 0 warnings; real exe |

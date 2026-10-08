@@ -20,6 +20,7 @@ internal sealed class FakeTill
     public Exception? Throw { get; set; }
     public string? CheckoutRefusal { get; set; }
     public IReadOnlyList<POSHardwareNotice>? HardwareNotices { get; set; }
+    public POSPaymentRequest? LastPayment { get; set; }
 
     public Guid AddWarehouse(string name)
     {
@@ -119,6 +120,7 @@ internal sealed class FakePosService : IPOSService, IPOSReader
     public Task<POSCheckoutResult> CheckoutAsync(Guid cartId, string? transactionReference = null, POSPaymentRequest? payment = null, CancellationToken cancellationToken = default)
     {
         Enter("checkout");
+        _till.LastPayment = payment;
         if (_till.CheckoutRefusal is { } refusal)
             return Task.FromResult(POSCheckoutResult.Failure("POS.Checkout.Refused", refusal));
 

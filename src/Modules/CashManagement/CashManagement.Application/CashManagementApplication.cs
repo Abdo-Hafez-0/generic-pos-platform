@@ -57,6 +57,16 @@ namespace CashManagement.Application.Commands
     /// Stage 11), so a drawer can never be opened, counted or paid out in someone else's name. The supplied name is used only by hosts without
     /// authentication.
     /// </summary>
+    /// <summary>The cash entries of the audit log (FIX-05): recorded after the commit, best effort.</summary>
+    internal static class CashAudit
+    {
+        public static string Money(decimal amount) => amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+
+        public static Task RecordAsync(Platform.Application.Abstractions.Auditing.IBusinessEventSink? sink, string action, Guid sessionId, string summary, string? details = null)
+            => Platform.Application.Abstractions.Auditing.BusinessEventSinkExtensions.TryRecordAsync(sink,
+                Platform.Application.Abstractions.Auditing.BusinessEvent.Create("cash-management", action, "cash-session", sessionId.ToString(), summary, details));
+    }
+
     internal static class CashActor
     {
         public static string? Resolve(ICurrentUser? currentUser, string? supplied)
@@ -66,7 +76,8 @@ namespace CashManagement.Application.Commands
     /// <summary>Opens a shift for a drawer. A drawer can have only one open session.</summary>
     public sealed record OpenCashSessionCommand(string DrawerCode, string OpenedBy, decimal OpeningFloat, string? Notes = null);
 
-    public sealed class OpenCashSessionCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null)
+    public sealed class OpenCashSessionCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null,
+        Platform.Application.Abstractions.Auditing.IBusinessEventSink? businessEvents = null)
     {
         public async Task<Result<Guid>> HandleAsync(OpenCashSessionCommand command, CancellationToken cancellationToken = default)
         {
@@ -82,6 +93,8 @@ namespace CashManagement.Application.Commands
 
             await sessions.AddAsync(created.Value, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            await CashAudit.RecordAsync(businessEvents, "cash.shift-opened", created.Value.Id.Value,   // FIX-05
+                $"Drawer {created.Value.DrawerCode} opened with a float of {CashAudit.Money(command.OpeningFloat)}.");
             return Result.Success(created.Value.Id.Value);
         }
     }
@@ -92,14 +105,30 @@ namespace CashManagement.Application.Commands
 
     public sealed record RecordedCashMovement(Guid MovementId, decimal BalanceAfter);
 
-    public sealed class RecordCashMovementCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null)
+    public sealed class RecordCashMovementCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null,
+        Platform.Application.Abstractions.Auditing.IBusinessEventSink? businessEvents = null)
     {
         public async Task<Result<RecordedCashMovement>> HandleAsync(RecordCashMovementCommand command, CancellationToken cancellationToken = default)
         {
             var allowed = await authorization.AuthorizeAsync(CashManagement.Application.Security.CashManagementCapabilities.RecordMovement, cancellationToken);
             if (allowed.IsFailure) return Result.Failure<RecordedCashMovement>(allowed.Error);
 
-            return await ExecuteAsync(command, cancellationToken);
+            // FIX-05: a movement made at the drawer (pay-in, pay-out) is audited here. Cash sales come through the contract (ExecuteAsync)
+            // inside the checkout transaction and are covered by the POS "sale.completed" entry.
+            var recorded = await ExecuteAsync(command, cancellationToken);
+            if (recorded.IsSuccess)
+            {
+                var kind = command.Kind switch
+                {
+                    CashMovementKind.PayIn => "pay-in", CashMovementKind.PayOut => "pay-out",
+                    CashMovementKind.CashSale => "cash-sale", _ => "cash-refund"
+                };
+                await CashAudit.RecordAsync(businessEvents, "cash." + kind, command.SessionId,
+                    $"{kind} of {CashAudit.Money(command.Amount)}{(string.IsNullOrWhiteSpace(command.Reason) ? string.Empty : ": " + command.Reason)}; balance {CashAudit.Money(recorded.Value.BalanceAfter)}.",
+                    $"movement={recorded.Value.MovementId}");
+            }
+
+            return recorded;
         }
 
         /// <summary>The same operation WITHOUT the capability check, for trusted calls from other modules through this module's
@@ -125,7 +154,8 @@ namespace CashManagement.Application.Commands
 
     public sealed record ClosedCashSession(decimal ExpectedAmount, decimal CountedAmount, decimal Variance);
 
-    public sealed class CloseCashSessionCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null)
+    public sealed class CloseCashSessionCommandHandler(ICashSessionRepository sessions, ICashManagementUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null,
+        Platform.Application.Abstractions.Auditing.IBusinessEventSink? businessEvents = null)
     {
         public async Task<Result<ClosedCashSession>> HandleAsync(CloseCashSessionCommand command, CancellationToken cancellationToken = default)
         {
@@ -141,7 +171,10 @@ namespace CashManagement.Application.Commands
             if (closed.IsFailure) return Result.Failure<ClosedCashSession>(closed.Error);
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
-            return Result.Success(new ClosedCashSession(session.ExpectedAmount!.Value.Value, session.CountedAmount!.Value.Value, session.Variance!.Value));
+            var outcome = new ClosedCashSession(session.ExpectedAmount!.Value.Value, session.CountedAmount!.Value.Value, session.Variance!.Value);
+            await CashAudit.RecordAsync(businessEvents, "cash.shift-closed", command.SessionId,   // FIX-05
+                $"Drawer {session.DrawerCode} closed: expected {CashAudit.Money(outcome.ExpectedAmount)}, counted {CashAudit.Money(outcome.CountedAmount)}, difference {CashAudit.Money(outcome.Variance)}.");
+            return Result.Success(outcome);
         }
     }
 }

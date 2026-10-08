@@ -24,7 +24,8 @@ public sealed class UpdateProductCommandHandler(
     ICategoryRepository categoryRepository,
     IUnitRepository unitRepository,
     ICatalogUnitOfWork unitOfWork,
-    IAuthorizationService authorization)
+    IAuthorizationService authorization,
+    Platform.Application.Abstractions.Auditing.IBusinessEventSink? businessEvents = null)
 {
     public async Task<Result> HandleAsync(
         UpdateProductCommand command,
@@ -51,12 +52,23 @@ public sealed class UpdateProductCommandHandler(
             ? command.CostPrice
             : product.CostPrice;
 
+        var priceBefore = product.SalePrice;
         var updateResult = product.Update(command.Name, categoryId, unitId, command.SalePrice, costPrice, command.Description);
         if (updateResult.IsFailure)
             return updateResult;
 
         productRepository.Update(product);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // FIX-05: a changed sale price is a price change for the audit log (after the commit, best effort)
+        if (product.SalePrice != priceBefore)
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            await Platform.Application.Abstractions.Auditing.BusinessEventSinkExtensions.TryRecordAsync(businessEvents,
+                Platform.Application.Abstractions.Auditing.BusinessEvent.Create("catalog", "product.price-changed", "product", command.ProductId.ToString(),
+                    $"Sale price of {product.Sku} changed from {priceBefore.ToString("0.00", inv)} to {product.SalePrice.ToString("0.00", inv)}."));
+        }
+
         return Result.Success();
     }
 }

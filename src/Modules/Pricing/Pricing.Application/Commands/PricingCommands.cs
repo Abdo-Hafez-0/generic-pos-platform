@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Auditing;
 using Platform.Application.Abstractions.Authorization;
 using Catalog.Contracts.Interfaces;
 using Catalog.Contracts.Models;
@@ -115,7 +116,8 @@ public sealed class CreatePriceCommandHandler(
     IPriceListRepository lists,
     IProductLookup productLookup,
     IPricingUnitOfWork unitOfWork,
-    IAuthorizationService authorization)
+    IAuthorizationService authorization,
+    IBusinessEventSink? businessEvents = null)
 {
     public async Task<Result<Guid>> HandleAsync(CreatePriceCommand command, CancellationToken cancellationToken = default)
     {
@@ -149,13 +151,15 @@ public sealed class CreatePriceCommandHandler(
 
         await prices.AddAsync(created.Value, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        await businessEvents.TryRecordAsync(BusinessEvent.Create("pricing", "price.created", "price", created.Value.Id.Value.ToString(),   // FIX-05
+            $"Price {PriceAudit.Describe(created.Value)} for product {product.Sku} in price list {list.Code}.", $"product={product.ProductId};list={list.Id.Value}"));
         return Result.Success(created.Value.Id.Value);
     }
 }
 
 public sealed record UpdatePriceCommand(Guid PriceId, decimal Amount, DateTime EffectiveFrom, DateTime? EffectiveTo = null, decimal MinimumQuantity = 1m);
 
-public sealed class UpdatePriceCommandHandler(IPriceRepository prices, IPricingUnitOfWork unitOfWork, IAuthorizationService authorization)
+public sealed class UpdatePriceCommandHandler(IPriceRepository prices, IPricingUnitOfWork unitOfWork, IAuthorizationService authorization, IBusinessEventSink? businessEvents = null)
 {
     public async Task<Result> HandleAsync(UpdatePriceCommand command, CancellationToken cancellationToken = default)
     {
@@ -166,6 +170,7 @@ public sealed class UpdatePriceCommandHandler(IPriceRepository prices, IPricingU
         if (price is null)
             return Result.Failure(Error.NotFound("Pricing.UpdatePrice.PriceNotFound", $"Price '{command.PriceId}' was not found."));
 
+        var before = PriceAudit.Describe(price);
         var updated = price.Update(command.Amount, command.MinimumQuantity, command.EffectiveFrom, command.EffectiveTo);
         if (updated.IsFailure) return updated;
 
@@ -173,13 +178,15 @@ public sealed class UpdatePriceCommandHandler(IPriceRepository prices, IPricingU
         if (overlap is not null) return Result.Failure(overlap);   // nothing is saved: the tracked change is discarded with the scope
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        await businessEvents.TryRecordAsync(BusinessEvent.Create("pricing", "price.changed", "price", command.PriceId.ToString(),   // FIX-05
+            $"Price changed from {before} to {PriceAudit.Describe(price)}.", $"product={price.ProductId};list={price.PriceListId.Value}"));
         return Result.Success();
     }
 }
 
 public sealed record DeactivatePriceCommand(Guid PriceId);
 
-public sealed class DeactivatePriceCommandHandler(IPriceRepository prices, IPricingUnitOfWork unitOfWork, IAuthorizationService authorization)
+public sealed class DeactivatePriceCommandHandler(IPriceRepository prices, IPricingUnitOfWork unitOfWork, IAuthorizationService authorization, IBusinessEventSink? businessEvents = null)
 {
     public async Task<Result> HandleAsync(DeactivatePriceCommand command, CancellationToken cancellationToken = default)
     {
@@ -194,6 +201,19 @@ public sealed class DeactivatePriceCommandHandler(IPriceRepository prices, IPric
         if (result.IsFailure) return result;
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        await businessEvents.TryRecordAsync(BusinessEvent.Create("pricing", "price.deactivated", "price", command.PriceId.ToString(),   // FIX-05
+            $"Price {PriceAudit.Describe(price)} deactivated.", $"product={price.ProductId};list={price.PriceListId.Value}"));
         return Result.Success();
+    }
+}
+
+/// <summary>How a price reads in the audit log (FIX-05): amount, minimum quantity and validity period, culture-independent.</summary>
+internal static class PriceAudit
+{
+    public static string Describe(Price price)
+    {
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        var to = price.EffectiveTo is { } end ? end.ToString("yyyy-MM-dd", inv) : "open";
+        return $"{price.Amount.Amount.ToString("0.00", inv)} (from {price.MinimumQuantity.ToString("0.###", inv)} unit(s), {price.EffectiveFrom.ToString("yyyy-MM-dd", inv)} to {to})";
     }
 }

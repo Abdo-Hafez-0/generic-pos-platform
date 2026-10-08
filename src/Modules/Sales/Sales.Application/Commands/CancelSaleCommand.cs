@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Auditing;
 using Platform.Core.Results;
 using Sales.Application.Abstractions;
 using Sales.Application.Repositories;
@@ -17,7 +18,8 @@ public sealed record CancelSaleCommand(Guid SaleId, string Reason);
 
 public sealed class CancelSaleCommandHandler(
     ISaleRepository saleRepository,
-    ISalesUnitOfWork unitOfWork)
+    ISalesUnitOfWork unitOfWork,
+    IBusinessEventSink? businessEvents = null)
 {
     public async Task<Result> HandleAsync(
         CancelSaleCommand command,
@@ -35,6 +37,8 @@ public sealed class CancelSaleCommandHandler(
 
         saleRepository.Update(sale);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        await businessEvents.TryRecordAsync(BusinessEvent.Create("sales", "sale.cancelled", "sale", command.SaleId.ToString(),
+            $"Sale cancelled: {command.Reason}"));   // FIX-05
         return Result.Success();
     }
 }

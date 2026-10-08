@@ -1,3 +1,4 @@
+using Platform.Application.Abstractions.Auditing;
 using Platform.Application.Abstractions.Authorization;
 using Inventory.Domain.Entities;
 using Inventory.Domain.Enums;
@@ -34,7 +35,8 @@ public sealed class AdjustStockCommandHandler(
     IStockMovementRepository movementRepository,
     IInventoryBalanceRepository balanceRepository,
     IInventoryUnitOfWork unitOfWork,
-    IAuthorizationService authorization)
+    IAuthorizationService authorization,
+    IBusinessEventSink? businessEvents = null)
 {
     public async Task<Result<Guid>> HandleAsync(
         AdjustStockCommand command,
@@ -103,6 +105,12 @@ public sealed class AdjustStockCommandHandler(
         // 5. Persist atomically
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // 6. The audit log (FIX-05), after the commit
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        await businessEvents.TryRecordAsync(BusinessEvent.Create("inventory", "stock.adjusted", "stock-item", command.StockItemId.ToString(),
+            $"Stock corrected by {command.AdjustmentQuantity.ToString("+0.###;-0.###", inv)} ({command.Reason}); on hand now {balance.OnHand.Value.ToString("0.###", inv)}."
+                + (string.IsNullOrWhiteSpace(command.Notes) ? string.Empty : $" Notes: {command.Notes}"),
+            $"product={stockItem.CatalogProductId};warehouse={stockItem.WarehouseId.Value};adjustment={adjustment.Id.Value}"));
         return Result.Success(adjustment.Id.Value);
     }
 }

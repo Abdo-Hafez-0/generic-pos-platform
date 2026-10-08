@@ -67,9 +67,11 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Drawer per installation: `PosCash:DrawerCode` (default MAIN); the POS screen takes the total in cash (choice/tender/split: FIX-10)
   - [x] Real exe: refused without a shift; after opening it on the Cash drawer screen the sale goes through and the drawer shows "Cash sale +5.00"
   - Carried forward: cash refunds (needs a refund flow)
-- [ ] **FIX-05 Audit business actions** (Stage 8)
-  - [ ] Optional `IAuditRecorder` in the business modules (POS/Pricing pattern)
-  - [ ] Audit at least: completed sale, refund/return, void, stock adjustment, price change, purchase receive, cash pay-in/pay-out/close
+- [x] **FIX-05 Audit business actions** (Stage 8) - done 2026-10-08
+  - [x] Optional `IAuditRecorder` in the business modules (POS/Pricing pattern) - user: a Platform `IBusinessEventSink` instead (like security events; no module references Audit), in-memory retry buffer
+  - [x] Audit at least: completed sale, refund/return, void, stock adjustment, price change, purchase receive, cash pay-in/pay-out/close (refund/return: no flow exists yet; also cash shift opened)
+  - Reported after the commit (the audit log has its own connection by design), stamped with the signed-in user, written in the background
+  - Carried forward: refunds/returns (need a flow); "no sale" drawer opens and catalog/purchase-order changes (not chosen); durable outbox (not chosen)
 
 ### A2. Medium priority - correctness and robustness
 
@@ -163,4 +165,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-07 | FIX-01e (users) | 3abdef0 | Users, roles and permissions screens; lock-out rule; FIX-01 complete; 2431 tests, 0 warnings |
 | 2026-10-08 | FIX-02 | 4b94f7e | Barcode scanner input; 2453 tests, 0 warnings; real exe with a keyboard-wedge scanner |
 | 2026-10-08 | FIX-03 | 061e377 | Healthy-start confirmation of updates that really run; 2463 tests, 0 warnings; real exe |
-| 2026-10-08 | FIX-04 | (this commit) | POS cash sales into the open drawer shift (inside the transaction); 2472 tests, 0 warnings; real exe |
+| 2026-10-08 | FIX-04 | 6896931 | POS cash sales into the open drawer shift (inside the transaction); 2472 tests, 0 warnings; real exe |
+| 2026-10-08 | FIX-05 | (this commit) | Business actions in the audit log (Platform event sink, background write, retry buffer); 2482 tests, 0 warnings; real exe |

@@ -1,5 +1,6 @@
 using CashManagement.Contracts.Interfaces;
 using CashManagement.Contracts.Models;
+using Platform.Application.Abstractions.Auditing;
 using Platform.Application.Abstractions.Authorization;
 using Platform.Application.Abstractions.Data;
 using Inventory.Contracts.Interfaces;
@@ -74,7 +75,8 @@ public sealed class CheckoutCartCommandHandler(
     IAtomicOperation? atomicOperation = null,
     ICashMovementRecorder? cashRecorder = null,
     ICashSessionReader? cashShifts = null,
-    PosCashOptions? cashOptions = null)
+    PosCashOptions? cashOptions = null,
+    IBusinessEventSink? businessEvents = null)
 {
     /// <summary>What a committed checkout leaves behind for the peripherals step.</summary>
     private sealed record Committed(PosCart Cart, PosSession Session, Guid SaleId, Guid? PaymentId, decimal ChangeDue);
@@ -99,8 +101,11 @@ public sealed class CheckoutCartCommandHandler(
             : await atomicOperation.ExecuteAsync(commit, cancellationToken);
         if (committed.IsFailure) return Result.Failure<CheckoutOutcome>(committed.Error);
 
-        // 9. Peripherals. The sale is complete and saved; from here on only hardware can go wrong, and that can never undo it.
+        // 8b. The audit log (FIX-05): after the commit, best effort - it can never undo or delay the sale.
         var done = committed.Value;
+        await businessEvents.TryRecordAsync(SaleCompleted(done, command.Payment));
+
+        // 9. Peripherals. The sale is complete and saved; from here on only hardware can go wrong, and that can never undo it.
         var notices = await RunPeripheralsAsync(done.Cart, done.Session, done.SaleId, command.Payment, done.ChangeDue);
         return Result.Success(new CheckoutOutcome(done.SaleId, done.PaymentId, done.ChangeDue, notices));
     }
@@ -316,6 +321,15 @@ public sealed class CheckoutCartCommandHandler(
         }
 
         return notices;
+    }
+
+    private static BusinessEvent SaleCompleted(Committed done, POSPaymentRequest? payment)
+    {
+        var total = done.Cart.Total.Amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+        var paid = payment is null ? "no payment recorded" : $"paid by {payment.Method.ToString().ToLowerInvariant()}";
+        return BusinessEvent.Create("pos", "sale.completed", "sale", done.SaleId.ToString(),
+            $"Sale of {done.Cart.Items.Count} line(s), total {total}, {paid}.",
+            $"cart={done.Cart.Id.Value};session={done.Session.Id.Value};warehouse={done.Session.WarehouseId};payment={done.PaymentId?.ToString() ?? "none"}");
     }
 
     private static async Task NoticeIfFailedAsync(List<POSHardwareNotice> notices, string device, string what, Func<Task<Result>> call)

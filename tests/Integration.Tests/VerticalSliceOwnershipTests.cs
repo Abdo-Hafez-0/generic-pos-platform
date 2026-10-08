@@ -82,6 +82,15 @@ public sealed class VerticalSliceOwnershipTests
         Assert.True(checkout.IsSuccess, checkout.ErrorMessage);
         Assert.Equal(4m, checkout.ChangeDue);
 
+        // FIX-05: the audit entry of the sale is written in the background after the commit; wait for it before taking the snapshot
+        AuditEntryResult? audited = null;
+        for (var i = 0; i < 200 && audited is null; i++)
+        {
+            using var scope = services.CreateScope();
+            audited = (await scope.ServiceProvider.GetRequiredService<IAuditReader>().QueryAsync(new AuditEntryFilter(Module: "pos", Action: "sale.completed"))).Items.SingleOrDefault();
+            if (audited is null) await Task.Delay(25);
+        }
+
         var after = await TableContentsAsync(desktop.Host);
 
         // each fact, read back through the module that owns it
@@ -111,15 +120,16 @@ public sealed class VerticalSliceOwnershipTests
             var drawer = await sp.GetRequiredService<CashManagement.Contracts.Interfaces.ICashSessionReader>().GetOpenSessionAsync("MAIN");   // CashManagement owns the drawer (FIX-04)
             Assert.Equal(50m + 6.0m, drawer!.Balance);                                                         // the float plus the sale total (the change went back)
 
-            // Audit: what the platform audits today are security events (sign-in, refusals, license and update decisions). Business actions
-            // such as a completed sale are NOT audited yet - a documented deferred limitation (Stage 8 "Audit is not adopted"), not a step here.
+            // Audit owns the log: the security events (the sign-in) and, since FIX-05, the business actions - the completed sale, by whom
             var signIn = await sp.GetRequiredService<IAuditReader>().QueryAsync(new AuditEntryFilter(Module: "security", Action: "security.signin.succeeded"), pageSize: 10);
             Assert.Contains(signIn.Items, e => e.ActorName == currentUser.UserName);
+            Assert.NotNull(audited);
+            Assert.Equal(("sale", checkout.SaleId.ToString(), currentUser.UserName), (audited.EntityType, audited.EntityId, audited.ActorName));
         }
 
-        // ownership in the database: the checkout changed tables of exactly the five owning modules, each of them, and nothing else
+        // ownership in the database: the checkout changed tables of exactly the six owning modules (Audit since FIX-05), each of them, and nothing else
         var changed = after.Keys.Where(t => !before.TryGetValue(t, out var old) || old != after[t]).ToList();
-        string[] owners = ["sal_", "pay_", "inv_", "pos_", "cash_"];
+        string[] owners = ["sal_", "pay_", "inv_", "pos_", "cash_", "aud_"];
         Assert.All(changed, t => Assert.Contains(owners, o => t.StartsWith(o, StringComparison.Ordinal)));
         Assert.All(owners, o => Assert.Contains(changed, t => t.StartsWith(o, StringComparison.Ordinal)));
         Assert.Contains("inv_StockMovements", changed);

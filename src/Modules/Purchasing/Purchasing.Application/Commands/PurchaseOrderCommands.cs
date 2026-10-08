@@ -225,7 +225,8 @@ public sealed class ReceivePurchaseOrderCommandHandler(
     IStockReceiptService stockReceipts,
     IPurchasingUnitOfWork unitOfWork,
     IAuthorizationService authorization,
-    IAtomicOperation? atomicOperation = null)
+    IAtomicOperation? atomicOperation = null,
+    Platform.Application.Abstractions.Auditing.IBusinessEventSink? businessEvents = null)
 {
     public async Task<Result<int>> HandleAsync(ReceivePurchaseOrderCommand command, CancellationToken cancellationToken = default)
     {
@@ -234,9 +235,16 @@ public sealed class ReceivePurchaseOrderCommandHandler(
 
         // With a transaction the whole receipt is all-or-nothing: every line's stock and the order's progress are committed together
         // or not at all. Without one (unit-test hosts) receiving is resumable: progress is kept after every line.
-        return atomicOperation is null
+        var received = atomicOperation is null
             ? await ReceiveAsync(command, transactional: false, cancellationToken)
             : await atomicOperation.ExecuteAsync(() => ReceiveAsync(command, transactional: true, cancellationToken), cancellationToken);
+
+        // FIX-05: the audit log, after the commit (best effort)
+        if (received.IsSuccess)
+            await Platform.Application.Abstractions.Auditing.BusinessEventSinkExtensions.TryRecordAsync(businessEvents,
+                Platform.Application.Abstractions.Auditing.BusinessEvent.Create("purchasing", "purchase-order.received", "purchase-order", command.OrderId.ToString(),
+                    $"{received.Value} line(s) received into stock.", $"warehouse={command.WarehouseId}"));
+        return received;
     }
 
     private async Task<Result<int>> ReceiveAsync(ReceivePurchaseOrderCommand command, bool transactional, CancellationToken cancellationToken)

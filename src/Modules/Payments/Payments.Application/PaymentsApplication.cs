@@ -69,7 +69,8 @@ namespace Payments.Application.Commands
 
     public sealed record VoidPaymentCommand(Guid PaymentId, string Reason);
 
-    public sealed class VoidPaymentCommandHandler(IPaymentRepository repository, IPaymentsUnitOfWork unitOfWork, IAuthorizationService authorization)
+    public sealed class VoidPaymentCommandHandler(IPaymentRepository repository, IPaymentsUnitOfWork unitOfWork, IAuthorizationService authorization,
+        Platform.Application.Abstractions.Auditing.IBusinessEventSink? businessEvents = null)
     {
         public async Task<Result> HandleAsync(VoidPaymentCommand command, CancellationToken cancellationToken = default)
         {
@@ -91,6 +92,9 @@ namespace Payments.Application.Commands
             if (result.IsFailure) return result;
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            await Platform.Application.Abstractions.Auditing.BusinessEventSinkExtensions.TryRecordAsync(businessEvents,   // FIX-05
+                Platform.Application.Abstractions.Auditing.BusinessEvent.Create("payments", "payment.voided", "payment", command.PaymentId.ToString(),
+                    $"Payment of {payment.Amount.Amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)} ({payment.Method}) for {payment.ReferenceType} {payment.ReferenceId} voided: {command.Reason}"));
             return Result.Success();
         }
     }

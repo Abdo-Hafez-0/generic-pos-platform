@@ -37,8 +37,13 @@ public static class AuditServicesExtensions
         services.AddSingleton(sp => new Audit.Infrastructure.Services.AuditSecurityEventListener(
             sp.GetRequiredService<IServiceScopeFactory>(),
             sp.GetService<Microsoft.Extensions.Logging.ILogger<Audit.Infrastructure.Services.AuditSecurityEventListener>>(),
-            waitForStore: true));
+            waitForStore: true,
+            sp.GetService<Platform.Application.Abstractions.Authorization.ICurrentUser>(),
+            sp.GetService<TimeProvider>()));
         services.AddSingleton<Platform.Application.Abstractions.Security.ISecurityEventListener>(
+            sp => sp.GetRequiredService<Audit.Infrastructure.Services.AuditSecurityEventListener>());
+        // FIX-05: business events from the modules (completed sale, voids, stock adjustments, price changes...) go through the same buffer.
+        services.AddSingleton<Platform.Application.Abstractions.Auditing.IBusinessEventSink>(
             sp => sp.GetRequiredService<Audit.Infrastructure.Services.AuditSecurityEventListener>());
 
         services.AddSingleton<IModule, AuditModule>();

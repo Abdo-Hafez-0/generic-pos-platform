@@ -139,6 +139,10 @@ public sealed class ResilienceBoundaryTests
         var transactional = text[start..text.IndexOf("private async Task<IReadOnlyList<POSHardwareNotice>> RunPeripheralsAsync", start, StringComparison.Ordinal)];
         foreach (var device in new[] { "receiptPrinter", "cashDrawer", "labelPrinter", "IReceiptPrinter", "ICashDrawer", "HardwareGuard" })
             Assert.DoesNotContain(device, transactional);
+
+        // FIX-05: the audit entry describes a COMMITTED sale, so it is reported after the transaction, never inside it
+        foreach (var audit in new[] { "businessEvents", "BusinessEvent" })
+            Assert.DoesNotContain(audit, transactional);
     }
 
     [Fact(DisplayName = "ARCH-RES-006: Business modules do not reference the cloud transports or any server assembly (the cloud cannot be a requirement of local work)")]

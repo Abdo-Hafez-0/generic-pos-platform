@@ -28,6 +28,7 @@ public sealed class PurchasingAuthorizationTests
             s.AddSingleton<ISupplierLookup>(suppliers);
             s.AddSingleton<IProductLookup>(new StubCatalog());
             s.AddSingleton<IStockReceiptService>(receipts);
+            s.AddSingleton<IStockIssueService>(new Purchasing.Tests.Application.StubIssues());
             s.AddSingleton<IAuthorizationService>(auth);
         });
         return (db, auth, suppliers, receipts);
@@ -52,6 +53,7 @@ public sealed class PurchasingAuthorizationTests
             ("submit", await sp.GetRequiredService<SubmitPurchaseOrderCommandHandler>().HandleAsync(new SubmitPurchaseOrderCommand(order)), PurchasingCapabilities.SubmitOrder),
             ("cancel", await sp.GetRequiredService<CancelPurchaseOrderCommandHandler>().HandleAsync(new CancelPurchaseOrderCommand(order, "no")), PurchasingCapabilities.CancelOrder),
             ("close short", await sp.GetRequiredService<ClosePurchaseOrderShortCommandHandler>().HandleAsync(new ClosePurchaseOrderShortCommand(order, "no")), PurchasingCapabilities.CancelOrder),
+            ("return", await sp.GetRequiredService<ReturnToSupplierCommandHandler>().HandleAsync(new ReturnToSupplierCommand(order, "no", [new ReturnLineQuantity(Guid.NewGuid(), 1m)])), PurchasingCapabilities.ReturnGoods),
             ("receive", await sp.GetRequiredService<ReceivePurchaseOrderCommandHandler>().HandleAsync(new ReceivePurchaseOrderCommand(order, Guid.NewGuid())), PurchasingCapabilities.ReceiveOrder)
         };
 
@@ -87,5 +89,6 @@ public sealed class PurchasingAuthorizationTests
         Assert.Equal(PurchasingCapabilities.All.Count, catalog.All.Count);
         Assert.All(catalog.All, c => Assert.Equal("purchasing", c.Module));
         Assert.True(catalog.Find(PurchasingCapabilities.ReceiveOrder)!.IsSensitive);
+        Assert.True(catalog.Find(PurchasingCapabilities.ReturnGoods)!.IsSensitive);
     }
 }

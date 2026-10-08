@@ -141,6 +141,64 @@ public sealed class PurchaseOrdersOnRealDesktopTests
         Assert.Equal(17m, await OnHandAsync(services, shop));
     }
 
+    [Fact]
+    public async Task Received_goods_are_returned_to_the_supplier_and_leave_stock_in_one_transaction()
+    {
+        await using var desktop = await OfflineDesktop.StartAsync();
+        var (services, shop, vm) = await ReadyAsync(desktop);
+        Assert.True(vm.CanReturnGoods);   // the administrator holds purchasing.return.create
+        await CreateOrderAsync(vm);
+        (vm.LineCode, vm.LineQuantity, vm.LineCost) = (shop.Sku, Number(12m), Number(1.5m));
+        await Run(vm, vm.AddLineCommand);
+        Assert.False(vm.ShowsReturnControls);   // nothing received yet
+        await Run(vm, vm.SubmitCommand);
+        await Run(vm, vm.ReceiveCommand);
+        Assert.Equal(22m, await OnHandAsync(services, shop));
+        Assert.True(vm.ShowsReturnControls);
+
+        vm.SelectedLine = vm.Lines.Single();
+        (vm.ReturnQuantity, vm.ReturnReason) = (Number(3m), "two bottles leaking, one crushed");
+        await Run(vm, vm.ReturnCommand);
+
+        Assert.Null(vm.ErrorMessage);
+        var made = Assert.Single(vm.Returns);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, PurchasingText.ReturnMade, made.Return.Number, 4.5m.ToString("N2", CultureInfo.CurrentCulture)), vm.StatusMessage);
+        Assert.Contains("two bottles leaking", made.Text);
+        Assert.Equal((3m, 9m), (vm.Lines.Single().ReturnedQuantity, vm.Lines.Single().ReturnableQuantity));
+        Assert.Equal(19m, await OnHandAsync(services, shop));
+        Assert.Equal(PurchasingText.Received, vm.Orders.Single().StatusText);
+
+        // the shop sold most of it meanwhile: Inventory refuses, and nothing of the return is kept
+        using (var scope = services.CreateScope())
+            Assert.True((await scope.ServiceProvider.GetRequiredService<IStockIssueService>().IssueStockAsync(shop.ProductId, shop.WarehouseId, 18m, "sold")).IsSuccess);
+        vm.SelectedLine = vm.Lines.Single();
+        (vm.ReturnQuantity, vm.ReturnReason) = (Number(2m), "late complaint");
+        await Run(vm, vm.ReturnCommand);
+
+        Assert.NotNull(vm.ErrorMessage);
+        Assert.Contains("Nothing was returned", vm.ErrorMessage);
+        Assert.Single(vm.Returns);
+        Assert.Equal(1m, await OnHandAsync(services, shop));
+        using (var scope = services.CreateScope())
+        {
+            var order = (await scope.ServiceProvider.GetRequiredService<global::Purchasing.Contracts.Interfaces.IPurchaseOrderReader>().GetAsync(vm.Order!.OrderId))!;
+            Assert.Equal(3m, order.Lines.Single().ReturnedQuantity);
+
+            var audit = scope.ServiceProvider.GetRequiredService<Audit.Contracts.Interfaces.IAuditReader>();
+            for (var i = 0; i < 200 && !(await audit.QueryAsync(new Audit.Contracts.Models.AuditEntryFilter(Module: "purchasing"))).Items.Any(e => e.Action == "supplier-return.created"); i++)
+                await Task.Delay(25);
+            var entry = Assert.Single((await audit.QueryAsync(new Audit.Contracts.Models.AuditEntryFilter(Module: "purchasing"))).Items, e => e.Action == "supplier-return.created");
+            Assert.Contains("worth 4.50", entry.Summary);
+            Assert.Contains("two bottles leaking", entry.Summary);
+        }
+
+        // more than is left of the order is refused before anything moves
+        vm.SelectedLine = vm.Lines.Single();
+        (vm.ReturnQuantity, vm.ReturnReason) = (Number(10m), "x");
+        await Run(vm, vm.ReturnCommand);
+        Assert.Contains("Only 9", vm.ErrorMessage);
+    }
+
     private static async Task<decimal> OnHandAsync(IServiceProvider services, Shop shop)
     {
         using var scope = services.CreateScope();

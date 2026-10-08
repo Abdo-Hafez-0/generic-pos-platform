@@ -260,6 +260,29 @@ public sealed class PurchaseOrder
         return Result.Success();
     }
 
+    // ------------------------------------------------------------------ supplier returns (FIX-09b)
+
+    /// <summary>
+    /// Takes part of a received line back for a supplier return: never more than was received minus what was already returned. The line
+    /// and the return are changed together; a refusal changes neither.
+    /// </summary>
+    public Result RecordReturn(SupplierReturn supplierReturn, PurchaseOrderLineId lineId, OrderQuantity quantity)
+    {
+        if (supplierReturn.PurchaseOrderId != Id)
+            return Result.Failure(Error.Conflict("Purchasing.SupplierReturn.OtherOrder", "The return belongs to another order."));
+
+        var line = FindLine(lineId);
+        if (line is null)
+            return Result.Failure(Error.NotFound("Purchasing.PurchaseOrder.LineNotFound", "The line was not found on this order."));
+
+        var taken = line.Return(quantity);
+        if (taken.IsFailure) return taken;
+
+        supplierReturn.AddLine(line, quantity);
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
+
     // ------------------------------------------------------------------ helpers
 
     private static Error InvalidState(string message) => Error.Conflict("Purchasing.PurchaseOrder.InvalidState", message);

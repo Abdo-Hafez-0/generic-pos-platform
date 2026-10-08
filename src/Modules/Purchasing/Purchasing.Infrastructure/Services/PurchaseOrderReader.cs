@@ -43,6 +43,6 @@ internal sealed class PurchaseOrderReader(IPurchaseOrderRepository repository) :
         withLines
             ? o.Lines.Select(l => new PurchaseOrderLineResult(
                 l.Id.Value, l.ProductId, l.ProductSku, l.ProductName, l.Quantity.Value, l.UnitCost.Amount, l.LineTotal.Amount, l.IsReceived,
-                l.ReceivedQuantity)).ToList()
+                l.ReceivedQuantity, l.ReturnedQuantity)).ToList()
             : []);
 }

@@ -14,10 +14,10 @@ namespace Purchasing.Contracts.Models
         Closed = 6
     }
 
-    /// <summary>One order line; IsReceived means the whole quantity arrived, ReceivedQuantity adds up the deliveries so far (FIX-09).</summary>
+    /// <summary>One order line; IsReceived means the whole quantity arrived, ReceivedQuantity adds up the deliveries so far (FIX-09), ReturnedQuantity what went back to the supplier.</summary>
     public sealed record PurchaseOrderLineResult(
         Guid LineId, Guid ProductId, string ProductSku, string ProductName, decimal Quantity, decimal UnitCost, decimal LineTotal, bool IsReceived,
-        decimal ReceivedQuantity = 0m);
+        decimal ReceivedQuantity = 0m, decimal ReturnedQuantity = 0m);
 
     /// <summary>Read model of a purchase order. Never exposes Purchasing.Domain types.</summary>
     public sealed record PurchaseOrderResult(

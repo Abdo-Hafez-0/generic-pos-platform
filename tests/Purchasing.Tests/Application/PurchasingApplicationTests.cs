@@ -71,23 +71,45 @@ public sealed class StubReceipts : IStockReceiptService
     }
 }
 
+public sealed class StubIssues : IStockIssueService
+{
+    private readonly HashSet<Guid> _failFor = [];
+    public List<(Guid ProductId, Guid WarehouseId, decimal Quantity, string? Reference)> Issued { get; } = [];
+
+    public void FailFor(Guid productId) => _failFor.Add(productId);
+
+    public Task<IssueStockResult> IssueStockAsync(Guid catalogProductId, Guid warehouseId, decimal quantity, string? reference = null, CancellationToken cancellationToken = default)
+    {
+        if (_failFor.Contains(catalogProductId))
+            return Task.FromResult(IssueStockResult.Failure("Inventory.IssueStock.InsufficientStock", "Not enough stock."));
+
+        Issued.Add((catalogProductId, warehouseId, quantity, reference));
+        return Task.FromResult(IssueStockResult.Success(Guid.NewGuid()));
+    }
+}
+
 public sealed class PurchasingApplicationTests
 {
-    private sealed record Env(TestModuleDatabase<PurchasingDbContext> Db, StubSuppliers Suppliers, StubCatalog Catalog, StubReceipts Receipts);
+    private sealed record Env(TestModuleDatabase<PurchasingDbContext> Db, StubSuppliers Suppliers, StubCatalog Catalog, StubReceipts Receipts)
+    {
+        public StubIssues Issues { get; init; } = new();
+    }
 
     private static async Task<Env> NewEnv()
     {
         var suppliers = new StubSuppliers();
         var catalog = new StubCatalog();
         var receipts = new StubReceipts();
+        var issues = new StubIssues();
         var db = await TestModuleDatabase<PurchasingDbContext>.CreateAsync(s =>
         {
             s.AddPurchasingCore();
             s.AddSingleton<ISupplierLookup>(suppliers);
             s.AddSingleton<IProductLookup>(catalog);
             s.AddSingleton<IStockReceiptService>(receipts);
+            s.AddSingleton<IStockIssueService>(issues);
         });
-        return new Env(db, suppliers, catalog, receipts);
+        return new Env(db, suppliers, catalog, receipts) { Issues = issues };
     }
 
     private static async Task<Guid> Draft(Env e, Guid? supplier = null)
@@ -502,6 +524,96 @@ public sealed class PurchasingApplicationTests
 
         Assert.Equal(new PurchaseSummaryResult(2, 0, 0, 0, 0, ReceivedValue: 16m, OpenValue: 30m, PartiallyReceived: 1, Closed: 1), summary);
         Assert.Equal((5m, false), (line.ReceivedQuantity, line.IsReceived));
+    }
+
+    // ------------------------------------------------------------------ FIX-09b: supplier returns
+
+    private static Task<Platform.Core.Results.Result<Guid>> Return(Env e, Guid order, string reason, params ReturnLineQuantity[] lines)
+        => e.Db.InScopeAsync(sp => sp.GetRequiredService<ReturnToSupplierCommandHandler>().HandleAsync(new ReturnToSupplierCommand(order, reason, lines)));
+
+    private static Task<IReadOnlyList<Purchasing.Application.DTOs.SupplierReturnDto>> Returns(Env e, Guid order)
+        => e.Db.InScopeAsync(sp => sp.GetRequiredService<ListSupplierReturnsQueryHandler>().HandleAsync(new ListSupplierReturnsQuery(order)));
+
+    [Fact]
+    public async Task Received_goods_go_back_to_the_supplier_out_of_the_order_warehouse()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        var (order, lineA, lineB, a, b) = await PlacedTwoLineOrder(e);
+        var warehouse = Guid.NewGuid();
+        await Receive(e, order, warehouse);
+
+        var returned = await Return(e, order, "damaged", new ReturnLineQuantity(lineA, 3m), new ReturnLineQuantity(lineB, 1m));
+
+        Assert.True(returned.IsSuccess, returned.IsFailure ? returned.Error.ToString() : null);
+        var number = Assert.Single(await Returns(e, order)).Number;
+        Assert.Equal([(a, warehouse, 3m), (b, warehouse, 1m)], e.Issues.Issued.Select(i => (i.ProductId, i.WarehouseId, i.Quantity)).ToArray());
+        Assert.All(e.Issues.Issued, i => Assert.Contains(number, i.Reference));
+        var r = (await Returns(e, order)).Single();
+        Assert.Equal((returned.Value, "damaged", 11m, warehouse), (r.ReturnId, r.Reason, r.TotalAmount, r.WarehouseId));   // 3 x 2 + 1 x 5
+        Assert.Equal(2, r.Lines.Count);
+        var dto = (await Get(e, order))!;
+        Assert.Equal((3m, 7m), (dto.Lines.Single(l => l.LineId == lineA).ReturnedQuantity, dto.Lines.Single(l => l.LineId == lineA).ReturnableQuantity));
+        Assert.Equal(PurchaseOrderStatus.Received, dto.Status);
+        var contract = (await e.Db.InScopeAsync(sp => sp.GetRequiredService<IPurchaseOrderReader>().GetAsync(order)))!;
+        Assert.Equal(1m, contract.Lines.Single(l => l.LineId == lineB).ReturnedQuantity);
+    }
+
+    [Fact]
+    public async Task A_return_beyond_what_is_left_is_refused_before_any_stock_moves()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        var (order, lineA, lineB, _, _) = await PlacedTwoLineOrder(e);
+        await Receive(e, order, Guid.NewGuid(), new ReceiveLineQuantity(lineA, 5m));   // B never arrived
+        Assert.True((await Return(e, order, "first", new ReturnLineQuantity(lineA, 2m))).IsSuccess);
+
+        var tooMuch = await Return(e, order, "second", new ReturnLineQuantity(lineA, 1m), new ReturnLineQuantity(lineB, 1m));
+        var overA = await Return(e, order, "third", new ReturnLineQuantity(lineA, 4m));
+
+        Assert.Equal("Purchasing.SupplierReturn.MoreThanReceived", tooMuch.Error.Code);   // B: nothing received
+        Assert.Contains("Only 3", overA.Error.Description);
+        Assert.Single(e.Issues.Issued);
+        Assert.Single(await Returns(e, order));
+    }
+
+    [Fact]
+    public async Task A_return_is_validated_in_plain_words()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        var (order, lineA, _, _, _) = await PlacedTwoLineOrder(e);
+
+        Assert.Equal("Purchasing.SupplierReturn.NothingReceived", (await Return(e, order, "x", new ReturnLineQuantity(lineA, 1m))).Error.Code);
+        await Receive(e, order, Guid.NewGuid());
+        Assert.Equal("Purchasing.SupplierReturn.ReasonRequired", (await Return(e, order, " ", new ReturnLineQuantity(lineA, 1m))).Error.Code);
+        Assert.Equal("Purchasing.SupplierReturn.InvalidQuantity", (await Return(e, order, "x", new ReturnLineQuantity(lineA, -1m))).Error.Code);
+        Assert.Equal("Purchasing.SupplierReturn.DuplicateLine", (await Return(e, order, "x", new ReturnLineQuantity(lineA, 1m), new ReturnLineQuantity(lineA, 1m))).Error.Code);
+        Assert.Equal("Purchasing.SupplierReturn.NothingToReturn", (await Return(e, order, "x")).Error.Code);
+        Assert.Equal("Purchasing.PurchaseOrder.LineNotFound", (await Return(e, order, "x", new ReturnLineQuantity(Guid.NewGuid(), 1m))).Error.Code);
+        Assert.Equal("Purchasing.SupplierReturn.OrderNotFound", (await Return(e, Guid.NewGuid(), "x", new ReturnLineQuantity(lineA, 1m))).Error.Code);
+        Assert.Empty(e.Issues.Issued);
+        Assert.Empty(await Returns(e, order));
+    }
+
+    [Fact]
+    public async Task Without_a_transaction_a_failed_line_keeps_only_what_left_stock()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        var (order, lineA, lineB, _, b) = await PlacedTwoLineOrder(e);
+        await Receive(e, order, Guid.NewGuid());
+        e.Issues.FailFor(b);
+
+        var onlyB = await Return(e, order, "x", new ReturnLineQuantity(lineB, 1m));
+        var both = await Return(e, order, "y", new ReturnLineQuantity(lineA, 2m), new ReturnLineQuantity(lineB, 1m));
+
+        Assert.Contains("Nothing was returned", onlyB.Error.Description);
+        Assert.Equal("Purchasing.SupplierReturn.StockIssueFailed", both.Error.Code);
+        var kept = Assert.Single(await Returns(e, order));
+        Assert.Equal((lineA, 2m), (Assert.Single(kept.Lines).OrderLineId, kept.Lines[0].Quantity));
+        var dto = (await Get(e, order))!;
+        Assert.Equal((2m, 0m), (dto.Lines.Single(l => l.LineId == lineA).ReturnedQuantity, dto.Lines.Single(l => l.LineId == lineB).ReturnedQuantity));
     }
 
     // ------------------------------------------------------------------ queries and contracts

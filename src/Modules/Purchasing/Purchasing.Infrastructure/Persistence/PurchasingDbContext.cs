@@ -16,6 +16,8 @@ public sealed class PurchasingDbContext : DbContext
 
     public DbSet<PurchaseOrder> PurchaseOrders { get; set; } = null!;
     public DbSet<PurchaseOrderLine> PurchaseOrderLines { get; set; } = null!;
+    public DbSet<SupplierReturn> SupplierReturns { get; set; } = null!;
+    public DbSet<SupplierReturnLine> SupplierReturnLines { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -99,16 +99,19 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] **FIX-08c Discounts at the till** (2026-10-08): line and cart discounts (percentage/amount), permission + maximum, spread over lines, audited - capability `pos.discount.give`, `PosDiscount:MaximumPercent` (default 100), migration AddDiscounts; receipt shows discount, subtotal and tax
   - [x] Real exe: STD 14% on the Tax rates screen; 4 x 2.50 with 10% on the line and 0.50 on the cart -> 8.50 incl. 1.04 tax; 90% refused above a 50% maximum; printed receipt checked
   - Carried forward: Sales history and Business overview do not show tax/discounts yet (the data is recorded); automatic promotions/coupons (optional Discounts module)
-- [ ] **FIX-09 Purchasing gaps** (Stage 8)
+- [x] **FIX-09 Purchasing gaps** (Stage 8) - done 2026-10-08
 
   Decisions (2026-10-08, user):
   1. **Receive per delivery + close short**: each delivery enters a quantity per line (adding up, never above what was ordered); the order is "Partly received" until every unit arrived; a partly received order can be closed short with a reason (the rest is no longer expected).
   2. **Returns attach to a received purchase order**: return from the order's received quantities (never more than received minus earlier returns), from the order's warehouse, at its unit cost; a reason is required; stock goes out through Inventory; audited.
   3. **New capability** `purchasing.return.create` (sensitive) for supplier returns.
 
-  - [x] **FIX-09a Partial-quantity receiving** (2026-10-08): per-line delivery quantities, statuses PartiallyReceived (5) and Closed (6), close short (capability purchasing.order.cancel), received value kept on the order; migration AddPartialReceiving backfills earlier receipts; Purchase orders screen: Received / Still due / Arrived columns, Close short
+  - [x] **FIX-09a Partial-quantity receiving** (2026-10-08): per-line delivery quantities, statuses PartiallyReceived (5) and Closed (6), close short (capability purchasing.order.cancel), received value kept on the order; migration AddPartialReceiving backfills earlier receipts; Purchase orders screen: Received / Still due / Arrived columns, Close short (the Line total column was later dropped to make room, 09b)
     - [x] Real exe: 12 ordered, 5 then 2 arrive (8 refused: "Only 7 ... are still expected"), closed short -> stock 7, overview 8.40 received / 0.00 open; a two-line order with one line complete and one partly
-  - [ ] **FIX-09b Supplier returns**
+  - [x] **FIX-09b Supplier returns** (2026-10-08): `SupplierReturn` (pur_SupplierReturns / pur_SupplierReturnLines, migration AddSupplierReturns), ReturnedQuantity per order line, ReturnToSupplier through Inventory's IStockIssueService in one transaction (ARCH-RES-004), audited supplier-return.created, capability purchasing.return.create; screen: Returned column, return the selected line with a reason, the order's returns listed
+    - [x] Real exe (database upgraded in place from 09a): 2 of 6 received juice returned (4.00), 5 more refused ("Only 4 ... received 6, already returned 2"), 1 water returned from the closed-short order; stock 30 / 4; audit entry with the reason
+    - Found: an administrator created before a capability existed does not hold it (first-run setup grants the capabilities of that moment); the new permission had to be ticked on Roles and permissions - flagged as a separate task
+    - Carried forward: supplier credit / refund money (no payables in Purchasing); returns are not in the Business overview; a return of several lines at once exists in the command but the screen returns one line at a time
 - [ ] **FIX-10 POS split payments** (Stage 8): offer the split payments the Payments API already supports
 - [ ] **FIX-11 Customer on a sale** (Stage 8): a sale can carry an optional customer
 - [ ] **FIX-12 Sales report limit** (Stage 8): Sales.Contracts exposes a ranged query so the report no longer stops at 2000 sales
@@ -200,4 +203,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-08 | FIX-08 plan, FIX-08a | e6e9ee1 | Decisions recorded; tax rates in Pricing + Tax rates screen; 2512 tests, 0 warnings |
 | 2026-10-08 | FIX-08b | 787737b | Tax at the till and in Sales (prices include tax, one shared line rule); 2526 tests, 0 warnings |
 | 2026-10-08 | FIX-08c | 0f749f8 | Discounts at the till; FIX-08 complete; 2543 tests, 0 warnings; real exe with a printed receipt |
-| 2026-10-08 | FIX-09 plan, FIX-09a | (this commit) | Decisions recorded; part deliveries and closing short; 2555 tests, 0 warnings; real exe |
+| 2026-10-08 | FIX-09 plan, FIX-09a | a1d02f8 | Decisions recorded; part deliveries and closing short; 2555 tests, 0 warnings; real exe |
+| 2026-10-08 | FIX-09b | (this commit) | Supplier returns; FIX-09 complete; 2564 tests, 0 warnings; real exe with an in-place database upgrade |

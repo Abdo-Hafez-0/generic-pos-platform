@@ -16,6 +16,18 @@ public readonly record struct PurchaseOrderLineId(Guid Value)
     public override string ToString() => Value.ToString();
 }
 
+public readonly record struct SupplierReturnId(Guid Value)
+{
+    public static SupplierReturnId New() => new(Guid.NewGuid());
+    public override string ToString() => Value.ToString();
+}
+
+public readonly record struct SupplierReturnLineId(Guid Value)
+{
+    public static SupplierReturnLineId New() => new(Guid.NewGuid());
+    public override string ToString() => Value.ToString();
+}
+
 /// <summary>A strictly positive quantity ordered.</summary>
 public readonly record struct OrderQuantity(decimal Value)
 {

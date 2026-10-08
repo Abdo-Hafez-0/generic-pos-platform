@@ -350,6 +350,82 @@ public sealed class PurchaseOrderDomainTests
     public void UpdateReceivingStatus_RequiresAnOrderAwaitingGoods()
         => Assert.Equal("Purchasing.PurchaseOrder.InvalidState", NewOrder().UpdateReceivingStatus().Error.Code);
 
+    // --- FIX-09b: supplier returns ---
+
+    private static PurchaseOrder ReceivedOrder(decimal qty = 10m, decimal cost = 2.5m, decimal arrived = 10m)
+    {
+        var o = NewOrder();
+        Add(o, qty: qty, cost: cost, name: "Water");
+        o.Submit();
+        o.BeginReceiving(Guid.NewGuid());
+        o.ReceiveLine(o.Lines[0].Id, new OrderQuantity(arrived));
+        o.UpdateReceivingStatus();
+        return o;
+    }
+
+    [Fact]
+    public void A_return_takes_received_goods_back_at_the_order_cost_from_the_order_warehouse()
+    {
+        var o = ReceivedOrder();
+        var r = SupplierReturn.Start(o, "  damaged in transport ").Value;
+
+        Assert.True(o.RecordReturn(r, o.Lines[0].Id, new OrderQuantity(3m)).IsSuccess);
+
+        Assert.StartsWith("RT-", r.Number);
+        Assert.Equal((o.Id, o.Number, o.SupplierId, o.WarehouseId!.Value, "damaged in transport"), (r.PurchaseOrderId, r.PurchaseOrderNumber, r.SupplierId, r.WarehouseId, r.Reason));
+        var line = Assert.Single(r.Lines);
+        Assert.Equal((o.Lines[0].Id, 3m, 2.5m, 7.5m), (line.PurchaseOrderLineId, line.Quantity.Value, line.UnitCost.Amount, line.LineTotal.Amount));
+        Assert.Equal(7.5m, r.TotalAmount.Amount);
+        Assert.Equal((3m, 7m), (o.Lines[0].ReturnedQuantity, o.Lines[0].ReturnableQuantity));
+        Assert.Equal(PurchaseOrderStatus.Received, o.Status);   // a return does not reopen or change the order
+    }
+
+    [Fact]
+    public void Never_more_than_was_received_minus_earlier_returns()
+    {
+        var o = ReceivedOrder(qty: 10m, arrived: 4m);   // part delivery: 4 arrived
+        var first = SupplierReturn.Start(o, "wrong size").Value;
+        Assert.Equal("Purchasing.SupplierReturn.MoreThanReceived", o.RecordReturn(first, o.Lines[0].Id, new OrderQuantity(5m)).Error.Code);
+        Assert.True(o.RecordReturn(first, o.Lines[0].Id, new OrderQuantity(4m)).IsSuccess);
+
+        var second = SupplierReturn.Start(o, "again").Value;
+        var refused = o.RecordReturn(second, o.Lines[0].Id, new OrderQuantity(1m));
+
+        Assert.Equal("Purchasing.SupplierReturn.MoreThanReceived", refused.Error.Code);
+        Assert.Contains("Nothing more of 'Water", refused.Error.Description);
+        Assert.Empty(second.Lines);
+        Assert.Equal(4m, o.Lines[0].ReturnedQuantity);
+    }
+
+    [Fact]
+    public void A_return_needs_received_goods_a_reason_and_its_own_order()
+    {
+        var draft = NewOrder();
+        Add(draft);
+        Assert.Equal("Purchasing.SupplierReturn.NothingReceived", SupplierReturn.Start(draft, "x").Error.Code);
+        Assert.Equal("Purchasing.SupplierReturn.NothingReceived", SupplierReturn.Start(SubmittedWithLines(), "x").Error.Code);
+
+        var o = ReceivedOrder();
+        Assert.Equal("Purchasing.SupplierReturn.ReasonRequired", SupplierReturn.Start(o, " ").Error.Code);
+        Assert.Equal("Purchasing.SupplierReturn.ReasonTooLong", SupplierReturn.Start(o, new string('x', 501)).Error.Code);
+
+        var other = ReceivedOrder();
+        var foreign = SupplierReturn.Start(other, "x").Value;
+        Assert.Equal("Purchasing.SupplierReturn.OtherOrder", o.RecordReturn(foreign, o.Lines[0].Id, new OrderQuantity(1m)).Error.Code);
+        Assert.Equal("Purchasing.PurchaseOrder.LineNotFound", o.RecordReturn(SupplierReturn.Start(o, "x").Value, PurchaseOrderLineId.New(), new OrderQuantity(1m)).Error.Code);
+    }
+
+    [Fact]
+    public void A_closed_short_order_can_still_return_what_arrived()
+    {
+        var o = ReceivedOrder(qty: 10m, arrived: 6m);
+        o.CloseShort("rest discontinued");
+        var r = SupplierReturn.Start(o, "faulty batch").Value;
+
+        Assert.True(o.RecordReturn(r, o.Lines[0].Id, new OrderQuantity(6m)).IsSuccess);
+        Assert.Equal(PurchaseOrderStatus.Closed, o.Status);
+    }
+
     [Fact]
     public void Ids_AreUnique()
     {

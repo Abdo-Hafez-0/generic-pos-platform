@@ -13,7 +13,7 @@ internal static class PurchaseOrderMapping
         o.WarehouseId, o.CreatedAt, o.SubmittedAt, o.ReceivedAt, o.CancelledAt, o.CancellationReason,
         o.Lines.Select(l => new PurchaseOrderLineDto(
             l.Id.Value, l.ProductId, l.ProductSku, l.ProductName, l.Quantity.Value, l.UnitCost.Amount, l.LineTotal.Amount, l.IsReceived,
-            l.ReceivedQuantity, o.IsAwaitingGoods ? l.OutstandingQuantity : 0m)).ToList(),
+            l.ReceivedQuantity, o.IsAwaitingGoods ? l.OutstandingQuantity : 0m, l.ReturnedQuantity, l.ReturnableQuantity)).ToList(),
         o.ReceivedAmount.Amount, o.ClosedAt, o.ClosingReason);
 
     public static PurchaseOrderListItemDto ToListItem(this PurchaseOrder o)
@@ -43,6 +43,19 @@ public sealed class ListPurchaseOrdersQueryHandler(IPurchaseOrderRepository repo
         var total = await repository.CountAsync(query.Status, cancellationToken);
         return new PurchaseOrderPageDto(items.Select(o => o.ToListItem()).ToList(), total, skip, take);
     }
+}
+
+/// <summary>The supplier returns of one order, newest first (FIX-09b).</summary>
+public sealed record ListSupplierReturnsQuery(Guid OrderId);
+
+public sealed class ListSupplierReturnsQueryHandler(ISupplierReturnRepository returns)
+{
+    public async Task<IReadOnlyList<SupplierReturnDto>> HandleAsync(ListSupplierReturnsQuery query, CancellationToken cancellationToken = default)
+        => (await returns.ListByOrderAsync(new PurchaseOrderId(query.OrderId), cancellationToken))
+            .Select(r => new SupplierReturnDto(r.Id.Value, r.Number, r.PurchaseOrderId.Value, r.PurchaseOrderNumber, r.SupplierName, r.WarehouseId,
+                r.Reason, r.TotalAmount.Amount, r.CreatedAt,
+                r.Lines.Select(l => new SupplierReturnLineDto(l.PurchaseOrderLineId.Value, l.ProductSku, l.ProductName, l.Quantity.Value, l.UnitCost.Amount, l.LineTotal.Amount)).ToList()))
+            .ToList();
 }
 
 // ---- for the purchase orders screen (FIX-01d)

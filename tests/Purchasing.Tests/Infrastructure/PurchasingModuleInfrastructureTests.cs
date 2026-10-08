@@ -16,7 +16,7 @@ namespace Purchasing.Tests.Infrastructure;
 public sealed class PurchasingModuleInfrastructureTests
 {
 
-    private static readonly string[] ExpectedTables = ["pur_PurchaseOrders", "pur_PurchaseOrderLines"];
+    private static readonly string[] ExpectedTables = ["pur_PurchaseOrders", "pur_PurchaseOrderLines", "pur_SupplierReturns", "pur_SupplierReturnLines"];
 
     private static async Task<(SqliteConnection Connection, PurchasingDbContext Context)> OpenMigratedAsync()
     {

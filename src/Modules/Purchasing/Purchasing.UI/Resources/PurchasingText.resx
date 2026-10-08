@@ -57,4 +57,13 @@
   <data name="CloseShortHint" xml:space="preserve"><value>Ends the order with what arrived: the rest is no longer expected.</value></data>
   <data name="OrderClosedShort" xml:space="preserve"><value>Order {0} was closed short; the rest is no longer expected.</value></data>
   <data name="ReceiveQuantityInvalid" xml:space="preserve"><value>Enter how much of each line arrived as zero or more.</value></data>
+  <data name="ReturnedColumn" xml:space="preserve"><value>Returned</value></data>
+  <data name="ReturnSelected" xml:space="preserve"><value>Return the selected line:</value></data>
+  <data name="ReturnQuantity" xml:space="preserve"><value>Quantity</value></data>
+  <data name="ReturnReason" xml:space="preserve"><value>Reason</value></data>
+  <data name="ReturnButton" xml:space="preserve"><value>Return to supplier</value></data>
+  <data name="ReturnHint" xml:space="preserve"><value>Select a received line. The goods leave the warehouse the order was received into, at the order's unit cost.</value></data>
+  <data name="ReturnMade" xml:space="preserve"><value>Return {0} was recorded: goods worth {1} went back to the supplier and left stock.</value></data>
+  <data name="ReturnsHeading" xml:space="preserve"><value>Returns to the supplier</value></data>
+  <data name="ReturnLine" xml:space="preserve"><value>{0} ({1}): {2} - {3} - {4}</value></data>
 </root>

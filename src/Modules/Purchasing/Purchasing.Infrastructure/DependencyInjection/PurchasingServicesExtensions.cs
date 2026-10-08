@@ -43,6 +43,7 @@ public static class PurchasingServicesExtensions
     {
         services.AddScoped<Purchasing.Application.Abstractions.IPurchasingUnitOfWork, Purchasing.Infrastructure.Persistence.PurchasingUnitOfWork>();
         services.AddScoped<Purchasing.Application.Repositories.IPurchaseOrderRepository, Purchasing.Infrastructure.Repositories.EfPurchaseOrderRepository>();
+        services.AddScoped<Purchasing.Application.Repositories.ISupplierReturnRepository, Purchasing.Infrastructure.Repositories.EfSupplierReturnRepository>();
         services.AddScoped<Purchasing.Contracts.Interfaces.IPurchaseOrderReader, Purchasing.Infrastructure.Services.PurchaseOrderReader>();
         services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Purchasing.Application.Security.PurchasingCapabilityProvider>();
         services.AddTransient<Purchasing.Application.Commands.CreatePurchaseOrderCommandHandler>();
@@ -53,6 +54,8 @@ public static class PurchasingServicesExtensions
         services.AddTransient<Purchasing.Application.Commands.CancelPurchaseOrderCommandHandler>();
         services.AddTransient<Purchasing.Application.Commands.ReceivePurchaseOrderCommandHandler>();
         services.AddTransient<Purchasing.Application.Commands.ClosePurchaseOrderShortCommandHandler>();
+        services.AddTransient<Purchasing.Application.Commands.ReturnToSupplierCommandHandler>();
+        services.AddTransient<Purchasing.Application.Queries.ListSupplierReturnsQueryHandler>();
         services.AddTransient<Purchasing.Application.Queries.GetPurchaseOrderQueryHandler>();
         services.AddTransient<Purchasing.Application.Queries.ListPurchaseOrdersQueryHandler>();
         services.AddTransient<Purchasing.Application.Queries.FindOrderSuppliersQueryHandler>();

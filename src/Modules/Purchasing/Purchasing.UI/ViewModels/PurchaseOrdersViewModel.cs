@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Input;
+using Platform.Application.Abstractions.Authorization;
 using Platform.Core.Results;
 using Platform.Presentation.Actions;
 using Platform.Presentation.Mvvm;
@@ -38,7 +39,12 @@ public sealed class OrderLineRow(PurchaseOrderLineDto line) : System.ComponentMo
     public decimal LineTotal => Line.LineTotal;
     public decimal ReceivedQuantity => Line.ReceivedQuantity;
     public decimal OutstandingQuantity => Line.OutstandingQuantity;
+    public decimal ReturnedQuantity => Line.ReturnedQuantity;
+    public decimal ReturnableQuantity => Line.ReturnableQuantity;
     public bool IsReceived => Line.IsReceived;
+
+    /// <summary>Something of this line is in stock from the order and can go back to the supplier (FIX-09b).</summary>
+    public bool CanReturn => Line.ReturnableQuantity > 0m;
 
     /// <summary>Only a line with something still expected can take part in a delivery.</summary>
     public bool CanReceive => Line.OutstandingQuantity > 0m;
@@ -62,7 +68,9 @@ public sealed class OrderLineRow(PurchaseOrderLineDto line) : System.ComponentMo
 /// .cancel/.receive) and refuse what the order's state does not allow, in plain words.
 ///
 /// FIX-09: a delivery says how much of each line arrived (starting at what is still expected); a part delivery leaves the order
-/// "Partly received" for the next delivery, and such an order can be closed short with a reason.
+/// "Partly received" for the next delivery, and such an order can be closed short with a reason. FIX-09b: received goods of the selected
+/// line go back to the supplier with a reason (shown only to people holding purchasing.return.create; the handler checks again), and the
+/// order's earlier returns are listed.
 /// </summary>
 public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
 {
@@ -80,6 +88,9 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
     private string _lineCost = string.Empty;
     private string _cancelReason = string.Empty;
     private ReceivingWarehouseDto? _warehouse;
+    private bool _canReturnGoods;
+    private string _returnQuantity = string.Empty;
+    private string _returnReason = string.Empty;
 
     public PurchaseOrdersViewModel(IUiActionRunner runner)
     {
@@ -101,6 +112,8 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
         CancelOrderCommand = Command(() => ChangeAsync(OrderChange.Cancel), () => (IsDraft || IsSubmitted) && !string.IsNullOrWhiteSpace(CancelReason));
         ReceiveCommand = Command(() => ChangeAsync(OrderChange.Receive), () => IsAwaitingGoods);
         CloseShortCommand = Command(() => ChangeAsync(OrderChange.CloseShort), () => IsPartiallyReceived && !string.IsNullOrWhiteSpace(CancelReason));
+        ReturnCommand = Command(ReturnAsync, () => CanReturnGoods && SelectedLine is { CanReturn: true }
+            && !string.IsNullOrWhiteSpace(ReturnQuantity) && !string.IsNullOrWhiteSpace(ReturnReason));
     }
 
     private enum OrderChange { Submit, Cancel, Receive, CloseShort }
@@ -111,6 +124,9 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
     public ObservableCollection<ReceivingWarehouseDto> Warehouses { get; } = [];
     public ObservableCollection<OrderLineRow> Lines { get; } = [];
 
+    /// <summary>The supplier returns of the selected order, newest first (FIX-09b).</summary>
+    public ObservableCollection<ReturnRow> Returns { get; } = [];
+
     public ICommand ShowCommand { get; }
     public ICommand FindSupplierCommand { get; }
     public ICommand CreateCommand { get; }
@@ -120,6 +136,7 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
     public ICommand CancelOrderCommand { get; }
     public ICommand ReceiveCommand { get; }
     public ICommand CloseShortCommand { get; }
+    public ICommand ReturnCommand { get; }
 
     public StatusChoice Filter { get => _filter; set => Set(ref _filter, value); }
 
@@ -144,7 +161,7 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
             Lines.Clear();
             if (value is not null) foreach (var line in value.Lines) Lines.Add(new OrderLineRow(line));
             foreach (var name in new[] { nameof(HasOrder), nameof(HasNoOrder), nameof(IsDraft), nameof(IsSubmitted), nameof(IsPartiallyReceived),
-                         nameof(IsAwaitingGoods), nameof(CanEnd), nameof(OrderHeading) }) Raise(name);
+                         nameof(IsAwaitingGoods), nameof(CanEnd), nameof(OrderHeading), nameof(ShowsReturnControls) }) Raise(name);
         }
     }
 
@@ -173,8 +190,22 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
     public string CancelReason { get => _cancelReason; set => Set(ref _cancelReason, value); }
     public ReceivingWarehouseDto? Warehouse { get => _warehouse; set => Set(ref _warehouse, value); }
 
+    /// <summary>True when the signed-in user may return goods to suppliers (purchasing.return.create).</summary>
+    public bool CanReturnGoods { get => _canReturnGoods; private set { if (Set(ref _canReturnGoods, value)) Raise(nameof(ShowsReturnControls)); } }
+
+    /// <summary>The return controls show for a permitted user on an order with something left to return.</summary>
+    public bool ShowsReturnControls => CanReturnGoods && Lines.Any(l => l.CanReturn);
+
+    public bool HasReturns => Returns.Count > 0;
+    public string ReturnQuantity { get => _returnQuantity; set => Set(ref _returnQuantity, value); }
+    public string ReturnReason { get => _returnReason; set => Set(ref _returnReason, value); }
+
     public Task OnNavigatedToAsync(CancellationToken cancellationToken = default) => BusyAsync(async () =>
     {
+        var mayReturn = await _runner.QueryAsync(async (scope, ct) =>
+            scope.Find<IAuthorizationService>() is { } authorization && await authorization.IsAllowedAsync(Purchasing.Application.Security.PurchasingCapabilities.ReturnGoods, ct), cancellationToken);
+        CanReturnGoods = mayReturn.IsSuccess && mayReturn.Value;
+
         var warehouses = await _runner.QueryAsync((scope, ct) => scope.Get<ListReceivingWarehousesQueryHandler>().HandleAsync(new ListReceivingWarehousesQuery(), ct), cancellationToken);
         if (Accept(warehouses))
         {
@@ -205,7 +236,41 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
     private async Task LoadOrderAsync(Guid orderId)
     {
         var order = await _runner.QueryAsync((scope, ct) => scope.Get<GetPurchaseOrderQueryHandler>().HandleAsync(new GetPurchaseOrderQuery(orderId), ct));
-        if (Accept(order)) Order = order.Value;
+        if (!Accept(order)) return;
+        Order = order.Value;
+        await LoadReturnsAsync(orderId);
+    }
+
+    private async Task LoadReturnsAsync(Guid orderId)
+    {
+        var found = await _runner.QueryAsync((scope, ct) => scope.Get<ListSupplierReturnsQueryHandler>().HandleAsync(new ListSupplierReturnsQuery(orderId), ct));
+        Returns.Clear();
+        if (Accept(found))
+            foreach (var r in found.Value) Returns.Add(ReturnRow.From(r));
+        Raise(nameof(HasReturns));
+    }
+
+    private async Task ReturnAsync()
+    {
+        if (Order is not { } order || SelectedLine is not { } line) return;
+        if (!decimal.TryParse(ReturnQuantity, NumberStyles.Number, CultureInfo.CurrentCulture, out var quantity) || quantity <= 0) { Fail(PurchasingText.QuantityInvalid); return; }
+
+        var reason = ReturnReason.Trim();
+        Guid returnId = Guid.Empty;
+        if (!await ChangeOrderAsync(order.OrderId, async (scope, ct) =>
+            {
+                var done = await scope.Get<ReturnToSupplierCommandHandler>().HandleAsync(
+                    new ReturnToSupplierCommand(order.OrderId, reason, [new ReturnLineQuantity(line.LineId, quantity)]), ct);
+                if (done.IsFailure) return Result.Failure(done.Error);
+                returnId = done.Value;
+                return Result.Success();
+            }))
+            return;
+
+        (ReturnQuantity, ReturnReason) = (string.Empty, string.Empty);
+        StatusMessage = Returns.FirstOrDefault(r => r.Return.ReturnId == returnId) is { } made
+            ? string.Format(CultureInfo.CurrentCulture, PurchasingText.ReturnMade, made.Return.Number, made.Return.TotalAmount.ToString("N2", CultureInfo.CurrentCulture))
+            : null;
     }
 
     private async Task FindSuppliersAsync()
@@ -318,6 +383,7 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
         if (!Accept(changed)) return false;
 
         Order = changed.Value;
+        await LoadReturnsAsync(orderId);
         return true;
     }
 
@@ -346,4 +412,13 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
         ErrorMessage = message;
         StatusMessage = null;
     }
+}
+
+/// <summary>One supplier return of the selected order as the screen lists it (FIX-09b).</summary>
+public sealed record ReturnRow(SupplierReturnDto Return, string Text)
+{
+    public static ReturnRow From(SupplierReturnDto r) => new(r, string.Format(CultureInfo.CurrentCulture, PurchasingText.ReturnLine,
+        r.Number, DateTime.SpecifyKind(r.CreatedAt, DateTimeKind.Utc).ToLocalTime().ToString("g", CultureInfo.CurrentCulture),
+        string.Join(", ", r.Lines.Select(l => $"{l.Quantity.ToString("0.###", CultureInfo.CurrentCulture)} x {l.ProductName}")),
+        r.TotalAmount.ToString("N2", CultureInfo.CurrentCulture), r.Reason));
 }

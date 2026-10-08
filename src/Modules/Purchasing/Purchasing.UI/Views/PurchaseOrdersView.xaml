@@ -133,6 +133,27 @@
             <TextBlock DockPanel.Dock="Top" x:Name="OrderHeadingText" Style="{StaticResource Heading}" Text="{Binding OrderHeading}"/>
 
             <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                <StackPanel Visibility="{Binding HasReturns, Converter={StaticResource VisibleWhenTrue}}" Margin="0,0,0,8">
+                    <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PurchasingText.ReturnsHeading}" Margin="0,0,0,2"/>
+                    <ItemsControl x:Name="ReturnList" ItemsSource="{Binding Returns}" AutomationProperties.Name="{x:Static res:PurchasingText.ReturnsHeading}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Text}" TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+                <StackPanel Visibility="{Binding ShowsReturnControls, Converter={StaticResource VisibleWhenTrue}}" Margin="0,0,0,8">
+                    <TextBlock Style="{StaticResource Label}" TextWrapping="Wrap" Margin="0,0,0,4" Text="{x:Static res:PurchasingText.ReturnHint}"/>
+                    <WrapPanel>
+                        <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PurchasingText.ReturnSelected}"/>
+                        <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PurchasingText.ReturnQuantity}"/>
+                        <TextBox x:Name="ReturnQuantityBox" Width="70" Text="{Binding ReturnQuantity, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PurchasingText.ReturnQuantity}"/>
+                        <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PurchasingText.ReturnReason}"/>
+                        <TextBox x:Name="ReturnReasonBox" Width="200" Text="{Binding ReturnReason, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PurchasingText.ReturnReason}"/>
+                        <Button x:Name="ReturnButton" Content="{x:Static res:PurchasingText.ReturnButton}" Command="{Binding ReturnCommand}"/>
+                    </WrapPanel>
+                </StackPanel>
                 <WrapPanel Visibility="{Binding IsDraft, Converter={StaticResource VisibleWhenTrue}}" Margin="0,0,0,8">
                     <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PurchasingText.ProductCode}"/>
                     <TextBox x:Name="LineCodeBox" Width="120" Text="{Binding LineCode, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PurchasingText.ProductCode}"/>
@@ -168,9 +189,9 @@
                     <DataGridTextColumn Header="{x:Static res:PurchasingText.Product}" Binding="{Binding ProductName}" Width="*" MinWidth="110" ElementStyle="{StaticResource Cell}"/>
                     <DataGridTextColumn Header="{x:Static res:PurchasingText.Quantity}" Binding="{Binding Quantity, StringFormat=0.###}" Width="72" ElementStyle="{StaticResource Number}"/>
                     <DataGridTextColumn Header="{x:Static res:PurchasingText.UnitCost}" Binding="{Binding UnitCost, StringFormat=N2}" Width="75" ElementStyle="{StaticResource Number}"/>
-                    <DataGridTextColumn Header="{x:Static res:PurchasingText.LineTotal}" Binding="{Binding LineTotal, StringFormat=N2}" Width="85" ElementStyle="{StaticResource Number}"/>
                     <DataGridTextColumn Header="{x:Static res:PurchasingText.ReceivedColumn}" Binding="{Binding ReceivedQuantity, StringFormat=0.###}" Width="75" ElementStyle="{StaticResource Number}"/>
                     <DataGridTextColumn Header="{x:Static res:PurchasingText.Outstanding}" Binding="{Binding OutstandingQuantity, StringFormat=0.###}" Width="70" ElementStyle="{StaticResource Number}"/>
+                    <DataGridTextColumn Header="{x:Static res:PurchasingText.ReturnedColumn}" Binding="{Binding ReturnedQuantity, StringFormat=0.###}" Width="75" ElementStyle="{StaticResource Number}"/>
                     <DataGridTemplateColumn Header="{x:Static res:PurchasingText.ReceiveNow}" Width="80">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>

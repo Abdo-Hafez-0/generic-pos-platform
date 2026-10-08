@@ -120,6 +120,7 @@ public sealed class ResilienceBoundaryTests
 
         Assert.Contains(typeof(POS.Application.Commands.CheckoutCartCommandHandler), orchestrators);
         Assert.Contains(typeof(Purchasing.Application.Commands.ReceivePurchaseOrderCommandHandler), orchestrators);
+        Assert.Contains(typeof(Purchasing.Application.Commands.ReturnToSupplierCommandHandler), orchestrators);   // FIX-09b
         foreach (var type in orchestrators)
             Assert.True(type.GetConstructors().Any(c => c.GetParameters().Any(p => p.ParameterType == typeof(IAtomicOperation))),
                 $"{type.FullName} writes through other modules' contracts but does not run as one transaction (IAtomicOperation).");

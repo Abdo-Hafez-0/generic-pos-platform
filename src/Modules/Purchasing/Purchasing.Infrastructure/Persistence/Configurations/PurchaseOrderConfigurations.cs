@@ -85,6 +85,7 @@ internal sealed class PurchaseOrderLineConfiguration : IEntityTypeConfiguration<
             .IsRequired();
 
         builder.Property(l => l.ReceivedQuantity).HasColumnType("TEXT").IsRequired();
+        builder.Property(l => l.ReturnedQuantity).HasColumnType("TEXT").IsRequired();
         builder.Property(l => l.ReceivedAt);
 
         builder.HasIndex(l => l.PurchaseOrderId);
@@ -95,5 +96,6 @@ internal sealed class PurchaseOrderLineConfiguration : IEntityTypeConfiguration<
         builder.Ignore(l => l.HasReceipts);
         builder.Ignore(l => l.OutstandingQuantity);
         builder.Ignore(l => l.ReceivedTotal);
+        builder.Ignore(l => l.ReturnableQuantity);
     }
 }

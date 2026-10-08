@@ -307,7 +307,7 @@ public sealed class SalesInfrastructureTests
     public async Task SalesReader_FindById_MapsSummary()
     {
         await using var db = await SalesTestDatabase.CreateAsync();
-        var sale = NewSaleWithItem("REF-R"); // 2*10 - 1 = 19, tax 3.8 => 22.8
+        var sale = NewSaleWithItem("REF-R"); // 2*10 - 1 = 19 paid, tax included (FIX-08b)
         using (var scope = db.CreateScope())
         {
             await scope.ServiceProvider.GetRequiredService<ISaleRepository>().AddAsync(sale);
@@ -321,7 +321,7 @@ public sealed class SalesInfrastructureTests
         Assert.Equal(SaleStatusContract.Draft, summary!.Status);
         Assert.Equal("REF-R", summary.Reference);
         Assert.Equal(1, summary.ItemCount);
-        Assert.Equal(22.8m, summary.GrandTotal);
+        Assert.Equal(19m, summary.GrandTotal);
         Assert.Null(summary.CompletedAt);
     }
 

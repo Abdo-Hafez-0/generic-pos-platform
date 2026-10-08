@@ -63,7 +63,13 @@ public static class PosReceiptFactory
             lines,
             cart.Total.Amount,
             payment,
-            options.FooterLines ?? []);
+            options.FooterLines ?? [],
+            // FIX-08b: the tax contained in the total, one line per rate (rates without tax are not printed)
+            cart.Items.Where(i => i.TaxAmount.Amount > 0m)
+                .GroupBy(i => i.TaxRate)
+                .OrderByDescending(g => g.Key)
+                .Select(g => new ReceiptTax(g.Key, g.Sum(i => i.TaxAmount.Amount)))
+                .ToList());
     }
 
     public static ReceiptPayment ToReceiptPayment(POSPaymentRequest payment, decimal total, decimal changeDue)

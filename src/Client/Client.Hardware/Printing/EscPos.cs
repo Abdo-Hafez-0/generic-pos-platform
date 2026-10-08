@@ -56,6 +56,10 @@ public static class EscPosReceiptFormatter
         Line(Pair("TOTAL", Money(receipt.Total), width));
         Bold(false);
 
+        // FIX-08b: prices include tax - the tax contained in the total, per rate
+        foreach (var tax in receipt.Taxes ?? [])
+            Line(Pair($"incl. tax {Quantity(tax.Rate * 100m)}%", Money(tax.Amount), width));
+
         if (receipt.Payment is { } payment)
         {
             Line(Pair(payment.Method, Money(payment.Amount), width));

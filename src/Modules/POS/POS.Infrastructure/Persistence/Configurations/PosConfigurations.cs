@@ -105,9 +105,14 @@ internal sealed class PosCartItemConfiguration : IEntityTypeConfiguration<PosCar
             .HasColumnType("TEXT")
             .IsRequired();
 
+        // FIX-08b: the tax rate snapshot (prices include tax)
+        builder.Property(i => i.TaxRate).HasColumnType("TEXT").IsRequired().HasDefaultValue(0m);
+
         builder.HasIndex(i => i.CartId);
         builder.HasIndex(i => i.CatalogProductId);
 
+        builder.Ignore(i => i.Amounts);
+        builder.Ignore(i => i.TaxAmount);
         builder.Ignore(i => i.LineTotal);
     }
 }

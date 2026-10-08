@@ -32,7 +32,9 @@ public sealed record POSCartItemResult(
     string ProductName,
     decimal Quantity,
     decimal UnitPrice,
-    decimal LineTotal);
+    decimal LineTotal,
+    decimal TaxRate = 0m,
+    decimal TaxAmount = 0m);
 
 /// <summary>Read model of a cart with totals.</summary>
 public sealed record POSCartResult(
@@ -44,4 +46,5 @@ public sealed record POSCartResult(
     decimal Total,
     Guid? SaleId,
     DateTime CreatedAt,
-    DateTime? CheckedOutAt);
+    DateTime? CheckedOutAt,
+    decimal TaxTotal = 0m);

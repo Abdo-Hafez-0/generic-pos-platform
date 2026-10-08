@@ -37,6 +37,7 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     private string _quantityText = "1";
     private decimal _subtotal;
     private decimal _total;
+    private decimal _taxTotal;
     private string? _hardwareMessage;
     private bool _hasNoWarehouses;
 
@@ -101,6 +102,13 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     {
         get => _total;
         private set => Set(ref _total, value);
+    }
+
+    /// <summary>The tax contained in <see cref="Total"/> (prices include tax - FIX-08b).</summary>
+    public decimal TaxTotal
+    {
+        get => _taxTotal;
+        private set => Set(ref _taxTotal, value);
     }
 
     /// <summary>A peripheral problem after a completed sale (for example the receipt could not be printed). Not an error: the sale is valid.</summary>
@@ -437,6 +445,7 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
 
         Subtotal = cart?.Subtotal ?? 0m;
         Total = cart?.Total ?? 0m;
+        TaxTotal = cart?.TaxTotal ?? 0m;
         Raise(nameof(CanCheckout));
         BindScanner();
     }

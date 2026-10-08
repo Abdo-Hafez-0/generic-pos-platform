@@ -78,7 +78,8 @@ public sealed class AddProductToCartCommandHandler(
     IStockAvailabilityChecker stockAvailabilityChecker,
     IPosUnitOfWork unitOfWork,
     IAuthorizationService authorization,
-    IPriceResolver? priceResolver = null)
+    IPriceResolver? priceResolver = null,
+    ITaxRateResolver? taxRateResolver = null)
 {
     public async Task<Result<Guid>> HandleAsync(
         AddProductToCartCommand command,
@@ -143,8 +144,17 @@ public sealed class AddProductToCartCommandHandler(
         if (priceResult.IsFailure)
             return Result.Failure<Guid>(priceResult.Error);
 
+        // FIX-08b: the tax rate of the product (Pricing: its own rate, else the default; no Pricing or no rate = no tax), snapshotted on
+        // the line like the price. Prices include tax, so the rate never changes what the customer pays - only how much of it is tax.
+        var taxRate = 0m;
+        if (taxRateResolver is not null)
+        {
+            var tax = await taxRateResolver.ResolveAsync(product.ProductId, cancellationToken);
+            if (tax.Found) taxRate = tax.Rate;
+        }
+
         var addResult = cart.AddItem(
-            product.ProductId, product.Sku, product.Name, quantityResult.Value, priceResult.Value);
+            product.ProductId, product.Sku, product.Name, quantityResult.Value, priceResult.Value, taxRate);
         if (addResult.IsFailure)
             return Result.Failure<Guid>(addResult.Error);
 

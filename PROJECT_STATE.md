@@ -499,13 +499,13 @@ Scope source: the Stage 13 task text (the roadmap file is not in the repository)
 
 ## Current Task
 
-**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). FIX-03 COMPLETE (healthy-start confirmation of updates that really run). FIX-04 COMPLETE (POS cash sales go into the open cash drawer shift). FIX-05 COMPLETE (business actions in the audit log). FIX-06 COMPLETE (plain failure messages at every module boundary and screen). FIX-07 COMPLETE (one DI scope per user action, enforced and tested). FIX-08 IN PROGRESS: 08a (tax rates in Pricing) done; next 08b (tax at the till and in Sales), then 08c (discounts). Stage 14 has not been started.**
+**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). FIX-03 COMPLETE (healthy-start confirmation of updates that really run). FIX-04 COMPLETE (POS cash sales go into the open cash drawer shift). FIX-05 COMPLETE (business actions in the audit log). FIX-06 COMPLETE (plain failure messages at every module boundary and screen). FIX-07 COMPLETE (one DI scope per user action, enforced and tested). FIX-08 IN PROGRESS: 08a (tax rates in Pricing) and 08b (tax at the till and in Sales) done; next 08c (discounts). Stage 14 has not been started.**
 
 ---
 
 ## Next Task
 
-**FIX-08b - tax at the till and in Sales (see PRE_DEPLOYMENT_CHECKLIST.md, FIX-08 decisions: prices include tax, rates from Pricing, per-line rounding to 2 decimals). Work proceeds one checklist item at a time.**
+**FIX-08c - discounts at the till (see PRE_DEPLOYMENT_CHECKLIST.md, FIX-08 decisions: line and cart, percentage or amount, permission + maximum, spread over lines, audited). Work proceeds one checklist item at a time.**
 A fresh installation can now be set up and sell through the desktop alone: activate (License), categories/units, products, warehouse, receive stock, sell at the till, sales history (verified end to end in the real executable against a real local LicenseServer.Api).
 
 Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
@@ -2344,12 +2344,23 @@ FIX-08 decisions (user, 2026-10-08): prices INCLUDE tax; tax rates live in Prici
 
 ---
 
+## FIX-08b Summary - Tax at the till and in Sales (2026-10-08)
+
+- **One rule** (`Platform.Core.Amounts.TaxInclusiveLine`, pure): Gross = unit price x quantity; Total = Gross - discount (what the customer pays, tax included); Tax = Total x rate / (1 + rate); Net = Total - Tax; every amount rounded per line to 2 decimals, half away from zero; a discount is capped at Gross. POS and Sales both compute their lines with it, so the cart, the payment, the drawer and the sale cannot differ by a cent.
+- **Sales**: `SaleItem` now treats UnitPrice and Discount as tax-included amounts: LineTotal = the rule's Total, TaxAmount = the tax contained, SubTotal = Net (before tax). Sale.GrandTotal / TaxTotal / SubTotal are the sums of the rounded lines. Existing sales all have rate 0, so nothing recorded before changes. Four Sales tests were rewritten from the old "tax added on top" math to the decided one.
+- **POS**: a cart line snapshots its tax rate when added (optional `ITaxRateResolver` from Pricing: the product's own rate, else the default; no Pricing or no rate = 0); adding more of the same product keeps the first snapshot; a rate outside 0..100% is refused. Cart: Subtotal (before discounts), TaxTotal (contained), Total (payable). Column pos_CartItems.TaxRate (migration AddCartItemTaxRate, default 0 for open carts). Checkout hands each line's snapshot rate to Sales. Contracts: POSCartItemResult +TaxRate/TaxAmount, POSCartResult +TaxTotal (optional, at the end).
+- **Receipt**: `ReceiptDocument.Taxes` (per rate, the sum of the rounded line taxes; zero-rate lines print nothing); the ESC/POS formatter prints "incl. tax 14%  0.61" under TOTAL. **POS screen**: "incl. tax" amount next to the total.
+- **Tests (+14)**: POS +11 (the line rule incl. rounding and the discount cap; out-of-range rate refused; no Pricing = no tax; per-line snapshots, shelf price total and contained tax; a rate change after adding and a merge keep the first snapshot; checkout hands the rate to Sales; the receipt's taxes per rate); Hardware +1 (tax lines printed after TOTAL, none without tax); Integration +2 on the real host (STD 14% + ZERO bread: cart 9.90 with 0.92 tax, payment 9.90, drawer 59.90, sale 9.90/0.92/8.98 with the 14% snapshot kept after the rate becomes 20%, the next cart gets 20%; no rates = no tax).
+- **Not done here**: the Sales history screen and the Business overview do not show tax yet (the data is there); discounts are 08c.
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 13, FIX-01 (a..e) and FIX-02..FIX-07 are complete; FIX-08 is in progress (08a done).
+None blocking. Stage 13, FIX-01 (a..e) and FIX-02..FIX-07 are complete; FIX-08 is in progress (08a, 08b done).
 Observed once (2026-10-07, FIX-01b final run): the Cloud.Tests test host crashed with "Internal CLR error (0x80131506)" while all 23 test projects ran in parallel; Cloud.Tests then passed 207/207 three times in a row on its own. Not reproduced; watch for it in later full runs.
 Build: 0 errors, 0 warnings (122 projects, verified with `dotnet build --no-incremental`).
-All 2512 tests pass (FIX-08a: Pricing 56, UI 147; FIX-07: UI 145; FIX-06: Integration 137, UI 139; FIX-05: Audit 43, Integration 133; FIX-04: Integration 130, UI 133; FIX-03: Updater 218, Integration 123; FIX-02: UI 131, Hardware 98; FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
+All 2526 tests pass (FIX-08b: POS 164, Sales 105, Hardware 99, Integration 139; FIX-08a: Pricing 56, UI 147; FIX-07: UI 145; FIX-06: Integration 137, UI 139; FIX-05: Audit 43, Integration 133; FIX-04: Integration 130, UI 133; FIX-03: Updater 218, Integration 123; FIX-02: UI 131, Hardware 98; FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
 Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 12 had 2254; Stage 13 added 43 (Architecture +22 new and -6 placeholders removed, Platform.ModuleContract +9, Integration +18).
 Stage 13 limitations: see "Stage 13 Summary - Remaining limitations".
 Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
@@ -2419,4 +2430,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-08 - FIX-08a complete (tax rates in Pricing and the Tax rates screen); FIX-08 decisions recorded. 2512 tests, 0 warnings, 122 projects; Stage 14 not started.
+Last updated: 2026-10-08 - FIX-08b complete (tax at the till and in Sales: prices include tax, one shared line rule, receipt tax lines). 2526 tests, 0 warnings, 122 projects; Stage 14 not started.

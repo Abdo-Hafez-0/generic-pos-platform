@@ -33,10 +33,14 @@ public sealed class PosCart
 
     public IReadOnlyList<PosCartItem> Items => _items.AsReadOnly();
 
-    public Money Subtotal => _items.Aggregate(Money.Zero, (acc, i) => acc + i.LineTotal);
+    /// <summary>The lines before discounts (unit price x quantity, tax included).</summary>
+    public Money Subtotal => _items.Aggregate(Money.Zero, (acc, i) => acc + new Money(i.Amounts.Gross));
 
-    /// <summary>Total payable. Equal to Subtotal until pricing/tax modules exist.</summary>
-    public Money Total => Subtotal;
+    /// <summary>The tax contained in <see cref="Total"/> (prices include tax - FIX-08b): the sum of the rounded line taxes.</summary>
+    public Money TaxTotal => _items.Aggregate(Money.Zero, (acc, i) => acc + i.TaxAmount);
+
+    /// <summary>Total payable, tax included: the sum of the rounded line totals.</summary>
+    public Money Total => _items.Aggregate(Money.Zero, (acc, i) => acc + i.LineTotal);
 
     public decimal TotalQuantity => _items.Sum(i => i.Quantity.Value);
 
@@ -65,7 +69,8 @@ public sealed class PosCart
         string productSku,
         string productName,
         CartQuantity quantity,
-        Money unitPrice)
+        Money unitPrice,
+        decimal taxRate = 0m)
     {
         var open = EnsureOpen<PosCartItem>();
         if (open.IsFailure) return open;
@@ -78,7 +83,8 @@ public sealed class PosCart
             return Result.Success(existing);
         }
 
-        var itemResult = PosCartItem.Create(Id, catalogProductId, productSku, productName, quantity, unitPrice);
+        // a merge keeps the first line's price and tax snapshots
+        var itemResult = PosCartItem.Create(Id, catalogProductId, productSku, productName, quantity, unitPrice, taxRate);
         if (itemResult.IsFailure) return itemResult;
 
         _items.Add(itemResult.Value);

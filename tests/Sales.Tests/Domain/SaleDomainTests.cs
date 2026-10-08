@@ -121,22 +121,23 @@ public sealed class SaleDomainTests
         var sale = NewSale();
         AddItem(sale, quantity: 3m, unitPrice: 20m, discount: 10m, taxRate: 0.1m);
 
+        // FIX-08b: prices include tax; the tax is the part of the line total that is tax, rounded per line
         var item = sale.Items[0];
-        Assert.Equal(50m, item.SubTotal.Amount);   // 3*20 - 10
-        Assert.Equal(5m, item.TaxAmount.Amount);   // 50 * 0.1
-        Assert.Equal(55m, item.LineTotal.Amount);
+        Assert.Equal(50m, item.LineTotal.Amount);    // 3*20 - 10, what the customer pays
+        Assert.Equal(4.55m, item.TaxAmount.Amount);  // 50 * 0.1 / 1.1 = 4.5454...
+        Assert.Equal(45.45m, item.SubTotal.Amount);  // before tax
     }
 
     [Fact]
     public void Sale_Totals_AggregateAllItems()
     {
         var sale = NewSale();
-        AddItem(sale, quantity: 2m, unitPrice: 10m, taxRate: 0.1m);  // sub 20, tax 2, line 22
-        AddItem(sale, quantity: 1m, unitPrice: 30m, discount: 10m, taxRate: 0.5m); // sub 20, tax 10, line 30
+        AddItem(sale, quantity: 2m, unitPrice: 10m, taxRate: 0.1m);  // line 20, tax 20*0.1/1.1 = 1.82, net 18.18
+        AddItem(sale, quantity: 1m, unitPrice: 30m, discount: 10m, taxRate: 0.5m); // line 20, tax 20*0.5/1.5 = 6.67, net 13.33
 
-        Assert.Equal(40m, sale.SubTotal.Amount);
-        Assert.Equal(12m, sale.TaxTotal.Amount);
-        Assert.Equal(52m, sale.GrandTotal.Amount);
+        Assert.Equal(40m, sale.GrandTotal.Amount);   // the sums of the rounded lines
+        Assert.Equal(8.49m, sale.TaxTotal.Amount);
+        Assert.Equal(31.51m, sale.SubTotal.Amount);
     }
 
     [Fact]

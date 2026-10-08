@@ -32,6 +32,9 @@ public interface IBarcodeScanner : IHardwareDevice
 /// <summary>One receipt line. Amounts are already calculated: printing never computes business values.</summary>
 public sealed record ReceiptLine(string Description, decimal Quantity, decimal UnitPrice, decimal LineTotal);
 
+/// <summary>The tax contained in the receipt total for one rate (prices include tax - FIX-08b), e.g. Rate 0.14, Amount 0.61.</summary>
+public sealed record ReceiptTax(decimal Rate, decimal Amount);
+
 /// <summary>How the sale was paid, when known.</summary>
 public sealed record ReceiptPayment(string Method, decimal Amount, decimal? Tendered = null, decimal? Change = null);
 
@@ -45,7 +48,8 @@ public sealed record ReceiptDocument(
     IReadOnlyList<ReceiptLine> Lines,
     decimal Total,
     ReceiptPayment? Payment,
-    IReadOnlyList<string> FooterLines);
+    IReadOnlyList<string> FooterLines,
+    IReadOnlyList<ReceiptTax>? Taxes = null);
 
 public interface IReceiptPrinter : IHardwareDevice
 {

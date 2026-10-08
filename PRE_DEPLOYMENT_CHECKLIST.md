@@ -95,7 +95,7 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   Out of scope (optional Discounts & Promotions module, later): automatic promotions, coupons, buy X get Y, promotional periods, customer discounts.
 
   - [x] **FIX-08a Tax rates in Pricing** (2026-10-08): `TaxRate` / `ProductTaxRate` (pri_TaxRates, pri_ProductTaxRates, migration AddTaxRates), capability `pricing.tax.manage`, contract `ITaxRateResolver` (own rate -> default -> none), Tax rates screen (rates, default, change, deactivate; product rate), audited
-  - [ ] **FIX-08b Tax at the till and in Sales**: cart lines snapshot the rate; Sales extracts tax from the gross price; cart/receipt/sale show subtotal, tax and total
+  - [x] **FIX-08b Tax at the till and in Sales** (2026-10-08): cart lines snapshot the rate; Sales extracts tax from the gross price; cart/receipt/sale show subtotal, tax and total - one shared rule `Platform.Core.Amounts.TaxInclusiveLine` (rounded per line); pos_CartItems.TaxRate (migration AddCartItemTaxRate); receipt "incl. tax 14%" lines
   - [ ] **FIX-08c Discounts at the till**: line and cart discounts (percentage/amount), permission + maximum, spread over lines, audited
 - [ ] **FIX-09 Purchasing gaps** (Stage 8)
   - [ ] Partial-quantity receiving
@@ -188,4 +188,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-08 | FIX-05 | b0a5634 | Business actions in the audit log (Platform event sink, background write, retry buffer); 2482 tests, 0 warnings; real exe |
 | 2026-10-08 | FIX-06 | 3f36a0c | Plain failure messages at module boundaries; per-module screen proof; 2492 tests, 0 warnings; real exe |
 | 2026-10-08 | FIX-07 | 9429ae3 | One DI scope per action enforced and tested; 2498 tests, 0 warnings; real exe |
-| 2026-10-08 | FIX-08 plan, FIX-08a | (this commit) | Decisions recorded; tax rates in Pricing + Tax rates screen; 2512 tests, 0 warnings |
+| 2026-10-08 | FIX-08 plan, FIX-08a | e6e9ee1 | Decisions recorded; tax rates in Pricing + Tax rates screen; 2512 tests, 0 warnings |
+| 2026-10-08 | FIX-08b | (this commit) | Tax at the till and in Sales (prices include tax, one shared line rule); 2526 tests, 0 warnings |

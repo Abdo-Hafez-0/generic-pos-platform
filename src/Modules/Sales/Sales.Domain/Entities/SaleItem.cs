@@ -1,3 +1,4 @@
+using Platform.Core.Amounts;
 using Platform.Core.Results;
 using Sales.Domain.ValueObjects;
 
@@ -14,6 +15,9 @@ namespace Sales.Domain.Entities;
 ///   - Discount is the discount applied at time of sale.
 ///   - TaxRate is the tax rate applied at time of sale.
 ///   - ProductName is captured for display in historical reports.
+///
+/// PRICES INCLUDE TAX (FIX-08, user decision): UnitPrice and Discount are tax-included amounts; the tax is the part of the line total
+/// that is tax (see <see cref="TaxInclusiveLine"/>, the one rule the till uses too). Amounts are rounded per line to 2 decimals.
 ///
 /// SaleItems are owned by a Sale aggregate. They cannot exist independently.
 ///
@@ -68,14 +72,17 @@ public sealed class SaleItem
     /// </summary>
     public decimal TaxRate { get; private set; }
 
-    /// <summary>Computed: (UnitPrice * Quantity) - Discount, before tax.</summary>
-    public Money SubTotal => UnitPrice * Quantity.Value - Discount;
+    /// <summary>The line's amounts under the platform rule (prices include tax, rounded per line).</summary>
+    public TaxInclusiveLine Amounts => TaxInclusiveLine.Compute(UnitPrice.Amount, Quantity.Value, Discount.Amount, TaxRate);
 
-    /// <summary>Computed: SubTotal * TaxRate.</summary>
-    public Money TaxAmount => SubTotal * TaxRate;
+    /// <summary>Computed: the line total before tax (LineTotal - TaxAmount).</summary>
+    public Money SubTotal => new(Amounts.Net);
 
-    /// <summary>Computed: SubTotal + TaxAmount (line total including tax).</summary>
-    public Money LineTotal => SubTotal + TaxAmount;
+    /// <summary>Computed: the tax contained in the line total.</summary>
+    public Money TaxAmount => new(Amounts.Tax);
+
+    /// <summary>Computed: (UnitPrice x Quantity) - Discount, tax included - what the customer pays for the line.</summary>
+    public Money LineTotal => new(Amounts.Total);
 
     // -----------------------------------------------------------------------
     // Factory
@@ -121,7 +128,7 @@ public sealed class SaleItem
                 "Tax rate must be between 0 and 1 (0% to 100%)."));
 
         // Discount cannot exceed gross line total
-        var grossLineTotal = unitPrice * quantity.Value;
+        var grossLineTotal = new Money(TaxInclusiveLine.Round(unitPrice.Amount * quantity.Value));
         if (discount > grossLineTotal)
             return Result.Failure<SaleItem>(Error.Validation(
                 "Sales.SaleItem.DiscountExceedsLineTotal",

@@ -123,6 +123,9 @@
                         Command="{Binding RemoveCommand}" CommandParameter="{Binding SelectedItem, ElementName=CartGrid}"/>
                 <Button x:Name="CheckoutButton" DockPanel.Dock="Right" Content="{x:Static res:PosText.Checkout}" MinWidth="120" Margin="16,0,0,0"
                         Command="{Binding CheckoutCommand}"/>
+                <!-- FIX-08b: prices include tax; the tax contained in the total -->
+                <TextBlock x:Name="TaxIncludedText" DockPanel.Dock="Right" Text="{Binding TaxTotal, StringFormat=N2}" Foreground="#A6ADC8" Margin="6,0,0,0"/>
+                <TextBlock DockPanel.Dock="Right" Text="{x:Static res:PosText.TaxIncluded}" Foreground="#A6ADC8" Margin="12,0,0,0"/>
                 <TextBlock x:Name="TotalText" DockPanel.Dock="Right" Text="{Binding Total, StringFormat=N2}" FontSize="18" FontWeight="Bold"/>
                 <TextBlock DockPanel.Dock="Right" Text="{x:Static res:PosText.Total}" FontWeight="Bold" Margin="16,0,6,0"/>
                 <TextBlock x:Name="SubtotalText" DockPanel.Dock="Right" Text="{Binding Subtotal, StringFormat=N2}"/>

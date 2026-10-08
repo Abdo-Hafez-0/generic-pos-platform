@@ -70,6 +70,7 @@ internal sealed class SaleItemConfiguration : IEntityTypeConfiguration<SaleItem>
         builder.HasIndex(i => i.CatalogProductId);
 
         // Computed properties — derived from stored fields
+        builder.Ignore(i => i.Amounts);
         builder.Ignore(i => i.SubTotal);
         builder.Ignore(i => i.TaxAmount);
         builder.Ignore(i => i.LineTotal);

@@ -34,10 +34,13 @@ public static class PosMapping
             ProductName: i.ProductName,
             Quantity: i.Quantity.Value,
             UnitPrice: i.UnitPrice.Amount,
-            LineTotal: i.LineTotal.Amount)).ToList().AsReadOnly(),
+            LineTotal: i.LineTotal.Amount,
+            TaxRate: i.TaxRate,
+            TaxAmount: i.TaxAmount.Amount)).ToList().AsReadOnly(),
         Subtotal: cart.Subtotal.Amount,
         Total: cart.Total.Amount,
         SaleId: cart.SaleId,
         CreatedAt: cart.CreatedAt,
-        CheckedOutAt: cart.CheckedOutAt);
+        CheckedOutAt: cart.CheckedOutAt,
+        TaxTotal: cart.TaxTotal.Amount);
 }

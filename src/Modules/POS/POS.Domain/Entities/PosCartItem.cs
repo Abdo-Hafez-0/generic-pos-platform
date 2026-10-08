@@ -1,3 +1,4 @@
+using Platform.Core.Amounts;
 using Platform.Core.Results;
 using POS.Domain.ValueObjects;
 
@@ -23,10 +24,20 @@ public sealed class PosCartItem
 
     public CartQuantity Quantity { get; private set; }
 
-    /// <summary>Unit price snapshot at the time the item was added.</summary>
+    /// <summary>Unit price snapshot at the time the item was added (tax included - FIX-08).</summary>
     public Money UnitPrice { get; private set; }
 
-    public Money LineTotal => UnitPrice * Quantity.Value;
+    /// <summary>Tax rate snapshot at the time the item was added (0.14 = 14%; 0 = no tax). FIX-08b.</summary>
+    public decimal TaxRate { get; private set; }
+
+    /// <summary>The line's amounts under the platform rule (prices include tax, rounded per line) - the same rule Sales uses.</summary>
+    public TaxInclusiveLine Amounts => TaxInclusiveLine.Compute(UnitPrice.Amount, Quantity.Value, 0m, TaxRate);
+
+    /// <summary>What the customer pays for the line, tax included.</summary>
+    public Money LineTotal => new(Amounts.Total);
+
+    /// <summary>The tax contained in <see cref="LineTotal"/>.</summary>
+    public Money TaxAmount => new(Amounts.Tax);
 
     internal static Result<PosCartItem> Create(
         PosCartId cartId,
@@ -34,7 +45,8 @@ public sealed class PosCartItem
         string productSku,
         string productName,
         CartQuantity quantity,
-        Money unitPrice)
+        Money unitPrice,
+        decimal taxRate = 0m)
     {
         if (cartId == PosCartId.Empty)
             return Result.Failure<PosCartItem>(Error.Validation(
@@ -52,6 +64,10 @@ public sealed class PosCartItem
             return Result.Failure<PosCartItem>(Error.Validation(
                 "POS.CartItem.NameRequired", "Product name must be provided."));
 
+        if (taxRate < 0m || taxRate > 1m)
+            return Result.Failure<PosCartItem>(Error.Validation(
+                "POS.CartItem.TaxRateInvalid", "The tax rate must be between 0% and 100%."));
+
         return Result.Success(new PosCartItem
         {
             Id = PosCartItemId.New(),
@@ -60,7 +76,8 @@ public sealed class PosCartItem
             ProductSku = productSku.Trim(),
             ProductName = productName.Trim(),
             Quantity = quantity,
-            UnitPrice = unitPrice
+            UnitPrice = unitPrice,
+            TaxRate = taxRate
         });
     }
 

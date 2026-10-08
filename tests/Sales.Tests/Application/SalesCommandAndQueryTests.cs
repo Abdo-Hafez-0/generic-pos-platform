@@ -98,11 +98,12 @@ public sealed class SalesCommandAndQueryTests
         Assert.Equal(30m, item.UnitPrice);   // supplied price, NOT the catalog's current 25
         Assert.Equal(20m, item.Discount);
         Assert.Equal(0.1m, item.TaxRate);
-        Assert.Equal(100m, item.SubTotal);
-        Assert.Equal(10m, item.TaxAmount);
-        Assert.Equal(110m, item.LineTotal);
-        Assert.Equal(110m, dto.GrandTotal);
-        Assert.Equal(10m, dto.TaxTotal);
+        // FIX-08b: prices include tax: 4*30 - 20 = 100 paid, of which 100*0.1/1.1 = 9.09 tax
+        Assert.Equal(90.91m, item.SubTotal);
+        Assert.Equal(9.09m, item.TaxAmount);
+        Assert.Equal(100m, item.LineTotal);
+        Assert.Equal(100m, dto.GrandTotal);
+        Assert.Equal(9.09m, dto.TaxTotal);
     }
 
     [Fact]
@@ -252,7 +253,7 @@ public sealed class SalesCommandAndQueryTests
     {
         await using var db = await SalesTestDatabase.CreateAsync(LookupWithProduct());
         var saleId = await CreateSaleAsync(db);
-        await AddItemAsync(db, saleId, qty: 2m, price: 50m, tax: 0.1m); // 100 + 10 tax
+        await AddItemAsync(db, saleId, qty: 2m, price: 50m, tax: 0.1m); // 100 paid, of which 9.09 tax (prices include tax)
         await ConfirmAsync(db, saleId);
 
         Guid transactionId;
@@ -272,8 +273,8 @@ public sealed class SalesCommandAndQueryTests
         var tx = await verify.ServiceProvider.GetRequiredService<SalesDbContext>().SalesTransactions.SingleAsync();
         Assert.Equal(transactionId, tx.Id);
         Assert.Equal(saleId, tx.SaleId.Value);
-        Assert.Equal(110m, tx.GrandTotal.Amount);
-        Assert.Equal(10m, tx.TaxTotal.Amount);
+        Assert.Equal(100m, tx.GrandTotal.Amount);
+        Assert.Equal(9.09m, tx.TaxTotal.Amount);
         Assert.Equal("TX-1", tx.Reference);
     }
 

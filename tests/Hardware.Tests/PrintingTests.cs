@@ -49,6 +49,20 @@ public sealed class EscPosReceiptTests
     }
 
     [Fact]
+    public void TheTaxContainedInTheTotal_IsPrintedPerRateAfterTheTotal_AndNothingWithoutTax()
+    {
+        // FIX-08b: prices include tax
+        var taxed = Receipt() with { Taxes = [new ReceiptTax(0.14m, 0.65m), new ReceiptTax(0.05m, 0.11m)] };
+        var lines = Render(taxed, width: 32).Split('\n');
+
+        var total = Array.FindIndex(lines, l => l.Contains("TOTAL"));
+        Assert.EndsWith("0.65", lines.Single(l => l.Contains("incl. tax 14%")).TrimEnd());
+        Assert.EndsWith("0.11", lines.Single(l => l.Contains("incl. tax 5%")).TrimEnd());
+        Assert.True(Array.FindIndex(lines, l => l.Contains("incl. tax 14%")) > total);
+        Assert.DoesNotContain("incl. tax", Render(Receipt(), width: 32));
+    }
+
+    [Fact]
     public void CuttingCanBeTurnedOff()
     {
         var withCut = EscPosReceiptFormatter.Format(Receipt(), 32, cutPaper: true);

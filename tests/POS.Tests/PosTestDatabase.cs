@@ -195,7 +195,7 @@ public sealed class StubInventory : IStockAvailabilityChecker, IStockIssueServic
 /// <summary>Stub of Sales.Contracts that records the calls POS makes. Can be told to fail at a step.</summary>
 public sealed class StubSales : ISalesService
 {
-    public sealed record AddedItem(Guid SaleId, Guid ProductId, decimal Quantity, decimal UnitPrice, Guid? WarehouseId);
+    public sealed record AddedItem(Guid SaleId, Guid ProductId, decimal Quantity, decimal UnitPrice, Guid? WarehouseId, decimal Discount = 0m, decimal TaxRate = 0m);
 
     public string? FailAt { get; set; }   // "create" | "add" | "confirm" | "complete"
     public Guid? LastSaleId { get; private set; }
@@ -220,7 +220,7 @@ public sealed class StubSales : ISalesService
     {
         Calls.Add("add");
         if (FailAt == "add") return Task.FromResult(AddSaleItemResult.Failure("Sales.Stub", "add failed"));
-        Items.Add(new AddedItem(saleId, catalogProductId, quantity, unitPrice, warehouseId));
+        Items.Add(new AddedItem(saleId, catalogProductId, quantity, unitPrice, warehouseId, discount, taxRate));
         return Task.FromResult(AddSaleItemResult.Success(Guid.NewGuid()));
     }
 

@@ -187,6 +187,7 @@ public sealed class CheckoutCartCommandHandler(
                 item.CatalogProductId,
                 item.Quantity.Value,
                 item.UnitPrice.Amount,
+                taxRate: item.TaxRate,                 // FIX-08b: the snapshot taken when the line was added
                 warehouseId: session.WarehouseId,
                 cancellationToken: cancellationToken);
 

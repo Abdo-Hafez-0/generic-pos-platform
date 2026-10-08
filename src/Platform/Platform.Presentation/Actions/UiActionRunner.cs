@@ -62,10 +62,12 @@ public sealed class UiActionRunner(IServiceScopeFactory scopes, ILogger<UiAction
         Func<TResult> failed,
         CancellationToken cancellationToken)
     {
+        ActionScope? actionScope = null;
         try
         {
             await using var scope = scopes.CreateAsyncScope();
-            return await action(new ActionScope(scope.ServiceProvider), cancellationToken);
+            actionScope = new ActionScope(scope.ServiceProvider);
+            return await action(actionScope, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -76,12 +78,28 @@ public sealed class UiActionRunner(IServiceScopeFactory scopes, ILogger<UiAction
             logger.LogError(ex, "A user action failed unexpectedly.");
             return failed();
         }
+        finally
+        {
+            actionScope?.End();
+        }
     }
 
+    /// <summary>
+    /// FIX-07: the services of one action, and of that action only. Once the action has ended the scope refuses to hand out anything, so a
+    /// view model that kept it (and would read through contexts that still track yesterday's data) fails loudly instead of reading stale data.
+    /// </summary>
     private sealed class ActionScope(IServiceProvider services) : IActionScope
     {
-        public T Get<T>() where T : notnull => services.GetRequiredService<T>();
+        private volatile bool _ended;
 
-        public T? Find<T>() where T : class => services.GetService<T>();
+        public void End() => _ended = true;
+
+        public T Get<T>() where T : notnull => Services.GetRequiredService<T>();
+
+        public T? Find<T>() where T : class => Services.GetService<T>();
+
+        private IServiceProvider Services => _ended
+            ? throw new InvalidOperationException("An action scope was used after its action ended. Run each user action through IUiActionRunner; never keep its scope or services.")
+            : services;
     }
 }

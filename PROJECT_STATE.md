@@ -499,13 +499,13 @@ Scope source: the Stage 13 task text (the roadmap file is not in the repository)
 
 ## Current Task
 
-**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). FIX-03 COMPLETE (healthy-start confirmation of updates that really run). FIX-04 COMPLETE (POS cash sales go into the open cash drawer shift). FIX-05 COMPLETE (business actions in the audit log). FIX-06 COMPLETE (plain failure messages at every module boundary and screen). Next checklist item: FIX-07 (one DI scope per user action in the hosted UI). Stage 14 has not been started.**
+**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). FIX-03 COMPLETE (healthy-start confirmation of updates that really run). FIX-04 COMPLETE (POS cash sales go into the open cash drawer shift). FIX-05 COMPLETE (business actions in the audit log). FIX-06 COMPLETE (plain failure messages at every module boundary and screen). FIX-07 COMPLETE (one DI scope per user action, enforced and tested). Next checklist item: FIX-08 (tax and discounts). Stage 14 has not been started.**
 
 ---
 
 ## Next Task
 
-**FIX-07 - one DI scope per user action in the hosted UI (see PRE_DEPLOYMENT_CHECKLIST.md; largely delivered by FIX-01's IUiActionRunner - verify and add the missing test). Work proceeds one checklist item at a time.**
+**FIX-08 - tax and discounts (see PRE_DEPLOYMENT_CHECKLIST.md; needs design decisions first: tax model, discount kinds, rounding, snapshot). Work proceeds one checklist item at a time.**
 A fresh installation can now be set up and sell through the desktop alone: activate (License), categories/units, products, warehouse, receive stock, sell at the till, sales history (verified end to end in the real executable against a real local LicenseServer.Api).
 
 Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
@@ -2144,7 +2144,7 @@ Kept, confirmed sound: it shares a CONNECTION per DI scope, never a DbContext; I
 - Modules are compiled in; ModuleHost's file-system discovery and updater-activated versions are not loaded at runtime (launcher - Stage 14). ConfirmHealthyAsync is still not called by the host (Stage 14). **[Done in FIX-03 for updates that really run; see "FIX-03 Summary".]**
 - Business actions are not audited (Audit adoption by modules - follow-up); CashManagement not fed by POS (Stage 8). **[CashManagement: done in FIX-04. Audit: done in FIX-05.]**
 - Only POS translates unexpected failures into plain results (Stage 12 limitation). **[Superseded in FIX-06.]**
-- Cross-module read contracts track entities; hosting the screens must keep one scope per action, or switch the readers to AsNoTracking.
+- Cross-module read contracts track entities; hosting the screens must keep one scope per action, or switch the readers to AsNoTracking. **[Done in FIX-01/FIX-07: one scope per action, enforced in the shell and tested; readers keep tracking.]**
 - Module UIs use their own Domain enums (Catalog, Payments, CashManagement) - accepted.
 - WPF screens: no UI automation of business workflows (the shell has none); smoke covers start/sign-in/shutdown only.
 - No load or soak testing; no real process kill, full disk or physical device (Stage 12 limitations unchanged).
@@ -2319,12 +2319,24 @@ Where an unexpected failure (database locked or unavailable, disk error, corrupt
 
 ---
 
+## FIX-07 Summary - One DI scope per user action (2026-10-08)
+
+The hazard (Stage 13): module read contracts TRACK what they read, so a DI scope that outlives one action reads stale data (and could carry a failed change into the next action). Option chosen (FIX-01 decision 1): enforce one scope per action in the shell; the readers keep tracking (no AsNoTracking change).
+
+- **Already in place (FIX-01)**: every screen action runs through `IUiActionRunner` (a fresh async scope per action, disposed at its end); screen view models and the shell are singletons that may depend only on singletons (DesktopCompositionTests); the sign-in window, sign-out and the barcode input each open their own scope per action.
+- **Enforced (new)**: an `IActionScope` refuses to hand out services once its action ended ("An action scope was used after its action ended..."), also after a failed action - a view model that kept it fails loudly instead of reading through stale, tracking contexts.
+- **Guarded (new)**: every declared screen view model and the shell are created from the ROOT of the real desktop composition with scope validation on, which also catches a singleton that captured a scoped service further down (the direct constructor check cannot see that; a negative test proves the check fires). The real host does not validate scopes in Production.
+- **Tests (+6, UI)**: the kept-scope refusal (after success and after failure); the root-composition check and its negative case; on the real offline desktop, the Products screen shows a price changed elsewhere at its next action, and the contrast - a scope kept across actions really reads the old price through IProductLookup while a fresh scope reads the new one.
+- **Real executable**: Products screen open, the product's price changed directly in the database file (as another terminal would) -> the next Search shows 3.10 instead of 2.50; exit 0.
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 13, FIX-01 (a..e) and FIX-02..FIX-06 are complete.
+None blocking. Stage 13, FIX-01 (a..e) and FIX-02..FIX-07 are complete.
 Observed once (2026-10-07, FIX-01b final run): the Cloud.Tests test host crashed with "Internal CLR error (0x80131506)" while all 23 test projects ran in parallel; Cloud.Tests then passed 207/207 three times in a row on its own. Not reproduced; watch for it in later full runs.
 Build: 0 errors, 0 warnings (122 projects, verified with `dotnet build --no-incremental`).
-All 2492 tests pass (FIX-06: Integration 137, UI 139; FIX-05: Audit 43, Integration 133; FIX-04: Integration 130, UI 133; FIX-03: Updater 218, Integration 123; FIX-02: UI 131, Hardware 98; FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
+All 2498 tests pass (FIX-07: UI 145; FIX-06: Integration 137, UI 139; FIX-05: Audit 43, Integration 133; FIX-04: Integration 130, UI 133; FIX-03: Updater 218, Integration 123; FIX-02: UI 131, Hardware 98; FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
 Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 12 had 2254; Stage 13 added 43 (Architecture +22 new and -6 placeholders removed, Platform.ModuleContract +9, Integration +18).
 Stage 13 limitations: see "Stage 13 Summary - Remaining limitations".
 Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
@@ -2394,4 +2406,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-08 - FIX-06 complete (plain failure messages at every module boundary and screen; verified in the real executable). 2492 tests, 0 warnings, 122 projects; Stage 14 not started.
+Last updated: 2026-10-08 - FIX-07 complete (one DI scope per user action enforced and tested; verified in the real executable). 2498 tests, 0 warnings, 122 projects; Stage 14 not started.

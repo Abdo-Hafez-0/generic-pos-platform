@@ -80,7 +80,10 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Module boundaries: the write contracts (stock issue/receipt, payment record/void, cash recorder) return plain failed results instead of throwing
   - [x] Real exe: category and drawer shift with the database refusing -> plain sentence; works once it accepts again
   - Carried forward: screen message is generic (does not name the action); log file to look in (MISS-05)
-- [ ] **FIX-07 One DI scope per user action in the hosted UI** (Stage 13): enforce it in the shell, or switch cross-module readers to `AsNoTracking`; add a test
+- [x] **FIX-07 One DI scope per user action in the hosted UI** (Stage 13): enforce it in the shell, or switch cross-module readers to `AsNoTracking`; add a test - done 2026-10-08
+  - [x] Enforced in the shell (FIX-01 runner); a kept action scope now refuses to hand out services; readers keep tracking
+  - [x] Every screen view model and the shell built from the root with scope validation on (catches indirect captures)
+  - [x] Tests: stale read shown on a kept scope, fresh on the screen's next action (offline desktop); real exe: a price changed in the database file appears at the next Search
 - [ ] **FIX-08 Tax and discounts** (Stages 5D/8): tax rate(s), line and cart discounts; POS `Total != Subtotal`; Sales receives real tax/discount; snapshot at transaction time (rule 14)
 - [ ] **FIX-09 Purchasing gaps** (Stage 8)
   - [ ] Partial-quantity receiving
@@ -171,4 +174,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-08 | FIX-03 | 061e377 | Healthy-start confirmation of updates that really run; 2463 tests, 0 warnings; real exe |
 | 2026-10-08 | FIX-04 | 6896931 | POS cash sales into the open drawer shift (inside the transaction); 2472 tests, 0 warnings; real exe |
 | 2026-10-08 | FIX-05 | b0a5634 | Business actions in the audit log (Platform event sink, background write, retry buffer); 2482 tests, 0 warnings; real exe |
-| 2026-10-08 | FIX-06 | (this commit) | Plain failure messages at module boundaries; per-module screen proof; 2492 tests, 0 warnings; real exe |
+| 2026-10-08 | FIX-06 | 3f36a0c | Plain failure messages at module boundaries; per-module screen proof; 2492 tests, 0 warnings; real exe |
+| 2026-10-08 | FIX-07 | (this commit) | One DI scope per action enforced and tested; 2498 tests, 0 warnings; real exe |

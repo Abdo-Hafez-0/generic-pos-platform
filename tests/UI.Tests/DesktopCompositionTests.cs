@@ -86,6 +86,54 @@ public sealed class DesktopCompositionTests
         Assert.True(violations.Count == 0, "Reach scoped services through IUiActionRunner instead:\n  " + string.Join("\n  ", violations));
     }
 
+    [Fact]
+    public void Every_screen_view_model_and_the_shell_can_be_created_from_the_root_with_scope_validation_on()
+    {
+        // FIX-07: the constructor check above sees only direct parameters. Building every screen's view model (and the shell) from the ROOT
+        // provider with scope validation on also catches a singleton that captures a scoped service further down - which would keep one
+        // scope (and its tracking contexts) alive for the whole session. The real host does not validate scopes in Production.
+        using var provider = Services.Value.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        var screens = provider.GetServices<IScreenProvider>().SelectMany(p => p.GetScreens()).ToList();
+        Assert.NotEmpty(screens);
+
+        var failures = new List<string>();
+        foreach (var type in screens.Select(s => s.ViewModelType).Append(typeof(ShellViewModel)).Distinct())
+        {
+            try
+            {
+                Assert.NotNull(ActivatorUtilities.CreateInstance(provider, type));
+            }
+            catch (InvalidOperationException ex)
+            {
+                failures.Add($"{type.Name}: {ex.Message}");
+            }
+        }
+
+        Assert.True(failures.Count == 0, "A view model reaches a scoped service from the root:\n  " + string.Join("\n  ", failures));
+    }
+
+    private sealed class CapturesAScopedService(DesktopCompositionTests.HoldsAScopedServiceIndirectly inner)
+    {
+        public object Inner => inner;
+    }
+
+    internal sealed class HoldsAScopedServiceIndirectly(Platform.Application.Abstractions.Authorization.IPermissionProvider permissions)
+    {
+        public object Permissions => permissions;
+    }
+
+    [Fact]
+    public void The_root_check_reports_a_scoped_service_captured_indirectly()
+    {
+        var services = new ServiceCollection();
+        foreach (var d in Services.Value) ((ICollection<ServiceDescriptor>)services).Add(d);
+        services.AddSingleton<HoldsAScopedServiceIndirectly>();   // a singleton that captured a scoped service
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+
+        Assert.Empty(NonSingletonDependencies(typeof(CapturesAScopedService), services));   // the direct check cannot see it...
+        Assert.Throws<InvalidOperationException>(() => ActivatorUtilities.CreateInstance(provider, typeof(CapturesAScopedService)));   // ...this one does
+    }
+
     private sealed class HoldsAScopedService(Platform.Application.Abstractions.Authorization.IPermissionProvider permissions)
     {
         public object Permissions => permissions;

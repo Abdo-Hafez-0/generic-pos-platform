@@ -66,6 +66,36 @@ public sealed class UiActionRunnerTests
     }
 
     [Fact]
+    public async Task A_scope_kept_after_its_action_refuses_to_hand_out_services()
+    {
+        // FIX-07: keeping the scope (or reading through it later) is how a screen would read stale, tracked data
+        IActionScope? kept = null;
+        await _runner.RunAsync((scope, _) =>
+        {
+            kept = scope;
+            Assert.NotNull(scope.Get<ScopedThing>());          // inside the action: fine
+            return Task.FromResult(Result.Success());
+        });
+
+        var refused = Assert.Throws<InvalidOperationException>(() => kept!.Get<ScopedThing>());
+        Assert.Contains("after its action ended", refused.Message);
+        Assert.Throws<InvalidOperationException>(() => kept!.Find<ScopedThing>());
+    }
+
+    [Fact]
+    public async Task A_scope_kept_after_a_failed_action_is_refused_as_well()
+    {
+        IActionScope? kept = null;
+        await _runner.RunAsync((scope, _) =>
+        {
+            kept = scope;
+            throw new InvalidOperationException("boom");
+        });
+
+        Assert.Throws<InvalidOperationException>(() => kept!.Get<ScopedThing>());
+    }
+
+    [Fact]
     public async Task A_business_failure_is_returned_unchanged()
     {
         var refused = Error.Validation("Thing.Invalid", "That is not allowed.");

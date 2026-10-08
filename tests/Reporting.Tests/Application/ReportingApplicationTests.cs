@@ -206,6 +206,19 @@ public sealed class ReportingApplicationTests
     }
 
     [Fact]
+    public async Task PurchasingOverview_CountsPartlyReceivedAsAwaitingGoods_AndClosedShortAsDone()
+    {
+        // FIX-09: 10 orders = 1 draft, 2 placed + 1 partly received, 3 received + 1 closed short, 2 cancelled
+        await using var sp = Build(s => s.AddSingleton<IPurchaseOrderReader>(new StubPurchasing(
+            new PurchaseSummaryResult(10, 1, 2, 3, 2, 500m, 120m, PartiallyReceived: 1, Closed: 1))));
+
+        var r = await sp.GetRequiredService<GetPurchasingOverviewQueryHandler>().HandleAsync(new GetPurchasingOverviewQuery());
+
+        Assert.Equal((1, 3, 4, 2), (r.Value.Draft, r.Value.Submitted, r.Value.Received, r.Value.Cancelled));
+        Assert.Equal(r.Value.TotalOrders, r.Value.Draft + r.Value.Submitted + r.Value.Received + r.Value.Cancelled);
+    }
+
+    [Fact]
     public async Task CustomerAndSupplierSummaries_PassTheCountsThrough()
     {
         await using var sp = Build(s =>

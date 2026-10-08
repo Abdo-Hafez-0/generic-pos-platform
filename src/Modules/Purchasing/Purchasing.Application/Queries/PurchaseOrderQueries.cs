@@ -12,7 +12,9 @@ internal static class PurchaseOrderMapping
         o.Id.Value, o.Number, o.SupplierId, o.SupplierCode, o.SupplierName, o.Reference, o.Notes, o.Status, o.TotalAmount.Amount,
         o.WarehouseId, o.CreatedAt, o.SubmittedAt, o.ReceivedAt, o.CancelledAt, o.CancellationReason,
         o.Lines.Select(l => new PurchaseOrderLineDto(
-            l.Id.Value, l.ProductId, l.ProductSku, l.ProductName, l.Quantity.Value, l.UnitCost.Amount, l.LineTotal.Amount, l.IsReceived)).ToList());
+            l.Id.Value, l.ProductId, l.ProductSku, l.ProductName, l.Quantity.Value, l.UnitCost.Amount, l.LineTotal.Amount, l.IsReceived,
+            l.ReceivedQuantity, o.IsAwaitingGoods ? l.OutstandingQuantity : 0m)).ToList(),
+        o.ReceivedAmount.Amount, o.ClosedAt, o.ClosingReason);
 
     public static PurchaseOrderListItemDto ToListItem(this PurchaseOrder o)
         => new(o.Id.Value, o.Number, o.SupplierName, o.Status, o.TotalAmount.Amount, o.CreatedAt);

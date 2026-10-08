@@ -1,4 +1,4 @@
-﻿# PROJECT_STATE.md
+# PROJECT_STATE.md
 # Generic Offline-First Inventory & POS Platform - Implementation State
 
 ---
@@ -499,7 +499,7 @@ Scope source: the Stage 13 task text (the roadmap file is not in the repository)
 
 ## Current Task
 
-**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). FIX-03 COMPLETE (healthy-start confirmation of updates that really run). FIX-04 COMPLETE (POS cash sales go into the open cash drawer shift). FIX-05 COMPLETE (business actions in the audit log). FIX-06 COMPLETE (plain failure messages at every module boundary and screen). FIX-07 COMPLETE (one DI scope per user action, enforced and tested). FIX-08 COMPLETE (a: tax rates in Pricing, b: tax at the till and in Sales, c: discounts at the till). Next checklist item: FIX-09 (purchasing gaps: partial receiving, supplier returns). Stage 14 has not been started.**
+**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). FIX-03 COMPLETE (healthy-start confirmation of updates that really run). FIX-04 COMPLETE (POS cash sales go into the open cash drawer shift). FIX-05 COMPLETE (business actions in the audit log). FIX-06 COMPLETE (plain failure messages at every module boundary and screen). FIX-07 COMPLETE (one DI scope per user action, enforced and tested). FIX-08 COMPLETE (a: tax rates in Pricing, b: tax at the till and in Sales, c: discounts at the till). FIX-09 in progress: 09a done (part deliveries, closing short); next 09b (supplier returns). Stage 14 has not been started.**
 
 ---
 
@@ -2368,12 +2368,27 @@ FIX-08 decisions (user, 2026-10-08): prices INCLUDE tax; tax rates live in Prici
 
 ---
 
+## FIX-09a Summary - Partial-quantity receiving (2026-10-08)
+
+FIX-09 decisions (user, 2026-10-08): receive per delivery with a quantity per line (adding up, never above what was ordered), "Partly received" until complete, and close short with a reason; supplier returns attach to a received purchase order (from its received quantities and warehouse, at its unit cost, reason required, audited); a new sensitive capability `purchasing.return.create`. Split into 09a (part deliveries) and 09b (returns).
+
+- **Purchasing.Domain**: `PurchaseOrderLine.ReceivedQuantity` adds up the deliveries (ReceivedAt = when the whole quantity has arrived; IsReceived/HasReceipts/OutstandingQuantity/ReceivedTotal derived); `PurchaseOrder.ReceiveLine(line, quantity)` refuses more than is still expected ("Only 7 of 'Water 1.5L' are still expected; 8 cannot be received."); `UpdateReceivingStatus` (Received when every unit arrived, else PartiallyReceived once anything arrived); `CloseShort(reason)` only for a partly received order (a placed order with nothing received is cancelled instead); Cancel is refused once anything arrived ("Close it short instead."). New statuses PartiallyReceived = 5 and Closed = 6 (numbers stored, never renumbered). `ReceivedAmount` (received quantity x unit cost) is kept on the order like TotalAmount, so summaries never load lines.
+- **Persistence**: pur_PurchaseOrderLines.ReceivedQuantity, pur_PurchaseOrders.ReceivedAmount / ClosedAt / ClosingReason (migration AddPartialReceiving). Backfill: a received line gets its full quantity, a Received order its total; an order the pre-Stage-12 resumable receiving left Submitted with received lines becomes PartiallyReceived with the value of those lines. Down maps 5 -> Submitted and 6 -> Received.
+- **Application**: `ReceivePurchaseOrderCommand(OrderId, WarehouseId, Lines?)` with `ReceiveLineQuantity(LineId, Quantity)`; null = everything still outstanding (the earlier behaviour; every existing caller unchanged). The whole delivery is checked against the order BEFORE any stock moves (negative, duplicate line, nothing entered, unknown line, more than still due - plain refusals); still one transaction with Inventory (Stage 12). `ClosePurchaseOrderShortCommand` needs purchasing.order.cancel (its description now mentions closing short); not audited, like cancelling. The audit entry of a delivery is unchanged (purchase-order.received, n line(s)).
+- **Contracts**: PurchaseOrderStatusContract +PartiallyReceived/Closed; PurchaseOrderLineResult +ReceivedQuantity; PurchaseSummaryResult +PartiallyReceived/Closed (all optional at the end). ReceivedValue is now what really arrived (every delivery) and OpenValue what is still to come on drafts and orders awaiting goods. **Reporting** keeps its four buckets: partly received counts as awaiting goods, closed short as received ("Draft / awaiting goods / received or closed / cancelled").
+- **Purchase orders screen**: statuses "Partly received" and "Closed short" (also as filters); the lines show Received, Still due and an "Arrived" box per line that starts at what is still due (change it for a part delivery; an empty box = nothing of that line); Receive delivery works for placed and partly received orders; Close short (with the reason) for partly received ones; the reason row is hidden once the order is finished. Column widths and header padding adjusted so the new columns fit the default window.
+- **Tests (+12)**: Purchasing +10 (domain: deliveries adding up, more than due refused without change, nothing on a draft or a finished order, close-short rules, cancel refused after a part delivery; application: part delivery then the rest, a delivery with one line over is refused before any stock moves, plain validation, close short and no more goods, summary values; upgrade test: a database of the first schema with a received order and a half-received one migrates with the right quantities, values and statuses); UI +1 on the offline desktop (5 of 12, 8 refused, "two" refused, 2 more, close short -> stock 17, order closed with its reason); Reporting +1 (folding of the new statuses). One test changed: the resumable fallback now leaves a part receipt PartiallyReceived instead of Submitted.
+- **Real executable** (local license server, isolated database): first-run setup, activation, warehouse, category, unit, supplier, product; order of 12 x 1.20 placed; 5 arrive -> "Partly received", Still due 7, Arrived prefilled 7; 8 refused; 2 more; Close short with "supplier ran out" -> "Closed short", Still due 0, no Arrived box; Stock 7; Business overview 0 / 0 / 1 / 0, still to receive 0.00, received 8.40. A second order (24 water + 10 juice, 24 and 6 arrive): one line complete, one with 4 due; screenshot checked after the column fix.
+- **Not done here**: supplier returns (09b); a delivery note number or date per delivery (each delivery is a separate stock movement with the order number and line in its reference); receiving more than ordered (not chosen).
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 13, FIX-01 (a..e) and FIX-02..FIX-08 are complete.
+None blocking. Stage 13, FIX-01 (a..e) and FIX-02..FIX-08 are complete; FIX-09a is done.
 Observed once (2026-10-07, FIX-01b final run): the Cloud.Tests test host crashed with "Internal CLR error (0x80131506)" while all 23 test projects ran in parallel; Cloud.Tests then passed 207/207 three times in a row on its own. Not reproduced; watch for it in later full runs.
 Build: 0 errors, 0 warnings (122 projects, verified with `dotnet build --no-incremental`).
-All 2543 tests pass (FIX-08c: POS 178, Hardware 100, UI 149; FIX-08b: POS 164, Sales 105, Hardware 99, Integration 139; FIX-08a: Pricing 56, UI 147; FIX-07: UI 145; FIX-06: Integration 137, UI 139; FIX-05: Audit 43, Integration 133; FIX-04: Integration 130, UI 133; FIX-03: Updater 218, Integration 123; FIX-02: UI 131, Hardware 98; FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
+All 2555 tests pass (FIX-09a: Purchasing 58, UI 150, Reporting 39; FIX-08c: POS 178, Hardware 100, UI 149; FIX-08b: POS 164, Sales 105, Hardware 99, Integration 139; FIX-08a: Pricing 56, UI 147; FIX-07: UI 145; FIX-06: Integration 137, UI 139; FIX-05: Audit 43, Integration 133; FIX-04: Integration 130, UI 133; FIX-03: Updater 218, Integration 123; FIX-02: UI 131, Hardware 98; FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
 Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 12 had 2254; Stage 13 added 43 (Architecture +22 new and -6 placeholders removed, Platform.ModuleContract +9, Integration +18).
 Stage 13 limitations: see "Stage 13 Summary - Remaining limitations".
 Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
@@ -2443,4 +2458,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-08 - FIX-08 complete (tax rates, tax at the till and in Sales, discounts at the till; verified in the real executable with a printed receipt). 2543 tests, 0 warnings, 122 projects; Stage 14 not started.
+Last updated: 2026-10-08 - FIX-09a done (part deliveries and closing short on purchase orders; verified in the real executable). 2555 tests, 0 warnings, 122 projects; next FIX-09b (supplier returns); Stage 14 not started.

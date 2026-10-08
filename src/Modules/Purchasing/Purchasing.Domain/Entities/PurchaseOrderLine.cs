@@ -1,3 +1,4 @@
+using System.Globalization;
 using Platform.Core.Results;
 using Purchasing.Domain.ValueObjects;
 
@@ -6,6 +7,8 @@ namespace Purchasing.Domain.Entities;
 /// <summary>
 /// One product line of a purchase order. SKU, name and unit cost are snapshots taken when the line is added; the product is
 /// referenced only by its Catalog ID.
+///
+/// FIX-09: goods arrive in one or more deliveries; <see cref="ReceivedQuantity"/> adds them up and never exceeds what was ordered.
 /// </summary>
 public sealed class PurchaseOrderLine
 {
@@ -19,11 +22,17 @@ public sealed class PurchaseOrderLine
     public OrderQuantity Quantity { get; private set; }
     public Money UnitCost { get; private set; }
 
-    /// <summary>Set when this line's quantity was received into stock through Inventory.Contracts.</summary>
+    /// <summary>How much of the line was received into stock so far, over every delivery (0..<see cref="Quantity"/>).</summary>
+    public decimal ReceivedQuantity { get; private set; }
+
+    /// <summary>Set when the line's whole quantity has been received into stock through Inventory.Contracts.</summary>
     public DateTime? ReceivedAt { get; private set; }
 
-    public bool IsReceived => ReceivedAt is not null;
+    public bool IsReceived => ReceivedQuantity >= Quantity.Value;
+    public bool HasReceipts => ReceivedQuantity > 0m;
+    public decimal OutstandingQuantity => Math.Max(0m, Quantity.Value - ReceivedQuantity);
     public Money LineTotal => UnitCost * Quantity.Value;
+    public Money ReceivedTotal => UnitCost * ReceivedQuantity;
 
     internal static Result<PurchaseOrderLine> Create(
         PurchaseOrderId orderId, Guid productId, string sku, string name, OrderQuantity quantity, Money unitCost)
@@ -51,12 +60,19 @@ public sealed class PurchaseOrderLine
         UnitCost = unitCost;
     }
 
-    internal Result MarkReceived()
+    /// <summary>Records a delivery of this line. More than is still outstanding is refused (nothing changes).</summary>
+    internal Result Receive(OrderQuantity quantity)
     {
         if (IsReceived)
-            return Result.Failure(Error.Conflict("Purchasing.PurchaseOrder.LineAlreadyReceived", "The line was already received."));
+            return Result.Failure(Error.Conflict("Purchasing.PurchaseOrder.LineAlreadyReceived", $"'{ProductName}' was already received in full."));
 
-        ReceivedAt = DateTime.UtcNow;
+        if (quantity.Value > OutstandingQuantity)
+            return Result.Failure(Error.Conflict("Purchasing.PurchaseOrder.MoreThanOrdered",
+                $"Only {OutstandingQuantity.ToString("0.###", CultureInfo.CurrentCulture)} of '{ProductName}' are still expected; " +
+                $"{quantity.Value.ToString("0.###", CultureInfo.CurrentCulture)} cannot be received."));
+
+        ReceivedQuantity += quantity.Value;
+        if (IsReceived) ReceivedAt = DateTime.UtcNow;
         return Result.Success();
     }
 }

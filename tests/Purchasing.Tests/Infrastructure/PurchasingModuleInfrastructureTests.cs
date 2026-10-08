@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -139,6 +140,43 @@ public sealed class PurchasingModuleInfrastructureTests
         Assert.Equal(ModuleRuntimeStatus.Running, module.Status);
         await module.StopAsync();
         Assert.Equal(ModuleRuntimeStatus.Stopped, module.Status);
+    }
+
+    [Fact]
+    public async Task Upgrade_to_part_deliveries_keeps_what_was_received_before()
+    {
+        // FIX-09 AddPartialReceiving on a database written by the earlier version: a received order, and an order the resumable
+        // receiving (before Stage 12) left Submitted with one of two lines received
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var context = new PurchasingDbContext(new DbContextOptionsBuilder<PurchasingDbContext>().UseSqlite(connection).Options);
+        await context.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>().MigrateAsync("20261005120224_InitialPurchasingSchema");
+
+        var (received, partly) = (Guid.NewGuid(), Guid.NewGuid());
+        static string Id(Guid g) => g.ToString().ToUpperInvariant();
+        await using (var cmd = connection.CreateCommand())
+        {
+            cmd.CommandText =
+                "INSERT INTO pur_PurchaseOrders (Id, Number, SupplierId, SupplierCode, SupplierName, Status, TotalAmount, CreatedAt, UpdatedAt, ReceivedAt) VALUES " +
+                $"('{Id(received)}', 'PO-1', '{Id(Guid.NewGuid())}', 'S', 'Supplier', 3, '24.5', '2026-10-01', '2026-10-01', '2026-10-02'), " +
+                $"('{Id(partly)}', 'PO-2', '{Id(Guid.NewGuid())}', 'S', 'Supplier', 2, '17.0', '2026-10-01', '2026-10-01', NULL);" +
+                "INSERT INTO pur_PurchaseOrderLines (Id, PurchaseOrderId, ProductId, ProductSku, ProductName, Quantity, UnitCost, ReceivedAt) VALUES " +
+                $"('{Id(Guid.NewGuid())}', '{Id(received)}', '{Id(Guid.NewGuid())}', 'A', 'A', '7.0', '3.5', '2026-10-02'), " +
+                $"('{Id(Guid.NewGuid())}', '{Id(partly)}', '{Id(Guid.NewGuid())}', 'B', 'B', '3.0', '1.25', '2026-10-02'), " +
+                $"('{Id(Guid.NewGuid())}', '{Id(partly)}', '{Id(Guid.NewGuid())}', 'C', 'C', '2.0', '6.625', NULL);";
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        await context.Database.MigrateAsync();
+
+        var orders = await context.PurchaseOrders.Include(o => o.Lines).AsNoTracking().ToListAsync();
+        var r = orders.Single(o => o.Id.Value == received);
+        var p = orders.Single(o => o.Id.Value == partly);
+        Assert.Equal((Purchasing.Domain.Enums.PurchaseOrderStatus.Received, 24.5m), (r.Status, r.ReceivedAmount.Amount));
+        Assert.Equal((7m, true), (r.Lines[0].ReceivedQuantity, r.Lines[0].IsReceived));
+        Assert.Equal((Purchasing.Domain.Enums.PurchaseOrderStatus.PartiallyReceived, 3.75m), (p.Status, p.ReceivedAmount.Amount));
+        Assert.Equal([3m, 0m], p.Lines.OrderBy(l => l.ProductSku).Select(l => l.ReceivedQuantity).ToArray());
+        Assert.Equal(2m, p.Lines.Single(l => l.ProductSku == "C").OutstandingQuantity);
     }
 
     [Fact]

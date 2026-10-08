@@ -34,12 +34,20 @@ internal sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purc
             .HasColumnType("TEXT")
             .IsRequired();
 
+        builder.Property(o => o.ReceivedAmount)
+            .HasConversion(m => m.Amount, v => new Money(v))
+            .HasColumnType("TEXT")
+            .IsRequired();
+
         builder.Property(o => o.CreatedAt).IsRequired();
         builder.Property(o => o.UpdatedAt).IsRequired();
         builder.Property(o => o.SubmittedAt);
         builder.Property(o => o.ReceivedAt);
         builder.Property(o => o.CancelledAt);
         builder.Property(o => o.CancellationReason).HasMaxLength(500);
+        builder.Property(o => o.ClosedAt);
+        builder.Property(o => o.ClosingReason).HasMaxLength(500);
+        builder.Ignore(o => o.IsAwaitingGoods);
 
         builder.HasIndex(o => o.Number).IsUnique();
         builder.HasIndex(o => o.SupplierId);
@@ -76,6 +84,7 @@ internal sealed class PurchaseOrderLineConfiguration : IEntityTypeConfiguration<
             .HasColumnType("TEXT")
             .IsRequired();
 
+        builder.Property(l => l.ReceivedQuantity).HasColumnType("TEXT").IsRequired();
         builder.Property(l => l.ReceivedAt);
 
         builder.HasIndex(l => l.PurchaseOrderId);
@@ -83,5 +92,8 @@ internal sealed class PurchaseOrderLineConfiguration : IEntityTypeConfiguration<
 
         builder.Ignore(l => l.LineTotal);
         builder.Ignore(l => l.IsReceived);
+        builder.Ignore(l => l.HasReceipts);
+        builder.Ignore(l => l.OutstandingQuantity);
+        builder.Ignore(l => l.ReceivedTotal);
     }
 }

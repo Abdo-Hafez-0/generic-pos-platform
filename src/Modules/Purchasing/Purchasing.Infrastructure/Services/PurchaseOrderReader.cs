@@ -26,13 +26,15 @@ internal sealed class PurchaseOrderReader(IPurchaseOrderRepository repository) :
         var rows = await repository.GetStatusTotalsAsync(cancellationToken);
 
         int Count(PurchaseOrderStatus s) => rows.Count(r => r.Status == s);
-        decimal Sum(Func<PurchaseOrderStatus, bool> f) => rows.Where(r => f(r.Status)).Sum(r => r.Total);
 
         return new PurchaseSummaryResult(
             rows.Count,
             Count(PurchaseOrderStatus.Draft), Count(PurchaseOrderStatus.Submitted), Count(PurchaseOrderStatus.Received), Count(PurchaseOrderStatus.Cancelled),
-            ReceivedValue: Sum(s => s == PurchaseOrderStatus.Received),
-            OpenValue: Sum(s => s is PurchaseOrderStatus.Draft or PurchaseOrderStatus.Submitted));
+            ReceivedValue: rows.Sum(r => r.Received),
+            OpenValue: rows.Where(r => r.Status is PurchaseOrderStatus.Draft or PurchaseOrderStatus.Submitted or PurchaseOrderStatus.PartiallyReceived)
+                .Sum(r => r.Total - r.Received),
+            PartiallyReceived: Count(PurchaseOrderStatus.PartiallyReceived),
+            Closed: Count(PurchaseOrderStatus.Closed));
     }
 
     private static PurchaseOrderResult ToResult(PurchaseOrder o, bool withLines) => new(
@@ -40,6 +42,7 @@ internal sealed class PurchaseOrderReader(IPurchaseOrderRepository repository) :
         o.WarehouseId, o.CreatedAt, o.ReceivedAt,
         withLines
             ? o.Lines.Select(l => new PurchaseOrderLineResult(
-                l.Id.Value, l.ProductId, l.ProductSku, l.ProductName, l.Quantity.Value, l.UnitCost.Amount, l.LineTotal.Amount, l.IsReceived)).ToList()
+                l.Id.Value, l.ProductId, l.ProductSku, l.ProductName, l.Quantity.Value, l.UnitCost.Amount, l.LineTotal.Amount, l.IsReceived,
+                l.ReceivedQuantity)).ToList()
             : []);
 }

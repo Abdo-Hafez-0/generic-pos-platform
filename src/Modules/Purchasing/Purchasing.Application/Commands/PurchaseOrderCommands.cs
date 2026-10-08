@@ -1,3 +1,4 @@
+using System.Globalization;
 using Platform.Application.Abstractions.Authorization;
 using Platform.Application.Abstractions.Data;
 using Catalog.Contracts.Interfaces;
@@ -207,18 +208,51 @@ public sealed class CancelPurchaseOrderCommandHandler(IPurchaseOrderRepository r
 }
 
 // ============================================================
+// ClosePurchaseOrderShort (FIX-09)
+// ============================================================
+
+/// <summary>Closes a partly received order short: what arrived stays in stock, the rest is no longer expected. A reason is required.</summary>
+public sealed record ClosePurchaseOrderShortCommand(Guid OrderId, string Reason);
+
+public sealed class ClosePurchaseOrderShortCommandHandler(IPurchaseOrderRepository repository, IPurchasingUnitOfWork unitOfWork, IAuthorizationService authorization)
+{
+    public async Task<Result> HandleAsync(ClosePurchaseOrderShortCommand command, CancellationToken cancellationToken = default)
+    {
+        // closing short ends what is still expected, like cancelling does for an order with nothing received
+        var allowed = await authorization.AuthorizeAsync(Purchasing.Application.Security.PurchasingCapabilities.CancelOrder, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
+        var (order, error) = await OrderLoader.LoadAsync(repository, command.OrderId, "CloseShort", cancellationToken);
+        if (order is null) return Result.Failure(error!);
+
+        var result = order.CloseShort(command.Reason);
+        if (result.IsFailure) return result;
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+}
+
+// ============================================================
 // ReceivePurchaseOrder
 // ============================================================
 
+/// <summary>How much of one order line arrived in this delivery (FIX-09). Zero means "nothing of this line this time".</summary>
+public sealed record ReceiveLineQuantity(Guid LineId, decimal Quantity);
+
 /// <summary>
-/// Receives a Submitted order into a warehouse, line by line, through Inventory.Contracts (IStockReceiptService).
+/// Receives a delivery of a placed order into a warehouse, line by line, through Inventory.Contracts (IStockReceiptService).
 ///
-/// CONSISTENCY (Stage 12): in the desktop the whole receipt - every line in Inventory and the order's progress - is ONE transaction
+/// FIX-09: <see cref="Lines"/> says how much of each line arrived (never more than is still outstanding); null receives everything still
+/// outstanding. The order becomes PartiallyReceived until every unit has arrived (or it is closed short), then Received.
+///
+/// CONSISTENCY (Stage 12): in the desktop the whole delivery - every line in Inventory and the order's progress - is ONE transaction
 /// (IAtomicOperation): it commits completely or not at all. Only hosts without IAtomicOperation (unit-test hosts) use the fallback below,
-/// where each line is received in Inventory first and then saved on the order immediately, so a retry continues with the remaining lines
-/// and never receives a line twice; the stock movement reference carries the order number and line ID.
+/// where each line is received in Inventory first and then saved on the order immediately (the progress made is kept); receiving
+/// "everything outstanding" again then continues with what is left and never receives a unit twice. The stock movement reference
+/// carries the order number and line ID.
 /// </summary>
-public sealed record ReceivePurchaseOrderCommand(Guid OrderId, Guid WarehouseId);
+public sealed record ReceivePurchaseOrderCommand(Guid OrderId, Guid WarehouseId, IReadOnlyList<ReceiveLineQuantity>? Lines = null);
 
 public sealed class ReceivePurchaseOrderCommandHandler(
     IPurchaseOrderRepository repository,
@@ -233,8 +267,18 @@ public sealed class ReceivePurchaseOrderCommandHandler(
         var allowed = await authorization.AuthorizeAsync(Purchasing.Application.Security.PurchasingCapabilities.ReceiveOrder, cancellationToken);
         if (allowed.IsFailure) return Result.Failure<int>(allowed.Error);
 
-        // With a transaction the whole receipt is all-or-nothing: every line's stock and the order's progress are committed together
-        // or not at all. Without one (unit-test hosts) receiving is resumable: progress is kept after every line.
+        if (command.Lines is { } requested)
+        {
+            if (requested.Any(l => l.Quantity < 0m))
+                return Result.Failure<int>(Error.Validation("Purchasing.Receive.InvalidQuantity", "A received quantity cannot be negative."));
+            if (requested.GroupBy(l => l.LineId).Any(g => g.Count() > 1))
+                return Result.Failure<int>(Error.Validation("Purchasing.Receive.DuplicateLine", "Each order line can appear only once in a delivery."));
+            if (requested.All(l => l.Quantity == 0m))
+                return Result.Failure<int>(Error.Validation("Purchasing.Receive.NothingToReceive", "Enter how much of at least one line arrived."));
+        }
+
+        // With a transaction the whole delivery is all-or-nothing: every line's stock and the order's progress are committed together
+        // or not at all. Without one (unit-test hosts) progress is kept after every line.
         var received = atomicOperation is null
             ? await ReceiveAsync(command, transactional: false, cancellationToken)
             : await atomicOperation.ExecuteAsync(() => ReceiveAsync(command, transactional: true, cancellationToken), cancellationToken);
@@ -255,11 +299,38 @@ public sealed class ReceivePurchaseOrderCommandHandler(
         var begin = order.BeginReceiving(command.WarehouseId);
         if (begin.IsFailure) return Result.Failure<int>(begin.Error);
 
+        // what arrives now, checked against the order BEFORE any stock moves (so a refused delivery changes nothing, with or without a transaction)
+        var delivery = new List<(PurchaseOrderLine Line, OrderQuantity Quantity)>();
+        if (command.Lines is null)
+        {
+            foreach (var line in order.Lines.Where(l => !l.IsReceived))
+                delivery.Add((line, new OrderQuantity(line.OutstandingQuantity)));
+        }
+        else
+        {
+            foreach (var requested in command.Lines.Where(l => l.Quantity > 0m))
+            {
+                var line = order.FindLine(new PurchaseOrderLineId(requested.LineId));
+                if (line is null)
+                    return Result.Failure<int>(Error.NotFound("Purchasing.PurchaseOrder.LineNotFound", "The line was not found on this order."));
+                if (requested.Quantity > line.OutstandingQuantity)
+                    return Result.Failure<int>(line.IsReceived
+                        ? Error.Conflict("Purchasing.PurchaseOrder.LineAlreadyReceived", $"'{line.ProductName}' was already received in full.")
+                        : Error.Conflict("Purchasing.PurchaseOrder.MoreThanOrdered",
+                            $"Only {line.OutstandingQuantity.ToString("0.###", CultureInfo.CurrentCulture)} of '{line.ProductName}' are still expected; " +
+                            $"{requested.Quantity.ToString("0.###", CultureInfo.CurrentCulture)} cannot be received."));
+                delivery.Add((line, new OrderQuantity(requested.Quantity)));
+            }
+        }
+
+        if (delivery.Count == 0)
+            return Result.Failure<int>(Error.Conflict("Purchasing.Receive.NothingOutstanding", "Every line of this order was already received."));
+
         var receivedNow = 0;
-        foreach (var line in order.Lines.Where(l => !l.IsReceived).ToList())
+        foreach (var (line, quantity) in delivery)
         {
             var receipt = await stockReceipts.ReceiveStockAsync(
-                line.ProductId, command.WarehouseId, line.Quantity.Value,
+                line.ProductId, command.WarehouseId, quantity.Value,
                 $"{order.Number} line {line.Id.Value:N}", cancellationToken);
 
             if (!receipt.IsSuccess)
@@ -268,20 +339,21 @@ public sealed class ReceivePurchaseOrderCommandHandler(
                     return Result.Failure<int>(Error.Failure("Purchasing.Receive.StockReceiptFailed",
                         $"Could not receive '{line.ProductName}': [{receipt.ErrorCode}] {receipt.ErrorMessage} Nothing was received: no stock was changed and the order is unchanged."));
 
+                order.UpdateReceivingStatus();
                 await unitOfWork.SaveChangesAsync(cancellationToken);   // keep the progress made so far
-                var outstanding = order.Lines.Count(l => !l.IsReceived);
                 return Result.Failure<int>(Error.Failure("Purchasing.Receive.StockReceiptFailed",
                     $"Could not receive '{line.ProductName}': [{receipt.ErrorCode}] {receipt.ErrorMessage} " +
-                    $"{order.Lines.Count - outstanding} of {order.Lines.Count} line(s) are received; receive again to continue."));
+                    $"{receivedNow} of {delivery.Count} line(s) of this delivery are received; receive the rest again to continue."));
             }
 
-            order.MarkLineReceived(line.Id);
+            var recorded = order.ReceiveLine(line.Id, quantity);
+            if (recorded.IsFailure) return Result.Failure<int>(recorded.Error);   // cannot happen: checked above
             receivedNow++;
-            await unitOfWork.SaveChangesAsync(cancellationToken);       // durable progress after every line
+            await unitOfWork.SaveChangesAsync(cancellationToken);       // durable progress after every line (inside the transaction when there is one)
         }
 
-        var complete = order.CompleteIfFullyReceived();
-        if (complete.IsFailure) return Result.Failure<int>(complete.Error);
+        var status = order.UpdateReceivingStatus();
+        if (status.IsFailure) return Result.Failure<int>(status.Error);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success(receivedNow);

@@ -30,13 +30,13 @@ internal sealed class EfPurchaseOrderRepository(PurchasingDbContext dbContext) :
         return await query.CountAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<(PurchaseOrderStatus Status, decimal Total)>> GetStatusTotalsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<(PurchaseOrderStatus Status, decimal Total, decimal Received)>> GetStatusTotalsAsync(CancellationToken cancellationToken = default)
     {
-        // SQLite cannot aggregate decimals in SQL, so only (status, total) pairs are loaded - never the lines.
+        // SQLite cannot aggregate decimals in SQL, so only (status, total, received) rows are loaded - never the lines.
         var rows = await dbContext.PurchaseOrders.AsNoTracking()
-            .Select(o => new { o.Status, o.TotalAmount })
+            .Select(o => new { o.Status, o.TotalAmount, o.ReceivedAmount })
             .ToListAsync(cancellationToken);
 
-        return rows.Select(r => (r.Status, r.TotalAmount.Amount)).ToList();
+        return rows.Select(r => (r.Status, r.TotalAmount.Amount, r.ReceivedAmount.Amount)).ToList();
     }
 }

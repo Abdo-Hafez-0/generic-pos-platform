@@ -91,6 +91,63 @@ public sealed class PurchaseOrdersOnRealDesktopTests
     }
 
     [Fact]
+    public async Task A_part_delivery_adds_only_what_arrived_and_the_order_is_then_closed_short()
+    {
+        await using var desktop = await OfflineDesktop.StartAsync();
+        var (services, shop, vm) = await ReadyAsync(desktop);
+        await CreateOrderAsync(vm);
+        (vm.LineCode, vm.LineQuantity, vm.LineCost) = (shop.Sku, Number(12m), Number(1m));
+        await Run(vm, vm.AddLineCommand);
+        await Run(vm, vm.SubmitCommand);
+        var number = vm.Order!.Number;
+
+        var row = Assert.Single(vm.Lines);
+        Assert.Equal(Number(12m), row.ReceiveNow);   // the delivery starts at what is still expected
+        row.ReceiveNow = Number(5m);
+        await Run(vm, vm.ReceiveCommand);
+
+        Assert.Null(vm.ErrorMessage);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, PurchasingText.OrderPartlyReceived, number, 1), vm.StatusMessage);
+        Assert.True(vm.IsPartiallyReceived && vm.IsAwaitingGoods && vm.CanEnd);
+        Assert.Equal(PurchasingText.PartiallyReceived, vm.Orders.Single().StatusText);
+        row = vm.Lines.Single();
+        Assert.Equal((5m, 7m, Number(7m)), (row.ReceivedQuantity, row.OutstandingQuantity, row.ReceiveNow));
+        Assert.Equal(15m, await OnHandAsync(services, shop));
+
+        row.ReceiveNow = Number(8m);   // more than is still expected: refused, nothing moves
+        await Run(vm, vm.ReceiveCommand);
+        Assert.NotNull(vm.ErrorMessage);
+        Assert.Equal(15m, await OnHandAsync(services, shop));
+
+        vm.Lines.Single().ReceiveNow = "two";
+        await Run(vm, vm.ReceiveCommand);
+        Assert.Equal(PurchasingText.ReceiveQuantityInvalid, vm.ErrorMessage);
+
+        vm.Lines.Single().ReceiveNow = Number(2m);
+        await Run(vm, vm.ReceiveCommand);
+        Assert.Equal(17m, await OnHandAsync(services, shop));
+        Assert.True(vm.IsPartiallyReceived);
+
+        Assert.False(vm.CloseShortCommand.CanExecute(null));   // a reason is required
+        vm.CancelReason = "supplier ran out";
+        Assert.False(vm.CancelOrderCommand.CanExecute(null));   // something arrived: close short, not cancel
+        await Run(vm, vm.CloseShortCommand);
+
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, PurchasingText.OrderClosedShort, number), vm.StatusMessage);
+        Assert.Equal(PurchasingText.ClosedShort, vm.Orders.Single().StatusText);
+        Assert.False(vm.IsAwaitingGoods || vm.CanEnd);
+        Assert.Equal((7m, 0m, false), (vm.Lines.Single().ReceivedQuantity, vm.Lines.Single().OutstandingQuantity, vm.Lines.Single().CanReceive));
+        Assert.Equal("supplier ran out", vm.Order!.ClosingReason);
+        Assert.Equal(17m, await OnHandAsync(services, shop));
+    }
+
+    private static async Task<decimal> OnHandAsync(IServiceProvider services, Shop shop)
+    {
+        using var scope = services.CreateScope();
+        return (await scope.ServiceProvider.GetRequiredService<IInventoryReader>().GetStockLevelByProductAsync(shop.ProductId, shop.WarehouseId))!.OnHand;
+    }
+
+    [Fact]
     public async Task An_order_is_cancelled_with_a_reason_and_selecting_it_in_the_list_shows_it_again()
     {
         await using var desktop = await OfflineDesktop.StartAsync();

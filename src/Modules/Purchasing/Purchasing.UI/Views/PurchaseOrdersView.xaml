@@ -63,7 +63,7 @@
         <Style TargetType="DataGridColumnHeader">
             <Setter Property="Background" Value="#313244"/>
             <Setter Property="Foreground" Value="#A6ADC8"/>
-            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Padding" Value="6,4"/>
             <Setter Property="BorderThickness" Value="0"/>
         </Style>
     </UserControl.Resources>
@@ -120,7 +120,7 @@
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="{x:Static res:PurchasingText.Number}" Binding="{Binding Order.Number}" Width="110" ElementStyle="{StaticResource Cell}"/>
                     <DataGridTextColumn Header="{x:Static res:PurchasingText.Supplier}" Binding="{Binding Order.SupplierName}" Width="*" ElementStyle="{StaticResource Cell}"/>
-                    <DataGridTextColumn Header="{x:Static res:PurchasingText.Status}" Binding="{Binding StatusText}" Width="80" ElementStyle="{StaticResource Cell}"/>
+                    <DataGridTextColumn Header="{x:Static res:PurchasingText.Status}" Binding="{Binding StatusText}" Width="105" ElementStyle="{StaticResource Cell}"/>
                     <DataGridTextColumn Header="{x:Static res:PurchasingText.Total}" Binding="{Binding Order.TotalAmount, StringFormat=N2}" Width="90" ElementStyle="{StaticResource Number}"/>
                 </DataGrid.Columns>
             </DataGrid>
@@ -145,27 +145,40 @@
                     <Button x:Name="RemoveLineButton" Content="{x:Static res:PurchasingText.RemoveLine}" Command="{Binding RemoveLineCommand}"/>
                     <Button x:Name="SubmitOrderButton" Content="{x:Static res:PurchasingText.Submit}" Command="{Binding SubmitCommand}"/>
                 </WrapPanel>
-                <WrapPanel Visibility="{Binding IsSubmitted, Converter={StaticResource VisibleWhenTrue}}" Margin="0,0,0,8">
+                <TextBlock Visibility="{Binding IsAwaitingGoods, Converter={StaticResource VisibleWhenTrue}}" Style="{StaticResource Label}" TextWrapping="Wrap" Margin="0,0,0,6"
+                           Text="{x:Static res:PurchasingText.ReceiveNowHint}"/>
+                <WrapPanel Visibility="{Binding IsAwaitingGoods, Converter={StaticResource VisibleWhenTrue}}" Margin="0,0,0,8">
                     <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PurchasingText.Warehouse}"/>
                     <ComboBox x:Name="ReceiveWarehouseBox" Width="160" ItemsSource="{Binding Warehouses}" SelectedItem="{Binding Warehouse}" DisplayMemberPath="Name"
                               AutomationProperties.Name="{x:Static res:PurchasingText.Warehouse}"/>
                     <Button x:Name="ReceiveOrderButton" Content="{x:Static res:PurchasingText.Receive}" Command="{Binding ReceiveCommand}"/>
                 </WrapPanel>
-                <WrapPanel>
+                <WrapPanel Visibility="{Binding CanEnd, Converter={StaticResource VisibleWhenTrue}}">
                     <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PurchasingText.CancelReason}"/>
                     <TextBox x:Name="CancelReasonBox" Width="220" Text="{Binding CancelReason, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PurchasingText.CancelReason}"/>
                     <Button x:Name="CancelOrderButton" Content="{x:Static res:PurchasingText.CancelOrder}" Command="{Binding CancelOrderCommand}"/>
+                    <Button x:Name="CloseShortButton" Content="{x:Static res:PurchasingText.CloseShort}" Command="{Binding CloseShortCommand}" ToolTip="{x:Static res:PurchasingText.CloseShortHint}"
+                            Visibility="{Binding IsPartiallyReceived, Converter={StaticResource VisibleWhenTrue}}"/>
                 </WrapPanel>
             </StackPanel>
 
             <DataGrid x:Name="OrderLineGrid" ItemsSource="{Binding Lines}" SelectedItem="{Binding SelectedLine}" AutomationProperties.Name="{x:Static res:PurchasingText.Product}">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="{x:Static res:PurchasingText.ProductCode}" Binding="{Binding ProductSku}" Width="100" ElementStyle="{StaticResource Cell}"/>
-                    <DataGridTextColumn Header="{x:Static res:PurchasingText.Product}" Binding="{Binding ProductName}" Width="*" ElementStyle="{StaticResource Cell}"/>
-                    <DataGridTextColumn Header="{x:Static res:PurchasingText.Quantity}" Binding="{Binding Quantity, StringFormat=0.###}" Width="80" ElementStyle="{StaticResource Number}"/>
-                    <DataGridTextColumn Header="{x:Static res:PurchasingText.UnitCost}" Binding="{Binding UnitCost, StringFormat=N2}" Width="90" ElementStyle="{StaticResource Number}"/>
-                    <DataGridTextColumn Header="{x:Static res:PurchasingText.LineTotal}" Binding="{Binding LineTotal, StringFormat=N2}" Width="100" ElementStyle="{StaticResource Number}"/>
-                    <DataGridCheckBoxColumn Header="{x:Static res:PurchasingText.ReceivedColumn}" Binding="{Binding IsReceived, Mode=OneWay}" Width="80"/>
+                    <DataGridTextColumn Header="{x:Static res:PurchasingText.ProductCode}" Binding="{Binding ProductSku}" Width="80" ElementStyle="{StaticResource Cell}"/>
+                    <DataGridTextColumn Header="{x:Static res:PurchasingText.Product}" Binding="{Binding ProductName}" Width="*" MinWidth="110" ElementStyle="{StaticResource Cell}"/>
+                    <DataGridTextColumn Header="{x:Static res:PurchasingText.Quantity}" Binding="{Binding Quantity, StringFormat=0.###}" Width="72" ElementStyle="{StaticResource Number}"/>
+                    <DataGridTextColumn Header="{x:Static res:PurchasingText.UnitCost}" Binding="{Binding UnitCost, StringFormat=N2}" Width="75" ElementStyle="{StaticResource Number}"/>
+                    <DataGridTextColumn Header="{x:Static res:PurchasingText.LineTotal}" Binding="{Binding LineTotal, StringFormat=N2}" Width="85" ElementStyle="{StaticResource Number}"/>
+                    <DataGridTextColumn Header="{x:Static res:PurchasingText.ReceivedColumn}" Binding="{Binding ReceivedQuantity, StringFormat=0.###}" Width="75" ElementStyle="{StaticResource Number}"/>
+                    <DataGridTextColumn Header="{x:Static res:PurchasingText.Outstanding}" Binding="{Binding OutstandingQuantity, StringFormat=0.###}" Width="70" ElementStyle="{StaticResource Number}"/>
+                    <DataGridTemplateColumn Header="{x:Static res:PurchasingText.ReceiveNow}" Width="80">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding ReceiveNow, UpdateSourceTrigger=PropertyChanged}" Margin="2,1" TextAlignment="Right" ToolTip="{x:Static res:PurchasingText.ReceiveNowHint}"
+                                         Visibility="{Binding CanReceive, Converter={StaticResource VisibleWhenTrue}}" AutomationProperties.Name="{x:Static res:PurchasingText.ReceiveNow}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
         </DockPanel>

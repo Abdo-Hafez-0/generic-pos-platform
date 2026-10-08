@@ -100,8 +100,15 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Real exe: STD 14% on the Tax rates screen; 4 x 2.50 with 10% on the line and 0.50 on the cart -> 8.50 incl. 1.04 tax; 90% refused above a 50% maximum; printed receipt checked
   - Carried forward: Sales history and Business overview do not show tax/discounts yet (the data is recorded); automatic promotions/coupons (optional Discounts module)
 - [ ] **FIX-09 Purchasing gaps** (Stage 8)
-  - [ ] Partial-quantity receiving
-  - [ ] Supplier returns
+
+  Decisions (2026-10-08, user):
+  1. **Receive per delivery + close short**: each delivery enters a quantity per line (adding up, never above what was ordered); the order is "Partly received" until every unit arrived; a partly received order can be closed short with a reason (the rest is no longer expected).
+  2. **Returns attach to a received purchase order**: return from the order's received quantities (never more than received minus earlier returns), from the order's warehouse, at its unit cost; a reason is required; stock goes out through Inventory; audited.
+  3. **New capability** `purchasing.return.create` (sensitive) for supplier returns.
+
+  - [x] **FIX-09a Partial-quantity receiving** (2026-10-08): per-line delivery quantities, statuses PartiallyReceived (5) and Closed (6), close short (capability purchasing.order.cancel), received value kept on the order; migration AddPartialReceiving backfills earlier receipts; Purchase orders screen: Received / Still due / Arrived columns, Close short
+    - [x] Real exe: 12 ordered, 5 then 2 arrive (8 refused: "Only 7 ... are still expected"), closed short -> stock 7, overview 8.40 received / 0.00 open; a two-line order with one line complete and one partly
+  - [ ] **FIX-09b Supplier returns**
 - [ ] **FIX-10 POS split payments** (Stage 8): offer the split payments the Payments API already supports
 - [ ] **FIX-11 Customer on a sale** (Stage 8): a sale can carry an optional customer
 - [ ] **FIX-12 Sales report limit** (Stage 8): Sales.Contracts exposes a ranged query so the report no longer stops at 2000 sales
@@ -192,4 +199,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-08 | FIX-07 | 9429ae3 | One DI scope per action enforced and tested; 2498 tests, 0 warnings; real exe |
 | 2026-10-08 | FIX-08 plan, FIX-08a | e6e9ee1 | Decisions recorded; tax rates in Pricing + Tax rates screen; 2512 tests, 0 warnings |
 | 2026-10-08 | FIX-08b | 787737b | Tax at the till and in Sales (prices include tax, one shared line rule); 2526 tests, 0 warnings |
-| 2026-10-08 | FIX-08c | (this commit) | Discounts at the till; FIX-08 complete; 2543 tests, 0 warnings; real exe with a printed receipt |
+| 2026-10-08 | FIX-08c | 0f749f8 | Discounts at the till; FIX-08 complete; 2543 tests, 0 warnings; real exe with a printed receipt |
+| 2026-10-08 | FIX-09 plan, FIX-09a | (this commit) | Decisions recorded; part deliveries and closing short; 2555 tests, 0 warnings; real exe |

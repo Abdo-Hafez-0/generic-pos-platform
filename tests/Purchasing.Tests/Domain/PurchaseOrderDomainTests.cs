@@ -171,31 +171,118 @@ public sealed class PurchaseOrderDomainTests
         Assert.Equal(warehouse, o.WarehouseId);
     }
 
+    private static Platform.Core.Results.Result ReceiveAll(PurchaseOrder o, int line)
+        => o.ReceiveLine(o.Lines[line].Id, new OrderQuantity(o.Lines[line].OutstandingQuantity));
+
     [Fact]
     public void ReceivingLines_CompletesTheOrder_OnlyWhenEveryLineIsReceived()
     {
         var o = SubmittedWithLines(2);
         o.BeginReceiving(Guid.NewGuid());
 
-        Assert.True(o.MarkLineReceived(o.Lines[0].Id).IsSuccess);
-        Assert.True(o.CompleteIfFullyReceived().IsSuccess);
-        Assert.Equal(PurchaseOrderStatus.Submitted, o.Status);          // one line outstanding
+        Assert.True(ReceiveAll(o, 0).IsSuccess);
+        Assert.True(o.UpdateReceivingStatus().IsSuccess);
+        Assert.Equal(PurchaseOrderStatus.PartiallyReceived, o.Status);   // one line outstanding
+        Assert.Null(o.ReceivedAt);
 
-        Assert.True(o.MarkLineReceived(o.Lines[1].Id).IsSuccess);
-        Assert.True(o.CompleteIfFullyReceived().IsSuccess);
+        Assert.True(ReceiveAll(o, 1).IsSuccess);
+        Assert.True(o.UpdateReceivingStatus().IsSuccess);
         Assert.Equal(PurchaseOrderStatus.Received, o.Status);
         Assert.NotNull(o.ReceivedAt);
+        Assert.Equal(o.TotalAmount, o.ReceivedAmount);
     }
 
     [Fact]
-    public void MarkLineReceived_Twice_OrUnknownLine_Fails()
+    public void ReceiveLine_Twice_OrUnknownLine_Fails()
     {
         var o = SubmittedWithLines(2);
         o.BeginReceiving(Guid.NewGuid());
-        o.MarkLineReceived(o.Lines[0].Id);
+        ReceiveAll(o, 0);
 
-        Assert.Equal("Purchasing.PurchaseOrder.LineAlreadyReceived", o.MarkLineReceived(o.Lines[0].Id).Error.Code);
-        Assert.Equal("Purchasing.PurchaseOrder.LineNotFound", o.MarkLineReceived(PurchaseOrderLineId.New()).Error.Code);
+        Assert.Equal("Purchasing.PurchaseOrder.LineAlreadyReceived", o.ReceiveLine(o.Lines[0].Id, new OrderQuantity(1m)).Error.Code);
+        Assert.Equal("Purchasing.PurchaseOrder.LineNotFound", o.ReceiveLine(PurchaseOrderLineId.New(), new OrderQuantity(1m)).Error.Code);
+    }
+
+    // --- FIX-09: part deliveries ---
+
+    [Fact]
+    public void A_line_is_received_over_several_deliveries_and_the_received_value_follows()
+    {
+        var o = NewOrder();
+        Add(o, qty: 10m, cost: 2.5m);
+        o.Submit();
+        o.BeginReceiving(Guid.NewGuid());
+        var line = o.Lines[0];
+
+        Assert.True(o.ReceiveLine(line.Id, new OrderQuantity(4m)).IsSuccess);
+        o.UpdateReceivingStatus();
+        Assert.Equal((4m, 6m, false, true), (line.ReceivedQuantity, line.OutstandingQuantity, line.IsReceived, line.HasReceipts));
+        Assert.Equal(10m, o.ReceivedAmount.Amount);
+        Assert.Equal(PurchaseOrderStatus.PartiallyReceived, o.Status);
+        Assert.Null(line.ReceivedAt);
+
+        Assert.True(o.BeginReceiving(o.WarehouseId!.Value).IsSuccess);   // a partly received order takes the next delivery
+        Assert.True(o.ReceiveLine(line.Id, new OrderQuantity(6m)).IsSuccess);
+        o.UpdateReceivingStatus();
+        Assert.Equal((10m, 0m, true), (line.ReceivedQuantity, line.OutstandingQuantity, line.IsReceived));
+        Assert.NotNull(line.ReceivedAt);
+        Assert.Equal(25m, o.ReceivedAmount.Amount);
+        Assert.Equal(PurchaseOrderStatus.Received, o.Status);
+    }
+
+    [Fact]
+    public void More_than_is_still_expected_is_refused_and_changes_nothing()
+    {
+        var o = NewOrder();
+        Add(o, qty: 5m);
+        o.Submit();
+        o.BeginReceiving(Guid.NewGuid());
+        o.ReceiveLine(o.Lines[0].Id, new OrderQuantity(3m));
+
+        var refused = o.ReceiveLine(o.Lines[0].Id, new OrderQuantity(2.5m));
+
+        Assert.Equal("Purchasing.PurchaseOrder.MoreThanOrdered", refused.Error.Code);
+        Assert.Contains("Only 2", refused.Error.Description);
+        Assert.Equal(3m, o.Lines[0].ReceivedQuantity);
+        Assert.Equal(30m, o.ReceivedAmount.Amount);
+    }
+
+    [Fact]
+    public void Nothing_can_be_received_on_a_draft_or_a_finished_order()
+    {
+        var draft = NewOrder();
+        Add(draft);
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidState", draft.ReceiveLine(draft.Lines[0].Id, new OrderQuantity(1m)).Error.Code);
+
+        var closed = SubmittedWithLines(2);
+        closed.BeginReceiving(Guid.NewGuid());
+        ReceiveAll(closed, 0);
+        closed.UpdateReceivingStatus();
+        Assert.True(closed.CloseShort("supplier stopped the product").IsSuccess);
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidState", closed.BeginReceiving(closed.WarehouseId!.Value).Error.Code);
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidState", ReceiveAll(closed, 1).Error.Code);
+    }
+
+    [Fact]
+    public void Close_short_needs_a_partly_received_order_and_a_reason()
+    {
+        var submitted = SubmittedWithLines(2);
+        Assert.Contains("cancel it instead", submitted.CloseShort("x").Error.Description);
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidState", NewOrder().CloseShort("x").Error.Code);
+
+        var partial = SubmittedWithLines(2);
+        partial.BeginReceiving(Guid.NewGuid());
+        ReceiveAll(partial, 0);
+        partial.UpdateReceivingStatus();
+        Assert.Equal("Purchasing.PurchaseOrder.ClosingReasonRequired", partial.CloseShort(" ").Error.Code);
+        Assert.Equal("Purchasing.PurchaseOrder.ClosingReasonTooLong", partial.CloseShort(new string('x', 501)).Error.Code);
+
+        Assert.True(partial.CloseShort("  rest discontinued ").IsSuccess);
+        Assert.Equal(PurchaseOrderStatus.Closed, partial.Status);
+        Assert.Equal("rest discontinued", partial.ClosingReason);
+        Assert.NotNull(partial.ClosedAt);
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidState", partial.CloseShort("again").Error.Code);
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidState", partial.Cancel("too late").Error.Code);
     }
 
     [Fact]
@@ -204,7 +291,7 @@ public sealed class PurchaseOrderDomainTests
         var o = SubmittedWithLines(2);
         var first = Guid.NewGuid();
         o.BeginReceiving(first);
-        o.MarkLineReceived(o.Lines[0].Id);
+        o.ReceiveLine(o.Lines[0].Id, new OrderQuantity(0.5m));
 
         Assert.Equal("Purchasing.PurchaseOrder.WarehouseMismatch", o.BeginReceiving(Guid.NewGuid()).Error.Code);
         Assert.True(o.BeginReceiving(first).IsSuccess);
@@ -245,20 +332,23 @@ public sealed class PurchaseOrderDomainTests
 
         var received = SubmittedWithLines(1);
         received.BeginReceiving(Guid.NewGuid());
-        received.MarkLineReceived(received.Lines[0].Id);
-        received.CompleteIfFullyReceived();
+        ReceiveAll(received, 0);
+        received.UpdateReceivingStatus();
         Assert.Equal("Purchasing.PurchaseOrder.InvalidState", received.Cancel("late").Error.Code);
 
         var partial = SubmittedWithLines(2);
         partial.BeginReceiving(Guid.NewGuid());
-        partial.MarkLineReceived(partial.Lines[0].Id);
-        Assert.Equal("Purchasing.PurchaseOrder.PartiallyReceived", partial.Cancel("oops").Error.Code);
-        Assert.Equal(PurchaseOrderStatus.Submitted, partial.Status);
+        partial.ReceiveLine(partial.Lines[0].Id, new OrderQuantity(1m));
+        partial.UpdateReceivingStatus();
+        var refused = partial.Cancel("oops");
+        Assert.Equal("Purchasing.PurchaseOrder.PartiallyReceived", refused.Error.Code);
+        Assert.Contains("Close it short", refused.Error.Description);
+        Assert.Equal(PurchaseOrderStatus.PartiallyReceived, partial.Status);
     }
 
     [Fact]
-    public void CompleteIfFullyReceived_RequiresSubmitted()
-        => Assert.Equal("Purchasing.PurchaseOrder.InvalidState", NewOrder().CompleteIfFullyReceived().Error.Code);
+    public void UpdateReceivingStatus_RequiresAnOrderAwaitingGoods()
+        => Assert.Equal("Purchasing.PurchaseOrder.InvalidState", NewOrder().UpdateReceivingStatus().Error.Code);
 
     [Fact]
     public void Ids_AreUnique()

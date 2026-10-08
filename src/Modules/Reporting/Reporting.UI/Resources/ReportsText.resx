@@ -20,7 +20,7 @@
   <data name="OutOfStock" xml:space="preserve"><value>Out of stock lines</value></data>
   <data name="PurchasingCard" xml:space="preserve"><value>Purchasing</value></data>
   <data name="Orders" xml:space="preserve"><value>Orders</value></data>
-  <data name="OrdersByStatus" xml:space="preserve"><value>Draft / submitted / received / cancelled</value></data>
+  <data name="OrdersByStatus" xml:space="preserve"><value>Draft / awaiting goods / received or closed / cancelled</value></data>
   <data name="OpenValue" xml:space="preserve"><value>Value still to receive</value></data>
   <data name="ReceivedValue" xml:space="preserve"><value>Value received</value></data>
   <data name="CustomersCard" xml:space="preserve"><value>Customers</value></data>

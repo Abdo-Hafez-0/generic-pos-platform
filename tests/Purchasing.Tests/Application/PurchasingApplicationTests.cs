@@ -108,8 +108,12 @@ public sealed class PurchasingApplicationTests
     private static Task<Platform.Core.Results.Result> Submit(Env e, Guid order)
         => e.Db.InScopeAsync(sp => sp.GetRequiredService<SubmitPurchaseOrderCommandHandler>().HandleAsync(new SubmitPurchaseOrderCommand(order)));
 
-    private static Task<Platform.Core.Results.Result<int>> Receive(Env e, Guid order, Guid warehouse)
-        => e.Db.InScopeAsync(sp => sp.GetRequiredService<ReceivePurchaseOrderCommandHandler>().HandleAsync(new ReceivePurchaseOrderCommand(order, warehouse)));
+    private static Task<Platform.Core.Results.Result<int>> Receive(Env e, Guid order, Guid warehouse, params ReceiveLineQuantity[]? lines)
+        => e.Db.InScopeAsync(sp => sp.GetRequiredService<ReceivePurchaseOrderCommandHandler>()
+            .HandleAsync(new ReceivePurchaseOrderCommand(order, warehouse, lines is { Length: > 0 } ? lines : null)));
+
+    private static Task<Platform.Core.Results.Result> CloseShort(Env e, Guid order, string reason)
+        => e.Db.InScopeAsync(sp => sp.GetRequiredService<ClosePurchaseOrderShortCommandHandler>().HandleAsync(new ClosePurchaseOrderShortCommand(order, reason)));
 
     // ------------------------------------------------------------------ create
 
@@ -319,7 +323,7 @@ public sealed class PurchasingApplicationTests
         Assert.True(first.IsFailure);
         Assert.Equal("Purchasing.Receive.StockReceiptFailed", first.Error.Code);
         var partial = (await Get(e, order))!;
-        Assert.Equal(PurchaseOrderStatus.Submitted, partial.Status);
+        Assert.Equal(PurchaseOrderStatus.PartiallyReceived, partial.Status);   // FIX-09: the kept part is a part receipt
         Assert.Equal([true, false], partial.Lines.OrderBy(l => l.ProductSku).Select(l => l.IsReceived).ToArray());
         Assert.Single(e.Receipts.Received);
 
@@ -372,6 +376,132 @@ public sealed class PurchasingApplicationTests
         Assert.True((await Receive(e, draft, Guid.NewGuid())).IsSuccess);
         Assert.Equal("Purchasing.PurchaseOrder.InvalidState", (await Receive(e, draft, Guid.NewGuid())).Error.Code);   // already received
         Assert.Single(e.Receipts.Received);
+    }
+
+    // ------------------------------------------------------------------ FIX-09: part deliveries and closing short
+
+    private static async Task<(Guid Order, Guid LineA, Guid LineB, Guid ProductA, Guid ProductB)> PlacedTwoLineOrder(Env e, decimal qtyA = 10m, decimal qtyB = 4m)
+    {
+        var a = e.Catalog.Register("A", cost: 2m);
+        var b = e.Catalog.Register("B", cost: 5m);
+        var order = await Draft(e);
+        var lineA = (await Line(e, order, "A", qtyA)).Value;
+        var lineB = (await Line(e, order, "B", qtyB)).Value;
+        Assert.True((await Submit(e, order)).IsSuccess);
+        return (order, lineA, lineB, a, b);
+    }
+
+    [Fact]
+    public async Task A_part_delivery_moves_only_what_arrived_and_the_next_delivery_completes_the_order()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        var (order, lineA, lineB, a, b) = await PlacedTwoLineOrder(e);
+        var warehouse = Guid.NewGuid();
+
+        var first = await Receive(e, order, warehouse, new ReceiveLineQuantity(lineA, 6m), new ReceiveLineQuantity(lineB, 0m));
+
+        Assert.Equal(1, first.Value);                                         // one line took part in the delivery
+        Assert.Equal([(a, 6m)], e.Receipts.Received.Select(r => (r.ProductId, r.Quantity)).ToArray());
+        var partly = (await Get(e, order))!;
+        Assert.Equal(PurchaseOrderStatus.PartiallyReceived, partly.Status);
+        Assert.Equal(12m, partly.ReceivedAmount);                            // 6 x 2
+        var a1 = partly.Lines.Single(l => l.LineId == lineA);
+        Assert.Equal((6m, 4m, false), (a1.ReceivedQuantity, a1.OutstandingQuantity, a1.IsReceived));
+        Assert.Equal(4m, partly.Lines.Single(l => l.LineId == lineB).OutstandingQuantity);
+
+        var second = await Receive(e, order, warehouse);                       // everything still outstanding
+
+        Assert.Equal(2, second.Value);
+        Assert.Equal([(a, 6m), (a, 4m), (b, 4m)], e.Receipts.Received.Select(r => (r.ProductId, r.Quantity)).ToArray());
+        var done = (await Get(e, order))!;
+        Assert.Equal(PurchaseOrderStatus.Received, done.Status);
+        Assert.Equal(done.TotalAmount, done.ReceivedAmount);
+        Assert.All(done.Lines, l => Assert.Equal((true, 0m), (l.IsReceived, l.OutstandingQuantity)));
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidState", (await Receive(e, order, warehouse)).Error.Code);
+    }
+
+    [Fact]
+    public async Task A_delivery_with_more_than_is_still_expected_is_refused_before_any_stock_moves()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        var (order, lineA, lineB, _, _) = await PlacedTwoLineOrder(e);
+        var warehouse = Guid.NewGuid();
+        await Receive(e, order, warehouse, new ReceiveLineQuantity(lineA, 8m));
+
+        // B is fine, A has only 2 left: nothing of the delivery is taken (B comes first in the request on purpose)
+        var refused = await Receive(e, order, warehouse, new ReceiveLineQuantity(lineB, 1m), new ReceiveLineQuantity(lineA, 3m));
+
+        Assert.Equal("Purchasing.PurchaseOrder.MoreThanOrdered", refused.Error.Code);
+        Assert.Single(e.Receipts.Received);
+        var dto = (await Get(e, order))!;
+        Assert.Equal((8m, 0m), (dto.Lines.Single(l => l.LineId == lineA).ReceivedQuantity, dto.Lines.Single(l => l.LineId == lineB).ReceivedQuantity));
+    }
+
+    [Fact]
+    public async Task A_delivery_is_validated_in_plain_words()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        var (order, lineA, lineB, _, _) = await PlacedTwoLineOrder(e);
+        var warehouse = Guid.NewGuid();
+
+        Assert.Equal("Purchasing.Receive.InvalidQuantity", (await Receive(e, order, warehouse, new ReceiveLineQuantity(lineA, -1m))).Error.Code);
+        Assert.Equal("Purchasing.Receive.DuplicateLine", (await Receive(e, order, warehouse, new ReceiveLineQuantity(lineA, 1m), new ReceiveLineQuantity(lineA, 1m))).Error.Code);
+        Assert.Equal("Purchasing.Receive.NothingToReceive", (await Receive(e, order, warehouse, new ReceiveLineQuantity(lineA, 0m), new ReceiveLineQuantity(lineB, 0m))).Error.Code);
+        Assert.Equal("Purchasing.Receive.NothingToReceive", (await e.Db.InScopeAsync(sp => sp.GetRequiredService<ReceivePurchaseOrderCommandHandler>()
+            .HandleAsync(new ReceivePurchaseOrderCommand(order, warehouse, [])))).Error.Code);
+        Assert.Equal("Purchasing.PurchaseOrder.LineNotFound", (await Receive(e, order, warehouse, new ReceiveLineQuantity(Guid.NewGuid(), 1m))).Error.Code);
+        Assert.Empty(e.Receipts.Received);
+        Assert.Equal(PurchaseOrderStatus.Submitted, (await Get(e, order))!.Status);
+    }
+
+    [Fact]
+    public async Task A_partly_received_order_is_closed_short_and_then_takes_no_more_goods()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        var (order, lineA, _, _, _) = await PlacedTwoLineOrder(e);
+        var warehouse = Guid.NewGuid();
+
+        Assert.Contains("cancel it instead", (await CloseShort(e, order, "nothing came")).Error.Description);   // nothing received yet
+        await Receive(e, order, warehouse, new ReceiveLineQuantity(lineA, 10m));
+        Assert.Equal("Purchasing.PurchaseOrder.ClosingReasonRequired", (await CloseShort(e, order, " ")).Error.Code);
+        Assert.Contains("Close it short", (await e.Db.InScopeAsync(sp => sp.GetRequiredService<CancelPurchaseOrderCommandHandler>()
+            .HandleAsync(new CancelPurchaseOrderCommand(order, "x")))).Error.Description);
+
+        Assert.True((await CloseShort(e, order, "B is discontinued")).IsSuccess);
+
+        var closed = (await Get(e, order))!;
+        Assert.Equal((PurchaseOrderStatus.Closed, "B is discontinued"), (closed.Status, closed.ClosingReason));
+        Assert.NotNull(closed.ClosedAt);
+        Assert.All(closed.Lines, l => Assert.Equal(0m, l.OutstandingQuantity));   // nothing is expected any more
+        Assert.Equal(20m, closed.ReceivedAmount);
+        Assert.Equal("Purchasing.PurchaseOrder.InvalidState", (await Receive(e, order, warehouse)).Error.Code);
+        Assert.Equal("Purchasing.CloseShort.OrderNotFound", (await CloseShort(e, Guid.NewGuid(), "x")).Error.Code);
+    }
+
+    [Fact]
+    public async Task The_summary_counts_part_deliveries_and_closed_orders_and_values_what_really_arrived()
+    {
+        var e = await NewEnv();
+        await using var _ = e.Db;
+        var warehouse = Guid.NewGuid();
+        var (partly, lineA, _, _, _) = await PlacedTwoLineOrder(e);   // total 10x2 + 4x5 = 40
+        await Receive(e, partly, warehouse, new ReceiveLineQuantity(lineA, 5m));   // 10 received, 30 still to come
+        var closedOrder = await Draft(e);
+        var closedLine = (await Line(e, closedOrder, "A", 3m)).Value;   // total 6
+        await Line(e, closedOrder, "B", 1m);                            // + 5
+        await Submit(e, closedOrder);
+        await Receive(e, closedOrder, warehouse, new ReceiveLineQuantity(closedLine, 3m));   // 6 received
+        await CloseShort(e, closedOrder, "rest discontinued");
+
+        var summary = await e.Db.InScopeAsync(sp => sp.GetRequiredService<IPurchaseOrderReader>().GetSummaryAsync());
+        var line = (await e.Db.InScopeAsync(sp => sp.GetRequiredService<IPurchaseOrderReader>().GetAsync(partly)))!.Lines.Single(l => l.LineId == lineA);
+
+        Assert.Equal(new PurchaseSummaryResult(2, 0, 0, 0, 0, ReceivedValue: 16m, OpenValue: 30m, PartiallyReceived: 1, Closed: 1), summary);
+        Assert.Equal((5m, false), (line.ReceivedQuantity, line.IsReceived));
     }
 
     // ------------------------------------------------------------------ queries and contracts

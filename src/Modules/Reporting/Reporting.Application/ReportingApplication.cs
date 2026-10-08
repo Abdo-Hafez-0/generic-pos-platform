@@ -123,7 +123,9 @@ namespace Reporting.Application.Queries
             if (purchaseOrderReader is null) return Result.Failure<PurchasingOverviewDto>(ReportingErrors.Unavailable("Purchasing"));
 
             var s = await purchaseOrderReader.GetSummaryAsync(cancellationToken);
-            return Result.Success(new PurchasingOverviewDto(s.TotalOrders, s.Draft, s.Submitted, s.Received, s.Cancelled, s.ReceivedValue, s.OpenValue));
+            // FIX-09: a partly received order still awaits goods; an order closed short is finished like a received one
+            return Result.Success(new PurchasingOverviewDto(
+                s.TotalOrders, s.Draft, s.Submitted + s.PartiallyReceived, s.Received + s.Closed, s.Cancelled, s.ReceivedValue, s.OpenValue));
         }
     }
 

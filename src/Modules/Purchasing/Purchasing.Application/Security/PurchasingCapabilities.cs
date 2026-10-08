@@ -16,7 +16,7 @@ public static class PurchasingCapabilities
     [
         new(EditOrder, Module, "Create and edit purchase orders", "Create purchase orders and change their lines while they are drafts.", LicenseRequirement.Module),
         new(SubmitOrder, Module, "Submit purchase orders", "Send a draft purchase order to the supplier.", LicenseRequirement.Module),
-        new(CancelOrder, Module, "Cancel purchase orders", "Cancel a purchase order that has not been received.", LicenseRequirement.Module),
+        new(CancelOrder, Module, "Cancel purchase orders", "Cancel a purchase order that has not been received, or close a partly received one short.", LicenseRequirement.Module),
         new(ReceiveOrder, Module, "Receive purchase orders", "Book the goods of a purchase order into stock.", LicenseRequirement.Module, IsSensitive: true)
     ];
 }

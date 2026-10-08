@@ -52,6 +52,7 @@ public static class PurchasingServicesExtensions
         services.AddTransient<Purchasing.Application.Commands.SubmitPurchaseOrderCommandHandler>();
         services.AddTransient<Purchasing.Application.Commands.CancelPurchaseOrderCommandHandler>();
         services.AddTransient<Purchasing.Application.Commands.ReceivePurchaseOrderCommandHandler>();
+        services.AddTransient<Purchasing.Application.Commands.ClosePurchaseOrderShortCommandHandler>();
         services.AddTransient<Purchasing.Application.Queries.GetPurchaseOrderQueryHandler>();
         services.AddTransient<Purchasing.Application.Queries.ListPurchaseOrdersQueryHandler>();
         services.AddTransient<Purchasing.Application.Queries.FindOrderSuppliersQueryHandler>();

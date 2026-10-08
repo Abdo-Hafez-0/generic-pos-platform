@@ -51,6 +51,7 @@ public sealed class PurchasingAuthorizationTests
             ("change qty", await sp.GetRequiredService<ChangePurchaseOrderLineQuantityCommandHandler>().HandleAsync(new ChangePurchaseOrderLineQuantityCommand(order, Guid.NewGuid(), 2m)), PurchasingCapabilities.EditOrder),
             ("submit", await sp.GetRequiredService<SubmitPurchaseOrderCommandHandler>().HandleAsync(new SubmitPurchaseOrderCommand(order)), PurchasingCapabilities.SubmitOrder),
             ("cancel", await sp.GetRequiredService<CancelPurchaseOrderCommandHandler>().HandleAsync(new CancelPurchaseOrderCommand(order, "no")), PurchasingCapabilities.CancelOrder),
+            ("close short", await sp.GetRequiredService<ClosePurchaseOrderShortCommandHandler>().HandleAsync(new ClosePurchaseOrderShortCommand(order, "no")), PurchasingCapabilities.CancelOrder),
             ("receive", await sp.GetRequiredService<ReceivePurchaseOrderCommandHandler>().HandleAsync(new ReceivePurchaseOrderCommand(order, Guid.NewGuid())), PurchasingCapabilities.ReceiveOrder)
         };
 

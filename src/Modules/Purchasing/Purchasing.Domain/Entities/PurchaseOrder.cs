@@ -37,12 +37,22 @@ public sealed class PurchaseOrder
     /// <summary>Sum of line totals, maintained by the aggregate (so lists/summaries never need the lines).</summary>
     public Money TotalAmount { get; private set; }
 
+    /// <summary>Value of the goods received so far (received quantity x unit cost over the lines), maintained like <see cref="TotalAmount"/>.</summary>
+    public Money ReceivedAmount { get; private set; }
+
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
     public DateTime? SubmittedAt { get; private set; }
     public DateTime? ReceivedAt { get; private set; }
     public DateTime? CancelledAt { get; private set; }
     public string? CancellationReason { get; private set; }
+
+    /// <summary>When a partly received order was closed short, and why (FIX-09).</summary>
+    public DateTime? ClosedAt { get; private set; }
+    public string? ClosingReason { get; private set; }
+
+    /// <summary>True while goods are still expected: Submitted or PartiallyReceived.</summary>
+    public bool IsAwaitingGoods => Status is PurchaseOrderStatus.Submitted or PurchaseOrderStatus.PartiallyReceived;
 
     public IReadOnlyList<PurchaseOrderLine> Lines => _lines.AsReadOnly();
 
@@ -69,6 +79,7 @@ public sealed class PurchaseOrder
             Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
             Status = PurchaseOrderStatus.Draft,
             TotalAmount = Money.Zero,
+            ReceivedAmount = Money.Zero,
             CreatedAt = now,
             UpdatedAt = now
         });
@@ -144,16 +155,19 @@ public sealed class PurchaseOrder
         return Result.Success();
     }
 
-    /// <summary>Starts (or resumes) receiving into a warehouse. Allowed while Submitted. A resumed receipt must use the same warehouse.</summary>
+    /// <summary>
+    /// Starts (or resumes) receiving into a warehouse. Allowed while goods are awaited (Submitted or PartiallyReceived). Once anything was
+    /// received, later deliveries must use the same warehouse.
+    /// </summary>
     public Result BeginReceiving(Guid warehouseId)
     {
-        if (Status != PurchaseOrderStatus.Submitted)
-            return Result.Failure(InvalidState("Only a Submitted order can be received."));
+        if (!IsAwaitingGoods)
+            return Result.Failure(InvalidState("Only a placed order that still awaits goods can be received."));
 
         if (warehouseId == Guid.Empty)
             return Result.Failure(Error.Validation("Purchasing.PurchaseOrder.WarehouseRequired", "A warehouse is required to receive an order."));
 
-        if (WarehouseId is { } current && current != warehouseId && _lines.Any(l => l.IsReceived))
+        if (WarehouseId is { } current && current != warehouseId && _lines.Any(l => l.HasReceipts))
             return Result.Failure(Error.Conflict("Purchasing.PurchaseOrder.WarehouseMismatch",
                 "Part of this order was already received into another warehouse; continue with that warehouse."));
 
@@ -162,32 +176,64 @@ public sealed class PurchaseOrder
         return Result.Success();
     }
 
-    public Result MarkLineReceived(PurchaseOrderLineId lineId)
+    /// <summary>Records a delivery of one line (FIX-09: any part of what is still outstanding). Call <see cref="UpdateReceivingStatus"/> after the delivery.</summary>
+    public Result ReceiveLine(PurchaseOrderLineId lineId, OrderQuantity quantity)
     {
-        if (Status != PurchaseOrderStatus.Submitted)
-            return Result.Failure(InvalidState("Lines can only be received on a Submitted order."));
+        if (!IsAwaitingGoods)
+            return Result.Failure(InvalidState("Lines can only be received on a placed order that still awaits goods."));
 
         var line = FindLine(lineId);
         if (line is null)
             return Result.Failure(Error.NotFound("Purchasing.PurchaseOrder.LineNotFound", "The line was not found on this order."));
 
-        var r = line.MarkReceived();
-        if (r.IsSuccess) UpdatedAt = DateTime.UtcNow;
+        var r = line.Receive(quantity);
+        if (r.IsFailure) return r;
+
+        ReceivedAmount = _lines.Aggregate(Money.Zero, (acc, l) => acc + l.ReceivedTotal);
+        UpdatedAt = DateTime.UtcNow;
         return r;
     }
 
-    /// <summary>Moves to Received once every line has been received. A no-op (success) while lines are still outstanding.</summary>
-    public Result CompleteIfFullyReceived()
+    /// <summary>
+    /// After a delivery: Received once every unit has arrived, PartiallyReceived while some has and the rest is still expected, unchanged
+    /// (Submitted) while nothing has.
+    /// </summary>
+    public Result UpdateReceivingStatus()
     {
-        if (Status != PurchaseOrderStatus.Submitted)
-            return Result.Failure(InvalidState("Only a Submitted order can be completed."));
+        if (!IsAwaitingGoods)
+            return Result.Failure(InvalidState("Only a placed order that still awaits goods can be completed."));
 
-        if (_lines.Count == 0 || _lines.Any(l => !l.IsReceived))
-            return Result.Success();
+        if (_lines.Count > 0 && _lines.All(l => l.IsReceived))
+        {
+            Status = PurchaseOrderStatus.Received;
+            ReceivedAt = DateTime.UtcNow;
+            UpdatedAt = ReceivedAt.Value;
+        }
+        else if (_lines.Any(l => l.HasReceipts))
+        {
+            Status = PurchaseOrderStatus.PartiallyReceived;
+            UpdatedAt = DateTime.UtcNow;
+        }
 
-        Status = PurchaseOrderStatus.Received;
-        ReceivedAt = DateTime.UtcNow;
-        UpdatedAt = ReceivedAt.Value;
+        return Result.Success();
+    }
+
+    /// <summary>Closes a partly received order short: what arrived stays in stock, the rest is no longer expected (FIX-09).</summary>
+    public Result CloseShort(string reason)
+    {
+        if (Status != PurchaseOrderStatus.PartiallyReceived)
+            return Result.Failure(InvalidState(Status == PurchaseOrderStatus.Submitted
+                ? "Nothing of this order was received yet; cancel it instead of closing it."
+                : "Only a partly received order can be closed short."));
+        if (string.IsNullOrWhiteSpace(reason))
+            return Result.Failure(Error.Validation("Purchasing.PurchaseOrder.ClosingReasonRequired", "A reason is required to close an order short."));
+        if (reason.Trim().Length > 500)
+            return Result.Failure(Error.Validation("Purchasing.PurchaseOrder.ClosingReasonTooLong", "The reason cannot exceed 500 characters."));
+
+        Status = PurchaseOrderStatus.Closed;
+        ClosingReason = reason.Trim();
+        ClosedAt = DateTime.UtcNow;
+        UpdatedAt = ClosedAt.Value;
         return Result.Success();
     }
 
@@ -195,15 +241,17 @@ public sealed class PurchaseOrder
     {
         if (Status is PurchaseOrderStatus.Received)
             return Result.Failure(InvalidState("A received order cannot be cancelled."));
+        if (Status is PurchaseOrderStatus.Closed)
+            return Result.Failure(InvalidState("A closed order cannot be cancelled."));
         if (Status is PurchaseOrderStatus.Cancelled)
             return Result.Failure(InvalidState("The order is already cancelled."));
         if (string.IsNullOrWhiteSpace(reason))
             return Result.Failure(Error.Validation("Purchasing.PurchaseOrder.CancellationReasonRequired", "A cancellation reason is required."));
         if (reason.Trim().Length > 500)
             return Result.Failure(Error.Validation("Purchasing.PurchaseOrder.CancellationReasonTooLong", "The reason cannot exceed 500 characters."));
-        if (_lines.Any(l => l.IsReceived))
+        if (_lines.Any(l => l.HasReceipts))
             return Result.Failure(Error.Conflict("Purchasing.PurchaseOrder.PartiallyReceived",
-                "Some lines were already received into stock; the order cannot be cancelled."));
+                "Some goods were already received into stock; the order cannot be cancelled. Close it short instead."));
 
         Status = PurchaseOrderStatus.Cancelled;
         CancellationReason = reason.Trim();

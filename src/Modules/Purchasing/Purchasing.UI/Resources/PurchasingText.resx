@@ -47,4 +47,14 @@
   <data name="QuantityInvalid" xml:space="preserve"><value>Enter a quantity greater than zero.</value></data>
   <data name="CostInvalid" xml:space="preserve"><value>Enter the unit cost as zero or more, or leave it empty.</value></data>
   <data name="ChooseWarehouse" xml:space="preserve"><value>Choose the warehouse that receives the delivery.</value></data>
+  <data name="PartiallyReceived" xml:space="preserve"><value>Partly received</value></data>
+  <data name="ClosedShort" xml:space="preserve"><value>Closed short</value></data>
+  <data name="Outstanding" xml:space="preserve"><value>Still due</value></data>
+  <data name="ReceiveNow" xml:space="preserve"><value>Arrived</value></data>
+  <data name="ReceiveNowHint" xml:space="preserve"><value>How much of each line arrived in this delivery. It starts at what is still expected; change it for a part delivery.</value></data>
+  <data name="OrderPartlyReceived" xml:space="preserve"><value>Order {0}: {1} line(s) added to stock; the rest is still expected.</value></data>
+  <data name="CloseShort" xml:space="preserve"><value>Close short</value></data>
+  <data name="CloseShortHint" xml:space="preserve"><value>Ends the order with what arrived: the rest is no longer expected.</value></data>
+  <data name="OrderClosedShort" xml:space="preserve"><value>Order {0} was closed short; the rest is no longer expected.</value></data>
+  <data name="ReceiveQuantityInvalid" xml:space="preserve"><value>Enter how much of each line arrived as zero or more.</value></data>
 </root>

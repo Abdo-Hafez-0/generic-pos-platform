@@ -499,13 +499,13 @@ Scope source: the Stage 13 task text (the roadmap file is not in the repository)
 
 ## Current Task
 
-**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). FIX-03 COMPLETE (healthy-start confirmation of updates that really run). FIX-04 COMPLETE (POS cash sales go into the open cash drawer shift). FIX-05 COMPLETE (business actions in the audit log). Next checklist item: FIX-06 (friendly failure messages in every hosted module). Stage 14 has not been started.**
+**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). FIX-03 COMPLETE (healthy-start confirmation of updates that really run). FIX-04 COMPLETE (POS cash sales go into the open cash drawer shift). FIX-05 COMPLETE (business actions in the audit log). FIX-06 COMPLETE (plain failure messages at every module boundary and screen). Next checklist item: FIX-07 (one DI scope per user action in the hosted UI). Stage 14 has not been started.**
 
 ---
 
 ## Next Task
 
-**FIX-06 - friendly failure messages in every hosted module (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
+**FIX-07 - one DI scope per user action in the hosted UI (see PRE_DEPLOYMENT_CHECKLIST.md; largely delivered by FIX-01's IUiActionRunner - verify and add the missing test). Work proceeds one checklist item at a time.**
 A fresh installation can now be set up and sell through the desktop alone: activate (License), categories/units, products, warehouse, receive stock, sell at the till, sales history (verified end to end in the real executable against a real local LicenseServer.Api).
 
 Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
@@ -2055,7 +2055,7 @@ Cloud returns -> activation, renewal, check and download succeed; printer, drawe
 - **Physical devices** were not available (as in Stage 10): fakes, and the real adapters over loopback and device paths only.
 - **WPF screens** have no automated UI tests (net10.0-windows TFM gap). Covered instead by the composition tests, a smoke run of the real executable (starts offline, reaches sign-in, closes; a corrupt database shows the plain message) and the unit-tested sign-in flow. Signing in and selling through the real window was not automated.
 - No **load or soak campaign** beyond the simultaneous double checkout; SQLite is single-writer, a second writer waits up to the busy timeout (default 30 s) and then fails safely.
-- Only POS translates unexpected failures into plain results; Purchasing, Inventory, Cash and the other handlers still throw on a database failure (nothing is kept) and need the same translation where their screens are hosted.
+- Only POS translates unexpected failures into plain results; Purchasing, Inventory, Cash and the other handlers still throw on a database failure (nothing is kept) and need the same translation where their screens are hosted. **[Superseded in FIX-01/FIX-06: every screen action goes through IUiActionRunner, and the write contracts translate failures; see "FIX-06 Summary".]**
 - A context that mutated an aggregate and failed before saving keeps the in-memory change until its scope ends (decision 3).
 - Cash sales are still not recorded into a cash-drawer session automatically (Stage 8 limitation), so there is no cross-module cash atomicity to test; a cash session is a single aggregate and atomic by one save (tested).
 - Update installation crashes were covered in Stage 7 (InstallRecoveryTests) and were not repeated. The log has console and debug providers only (no log file): "details go to the log" means those providers; a log file belongs with packaging (Stage 14).
@@ -2143,7 +2143,7 @@ Kept, confirmed sound: it shares a CONNECTION per DI scope, never a DbContext; I
 ### Remaining limitations (not fixed in Stage 13; owners)
 - Modules are compiled in; ModuleHost's file-system discovery and updater-activated versions are not loaded at runtime (launcher - Stage 14). ConfirmHealthyAsync is still not called by the host (Stage 14). **[Done in FIX-03 for updates that really run; see "FIX-03 Summary".]**
 - Business actions are not audited (Audit adoption by modules - follow-up); CashManagement not fed by POS (Stage 8). **[CashManagement: done in FIX-04. Audit: done in FIX-05.]**
-- Only POS translates unexpected failures into plain results (Stage 12 limitation).
+- Only POS translates unexpected failures into plain results (Stage 12 limitation). **[Superseded in FIX-06.]**
 - Cross-module read contracts track entities; hosting the screens must keep one scope per action, or switch the readers to AsNoTracking.
 - Module UIs use their own Domain enums (Catalog, Payments, CashManagement) - accepted.
 - WPF screens: no UI automation of business workflows (the shell has none); smoke covers start/sign-in/shutdown only.
@@ -2306,12 +2306,25 @@ Constraint found: since Stage 12 the audit log uses its OWN connection (an audit
 
 ---
 
+## FIX-06 Summary - Plain failure messages in every hosted module (2026-10-08)
+
+Where an unexpected failure (database locked or unavailable, disk error, corruption) can surface, and what now happens:
+
+- **Screens (all modules)**: already covered since FIX-01 - every screen action runs through `IUiActionRunner`, which logs the exception and shows the plain sentence of PresentationText.OperationFailed; view models cannot hold handlers (DesktopCompositionTests). FIX-06 proves it per module.
+- **Module boundaries (new)**: the contract services other modules WRITE through now translate an unexpected failure into their own failed result with a plain sentence and log the details, like POSService: Inventory `IStockIssueService` / `IStockReceiptService` ("Inventory.OperationFailed"), Payments `IPaymentService` record and void ("Payments.OperationFailed"), CashManagement `ICashMovementRecorder` ("CashManagement.OperationFailed"). Inside the caller's transaction the failure is rolled back with everything else. Consequence: a purchase receipt or a checkout whose stock cannot be saved now returns a plain failed result naming the step ("Could not receive 'Cola': [Inventory.OperationFailed] ... Nothing was received ...") instead of an exception.
+- **Readers** (product lookup, price resolver, the module readers) return data, not results: a failure there reaches the caller's boundary (POSService, the UI runner), which translates it. Not changed.
+- **Tests (+10)**: Integration +4 (ContractFailureTests: stock issue/receipt, payment record/void, cash recorder each return a plain failed result with no database text and write nothing, then work again; a checkout whose stock movement cannot be saved tells the cashier plainly and keeps nothing); UI +6 (HostedScreensFailureTests on the offline desktop with a failure injected inside SQLite: Catalog product + category, Inventory warehouse + receipt + correction, Customers, Suppliers, Pricing price list, Purchasing order + a receipt whose stock cannot be saved, Cash drawer open + pay-out - each shows a plain sentence with no SQL/table/exception text and writes nothing). AtomicityFailureTests: the purchase receipt now asserts the plain failed result instead of an exception.
+- **Real executable** (isolated database, triggers added to the running application's database file): adding a category and opening a drawer shift while the database refuses -> the plain sentence; after the trigger is dropped the same click saves; exit 0.
+- **Not done here (owners)**: the message on screens is the generic sentence (it does not name the action); there is no log FILE yet to "check the application log" in (MISS-05).
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 13, FIX-01 (a..e) and FIX-02..FIX-05 are complete.
+None blocking. Stage 13, FIX-01 (a..e) and FIX-02..FIX-06 are complete.
 Observed once (2026-10-07, FIX-01b final run): the Cloud.Tests test host crashed with "Internal CLR error (0x80131506)" while all 23 test projects ran in parallel; Cloud.Tests then passed 207/207 three times in a row on its own. Not reproduced; watch for it in later full runs.
 Build: 0 errors, 0 warnings (122 projects, verified with `dotnet build --no-incremental`).
-All 2482 tests pass (FIX-05: Audit 43, Integration 133; FIX-04: Integration 130, UI 133; FIX-03: Updater 218, Integration 123; FIX-02: UI 131, Hardware 98; FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
+All 2492 tests pass (FIX-06: Integration 137, UI 139; FIX-05: Audit 43, Integration 133; FIX-04: Integration 130, UI 133; FIX-03: Updater 218, Integration 123; FIX-02: UI 131, Hardware 98; FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
 Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 12 had 2254; Stage 13 added 43 (Architecture +22 new and -6 placeholders removed, Platform.ModuleContract +9, Integration +18).
 Stage 13 limitations: see "Stage 13 Summary - Remaining limitations".
 Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
@@ -2381,4 +2394,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-08 - FIX-05 complete (business actions in the audit log through a Platform event sink; verified in the real executable). 2482 tests, 0 warnings, 122 projects; Stage 14 not started.
+Last updated: 2026-10-08 - FIX-06 complete (plain failure messages at every module boundary and screen; verified in the real executable). 2492 tests, 0 warnings, 122 projects; Stage 14 not started.

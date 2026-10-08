@@ -184,8 +184,14 @@ public sealed class AtomicityFailureTests
 
         await using (await FailInsertsAsync(host, "inv_StockMovements", $"(SELECT COUNT(*) FROM inv_StockMovements) >= {movements + 1}"))
         {
-            // An unexpected database failure surfaces as an exception (the screen translates it); what matters is that nothing was kept.
-            await Assert.ThrowsAnyAsync<Exception>(() => ReceiveAsync(host, order));
+            // FIX-06: an unexpected database failure inside Inventory comes back as a plain failed result (no exception, no database text),
+            // and nothing was kept.
+            var failed = await ReceiveAsync(host, order);
+            Assert.False(failed.IsSuccess);
+            Assert.Contains("Inventory.OperationFailed", failed.Message);
+            Assert.Contains("Nothing was received", failed.Message);
+            Assert.DoesNotContain("SQLite", failed.Message);
+            Assert.DoesNotContain("inv_", failed.Message);
 
             Assert.Equal(5m, await OnHandAsync(host, order.First.ProductId));    // line 1's stock-in was rolled back
             Assert.Equal(5m, await OnHandAsync(host, order.Second.ProductId));

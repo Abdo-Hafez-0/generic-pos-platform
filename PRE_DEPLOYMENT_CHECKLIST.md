@@ -75,7 +75,11 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 
 ### A2. Medium priority - correctness and robustness
 
-- [ ] **FIX-06 Friendly failure messages in every hosted module** (Stage 12): Inventory, Purchasing, CashManagement, Catalog, Customers, Suppliers, Pricing, Payments translate unexpected failures into plain results, like POSService
+- [x] **FIX-06 Friendly failure messages in every hosted module** (Stage 12): Inventory, Purchasing, CashManagement, Catalog, Customers, Suppliers, Pricing, Payments translate unexpected failures into plain results, like POSService - done 2026-10-08
+  - [x] Screens: every action already goes through IUiActionRunner (FIX-01); proven per module with failures injected inside SQLite (no SQL/table/exception text, nothing written)
+  - [x] Module boundaries: the write contracts (stock issue/receipt, payment record/void, cash recorder) return plain failed results instead of throwing
+  - [x] Real exe: category and drawer shift with the database refusing -> plain sentence; works once it accepts again
+  - Carried forward: screen message is generic (does not name the action); log file to look in (MISS-05)
 - [ ] **FIX-07 One DI scope per user action in the hosted UI** (Stage 13): enforce it in the shell, or switch cross-module readers to `AsNoTracking`; add a test
 - [ ] **FIX-08 Tax and discounts** (Stages 5D/8): tax rate(s), line and cart discounts; POS `Total != Subtotal`; Sales receives real tax/discount; snapshot at transaction time (rule 14)
 - [ ] **FIX-09 Purchasing gaps** (Stage 8)
@@ -166,4 +170,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-08 | FIX-02 | 4b94f7e | Barcode scanner input; 2453 tests, 0 warnings; real exe with a keyboard-wedge scanner |
 | 2026-10-08 | FIX-03 | 061e377 | Healthy-start confirmation of updates that really run; 2463 tests, 0 warnings; real exe |
 | 2026-10-08 | FIX-04 | 6896931 | POS cash sales into the open drawer shift (inside the transaction); 2472 tests, 0 warnings; real exe |
-| 2026-10-08 | FIX-05 | (this commit) | Business actions in the audit log (Platform event sink, background write, retry buffer); 2482 tests, 0 warnings; real exe |
+| 2026-10-08 | FIX-05 | b0a5634 | Business actions in the audit log (Platform event sink, background write, retry buffer); 2482 tests, 0 warnings; real exe |
+| 2026-10-08 | FIX-06 | (this commit) | Plain failure messages at module boundaries; per-module screen proof; 2492 tests, 0 warnings; real exe |

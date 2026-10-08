@@ -12,8 +12,11 @@ namespace Client.Hardware.Scanner;
 /// </summary>
 public interface IKeyboardInputSink
 {
-    /// <summary>Delivers one typed character. Carriage return or line feed ends a scan.</summary>
-    void OnCharacter(char character);
+    /// <summary>
+    /// Delivers one typed character. Carriage return or line feed ends a scan. Returns true when this character completed a scan, so the
+    /// UI can swallow that Enter (it must not also press whatever button has the focus).
+    /// </summary>
+    bool OnCharacter(char character);
 }
 
 /// <summary>
@@ -50,14 +53,14 @@ public sealed class KeyboardWedgeBarcodeScanner(
         return Task.CompletedTask;
     }
 
-    public void OnCharacter(char character)
+    public bool OnCharacter(char character)
     {
         string? code = null;
         DateTimeOffset now;
 
         lock (_gate)
         {
-            if (!_started) return;
+            if (!_started) return false;
 
             now = _time.GetUtcNow();
             if (_buffer.Length > 0 && (now - _lastCharacterAt).TotalMilliseconds > maxInterCharacterMilliseconds)
@@ -75,8 +78,10 @@ public sealed class KeyboardWedgeBarcodeScanner(
             }
         }
 
-        if (code is not null)
-            Raise(new BarcodeScan(code, now));
+        if (code is null) return false;
+
+        Raise(new BarcodeScan(code, now));
+        return true;
     }
 
     private void Raise(BarcodeScan scan)

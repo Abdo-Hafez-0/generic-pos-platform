@@ -66,4 +66,10 @@ public interface IScreenProvider
 public interface INavigationAware
 {
     Task OnNavigatedToAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The screen is no longer shown: another screen was opened or the user signed out (FIX-02). A screen that listens to something
+    /// outside itself (the barcode scanner) stops here. Never throws.
+    /// </summary>
+    Task OnNavigatedFromAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 }

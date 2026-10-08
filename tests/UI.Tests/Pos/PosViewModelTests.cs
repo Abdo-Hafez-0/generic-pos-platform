@@ -16,17 +16,19 @@ public sealed class PosViewModelTests
 {
     private readonly FakeTill _till = new();
     private readonly FakeCurrentUser _user = new() { UserName = "cashier1", DisplayName = "First Cashier" };
+    private readonly FakeScannerInput _scanner;
     private readonly PosViewModel _vm;
 
     public PosViewModelTests()
     {
+        _scanner = new FakeScannerInput(_till);
         var services = new ServiceCollection();
         services.AddSingleton(_till);
         services.AddScoped<FakePosService>();
         services.AddScoped<IPOSService>(sp => sp.GetRequiredService<FakePosService>());
         services.AddScoped<IPOSReader>(sp => sp.GetRequiredService<FakePosService>());
         var runner = new UiActionRunner(services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true }).GetRequiredService<IServiceScopeFactory>(), NullLogger<UiActionRunner>.Instance);
-        _vm = new PosViewModel(runner, _user);
+        _vm = new PosViewModel(runner, _user, _scanner);
     }
 
     private async Task Run(ICommand command, object? parameter = null)
@@ -303,5 +305,163 @@ public sealed class PosViewModelTests
         await Run(_vm.AddCommand);
 
         Assert.Equal(4, _till.Instances);   // one more scope per click, none kept
+    }
+
+    // FIX-02: the barcode scanner
+
+    private async Task Eventually(Func<bool> condition)
+    {
+        for (var i = 0; i < 200 && !condition(); i++) await Task.Delay(5);
+        Assert.True(condition());
+    }
+
+    [Fact]
+    public async Task Showing_the_screen_starts_the_scanner_and_binds_the_open_cart()
+    {
+        await OpenTillAsync();
+
+        Assert.True(_scanner.Started);
+        Assert.True(_vm.ScannerReady);
+        Assert.Equal(_vm.CartId, _scanner.BoundCart);
+        Assert.Equal(1, _scanner.Subscribers);
+    }
+
+    [Fact]
+    public async Task Before_a_till_is_open_scans_have_no_cart()
+    {
+        _till.AddWarehouse("Main shop");
+
+        await _vm.OnNavigatedToAsync();
+
+        Assert.True(_scanner.Started);
+        Assert.Null(_scanner.BoundCart);
+    }
+
+    [Fact]
+    public async Task A_scan_is_added_and_shown_like_a_typed_code()
+    {
+        _till.Products["COLA-1"] = (Guid.NewGuid(), "Cola", 2.5m);
+        await OpenTillAsync();
+
+        _scanner.Scan("COLA-1");
+        _scanner.Scan("COLA-1");
+
+        await Eventually(() => _vm.Items.Count == 2);
+        Assert.Equal(5m, _vm.Total);
+        Assert.Null(_vm.ErrorMessage);
+        Assert.Equal(PosText.ItemAdded, _vm.StatusMessage);
+        Assert.True(_vm.CheckoutCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task A_refused_scan_says_why_and_changes_nothing()
+    {
+        await OpenTillAsync();
+
+        _scanner.Scan("UNKNOWN");
+
+        await Eventually(() => _vm.ErrorMessage is not null);
+        Assert.Contains("UNKNOWN", _vm.ErrorMessage);
+        Assert.Empty(_vm.Items);
+    }
+
+    [Fact]
+    public async Task During_checkout_scans_have_no_cart_and_afterwards_go_to_the_next_customers_cart()
+    {
+        _till.Products["COLA-1"] = (Guid.NewGuid(), "Cola", 2.5m);
+        await OpenTillAsync();
+        var sold = _vm.CartId;
+        _scanner.Scan("COLA-1");
+        await Eventually(() => _vm.Items.Count == 1);
+        _scanner.Bindings.Clear();
+
+        await Run(_vm.CheckoutCommand);
+
+        Assert.Null(_scanner.Bindings[0]);                    // unbound before the sale ran
+        Assert.NotEqual(sold, _vm.CartId);
+        Assert.Equal(_vm.CartId, _scanner.BoundCart);         // the next customer's cart
+        Assert.DoesNotContain(sold, _scanner.Bindings.Skip(1));
+    }
+
+    [Fact]
+    public async Task A_refused_checkout_binds_the_same_cart_again()
+    {
+        _till.Products["COLA-1"] = (Guid.NewGuid(), "Cola", 2.5m);
+        await OpenTillAsync();
+        _scanner.Scan("COLA-1");
+        await Eventually(() => _vm.Items.Count == 1);
+        _till.CheckoutRefusal = "The payment was not accepted.";
+
+        await Run(_vm.CheckoutCommand);
+
+        Assert.Equal(_vm.CartId, _scanner.BoundCart);
+    }
+
+    [Fact]
+    public async Task Closing_the_till_leaves_scans_without_a_cart()
+    {
+        await OpenTillAsync();
+
+        await Run(_vm.CloseSessionCommand);
+
+        Assert.Null(_scanner.BoundCart);
+    }
+
+    [Fact]
+    public async Task Leaving_the_screen_stops_the_scanner_and_later_scans_do_not_reach_it()
+    {
+        _till.Products["COLA-1"] = (Guid.NewGuid(), "Cola", 2.5m);
+        await OpenTillAsync();
+
+        await _vm.OnNavigatedFromAsync();
+        _scanner.Scan("COLA-1");
+
+        Assert.False(_scanner.Started);
+        Assert.False(_vm.ScannerReady);
+        Assert.Null(_scanner.BoundCart);
+        Assert.Equal(0, _scanner.Subscribers);
+        Assert.Empty(_vm.Items);
+
+        // shown again: listening again, once
+        await _vm.OnNavigatedToAsync();
+        await _vm.OnNavigatedToAsync();
+        Assert.Equal(1, _scanner.Subscribers);
+        Assert.Equal(_vm.CartId, _scanner.BoundCart);
+    }
+
+    [Fact]
+    public async Task Without_a_scanner_the_screen_works_by_typing_and_does_not_claim_one()
+    {
+        _scanner.CanStart = false;
+        _till.Products["COLA-1"] = (Guid.NewGuid(), "Cola", 2.5m);
+
+        await OpenTillAsync();
+        _vm.ProductCode = "COLA-1";
+        await Run(_vm.AddCommand);
+
+        Assert.False(_vm.ScannerReady);
+        Assert.Equal(0, _scanner.Subscribers);
+        Assert.Null(_scanner.BoundCart);
+        Assert.Single(_vm.Items);
+        Assert.Null(_vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task A_screen_without_scanner_input_registered_still_works()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(_till);
+        services.AddScoped<FakePosService>();
+        services.AddScoped<IPOSService>(sp => sp.GetRequiredService<FakePosService>());
+        services.AddScoped<IPOSReader>(sp => sp.GetRequiredService<FakePosService>());
+        var runner = new UiActionRunner(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), NullLogger<UiActionRunner>.Instance);
+        var vm = new PosViewModel(runner, _user);
+        _till.AddWarehouse("Main shop");
+
+        await vm.OnNavigatedToAsync();
+        await vm.OnNavigatedFromAsync();
+
+        Assert.False(vm.ScannerReady);
+        Assert.Null(vm.ErrorMessage);
     }
 }

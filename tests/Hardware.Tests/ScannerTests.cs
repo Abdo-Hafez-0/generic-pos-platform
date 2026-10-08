@@ -190,6 +190,27 @@ public sealed class KeyboardWedgeScannerTests
     }
 
     [Fact]
+    public async Task OnlyTheEnterThatCompletesAScan_IsReportedAsConsumed()
+    {
+        var s = await StartedAsync();
+
+        Assert.False(s.OnCharacter('\r'));                         // nothing buffered: an ordinary Enter
+        Assert.All("6001234567890", c => Assert.False(s.OnCharacter(c)));
+        Assert.True(s.OnCharacter('\r'));                          // FIX-02: the UI swallows this Enter
+
+        Type(s, "AB");                                              // too short to be a scan
+        Assert.False(s.OnCharacter('\r'));
+
+        Type(s, "ABCD1234", gapMs: 200);                            // a person typing
+        Assert.False(s.OnCharacter('\r'));
+
+        await s.StopAsync();
+        Type(s, "ABCD1234");
+        Assert.False(s.OnCharacter('\r'));                         // stopped: nothing is a scan
+        Assert.Single(_scans);
+    }
+
+    [Fact]
     public async Task TheUiSeesOnlyTheSink_NotTheScanner()
     {
         IKeyboardInputSink sink = await StartedAsync();

@@ -17,11 +17,18 @@ namespace POS.UI.ViewModels;
 /// Talks only to POS.Contracts (IPOSService / IPOSReader), and only through <see cref="IUiActionRunner"/>: every click runs in its own DI
 /// scope, so the screen can stay open all day without holding a database context, and an unexpected failure shows a plain sentence.
 /// The cashier is whoever is signed in (the session command attributes the till to that user, whatever the screen passes). Fully offline.
+///
+/// Barcode scanner (FIX-02): while the screen is shown it listens to <see cref="IPOSBarcodeInput"/>, which adds every scan to the open cart
+/// exactly like a typed code; the screen then shows the cart again, or the reason a scan was refused. No scanner: the cashier types codes.
 /// </summary>
 public sealed class PosViewModel : ViewModelBase, INavigationAware
 {
     private readonly IUiActionRunner _runner;
     private readonly ICurrentUser _currentUser;
+    private readonly IPOSBarcodeInput? _scanner;
+    private SynchronizationContext? _ui;
+    private bool _listening;
+    private bool _scannerReady;
 
     private Guid? _sessionId;
     private Guid? _cartId;
@@ -33,10 +40,11 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     private string? _hardwareMessage;
     private bool _hasNoWarehouses;
 
-    public PosViewModel(IUiActionRunner runner, ICurrentUser currentUser)
+    public PosViewModel(IUiActionRunner runner, ICurrentUser currentUser, IPOSBarcodeInput? scanner = null)
     {
         _runner = runner;
         _currentUser = currentUser;
+        _scanner = scanner;
 
         OpenSessionCommand = Command(OpenSessionAsync, () => !HasOpenSession && SelectedWarehouse is not null);
         AddCommand = Command(AddProductAsync, () => HasOpenSession && !string.IsNullOrWhiteSpace(ProductCode));
@@ -102,6 +110,13 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
         private set => Set(ref _hardwareMessage, value);
     }
 
+    /// <summary>True while a barcode scanner is listening for this screen (the screen says so; without one the cashier types codes).</summary>
+    public bool ScannerReady
+    {
+        get => _scannerReady;
+        private set => Set(ref _scannerReady, value);
+    }
+
     public bool HasOpenSession => _sessionId.HasValue;
 
     /// <summary>True while no till is open (the warehouse choice is shown).</summary>
@@ -113,8 +128,29 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
 
     public Guid? CartId => _cartId;
 
-    /// <summary>Each time the screen is shown: resume the cashier's open till (with its cart), or offer the warehouses to open one.</summary>
-    public Task OnNavigatedToAsync(CancellationToken cancellationToken = default) => BusyAsync(async () =>
+    /// <summary>
+    /// Each time the screen is shown: resume the cashier's open till (with its cart), or offer the warehouses to open one; then listen to
+    /// the barcode scanner.
+    /// </summary>
+    public async Task OnNavigatedToAsync(CancellationToken cancellationToken = default)
+    {
+        await LoadAsync(cancellationToken);
+        await ListenAsync(cancellationToken);
+    }
+
+    /// <summary>The screen is left (another screen, or sign-out): scans no longer reach this cart.</summary>
+    public async Task OnNavigatedFromAsync(CancellationToken cancellationToken = default)
+    {
+        if (_scanner is null || !_listening) return;
+
+        _listening = false;
+        ScannerReady = false;
+        _scanner.ScanProcessed -= OnScanProcessed;
+        _scanner.BindCart(null);
+        await _scanner.StopAsync(cancellationToken);
+    }
+
+    private Task LoadAsync(CancellationToken cancellationToken) => BusyAsync(async () =>
     {
         if (HasOpenSession)
         {
@@ -152,6 +188,50 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
 
         ShowWarehouses(resumed.Value.Warehouses);
     });
+
+    private async Task ListenAsync(CancellationToken cancellationToken)
+    {
+        if (_scanner is null || _listening) return;
+
+        _ui = SynchronizationContext.Current;
+        _scanner.ScanProcessed += OnScanProcessed;
+        _listening = true;
+
+        // No scanner configured, or it cannot start: nothing to tell the cashier beyond the missing "scanner ready" - codes can be typed.
+        var started = await _scanner.StartAsync(cancellationToken);
+        if (!started.IsSuccess)
+        {
+            await OnNavigatedFromAsync(cancellationToken);
+            return;
+        }
+
+        ScannerReady = true;
+        BindScanner();
+    }
+
+    /// <summary>Scans go to the cart on the screen, and nowhere while no cart is open or the screen is not shown.</summary>
+    private void BindScanner() => _scanner?.BindCart(_listening ? _cartId : null);
+
+    /// <summary>Raised by the scanner input once a scan has been added (or refused); shown on the UI thread.</summary>
+    private void OnScanProcessed(object? sender, POSScanOutcome outcome)
+    {
+        if (_ui is { } ui && SynchronizationContext.Current != ui) ui.Post(_ => _ = ShowScanAsync(outcome), null);
+        else _ = ShowScanAsync(outcome);
+    }
+
+    private async Task ShowScanAsync(POSScanOutcome outcome)
+    {
+        if (!_listening) return;
+        if (!outcome.IsSuccess)
+        {
+            Fail(outcome.ErrorMessage);
+            return;
+        }
+
+        ErrorMessage = null;
+        await RefreshCartAsync(CancellationToken.None);
+        if (ErrorMessage is null) StatusMessage = PosText.ItemAdded;
+    }
 
     private sealed record Resume(Guid? SessionId, POSCartResult? Cart, IReadOnlyList<POSWarehouseResult> Warehouses, string? Error);
 
@@ -241,6 +321,19 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
         if (_cartId is not { } cartId || _sessionId is not { } sessionId) return;
 
         var total = Total;
+        _scanner?.BindCart(null);   // a scan must not land in the cart that is being sold
+        try
+        {
+            await SellAsync(cartId, sessionId, total);
+        }
+        finally
+        {
+            BindScanner();
+        }
+    }
+
+    private async Task SellAsync(Guid cartId, Guid sessionId, decimal total)
+    {
         var checkedOut = await _runner.QueryAsync(async (scope, ct) =>
         {
             var service = scope.Get<IPOSService>();
@@ -272,6 +365,19 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     {
         if (_sessionId is not { } sessionId) return;
 
+        _scanner?.BindCart(null);   // a scan must not refill the cart while the till closes
+        try
+        {
+            await CloseAsync(sessionId);
+        }
+        finally
+        {
+            BindScanner();
+        }
+    }
+
+    private async Task CloseAsync(Guid sessionId)
+    {
         var closed = await _runner.QueryAsync(async (scope, ct) =>
         {
             var result = await scope.Get<IPOSService>().CloseSessionAsync(sessionId, ct);
@@ -329,6 +435,7 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
         Subtotal = cart?.Subtotal ?? 0m;
         Total = cart?.Total ?? 0m;
         Raise(nameof(CanCheckout));
+        BindScanner();
     }
 
     private void RaiseSessionChanged()

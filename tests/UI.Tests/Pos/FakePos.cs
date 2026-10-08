@@ -150,3 +150,53 @@ internal sealed class FakePosService : IPOSService, IPOSReader
         return Task.FromResult<IReadOnlyList<POSWarehouseResult>>(_till.Warehouses.ToList());
     }
 }
+
+/// <summary>
+/// The scanner side of the till for view-model tests (FIX-02): <see cref="Scan"/> does what POSBarcodeInput does - add the code to the BOUND
+/// cart, or refuse it - and raises <see cref="ScanProcessed"/>.
+/// </summary>
+internal sealed class FakeScannerInput(FakeTill till) : IPOSBarcodeInput
+{
+    public event EventHandler<POSScanOutcome>? ScanProcessed;
+
+    public bool CanStart { get; set; } = true;
+    public bool Started { get; private set; }
+    public Guid? BoundCart { get; private set; }
+    public List<Guid?> Bindings { get; } = [];
+    public int Subscribers => ScanProcessed?.GetInvocationList().Length ?? 0;
+
+    public void BindCart(Guid? cartId)
+    {
+        BoundCart = cartId;
+        Bindings.Add(cartId);
+    }
+
+    public Task<POSOperationResult> StartAsync(CancellationToken cancellationToken = default)
+    {
+        Started = CanStart;
+        return Task.FromResult(CanStart ? POSOperationResult.Success() : POSOperationResult.Failure("Hardware.NotConfigured", "No barcode scanner is configured."));
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        Started = false;
+        return Task.CompletedTask;
+    }
+
+    public void Scan(string code)
+    {
+        POSScanOutcome outcome;
+        if (BoundCart is not { } cartId)
+            outcome = new POSScanOutcome(code, false, null, "POS.Scan.NoActiveCart", "Open a cart before scanning.");
+        else if (!till.Products.TryGetValue(code, out var product))
+            outcome = new POSScanOutcome(code, false, null, "POS.AddItem.ProductNotFound", $"No product with code '{code}'.");
+        else
+        {
+            var item = new POSCartItemResult(Guid.NewGuid(), product.ProductId, code, product.Name, 1m, product.Price, product.Price);
+            till.Carts[cartId].Add(item);
+            outcome = new POSScanOutcome(code, true, item.ItemId, null, null);
+        }
+
+        ScanProcessed?.Invoke(this, outcome);
+    }
+}

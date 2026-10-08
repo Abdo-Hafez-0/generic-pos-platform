@@ -51,9 +51,11 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
     - [x] User decision: administration can never lock itself out (last user who can manage users; no self-deactivation), enforced in the handlers
     - [x] Fixed on the way: permission ticks did not work through UI Automation (screen readers)
     - Carried forward: suggest capabilities that go together (Sell needs Open/close POS sessions); rename/delete roles; change usernames
-- [ ] **FIX-02 Barcode scanner input** (Stage 10)
-  - [ ] Forward key presses from the window to `IKeyboardInputSink`
-  - [ ] Bind `IPOSBarcodeInput` to the POS view model
+- [x] **FIX-02 Barcode scanner input** (Stage 10) - done 2026-10-08
+  - [x] Forward key presses from the window to `IKeyboardInputSink` (not while a text box has the focus: the box handles the scan itself; the Enter that ends a scan is swallowed so it cannot press a focused button)
+  - [x] Bind `IPOSBarcodeInput` to the POS view model (listens while the screen is shown; no cart bound during checkout/close; stops when another screen opens or on sign-out)
+  - [x] Real exe: scans on the cart grid, on a focused Checkout button (no sale) and in the barcode box (added once); unknown code refused; scan on another screen ignored
+  - Carried forward: a scan always adds quantity 1; physical scanner verification (MISS-07)
 - [ ] **FIX-03 Health confirmation after startup** (Stage 7)
   - [ ] Call `UpdateService.ConfirmHealthyAsync` after a healthy start (today an activated update would be rolled back after `MaxStartupAttempts`)
   - [ ] (Runtime loading of activated versions is Part C, PKG-01)
@@ -153,4 +155,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-07 | FIX-01e (license) | 79cb067 | License screen; 2378 tests, 0 warnings; real end-to-end activation |
 | 2026-10-07 | FIX-01c | c2cc6f8, a36467d, 2cddbad | Catalog, Inventory, Sales screens; 2 defects fixed; 2409 tests, 0 warnings |
 | 2026-10-07 | FIX-01d | 03e5399, b2cad75, 9dd8cac, 50a2307, db4fb2a, 1a7fd78 | Stage 8 back-office screens; cash actor defect fixed; 2423 tests, 0 warnings |
-| 2026-10-07 | FIX-01e (users) | (this commit) | Users, roles and permissions screens; lock-out rule; FIX-01 complete; 2431 tests, 0 warnings |
+| 2026-10-07 | FIX-01e (users) | 3abdef0 | Users, roles and permissions screens; lock-out rule; FIX-01 complete; 2431 tests, 0 warnings |
+| 2026-10-08 | FIX-02 | (this commit) | Barcode scanner input; 2453 tests, 0 warnings; real exe with a keyboard-wedge scanner |

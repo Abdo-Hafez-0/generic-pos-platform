@@ -92,6 +92,9 @@
                     </TextBox.InputBindings>
                 </TextBox>
                 <Button x:Name="AddButton" Content="{x:Static res:PosText.Add}" Margin="12,0,0,0" Command="{Binding AddCommand}"/>
+                <!-- FIX-02: scans are added wherever the focus is on this screen -->
+                <TextBlock x:Name="ScannerReadyText" Text="{x:Static res:PosText.ScannerReady}" Foreground="#A6E3A1" Margin="16,0,0,0"
+                           Visibility="{Binding ScannerReady, Converter={StaticResource VisibleWhenTrue}}"/>
             </StackPanel>
 
             <DataGrid Grid.Row="1" x:Name="CartGrid" ItemsSource="{Binding Items}" AutoGenerateColumns="False"

@@ -27,12 +27,14 @@ public sealed class ShellViewModelTests
         [
             new CapabilityProvider(
                 new CapabilityDescriptor("pos.sale.create", "pos", "Sell", "Sell"),
+                new CapabilityDescriptor("pos.drawer.count", "pos", "Count the drawer", "Count the drawer"),
                 new CapabilityDescriptor("catalog.product.create", "catalog", "Create products", "Create products"))
         ]);
         var navigation = new NavigationBuilder(
         [
             new ScreenProvider(
                 Screens.Of("pos.sell", "pos", ScreenGroups.Sales, "pos.sale.create"),
+                Screens.Of("pos.drawer", "pos", ScreenGroups.Sales, "pos.drawer.count", order: 1),
                 Screens.Of("catalog.products", "catalog", ScreenGroups.Inventory, "catalog.product.create"))
         ], catalog, _licensing);
 
@@ -129,7 +131,7 @@ public sealed class ShellViewModelTests
         await _shell.RefreshAsync();
         await _shell.OpenAsync(Entry("pos.sell"));
 
-        _shell.Reset();
+        await _shell.ResetAsync();
         Assert.Empty(_shell.Groups);
         Assert.Null(_shell.CurrentView);
         Assert.Equal(string.Empty, _shell.SignedInText);
@@ -137,6 +139,53 @@ public sealed class ShellViewModelTests
         await _shell.RefreshAsync();
         await _shell.OpenAsync(Entry("pos.sell"));
         Assert.Equal(["pos.sell", "pos.sell"], _factory.Created);
+    }
+
+    private FakeViewModel ViewModel(string id) => (FakeViewModel)_factory.ViewModels[id];
+
+    [Fact]
+    public async Task Opening_another_screen_tells_the_shown_one_it_was_left()
+    {
+        _permissions.Held.AddRange(["pos.sale.create", "pos.drawer.count", "catalog.product.create"]);
+        await _shell.RefreshAsync();
+
+        await _shell.OpenAsync(Entry("pos.sell"));
+        await _shell.OpenAsync(Entry("pos.sell"));      // shown again: not left
+        Assert.Equal(0, ViewModel("pos.sell").Leaves);
+
+        await _shell.OpenAsync(Entry("pos.drawer"));
+        Assert.Equal(1, ViewModel("pos.sell").Leaves);
+        Assert.Equal(0, ViewModel("pos.drawer").Leaves);
+
+        await _shell.OpenAsync(Entry("pos.sell"));
+        Assert.Equal(3, ViewModel("pos.sell").Navigations);
+        Assert.Equal(1, ViewModel("pos.drawer").Leaves);
+    }
+
+    [Fact]
+    public async Task Choosing_a_locked_entry_leaves_the_shown_screen()
+    {
+        _permissions.Held.AddRange(["pos.sale.create", "pos.drawer.count", "catalog.product.create"]);
+        await _shell.RefreshAsync();
+        await _shell.OpenAsync(Entry("pos.sell"));
+
+        await _shell.OpenAsync(Entry("catalog.products"));      // the catalog module is not licensed here
+
+        Assert.NotNull(_shell.LockedReason);
+        Assert.Equal(1, ViewModel("pos.sell").Leaves);
+    }
+
+    [Fact]
+    public async Task Signing_out_leaves_the_shown_screen_once()
+    {
+        _permissions.Held.Add("pos.sale.create");
+        await _shell.RefreshAsync();
+        await _shell.OpenAsync(Entry("pos.sell"));
+
+        await _shell.ResetAsync();
+        await _shell.ResetAsync();
+
+        Assert.Equal(1, ViewModel("pos.sell").Leaves);
     }
 
     [Fact]

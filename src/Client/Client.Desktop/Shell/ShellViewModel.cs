@@ -28,6 +28,7 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
 
     private IReadOnlyList<NavigationGroup> _groups = [];
     private NavigationEntry? _current;
+    private ScreenInstance? _shown;
     private object? _currentView;
     private string? _lockedReason;
     private string _signedInText = string.Empty;
@@ -127,12 +128,16 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
         });
     }
 
-    /// <summary>Opens a screen, or explains why it cannot be opened. The screen loads its data if it wants to (INavigationAware).</summary>
+    /// <summary>
+    /// Opens a screen, or explains why it cannot be opened. The screen that was shown before is told it was left, and the new one loads its
+    /// data if it wants to (INavigationAware).
+    /// </summary>
     public async Task OpenAsync(NavigationEntry entry)
     {
         Current = entry;
         if (!entry.IsAvailable)
         {
+            await LeaveShownScreenAsync();
             CurrentView = null;
             LockedReason = entry.Reason;
             return;
@@ -145,14 +150,20 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
             _open[entry.Screen.Id] = screen;
         }
 
+        if (!ReferenceEquals(screen, _shown)) await LeaveShownScreenAsync();
+        _shown = screen;
         CurrentView = screen.View;
         if (screen.ViewModel is INavigationAware aware)
             await aware.OnNavigatedToAsync();
     }
 
-    /// <summary>Forgets every open screen and the navigation (sign-out): nothing of one user's work stays visible to the next.</summary>
-    public void Reset()
+    /// <summary>
+    /// Forgets every open screen and the navigation (sign-out): nothing of one user's work stays visible to the next. The screen that was
+    /// shown is told it was left first (FIX-02: the cashier screen stops listening to the scanner).
+    /// </summary>
+    public async Task ResetAsync()
     {
+        await LeaveShownScreenAsync();
         _open.Clear();
         Current = null;
         CurrentView = null;
@@ -161,5 +172,13 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
         SignedInText = string.Empty;
         ErrorMessage = null;
         StatusMessage = null;
+    }
+
+    private async Task LeaveShownScreenAsync()
+    {
+        var shown = _shown;
+        _shown = null;
+        if (shown?.ViewModel is INavigationAware aware)
+            await aware.OnNavigatedFromAsync();
     }
 }

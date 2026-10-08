@@ -16,7 +16,7 @@ public sealed class ClientHardwareAssemblyMarker;
 /// <summary>A sink that ignores input, used when no keyboard-wedge scanner is configured so the UI never needs a null check.</summary>
 internal sealed class NullKeyboardInputSink : IKeyboardInputSink
 {
-    public void OnCharacter(char character) { }
+    public bool OnCharacter(char character) => false;
 }
 
 public static class HardwareServiceCollectionExtensions

@@ -15,9 +15,17 @@ internal sealed class FakeViewModel : INavigationAware
 {
     public int Navigations { get; private set; }
 
+    public int Leaves { get; private set; }
+
     public Task OnNavigatedToAsync(CancellationToken cancellationToken = default)
     {
         Navigations++;
+        return Task.CompletedTask;
+    }
+
+    public Task OnNavigatedFromAsync(CancellationToken cancellationToken = default)
+    {
+        Leaves++;
         return Task.CompletedTask;
     }
 }
@@ -67,10 +75,15 @@ internal sealed class FakeScreenFactory : IScreenFactory
 {
     public List<string> Created { get; } = [];
 
+    /// <summary>The view model created last for each screen id.</summary>
+    public Dictionary<string, object> ViewModels { get; } = [];
+
     public ScreenInstance Create(ScreenDescriptor screen)
     {
         Created.Add(screen.Id);
-        return new ScreenInstance(new FakeView(), Activator.CreateInstance(screen.ViewModelType)!);
+        var viewModel = Activator.CreateInstance(screen.ViewModelType)!;
+        ViewModels[screen.Id] = viewModel;
+        return new ScreenInstance(new FakeView(), viewModel);
     }
 }
 

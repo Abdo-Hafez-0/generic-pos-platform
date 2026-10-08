@@ -443,7 +443,7 @@ drivers are infrastructure implementations") and section 8 (Platform.Infrastruct
       Architecture.Tests ARCH-HW-001..014 (HardwareBoundaryTests)
 - [x] Build: 0 errors, 0 warnings (117 projects); all 1794 tests pass
 - [x] Not done by design (later stages / not required): physical-device protocol adapters beyond ESC/POS, ZPL and keyboard wedge (Windows spooler printing, serial/USB scales, vendor SDKs), customer displays, POS terminals,
-      hosting PosView in MainWindow (so nothing forwards key presses to IKeyboardInputSink yet), authorization of "no sale" drawer opens (Stage 11), the failure-testing campaign (Stage 12)
+      hosting PosView in MainWindow (so nothing forwards key presses to IKeyboardInputSink yet) [done in FIX-01b / FIX-02], authorization of "no sale" drawer opens (Stage 11), the failure-testing campaign (Stage 12)
 
 ### Stage 11 - Security Hardening (COMPLETE)
 Scope source: roadmap Stage 11 (authentication, authorization, capability-based permissions, password/security policies, data protection, license protection, package signature verification, update verification, secure cloud
@@ -499,16 +499,16 @@ Scope source: the Stage 13 task text (the roadmap file is not in the repository)
 
 ## Current Task
 
-**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). Next checklist item: FIX-02 (barcode scanner input). Stage 14 has not been started.**
+**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). Next checklist item: FIX-03 (health confirmation after startup). Stage 14 has not been started.**
 
 ---
 
 ## Next Task
 
-**FIX-02 - barcode scanner input on the POS screen (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
+**FIX-03 - health confirmation after startup (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
 A fresh installation can now be set up and sell through the desktop alone: activate (License), categories/units, products, warehouse, receive stock, sell at the till, sales history (verified end to end in the real executable against a real local LicenseServer.Api).
 
-Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; hosting PosView and the module view models in the shell (FIX-01b..e; the sign-in/first-run start screen exists since the Stage 11 review and the shell since FIX-01a); forwarding key presses to IKeyboardInputSink; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
+Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
 
 ---
 
@@ -1861,7 +1861,7 @@ NO physical printer, drawer, scanner or scale was available; correctness against
 ### Stage 10 limitations and deferred work
 - No physical-device verification (see above). Not implemented: Windows spooler/driver printing (needs Windows-specific APIs and belongs in its own adapter), serial/USB/Bluetooth transports and scales, vendor SDK adapters, non-ASCII receipt text
   (code pages; Arabic and other scripts print as '?'), barcode/logo graphics on receipts, customer displays and POS terminals (named in the documents as potential integrations, no stage requires them yet).
-- Nothing feeds `IKeyboardInputSink` yet: PosView is still not hosted in MainWindow (an earlier limitation), so a configured keyboard-wedge scanner has no key source until the UI hosting exists. `IPOSBarcodeInput` is not yet bound to the view model.
+- Nothing feeds `IKeyboardInputSink` yet: PosView is still not hosted in MainWindow (an earlier limitation), so a configured keyboard-wedge scanner has no key source until the UI hosting exists. `IPOSBarcodeInput` is not yet bound to the view model. **[Superseded in FIX-02: the shell window forwards key presses and the POS screen listens to IPOSBarcodeInput; see "FIX-02 Summary".]**
 - `FileDeviceTransport` opens an EXISTING path and writes from the start; it never creates the path. Two writers to the same ordinary FILE overwrite each other (devices are streams, so this only matters in tests).
 - The receipt of a reprint carries no payment lines; "no sale" drawer opens are not permission-checked (authorization is Stage 11).
 - The Stage 12 failure campaign (unplug during a sale, crash during printing, hardware failure) was done in Stage 12 (see "Stage 12 Summary"); under LOAD (many sales per second) it was not.
@@ -2253,12 +2253,24 @@ Decisions (user): (1) user administration can never lock itself out - enforced i
 
 ---
 
+## FIX-02 Summary - Barcode scanner input (2026-10-08)
+
+- **Key forwarding (shell)**: `MainWindow` hands its key presses (PreviewTextInput / PreviewKeyDown) to `ScannerKeyboard` (Client.Desktop/Shell, WPF-free), which the composition root (`ScannerKeyboardHostingModule` in DesktopComposition.cs, the only desktop file that may name Client.Hardware - ARCH-HW-010) connects to `IKeyboardInputSink`. Keys typed into a text box or password box are NOT forwarded: there the scanner's typing lands in the box and the box's own Enter runs (on the cashier screen the barcode box adds the product), so forwarding as well would add it twice. Elsewhere (grid, button, nothing focused) the decoder sees the keys.
+- **The scan's Enter is swallowed**: `IKeyboardInputSink.OnCharacter` now returns true when the character completed a scan; the window then marks that Enter handled, so it cannot also press the focused button (Checkout). An ordinary Enter, slow typing and too-short input are not consumed.
+- **POS screen**: `PosViewModel` takes the optional `IPOSBarcodeInput`. Shown: starts the scanner, subscribes, binds the open cart, shows "Scanner ready". Each scan: the cart is shown again ("Item added.") or the refusal in plain words (on the UI thread). During checkout and till close no cart is bound (a scan cannot land in the cart being sold); afterwards the next customer's cart is bound. No scanner configured (or it cannot start): nothing is claimed, codes are typed as before.
+- **Leaving a screen**: `INavigationAware.OnNavigatedFromAsync` (default: nothing) is called by the shell when another screen (or a locked entry) is chosen and on sign-out (`ShellViewModel.ResetAsync`, was `Reset`); the cashier screen stops the scanner and unbinds, so a scan on another screen does nothing and a signed-out user's screen never receives scans.
+- **Tests (+22)**: Hardware +1 (only the completing Enter is consumed); UI +21: ScannerKeyboard (5), shell leave notifications (3), POS view model with a fake scanner input (10), real offline desktop with the real keyboard-wedge decoder and the real bridge (3: a scan on the grid is sold once and the stock goes down; after leaving the screen a scan is not a scan; without scanner configuration every key is ignored).
+- **Real executable** (isolated database, local LicenseServer.Api with a throwaway key, `GENERICPOS_Hardware__Scanner__Type=KeyboardWedge`, keystrokes posted only to the app's window handle): activate -> warehouse, category/unit, product with barcode, receive 10 -> open till ("Scanner ready" shown) -> scan with the cart grid focused: added; scan with Checkout focused: added and NO sale; scan into the barcode box: added once; unknown code: refused in plain words; checkout 7.50; a scan on the Stock screen does nothing; exit 0.
+- **Not done here (owners)**: physical scanner verification and serial/USB scanners (MISS-07); a scan always adds quantity 1 (the quantity box applies to typed codes).
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 13 and FIX-01 (a..e) are complete.
+None blocking. Stage 13, FIX-01 (a..e) and FIX-02 are complete.
 Observed once (2026-10-07, FIX-01b final run): the Cloud.Tests test host crashed with "Internal CLR error (0x80131506)" while all 23 test projects ran in parallel; Cloud.Tests then passed 207/207 three times in a row on its own. Not reproduced; watch for it in later full runs.
 Build: 0 errors, 0 warnings (122 projects, verified with `dotnet build --no-incremental`).
-All 2431 tests pass (FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
+All 2453 tests pass (FIX-02: UI 131, Hardware 98; FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
 Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 12 had 2254; Stage 13 added 43 (Architecture +22 new and -6 placeholders removed, Platform.ModuleContract +9, Integration +18).
 Stage 13 limitations: see "Stage 13 Summary - Remaining limitations".
 Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
@@ -2328,4 +2340,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-07 - FIX-01 complete (users, roles and permissions screens; user administration cannot lock itself out; every module has its screens). 2431 tests, 0 warnings, 122 projects; Stage 14 not started.
+Last updated: 2026-10-08 - FIX-02 complete (barcode scanner input: shell key forwarding, POS screen bound to IPOSBarcodeInput; verified in the real executable). 2453 tests, 0 warnings, 122 projects; Stage 14 not started.

@@ -75,6 +75,9 @@
   <data name="ItemAdded" xml:space="preserve">
     <value>Item added.</value>
   </data>
+  <data name="ScannerReady" xml:space="preserve">
+    <value>Scanner ready</value>
+  </data>
   <data name="ItemRemoved" xml:space="preserve">
     <value>Item removed.</value>
   </data>

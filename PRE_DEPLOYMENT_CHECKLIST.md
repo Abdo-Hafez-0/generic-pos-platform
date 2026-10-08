@@ -85,6 +85,18 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Every screen view model and the shell built from the root with scope validation on (catches indirect captures)
   - [x] Tests: stale read shown on a kept scope, fresh on the screen's next action (offline desktop); real exe: a price changed in the database file appears at the next Search
 - [ ] **FIX-08 Tax and discounts** (Stages 5D/8): tax rate(s), line and cart discounts; POS `Total != Subtotal`; Sales receives real tax/discount; snapshot at transaction time (rule 14)
+
+  Decisions (2026-10-08, user):
+  1. **Prices include tax** (VAT style): the shelf price is what the customer pays; the tax inside it is shown and reported.
+  2. **Tax rates live in Pricing**: named rates (e.g. Standard 14%, Zero 0%) with one default, and an optional rate per product; the till snapshots the rate on each line. Without Pricing: no tax.
+  3. **Line and cart discounts** at the till, percentage or amount, behind a new permission, with a configurable maximum; a cart discount is spread over the lines; every discount is audited.
+  4. **Rounding per line to 2 decimals** (half away from zero); sale totals are the sums of the rounded lines.
+
+  Out of scope (optional Discounts & Promotions module, later): automatic promotions, coupons, buy X get Y, promotional periods, customer discounts.
+
+  - [x] **FIX-08a Tax rates in Pricing** (2026-10-08): `TaxRate` / `ProductTaxRate` (pri_TaxRates, pri_ProductTaxRates, migration AddTaxRates), capability `pricing.tax.manage`, contract `ITaxRateResolver` (own rate -> default -> none), Tax rates screen (rates, default, change, deactivate; product rate), audited
+  - [ ] **FIX-08b Tax at the till and in Sales**: cart lines snapshot the rate; Sales extracts tax from the gross price; cart/receipt/sale show subtotal, tax and total
+  - [ ] **FIX-08c Discounts at the till**: line and cart discounts (percentage/amount), permission + maximum, spread over lines, audited
 - [ ] **FIX-09 Purchasing gaps** (Stage 8)
   - [ ] Partial-quantity receiving
   - [ ] Supplier returns
@@ -175,4 +187,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-08 | FIX-04 | 6896931 | POS cash sales into the open drawer shift (inside the transaction); 2472 tests, 0 warnings; real exe |
 | 2026-10-08 | FIX-05 | b0a5634 | Business actions in the audit log (Platform event sink, background write, retry buffer); 2482 tests, 0 warnings; real exe |
 | 2026-10-08 | FIX-06 | 3f36a0c | Plain failure messages at module boundaries; per-module screen proof; 2492 tests, 0 warnings; real exe |
-| 2026-10-08 | FIX-07 | (this commit) | One DI scope per action enforced and tested; 2498 tests, 0 warnings; real exe |
+| 2026-10-08 | FIX-07 | 9429ae3 | One DI scope per action enforced and tested; 2498 tests, 0 warnings; real exe |
+| 2026-10-08 | FIX-08 plan, FIX-08a | (this commit) | Decisions recorded; tax rates in Pricing + Tax rates screen; 2512 tests, 0 warnings |

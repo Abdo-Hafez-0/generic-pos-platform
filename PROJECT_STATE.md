@@ -499,13 +499,13 @@ Scope source: the Stage 13 task text (the roadmap file is not in the repository)
 
 ## Current Task
 
-**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). FIX-03 COMPLETE (healthy-start confirmation of updates that really run). FIX-04 COMPLETE (POS cash sales go into the open cash drawer shift). FIX-05 COMPLETE (business actions in the audit log). FIX-06 COMPLETE (plain failure messages at every module boundary and screen). FIX-07 COMPLETE (one DI scope per user action, enforced and tested). Next checklist item: FIX-08 (tax and discounts). Stage 14 has not been started.**
+**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). FIX-03 COMPLETE (healthy-start confirmation of updates that really run). FIX-04 COMPLETE (POS cash sales go into the open cash drawer shift). FIX-05 COMPLETE (business actions in the audit log). FIX-06 COMPLETE (plain failure messages at every module boundary and screen). FIX-07 COMPLETE (one DI scope per user action, enforced and tested). FIX-08 IN PROGRESS: 08a (tax rates in Pricing) done; next 08b (tax at the till and in Sales), then 08c (discounts). Stage 14 has not been started.**
 
 ---
 
 ## Next Task
 
-**FIX-08 - tax and discounts (see PRE_DEPLOYMENT_CHECKLIST.md; needs design decisions first: tax model, discount kinds, rounding, snapshot). Work proceeds one checklist item at a time.**
+**FIX-08b - tax at the till and in Sales (see PRE_DEPLOYMENT_CHECKLIST.md, FIX-08 decisions: prices include tax, rates from Pricing, per-line rounding to 2 decimals). Work proceeds one checklist item at a time.**
 A fresh installation can now be set up and sell through the desktop alone: activate (License), categories/units, products, warehouse, receive stock, sell at the till, sales history (verified end to end in the real executable against a real local LicenseServer.Api).
 
 Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
@@ -2331,12 +2331,25 @@ The hazard (Stage 13): module read contracts TRACK what they read, so a DI scope
 
 ---
 
+## FIX-08a Summary - Tax rates in Pricing (2026-10-08)
+
+FIX-08 decisions (user, 2026-10-08): prices INCLUDE tax; tax rates live in Pricing (named rates, one default, optional rate per product); line and cart discounts with a permission and a maximum, spread over lines, audited; rounding per line to 2 decimals. Split into 08a (rates), 08b (tax at the till and in Sales), 08c (discounts).
+
+- **Pricing.Domain**: `TaxRate` (code <= 30, upper case; name; Rate as a fraction 0..1 with at most 4 decimals = 0.01%; one default; active/inactive; the default cannot be deactivated) and `ProductTaxRate` (one row per Catalog product ID; no row = the default). `TaxSelection`: the product's own ACTIVE rate, else the active default, else none (no tax).
+- **Persistence**: pri_TaxRates (unique code), pri_ProductTaxRates (key = product ID, same-module FK to the rate); migration AddTaxRates.
+- **Application**: Create (the first rate becomes the default), Update (name, rate - a new law; past sales keep their snapshot), SetDefault, Deactivate (products that used it fall back to the default; the choice stays visible), SetProductTaxRate (SKU or ID; null = use the default); ListTaxRates, GetProductTax. Capability `pricing.tax.manage` (sensitive). Every change is audited (pricing tax-rate.created / changed / default-set / deactivated, product.tax-rate-set).
+- **Contract**: `ITaxRateResolver.ResolveAsync(productId)` -> TaxResolutionResult (Found, Rate, TaxRateId, Code, Name); not used by the till until 08b.
+- **Tax rates screen** (Inventory group, after Prices): add (rate typed as a percentage), change the selected rate, use as default, deactivate; find a product by SKU/barcode and choose its rate or "use the default", with the rate that applies now in words.
+- **Tests (+14)**: Pricing +12 (domain limits, selection fallback, first-rate default, own rate and back, another default, change and deactivate with fallback, plain refusals); UI +2 on the offline desktop (the owner sets up STD 14% and ZERO 0%, gives a product ZERO, raises STD to 15% and the product back to the default - the till's resolver follows each step; bad percentages refused in plain words). Pricing infrastructure test now expects four tables.
+
+---
+
 ## Known Issues / Blockers
 
-None blocking. Stage 13, FIX-01 (a..e) and FIX-02..FIX-07 are complete.
+None blocking. Stage 13, FIX-01 (a..e) and FIX-02..FIX-07 are complete; FIX-08 is in progress (08a done).
 Observed once (2026-10-07, FIX-01b final run): the Cloud.Tests test host crashed with "Internal CLR error (0x80131506)" while all 23 test projects ran in parallel; Cloud.Tests then passed 207/207 three times in a row on its own. Not reproduced; watch for it in later full runs.
 Build: 0 errors, 0 warnings (122 projects, verified with `dotnet build --no-incremental`).
-All 2498 tests pass (FIX-07: UI 145; FIX-06: Integration 137, UI 139; FIX-05: Audit 43, Integration 133; FIX-04: Integration 130, UI 133; FIX-03: Updater 218, Integration 123; FIX-02: UI 131, Hardware 98; FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
+All 2512 tests pass (FIX-08a: Pricing 56, UI 147; FIX-07: UI 145; FIX-06: Integration 137, UI 139; FIX-05: Audit 43, Integration 133; FIX-04: Integration 130, UI 133; FIX-03: Updater 218, Integration 123; FIX-02: UI 131, Hardware 98; FIX-01e: UI 110, Users 168; FIX-01d: CashManagement 39; FIX-01c: Catalog 79, Inventory 99, Sales 105; POS 153; Architecture 372; Stage 13 figures follow) (Architecture 370, Cloud 207, Updater 209, Licensing 185, Users 163, POS 150, Integration 122, Platform.ModuleContract 121, Sales 103, Hardware 97, Inventory 97, Catalog 70, Security 55, Purchasing 48, Pricing 44, Customers 43, Suppliers 41,
 Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 12 had 2254; Stage 13 added 43 (Architecture +22 new and -6 placeholders removed, Platform.ModuleContract +9, Integration +18).
 Stage 13 limitations: see "Stage 13 Summary - Remaining limitations".
 Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
@@ -2406,4 +2419,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-08 - FIX-07 complete (one DI scope per user action enforced and tested; verified in the real executable). 2498 tests, 0 warnings, 122 projects; Stage 14 not started.
+Last updated: 2026-10-08 - FIX-08a complete (tax rates in Pricing and the Tax rates screen); FIX-08 decisions recorded. 2512 tests, 0 warnings, 122 projects; Stage 14 not started.

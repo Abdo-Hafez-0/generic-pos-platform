@@ -16,6 +16,13 @@ namespace Pricing.Domain.ValueObjects
         public override string ToString() => Value.ToString();
     }
 
+    public readonly record struct TaxRateId(Guid Value)
+    {
+        public static TaxRateId New() => new(Guid.NewGuid());
+        public static TaxRateId Empty => new(Guid.Empty);
+        public override string ToString() => Value.ToString();
+    }
+
     /// <summary>A non-negative price amount (rounded to 4 decimals). Currency handling is a later concern.</summary>
     public readonly record struct Money(decimal Amount)
     {
@@ -35,6 +42,12 @@ namespace Pricing.Domain.Enums
     }
 
     public enum PriceListStatus
+    {
+        Active = 1,
+        Inactive = 2
+    }
+
+    public enum TaxRateStatus
     {
         Active = 1,
         Inactive = 2
@@ -221,6 +234,143 @@ namespace Pricing.Domain.Entities
     }
 }
 
+namespace Pricing.Domain.Entities
+{
+    using Pricing.Domain.Enums;
+    using Pricing.Domain.ValueObjects;
+
+    /// <summary>
+    /// A named tax rate (FIX-08), e.g. "STD" Standard 14% or "ZERO" 0%. Prices INCLUDE tax (user decision): the rate says how much of a
+    /// price is tax. One active rate is the default; a product without its own choice uses it. The rate is a CURRENT rule: the till
+    /// snapshots the rate on every line, so changing a rate (a new VAT law) never rewrites a past sale.
+    /// </summary>
+    public sealed class TaxRate
+    {
+        public const decimal MaximumRate = 1m;
+
+        private TaxRate() { }
+
+        public TaxRateId Id { get; private set; }
+        public string Code { get; private set; } = string.Empty;
+        public string Name { get; private set; } = string.Empty;
+
+        /// <summary>The rate as a fraction: 0.14 = 14%. At most 4 decimals (0.01%).</summary>
+        public decimal Rate { get; private set; }
+
+        public bool IsDefault { get; private set; }
+        public TaxRateStatus Status { get; private set; }
+        public DateTime CreatedAt { get; private set; }
+        public DateTime UpdatedAt { get; private set; }
+
+        public static Result<TaxRate> Create(string code, string name, decimal rate, bool isDefault)
+        {
+            if (string.IsNullOrWhiteSpace(code))
+                return Result.Failure<TaxRate>(Error.Validation("Pricing.TaxRate.CodeRequired", "A tax rate code is required."));
+            if (code.Trim().Length > 30)
+                return Result.Failure<TaxRate>(Error.Validation("Pricing.TaxRate.CodeTooLong", "The tax rate code cannot exceed 30 characters."));
+            var checks = Validate(name, rate);
+            if (checks.IsFailure) return Result.Failure<TaxRate>(checks.Error);
+
+            var now = DateTime.UtcNow;
+            return Result.Success(new TaxRate
+            {
+                Id = TaxRateId.New(),
+                Code = code.Trim().ToUpperInvariant(),
+                Name = name.Trim(),
+                Rate = rate,
+                IsDefault = isDefault,
+                Status = TaxRateStatus.Active,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+        }
+
+        public Result Update(string name, decimal rate)
+        {
+            if (Status != TaxRateStatus.Active)
+                return Result.Failure(Error.Conflict("Pricing.TaxRate.Inactive", "An inactive tax rate cannot be changed."));
+            var checks = Validate(name, rate);
+            if (checks.IsFailure) return checks;
+
+            Name = name.Trim();
+            Rate = rate;
+            UpdatedAt = DateTime.UtcNow;
+            return Result.Success();
+        }
+
+        public Result MakeDefault()
+        {
+            if (Status != TaxRateStatus.Active)
+                return Result.Failure(Error.Conflict("Pricing.TaxRate.Inactive", "An inactive tax rate cannot be the default."));
+
+            IsDefault = true;
+            UpdatedAt = DateTime.UtcNow;
+            return Result.Success();
+        }
+
+        public void ClearDefault()
+        {
+            IsDefault = false;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public Result Deactivate()
+        {
+            if (Status == TaxRateStatus.Inactive)
+                return Result.Failure(Error.Conflict("Pricing.TaxRate.AlreadyInactive", "The tax rate is already inactive."));
+            if (IsDefault)
+                return Result.Failure(Error.Conflict("Pricing.TaxRate.DefaultCannotBeDeactivated", "The default tax rate cannot be deactivated. Make another rate the default first."));
+
+            Status = TaxRateStatus.Inactive;
+            UpdatedAt = DateTime.UtcNow;
+            return Result.Success();
+        }
+
+        private static Result Validate(string name, decimal rate)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return Result.Failure(Error.Validation("Pricing.TaxRate.NameRequired", "A tax rate name is required."));
+            if (name.Trim().Length > 200)
+                return Result.Failure(Error.Validation("Pricing.TaxRate.NameTooLong", "The tax rate name cannot exceed 200 characters."));
+            if (rate < 0m || rate > MaximumRate)
+                return Result.Failure(Error.Validation("Pricing.TaxRate.OutOfRange", "A tax rate must be between 0% and 100%."));
+            if (decimal.Round(rate, 4) != rate)
+                return Result.Failure(Error.Validation("Pricing.TaxRate.TooPrecise", "A tax rate can have at most two decimals as a percentage (for example 14.25%)."));
+
+            return Result.Success();
+        }
+    }
+
+    /// <summary>
+    /// The tax rate chosen for one product (FIX-08). The product is a plain Catalog ID. No row = the product uses the default rate; a row
+    /// pointing at a rate that was deactivated also falls back to the default.
+    /// </summary>
+    public sealed class ProductTaxRate
+    {
+        private ProductTaxRate() { }
+
+        public Guid ProductId { get; private set; }
+        public TaxRateId TaxRateId { get; private set; }
+        public DateTime UpdatedAt { get; private set; }
+
+        public static Result<ProductTaxRate> Create(Guid productId, TaxRateId taxRateId)
+        {
+            if (productId == Guid.Empty)
+                return Result.Failure<ProductTaxRate>(Error.Validation("Pricing.ProductTaxRate.ProductRequired", "A product is required."));
+            if (taxRateId == TaxRateId.Empty)
+                return Result.Failure<ProductTaxRate>(Error.Validation("Pricing.ProductTaxRate.TaxRateRequired", "A tax rate is required."));
+
+            return Result.Success(new ProductTaxRate { ProductId = productId, TaxRateId = taxRateId, UpdatedAt = DateTime.UtcNow });
+        }
+
+        public void Change(TaxRateId taxRateId)
+        {
+            TaxRateId = taxRateId;
+            UpdatedAt = DateTime.UtcNow;
+        }
+    }
+}
+
 namespace Pricing.Domain.Services
 {
     using Pricing.Domain.Entities;
@@ -229,6 +379,18 @@ namespace Pricing.Domain.Services
     /// The price selection rule (pure): among the prices that apply at the given time and quantity, the one with the HIGHEST minimum
     /// quantity wins (the best quantity break reached), then the latest start date.
     /// </summary>
+    /// <summary>
+    /// The tax rule (pure, FIX-08): the product's own rate when it has one and that rate is active, otherwise the active default rate,
+    /// otherwise none (no tax).
+    /// </summary>
+    public static class TaxSelection
+    {
+        public static TaxRate? Select(TaxRate? productRate, TaxRate? defaultRate)
+            => productRate is { Status: Enums.TaxRateStatus.Active }
+                ? productRate
+                : defaultRate is { Status: Enums.TaxRateStatus.Active, IsDefault: true } ? defaultRate : null;
+    }
+
     public static class PriceSelection
     {
         public static Price? Select(IEnumerable<Price> candidates, DateTime at, decimal quantity)

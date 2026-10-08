@@ -41,4 +41,27 @@
   <data name="ChooseList" xml:space="preserve"><value>Choose the price list.</value></data>
   <data name="NoLists" xml:space="preserve"><value>Add a price list first.</value></data>
   <data name="UntilBeforeFrom" xml:space="preserve"><value>The end date must not be before the start date.</value></data>
+  <data name="TaxScreenTitle" xml:space="preserve"><value>Tax rates</value></data>
+  <data name="TaxRatesHeading" xml:space="preserve"><value>Tax rates</value></data>
+  <data name="TaxIncludedHint" xml:space="preserve"><value>Prices include tax: the rate says how much of a price is tax. A sale keeps the rate it was sold at, so changing a rate never changes past sales.</value></data>
+  <data name="TaxPercent" xml:space="preserve"><value>Rate %</value></data>
+  <data name="AddTaxRate" xml:space="preserve"><value>Add rate</value></data>
+  <data name="EditTaxName" xml:space="preserve"><value>Name of the selected rate</value></data>
+  <data name="EditTaxPercent" xml:space="preserve"><value>Rate % of the selected rate</value></data>
+  <data name="ChangeTaxRate" xml:space="preserve"><value>Change selected</value></data>
+  <data name="SetDefaultTax" xml:space="preserve"><value>Use as default</value></data>
+  <data name="DeactivateTaxRate" xml:space="preserve"><value>Deactivate selected</value></data>
+  <data name="ProductTaxHeading" xml:space="preserve"><value>Tax rate of a product</value></data>
+  <data name="ProductTaxChoice" xml:space="preserve"><value>Tax rate</value></data>
+  <data name="SaveProductTax" xml:space="preserve"><value>Save</value></data>
+  <data name="UseDefaultTax" xml:space="preserve"><value>Use the default rate</value></data>
+  <data name="TaxPercentInvalid" xml:space="preserve"><value>Enter the rate as a percentage between 0 and 100, for example 14.</value></data>
+  <data name="TaxRateAdded" xml:space="preserve"><value>Tax rate {0} was added.</value></data>
+  <data name="TaxRateChanged" xml:space="preserve"><value>Tax rate {0} was changed.</value></data>
+  <data name="TaxDefaultSet" xml:space="preserve"><value>Tax rate {0} is now the default.</value></data>
+  <data name="TaxRateDeactivated" xml:space="preserve"><value>Tax rate {0} is inactive; products that used it now use the default.</value></data>
+  <data name="ProductTaxSaved" xml:space="preserve"><value>The tax rate of {0} was saved.</value></data>
+  <data name="ProductTaxOwn" xml:space="preserve"><value>{0} ({1}): {2} % ({3}, chosen for this product).</value></data>
+  <data name="ProductTaxDefault" xml:space="preserve"><value>{0} ({1}): {2} % ({3}, the default rate).</value></data>
+  <data name="ProductTaxNone" xml:space="preserve"><value>{0} ({1}): no tax - no tax rate is set up yet.</value></data>
 </root>

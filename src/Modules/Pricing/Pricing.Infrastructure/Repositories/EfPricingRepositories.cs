@@ -48,3 +48,35 @@ internal sealed class EfPriceRepository(PricingDbContext dbContext) : IPriceRepo
             .Where(p => p.ProductId == productId && p.PriceListId == priceListId && p.Status == PriceStatus.Active)
             .ToListAsync(cancellationToken);
 }
+
+internal sealed class EfTaxRateRepository(PricingDbContext dbContext) : ITaxRateRepository
+{
+    public async Task<TaxRate?> GetByIdAsync(TaxRateId id, CancellationToken cancellationToken = default)
+        => await dbContext.TaxRates.FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
+
+    public async Task<TaxRate?> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
+    {
+        var normalized = code.Trim().ToUpperInvariant();
+        return await dbContext.TaxRates.FirstOrDefaultAsync(r => r.Code == normalized, cancellationToken);
+    }
+
+    public async Task<TaxRate?> GetDefaultAsync(CancellationToken cancellationToken = default)
+        => await dbContext.TaxRates.FirstOrDefaultAsync(r => r.IsDefault && r.Status == TaxRateStatus.Active, cancellationToken);
+
+    public async Task<IReadOnlyList<TaxRate>> ListAsync(CancellationToken cancellationToken = default)
+        => await dbContext.TaxRates.OrderBy(r => r.Code).ToListAsync(cancellationToken);
+
+    public async Task AddAsync(TaxRate rate, CancellationToken cancellationToken = default)
+        => await dbContext.TaxRates.AddAsync(rate, cancellationToken);
+}
+
+internal sealed class EfProductTaxRateRepository(PricingDbContext dbContext) : IProductTaxRateRepository
+{
+    public async Task<ProductTaxRate?> GetAsync(Guid productId, CancellationToken cancellationToken = default)
+        => await dbContext.ProductTaxRates.FirstOrDefaultAsync(a => a.ProductId == productId, cancellationToken);
+
+    public async Task AddAsync(ProductTaxRate assignment, CancellationToken cancellationToken = default)
+        => await dbContext.ProductTaxRates.AddAsync(assignment, cancellationToken);
+
+    public void Remove(ProductTaxRate assignment) => dbContext.ProductTaxRates.Remove(assignment);
+}

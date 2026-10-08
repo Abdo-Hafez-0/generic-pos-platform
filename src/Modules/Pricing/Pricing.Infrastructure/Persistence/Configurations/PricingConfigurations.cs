@@ -57,3 +57,42 @@ internal sealed class PriceConfiguration : IEntityTypeConfiguration<Price>
         builder.HasOne<PriceList>().WithMany().HasForeignKey(p => p.PriceListId).OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+/// <summary>Table: pri_TaxRates (FIX-08a).</summary>
+internal sealed class TaxRateConfiguration : IEntityTypeConfiguration<TaxRate>
+{
+    public void Configure(EntityTypeBuilder<TaxRate> builder)
+    {
+        builder.ToTable("pri_TaxRates");
+
+        builder.HasKey(r => r.Id);
+        builder.Property(r => r.Id).HasConversion(id => id.Value, v => new TaxRateId(v)).IsRequired();
+        builder.Property(r => r.Code).HasMaxLength(30).IsRequired();
+        builder.Property(r => r.Name).HasMaxLength(200).IsRequired();
+        builder.Property(r => r.Rate).HasColumnType("TEXT").IsRequired();
+        builder.Property(r => r.IsDefault).IsRequired();
+        builder.Property(r => r.Status).HasConversion<int>().IsRequired();
+        builder.Property(r => r.CreatedAt).IsRequired();
+        builder.Property(r => r.UpdatedAt).IsRequired();
+
+        builder.HasIndex(r => r.Code).IsUnique();
+        builder.HasIndex(r => r.IsDefault);
+    }
+}
+
+/// <summary>Table: pri_ProductTaxRates (FIX-08a). The product is a plain Catalog ID (no FK, no Catalog type); one row per product.</summary>
+internal sealed class ProductTaxRateConfiguration : IEntityTypeConfiguration<ProductTaxRate>
+{
+    public void Configure(EntityTypeBuilder<ProductTaxRate> builder)
+    {
+        builder.ToTable("pri_ProductTaxRates");
+
+        builder.HasKey(a => a.ProductId);
+        builder.Property(a => a.TaxRateId).HasConversion(id => id.Value, v => new TaxRateId(v)).IsRequired();
+        builder.Property(a => a.UpdatedAt).IsRequired();
+        builder.HasIndex(a => a.TaxRateId);
+
+        // Same-module relationship only (an assignment points at a tax rate of THIS module).
+        builder.HasOne<TaxRate>().WithMany().HasForeignKey(a => a.TaxRateId).OnDelete(DeleteBehavior.Restrict);
+    }
+}

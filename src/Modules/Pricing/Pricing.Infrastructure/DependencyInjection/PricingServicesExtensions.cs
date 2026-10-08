@@ -45,6 +45,17 @@ public static class PricingServicesExtensions
         services.AddScoped<Pricing.Application.Repositories.IPriceListRepository, Pricing.Infrastructure.Repositories.EfPriceListRepository>();
         services.AddScoped<Pricing.Application.Repositories.IPriceRepository, Pricing.Infrastructure.Repositories.EfPriceRepository>();
         services.AddScoped<Pricing.Contracts.Interfaces.IPriceResolver, Pricing.Infrastructure.Services.PriceResolver>();
+        // FIX-08a: tax rates
+        services.AddScoped<Pricing.Application.Repositories.ITaxRateRepository, Pricing.Infrastructure.Repositories.EfTaxRateRepository>();
+        services.AddScoped<Pricing.Application.Repositories.IProductTaxRateRepository, Pricing.Infrastructure.Repositories.EfProductTaxRateRepository>();
+        services.AddScoped<Pricing.Contracts.Interfaces.ITaxRateResolver, Pricing.Infrastructure.Services.TaxRateResolver>();
+        services.AddTransient<Pricing.Application.Commands.CreateTaxRateCommandHandler>();
+        services.AddTransient<Pricing.Application.Commands.UpdateTaxRateCommandHandler>();
+        services.AddTransient<Pricing.Application.Commands.SetDefaultTaxRateCommandHandler>();
+        services.AddTransient<Pricing.Application.Commands.DeactivateTaxRateCommandHandler>();
+        services.AddTransient<Pricing.Application.Commands.SetProductTaxRateCommandHandler>();
+        services.AddTransient<Pricing.Application.Queries.ListTaxRatesQueryHandler>();
+        services.AddTransient<Pricing.Application.Queries.GetProductTaxQueryHandler>();
         services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Pricing.Application.Security.PricingCapabilityProvider>();
         services.AddTransient<Pricing.Application.Commands.CreatePriceListCommandHandler>();
         services.AddTransient<Pricing.Application.Commands.SetDefaultPriceListCommandHandler>();

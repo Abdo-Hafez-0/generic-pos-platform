@@ -16,6 +16,8 @@ public sealed class PricingDbContext : DbContext
 
     public DbSet<PriceList> PriceLists { get; set; } = null!;
     public DbSet<Price> Prices { get; set; } = null!;
+    public DbSet<TaxRate> TaxRates { get; set; } = null!;                 // FIX-08a
+    public DbSet<ProductTaxRate> ProductTaxRates { get; set; } = null!;   // FIX-08a
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

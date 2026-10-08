@@ -5,6 +5,15 @@ namespace Pricing.Contracts.Models
     {
         public static PriceResolutionResult None { get; } = new(false, 0m, Guid.Empty, Guid.Empty, string.Empty);
     }
+
+    /// <summary>
+    /// The tax rate that applies to a product now (FIX-08). Prices INCLUDE tax: Rate (0.14 = 14%) says how much of a price is tax.
+    /// Found = false means no tax rate is set up (no tax). The caller snapshots the rate into its own transaction record.
+    /// </summary>
+    public sealed record TaxResolutionResult(bool Found, decimal Rate, Guid TaxRateId, string Code, string Name)
+    {
+        public static TaxResolutionResult None { get; } = new(false, 0m, Guid.Empty, string.Empty, string.Empty);
+    }
 }
 
 namespace Pricing.Contracts.Interfaces
@@ -24,5 +33,14 @@ namespace Pricing.Contracts.Interfaces
         /// <param name="priceListId">A specific price list; null = the default price list.</param>
         Task<PriceResolutionResult> ResolveAsync(
             Guid productId, decimal quantity = 1m, DateTime? at = null, Guid? priceListId = null, CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// "Which tax rate applies to this product right now?" (FIX-08): the product's own rate, else the default rate, else none.
+    /// Implemented by Pricing.Infrastructure.Services.TaxRateResolver. Fully offline.
+    /// </summary>
+    public interface ITaxRateResolver
+    {
+        Task<TaxResolutionResult> ResolveAsync(Guid productId, CancellationToken cancellationToken = default);
     }
 }

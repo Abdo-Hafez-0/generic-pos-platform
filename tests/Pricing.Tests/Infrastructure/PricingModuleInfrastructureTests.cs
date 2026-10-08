@@ -15,7 +15,7 @@ namespace Pricing.Tests.Infrastructure;
 public sealed class PricingModuleInfrastructureTests
 {
 
-    private static readonly string[] ExpectedTables = ["pri_PriceLists", "pri_Prices"];
+    private static readonly string[] ExpectedTables = ["pri_PriceLists", "pri_Prices", "pri_TaxRates", "pri_ProductTaxRates"];   // tax rates: FIX-08a
 
     private static async Task<(SqliteConnection Connection, PricingDbContext Context)> OpenMigratedAsync()
     {

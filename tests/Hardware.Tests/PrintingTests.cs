@@ -63,6 +63,21 @@ public sealed class EscPosReceiptTests
     }
 
     [Fact]
+    public void ADiscountedLineShowsItsPriceThenTheDiscount_AndTheReceiptShowsSubtotalAndDiscountBeforeTheTotal()
+    {
+        // FIX-08c: the line total on the receipt line is what is charged; the price before the discount is printed with the discount under it
+        var receipt = Receipt(items => items[0] = new ReceiptLine("Cola 330ml", 2m, 1.5m, 2.5m, 0.5m)) with { Total = 4.75m };
+        var lines = Render(receipt, width: 32).Split('\n');
+
+        Assert.EndsWith("3.00", lines.First(l => l.Contains("2 x 1.50")).TrimEnd());
+        Assert.EndsWith("-0.50", lines.First(l => l.Contains("discount")).TrimEnd());
+        Assert.EndsWith("5.25", lines.First(l => l.StartsWith("Subtotal", StringComparison.Ordinal)).TrimEnd());
+        Assert.EndsWith("-0.50", lines.First(l => l.StartsWith("Discount", StringComparison.Ordinal)).TrimEnd());
+        Assert.True(Array.FindIndex(lines, l => l.StartsWith("Discount", StringComparison.Ordinal)) < Array.FindIndex(lines, l => l.Contains("TOTAL")));
+        Assert.DoesNotContain("Subtotal", Render(Receipt(), width: 32));   // no discount: no subtotal line
+    }
+
+    [Fact]
     public void CuttingCanBeTurnedOff()
     {
         var withCut = EscPosReceiptFormatter.Format(Receipt(), 32, cutPaper: true);

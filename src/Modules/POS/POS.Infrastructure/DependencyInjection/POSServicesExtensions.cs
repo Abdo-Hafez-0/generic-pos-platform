@@ -65,6 +65,10 @@ public static class POSServicesExtensions
         var cashOptions = new PosCashOptions();
         configuration.GetSection(PosCashOptions.SectionName).Bind(cashOptions);
         services.AddSingleton(cashOptions);
+        // FIX-08c: the most a cashier may give
+        var discountOptions = new PosDiscountOptions();
+        configuration.GetSection(PosDiscountOptions.SectionName).Bind(discountOptions);
+        services.AddSingleton(discountOptions);
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IPOSDevices, POSDevices>();
         services.AddSingleton<IPOSBarcodeInput, POSBarcodeInput>();
@@ -81,6 +85,8 @@ public static class POSServicesExtensions
         services.AddTransient<ChangeCartQuantityCommandHandler>();
         services.AddTransient<ClearCartCommandHandler>();
         services.AddTransient<CheckoutCartCommandHandler>();
+        services.AddTransient<SetLineDiscountCommandHandler>();   // FIX-08c
+        services.AddTransient<SetCartDiscountCommandHandler>();   // FIX-08c
 
         services.AddTransient<GetPosSessionQueryHandler>();
         services.AddTransient<GetCartQueryHandler>();

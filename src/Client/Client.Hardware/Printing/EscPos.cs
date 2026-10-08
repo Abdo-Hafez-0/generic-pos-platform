@@ -48,10 +48,18 @@ public static class EscPosReceiptFormatter
         foreach (var item in receipt.Lines ?? [])
         {
             foreach (var l in Wrap(item.Description, width)) Line(l);
-            Line(Pair($"  {Quantity(item.Quantity)} x {Money(item.UnitPrice)}", Money(item.LineTotal), width));
+            Line(Pair($"  {Quantity(item.Quantity)} x {Money(item.UnitPrice)}", Money(item.LineTotal + item.Discount), width));
+            if (item.Discount > 0m) Line(Pair("  discount", "-" + Money(item.Discount), width));   // FIX-08c
         }
 
         Line(new string('-', width));
+        var discountTotal = (receipt.Lines ?? []).Sum(l => l.Discount);
+        if (discountTotal > 0m)
+        {
+            Line(Pair("Subtotal", Money(receipt.Total + discountTotal), width));
+            Line(Pair("Discount", "-" + Money(discountTotal), width));
+        }
+
         Bold(true);
         Line(Pair("TOTAL", Money(receipt.Total), width));
         Bold(false);

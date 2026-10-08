@@ -30,7 +30,9 @@ public interface IBarcodeScanner : IHardwareDevice
 // ---- receipt printer ---------------------------------------------------------------------------------------------
 
 /// <summary>One receipt line. Amounts are already calculated: printing never computes business values.</summary>
-public sealed record ReceiptLine(string Description, decimal Quantity, decimal UnitPrice, decimal LineTotal);
+/// <param name="LineTotal">What is charged for the line, after its discount.</param>
+/// <param name="Discount">The discount on the line (FIX-08c: its own and its share of a cart discount), 0 = none.</param>
+public sealed record ReceiptLine(string Description, decimal Quantity, decimal UnitPrice, decimal LineTotal, decimal Discount = 0m);
 
 /// <summary>The tax contained in the receipt total for one rate (prices include tax - FIX-08b), e.g. Rate 0.14, Amount 0.61.</summary>
 public sealed record ReceiptTax(decimal Rate, decimal Amount);

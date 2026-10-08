@@ -34,7 +34,20 @@ public sealed record POSCartItemResult(
     decimal UnitPrice,
     decimal LineTotal,
     decimal TaxRate = 0m,
-    decimal TaxAmount = 0m);
+    decimal TaxAmount = 0m,
+    decimal Discount = 0m,
+    POSDiscountKind? LineDiscountKind = null,
+    decimal? LineDiscountValue = null);
+
+/// <summary>How a discount was given (FIX-08c).</summary>
+public enum POSDiscountKind
+{
+    /// <summary>A percentage (10 = 10%).</summary>
+    Percent = 1,
+
+    /// <summary>A fixed amount off, tax included.</summary>
+    Amount = 2
+}
 
 /// <summary>Read model of a cart with totals.</summary>
 public sealed record POSCartResult(
@@ -47,4 +60,7 @@ public sealed record POSCartResult(
     Guid? SaleId,
     DateTime CreatedAt,
     DateTime? CheckedOutAt,
-    decimal TaxTotal = 0m);
+    decimal TaxTotal = 0m,
+    decimal DiscountTotal = 0m,
+    POSDiscountKind? CartDiscountKind = null,
+    decimal? CartDiscountValue = null);

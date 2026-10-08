@@ -11,6 +11,9 @@ using POS.UI.Resources;
 
 namespace POS.UI.ViewModels;
 
+/// <summary>A way of giving a discount, as the screen offers it (FIX-08c).</summary>
+public sealed record DiscountChoice(POSDiscountKind Kind, string Text);
+
 /// <summary>
 /// The cashier screen (FIX-01b): open or resume the signed-in user's till, add products by barcode/SKU, remove lines, check out, close the till.
 ///
@@ -40,6 +43,11 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     private decimal _taxTotal;
     private string? _hardwareMessage;
     private bool _hasNoWarehouses;
+    private decimal _discountTotal;
+    private bool _canGiveDiscounts;
+    private string _discountText = string.Empty;
+    private DiscountChoice _discountKind;
+    private POSCartItemResult? _selectedItem;
 
     public PosViewModel(IUiActionRunner runner, ICurrentUser currentUser, IPOSBarcodeInput? scanner = null)
     {
@@ -50,6 +58,10 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
         OpenSessionCommand = Command(OpenSessionAsync, () => !HasOpenSession && SelectedWarehouse is not null);
         AddCommand = Command(AddProductAsync, () => HasOpenSession && !string.IsNullOrWhiteSpace(ProductCode));
         RemoveCommand = Command<POSCartItemResult>(item => item is null ? Task.CompletedTask : RemoveProductAsync(item.ProductId), item => item is not null && HasOpenSession);
+        DiscountKinds = [new(POSDiscountKind.Percent, PosText.DiscountPercent), new(POSDiscountKind.Amount, PosText.DiscountAmount)];
+        _discountKind = DiscountKinds[0];
+        LineDiscountCommand = Command(GiveLineDiscountAsync, () => CanGiveDiscounts && HasOpenSession && SelectedItem is not null && !string.IsNullOrWhiteSpace(DiscountText));
+        CartDiscountCommand = Command(GiveCartDiscountAsync, () => CanGiveDiscounts && HasOpenSession && Items.Count > 0 && !string.IsNullOrWhiteSpace(DiscountText));
         CheckoutCommand = Command(CheckoutAsync, () => CanCheckout);
         CloseSessionCommand = Command(CloseSessionAsync, () => HasOpenSession && Items.Count == 0);
     }
@@ -63,6 +75,25 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     public ICommand RemoveCommand { get; }
     public ICommand CheckoutCommand { get; }
     public ICommand CloseSessionCommand { get; }
+    public ICommand LineDiscountCommand { get; }
+    public ICommand CartDiscountCommand { get; }
+
+    /// <summary>Percentage or amount (FIX-08c).</summary>
+    public IReadOnlyList<DiscountChoice> DiscountKinds { get; }
+
+    public DiscountChoice DiscountKind { get => _discountKind; set => Set(ref _discountKind, value); }
+
+    /// <summary>The discount as typed: 10 (%) or 2.50 (amount); 0 removes the discount.</summary>
+    public string DiscountText { get => _discountText; set => Set(ref _discountText, value); }
+
+    /// <summary>The line chosen in the cart (for a line discount).</summary>
+    public POSCartItemResult? SelectedItem { get => _selectedItem; set => Set(ref _selectedItem, value); }
+
+    /// <summary>True when the signed-in user may give discounts (pos.discount.give); the discount controls show only then.</summary>
+    public bool CanGiveDiscounts { get => _canGiveDiscounts; private set => Set(ref _canGiveDiscounts, value); }
+
+    /// <summary>All discounts in the cart: line discounts and the cart discount (FIX-08c).</summary>
+    public decimal DiscountTotal { get => _discountTotal; private set => Set(ref _discountTotal, value); }
 
     public string CashierText => string.Format(CultureInfo.CurrentCulture, PosText.Cashier, _currentUser.DisplayName);
 
@@ -160,6 +191,11 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
 
     private Task LoadAsync(CancellationToken cancellationToken) => BusyAsync(async () =>
     {
+        // FIX-08c: the discount controls show only to someone who may give discounts (the handler checks again)
+        var mayDiscount = await _runner.QueryAsync(async (scope, ct) =>
+            scope.Find<IAuthorizationService>() is { } authorization && await authorization.IsAllowedAsync(POS.Application.Security.POSCapabilities.GiveDiscounts, ct), cancellationToken);
+        CanGiveDiscounts = mayDiscount.IsSuccess && mayDiscount.Value;
+
         if (HasOpenSession)
         {
             await RefreshCartAsync(cancellationToken);
@@ -446,8 +482,44 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
         Subtotal = cart?.Subtotal ?? 0m;
         Total = cart?.Total ?? 0m;
         TaxTotal = cart?.TaxTotal ?? 0m;
+        DiscountTotal = cart?.DiscountTotal ?? 0m;
+        SelectedItem = SelectedItem is { } chosen ? Items.FirstOrDefault(i => i.ProductId == chosen.ProductId) : null;
         Raise(nameof(CanCheckout));
         BindScanner();
+    }
+
+    private Task GiveLineDiscountAsync()
+        => SelectedItem is { } line ? GiveDiscountAsync((service, cartId, kind, value, ct) => service.SetLineDiscountAsync(cartId, line.ProductId, kind, value, ct)) : Task.CompletedTask;
+
+    private Task GiveCartDiscountAsync()
+        => GiveDiscountAsync((service, cartId, kind, value, ct) => service.SetCartDiscountAsync(cartId, kind, value, ct));
+
+    private async Task GiveDiscountAsync(Func<IPOSService, Guid, POSDiscountKind, decimal, CancellationToken, Task<POSOperationResult>> give)
+    {
+        if (_cartId is not { } cartId) return;
+        if (!decimal.TryParse(DiscountText, NumberStyles.Number, CultureInfo.CurrentCulture, out var value) || value < 0m)
+        {
+            Fail(PosText.DiscountInvalid);
+            return;
+        }
+
+        var kind = DiscountKind.Kind;
+        var given = await _runner.QueryAsync(async (scope, ct) =>
+        {
+            var result = await give(scope.Get<IPOSService>(), cartId, kind, value, ct);
+            return new CartChange(result.IsSuccess, result.ErrorMessage, await scope.Get<IPOSReader>().GetCartAsync(cartId, ct));
+        });
+
+        if (!Accept(given)) return;
+        ShowCart(given.Value.Cart);
+        if (!given.Value.IsSuccess)
+        {
+            Fail(given.Value.ErrorMessage);
+            return;
+        }
+
+        DiscountText = string.Empty;
+        StatusMessage = value == 0m ? PosText.DiscountRemoved : PosText.DiscountGiven;
     }
 
     private void RaiseSessionChanged()

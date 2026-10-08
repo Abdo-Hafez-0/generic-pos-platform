@@ -95,6 +95,8 @@ public sealed class PosTestDatabase : IAsyncDisposable
         services.AddTransient<ChangeCartQuantityCommandHandler>();
         services.AddTransient<ClearCartCommandHandler>();
         services.AddTransient<CheckoutCartCommandHandler>();
+        services.AddTransient<SetLineDiscountCommandHandler>();   // FIX-08c
+        services.AddTransient<SetCartDiscountCommandHandler>();   // FIX-08c
         services.AddTransient<GetPosSessionQueryHandler>();
         services.AddTransient<GetCartQueryHandler>();
         services.AddTransient<GetCurrentCartQueryHandler>();

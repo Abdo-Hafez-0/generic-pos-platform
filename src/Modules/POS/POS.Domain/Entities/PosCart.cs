@@ -1,3 +1,4 @@
+using Platform.Core.Amounts;
 using Platform.Core.Results;
 using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
@@ -13,7 +14,17 @@ namespace POS.Domain.Entities;
 ///
 /// A cart holds at most one line per product; adding the same product again increases the quantity
 /// of the existing line (the original unit price snapshot is kept).
+///
+/// PRICING (FIX-08): prices include tax; each line snapshots its tax rate; the cashier may give a discount on a line and one on the whole
+/// cart. <see cref="PricedLines"/> turns all of it into the amounts that are charged and recorded, with the one platform rule
+/// (TaxInclusiveLine, rounded per line); the cart discount is spread over the lines (CartDiscountAllocation).
 /// </summary>
+/// <param name="Item">The cart line.</param>
+/// <param name="Amounts">What is charged for it: gross, the line discount plus its share of the cart discount, total, tax, net.</param>
+/// <param name="CartShare">Its share of the cart discount.</param>
+public sealed record PricedCartLine(PosCartItem Item, TaxInclusiveLine Amounts, decimal CartShare);
+
+/// <summary>The transaction a cashier is currently building (see the remarks above).</summary>
 public sealed class PosCart
 {
     private readonly List<PosCartItem> _items = [];
@@ -33,14 +44,44 @@ public sealed class PosCart
 
     public IReadOnlyList<PosCartItem> Items => _items.AsReadOnly();
 
+    /// <summary>Stored form of <see cref="CartDiscount"/> (FIX-08c): null = no cart discount.</summary>
+    public DiscountKind? CartDiscountKind { get; private set; }
+
+    public decimal? CartDiscountValue { get; private set; }
+
+    /// <summary>The discount the cashier gave on the whole cart, as given, or null. FIX-08c.</summary>
+    public DiscountRule? CartDiscount => CartDiscountKind is { } kind && CartDiscountValue is { } value ? new DiscountRule(kind, value) : null;
+
+    /// <summary>What every line costs after the line discounts (the base a cart discount applies to).</summary>
+    public decimal AfterLineDiscounts => _items.Sum(i => i.Amounts.Total);
+
+    /// <summary>The cart discount as an amount against <see cref="AfterLineDiscounts"/>.</summary>
+    public decimal CartDiscountAmount => CartDiscount?.AmountOf(AfterLineDiscounts) ?? 0m;
+
+    /// <summary>The amounts that are charged and recorded, line by line (see the class remarks).</summary>
+    public IReadOnlyList<PricedCartLine> PricedLines
+    {
+        get
+        {
+            var shares = CartDiscountAllocation.Spread(CartDiscountAmount, _items.Select(i => i.Amounts.Total).ToList());
+            return _items.Select((item, n) => new PricedCartLine(
+                item,
+                TaxInclusiveLine.Compute(item.UnitPrice.Amount, item.Quantity.Value, item.LineDiscountAmount + shares[n], item.TaxRate),
+                shares[n])).ToList();
+        }
+    }
+
     /// <summary>The lines before discounts (unit price x quantity, tax included).</summary>
-    public Money Subtotal => _items.Aggregate(Money.Zero, (acc, i) => acc + new Money(i.Amounts.Gross));
+    public Money Subtotal => new(PricedLines.Sum(l => l.Amounts.Gross));
+
+    /// <summary>All discounts given: the line discounts and the cart discount (FIX-08c).</summary>
+    public Money DiscountTotal => new(PricedLines.Sum(l => l.Amounts.Discount));
 
     /// <summary>The tax contained in <see cref="Total"/> (prices include tax - FIX-08b): the sum of the rounded line taxes.</summary>
-    public Money TaxTotal => _items.Aggregate(Money.Zero, (acc, i) => acc + i.TaxAmount);
+    public Money TaxTotal => new(PricedLines.Sum(l => l.Amounts.Tax));
 
     /// <summary>Total payable, tax included: the sum of the rounded line totals.</summary>
-    public Money Total => _items.Aggregate(Money.Zero, (acc, i) => acc + i.LineTotal);
+    public Money Total => new(PricedLines.Sum(l => l.Amounts.Total));
 
     public decimal TotalQuantity => _items.Sum(i => i.Quantity.Value);
 
@@ -122,11 +163,45 @@ public sealed class PosCart
         return Result.Success();
     }
 
+    /// <summary>Gives (or with null removes) a discount on the line of a product. FIX-08c.</summary>
+    public Result SetLineDiscount(Guid catalogProductId, DiscountRule? rule)
+    {
+        var open = EnsureOpen();
+        if (open.IsFailure) return open;
+
+        var item = FindItem(catalogProductId);
+        if (item is null)
+            return Result.Failure(Error.NotFound(
+                "POS.Cart.ItemNotFound", $"Product '{catalogProductId}' is not in the cart."));
+
+        item.SetLineDiscount(rule);
+        Touch();
+        return Result.Success();
+    }
+
+    /// <summary>Gives (or with null removes) a discount on the whole cart. FIX-08c.</summary>
+    public Result SetCartDiscount(DiscountRule? rule)
+    {
+        var open = EnsureOpen();
+        if (open.IsFailure) return open;
+
+        if (rule is not null && _items.Count == 0)
+            return Result.Failure(Error.Validation(
+                "POS.Cart.Empty", "Add products before giving a discount on the cart."));
+
+        CartDiscountKind = rule?.Kind;
+        CartDiscountValue = rule?.Value;
+        Touch();
+        return Result.Success();
+    }
+
     public Result Clear()
     {
         var open = EnsureOpen();
         if (open.IsFailure) return open;
 
+        CartDiscountKind = null;
+        CartDiscountValue = null;
         _items.Clear();
         Touch();
         return Result.Success();

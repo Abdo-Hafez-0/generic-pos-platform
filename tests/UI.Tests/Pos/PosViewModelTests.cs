@@ -321,7 +321,24 @@ public sealed class PosViewModelTests
         Assert.Equal(new POSPaymentRequest(POSPaymentMethod.Cash), _till.LastPayment);
     }
 
-    // FIX-02: the barcode scanner
+    // FIX-08c: discounts
+
+    [Fact]
+    public async Task Without_the_permission_the_discount_controls_stay_hidden_and_disabled()
+    {
+        _till.Products["COLA-1"] = (Guid.NewGuid(), "Cola", 2.5m);
+        await OpenTillAsync();                    // these tests compose no IAuthorizationService: nobody may give discounts
+        _vm.ProductCode = "COLA-1";
+        await Run(_vm.AddCommand);
+        _vm.SelectedItem = _vm.Items.Single();
+        _vm.DiscountText = "10";
+
+        Assert.False(_vm.CanGiveDiscounts);
+        Assert.False(_vm.LineDiscountCommand.CanExecute(null));
+        Assert.False(_vm.CartDiscountCommand.CanExecute(null));
+    }
+
+
 
     private async Task Eventually(Func<bool> condition)
     {

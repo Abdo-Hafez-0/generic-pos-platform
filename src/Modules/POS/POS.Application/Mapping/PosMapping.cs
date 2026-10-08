@@ -27,20 +27,27 @@ public static class PosMapping
             PosCartStatus.Open => POSCartStatusContract.Open,
             _ => POSCartStatusContract.CheckedOut
         },
-        Items: cart.Items.Select(i => new POSCartItemResult(
-            ItemId: i.Id.Value,
-            ProductId: i.CatalogProductId,
-            ProductSku: i.ProductSku,
-            ProductName: i.ProductName,
-            Quantity: i.Quantity.Value,
-            UnitPrice: i.UnitPrice.Amount,
-            LineTotal: i.LineTotal.Amount,
-            TaxRate: i.TaxRate,
-            TaxAmount: i.TaxAmount.Amount)).ToList().AsReadOnly(),
+        // the charged amounts: each line with its own discount and its share of a cart discount (FIX-08c)
+        Items: cart.PricedLines.Select(l => new POSCartItemResult(
+            ItemId: l.Item.Id.Value,
+            ProductId: l.Item.CatalogProductId,
+            ProductSku: l.Item.ProductSku,
+            ProductName: l.Item.ProductName,
+            Quantity: l.Item.Quantity.Value,
+            UnitPrice: l.Item.UnitPrice.Amount,
+            LineTotal: l.Amounts.Total,
+            TaxRate: l.Item.TaxRate,
+            TaxAmount: l.Amounts.Tax,
+            Discount: l.Amounts.Discount,
+            LineDiscountKind: l.Item.LineDiscount is { } rule ? (POSDiscountKind)(int)rule.Kind : null,
+            LineDiscountValue: l.Item.LineDiscount?.Value)).ToList().AsReadOnly(),
         Subtotal: cart.Subtotal.Amount,
         Total: cart.Total.Amount,
         SaleId: cart.SaleId,
         CreatedAt: cart.CreatedAt,
         CheckedOutAt: cart.CheckedOutAt,
-        TaxTotal: cart.TaxTotal.Amount);
+        TaxTotal: cart.TaxTotal.Amount,
+        DiscountTotal: cart.DiscountTotal.Amount,
+        CartDiscountKind: cart.CartDiscount is { } given ? (POSDiscountKind)(int)given.Kind : null,
+        CartDiscountValue: cart.CartDiscount?.Value);
 }

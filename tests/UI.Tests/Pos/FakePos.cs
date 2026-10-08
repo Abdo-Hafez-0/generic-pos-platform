@@ -19,6 +19,8 @@ internal sealed class FakeTill
     public int Instances { get; set; }
     public Exception? Throw { get; set; }
     public string? CheckoutRefusal { get; set; }
+    public string? DiscountRefusal { get; set; }
+    public List<(Guid? ProductId, POSDiscountKind Kind, decimal Value)> Discounts { get; } = [];
     public IReadOnlyList<POSHardwareNotice>? HardwareNotices { get; set; }
     public POSPaymentRequest? LastPayment { get; set; }
 
@@ -116,6 +118,22 @@ internal sealed class FakePosService : IPOSService, IPOSReader
 
     public Task<POSOperationResult> ClearCartAsync(Guid cartId, CancellationToken cancellationToken = default)
         => throw new NotSupportedException();
+
+    public Task<POSOperationResult> SetLineDiscountAsync(Guid cartId, Guid productId, POSDiscountKind kind, decimal value, CancellationToken cancellationToken = default)
+    {
+        Enter($"line-discount:{kind}:{value}");
+        if (_till.DiscountRefusal is { } refusal) return Task.FromResult(POSOperationResult.Failure("POS.Discount.Refused", refusal));
+        _till.Discounts.Add((productId, kind, value));
+        return Task.FromResult(POSOperationResult.Success());
+    }
+
+    public Task<POSOperationResult> SetCartDiscountAsync(Guid cartId, POSDiscountKind kind, decimal value, CancellationToken cancellationToken = default)
+    {
+        Enter($"cart-discount:{kind}:{value}");
+        if (_till.DiscountRefusal is { } refusal) return Task.FromResult(POSOperationResult.Failure("POS.Discount.Refused", refusal));
+        _till.Discounts.Add((null, kind, value));
+        return Task.FromResult(POSOperationResult.Success());
+    }
 
     public Task<POSCheckoutResult> CheckoutAsync(Guid cartId, string? transactionReference = null, POSPaymentRequest? payment = null, CancellationToken cancellationToken = default)
     {

@@ -84,7 +84,7 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Enforced in the shell (FIX-01 runner); a kept action scope now refuses to hand out services; readers keep tracking
   - [x] Every screen view model and the shell built from the root with scope validation on (catches indirect captures)
   - [x] Tests: stale read shown on a kept scope, fresh on the screen's next action (offline desktop); real exe: a price changed in the database file appears at the next Search
-- [ ] **FIX-08 Tax and discounts** (Stages 5D/8): tax rate(s), line and cart discounts; POS `Total != Subtotal`; Sales receives real tax/discount; snapshot at transaction time (rule 14)
+- [x] **FIX-08 Tax and discounts** (Stages 5D/8): tax rate(s), line and cart discounts; POS `Total != Subtotal`; Sales receives real tax/discount; snapshot at transaction time (rule 14) - done 2026-10-08
 
   Decisions (2026-10-08, user):
   1. **Prices include tax** (VAT style): the shelf price is what the customer pays; the tax inside it is shown and reported.
@@ -96,7 +96,9 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 
   - [x] **FIX-08a Tax rates in Pricing** (2026-10-08): `TaxRate` / `ProductTaxRate` (pri_TaxRates, pri_ProductTaxRates, migration AddTaxRates), capability `pricing.tax.manage`, contract `ITaxRateResolver` (own rate -> default -> none), Tax rates screen (rates, default, change, deactivate; product rate), audited
   - [x] **FIX-08b Tax at the till and in Sales** (2026-10-08): cart lines snapshot the rate; Sales extracts tax from the gross price; cart/receipt/sale show subtotal, tax and total - one shared rule `Platform.Core.Amounts.TaxInclusiveLine` (rounded per line); pos_CartItems.TaxRate (migration AddCartItemTaxRate); receipt "incl. tax 14%" lines
-  - [ ] **FIX-08c Discounts at the till**: line and cart discounts (percentage/amount), permission + maximum, spread over lines, audited
+  - [x] **FIX-08c Discounts at the till** (2026-10-08): line and cart discounts (percentage/amount), permission + maximum, spread over lines, audited - capability `pos.discount.give`, `PosDiscount:MaximumPercent` (default 100), migration AddDiscounts; receipt shows discount, subtotal and tax
+  - [x] Real exe: STD 14% on the Tax rates screen; 4 x 2.50 with 10% on the line and 0.50 on the cart -> 8.50 incl. 1.04 tax; 90% refused above a 50% maximum; printed receipt checked
+  - Carried forward: Sales history and Business overview do not show tax/discounts yet (the data is recorded); automatic promotions/coupons (optional Discounts module)
 - [ ] **FIX-09 Purchasing gaps** (Stage 8)
   - [ ] Partial-quantity receiving
   - [ ] Supplier returns
@@ -189,4 +191,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-08 | FIX-06 | 3f36a0c | Plain failure messages at module boundaries; per-module screen proof; 2492 tests, 0 warnings; real exe |
 | 2026-10-08 | FIX-07 | 9429ae3 | One DI scope per action enforced and tested; 2498 tests, 0 warnings; real exe |
 | 2026-10-08 | FIX-08 plan, FIX-08a | e6e9ee1 | Decisions recorded; tax rates in Pricing + Tax rates screen; 2512 tests, 0 warnings |
-| 2026-10-08 | FIX-08b | (this commit) | Tax at the till and in Sales (prices include tax, one shared line rule); 2526 tests, 0 warnings |
+| 2026-10-08 | FIX-08b | 787737b | Tax at the till and in Sales (prices include tax, one shared line rule); 2526 tests, 0 warnings |
+| 2026-10-08 | FIX-08c | (this commit) | Discounts at the till; FIX-08 complete; 2543 tests, 0 warnings; real exe with a printed receipt |

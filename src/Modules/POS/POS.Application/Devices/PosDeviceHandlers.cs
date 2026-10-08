@@ -50,8 +50,9 @@ public static class PosReceiptFactory
             ? new DateTimeOffset(DateTime.SpecifyKind(at, DateTimeKind.Utc))
             : fallbackTime;
 
-        var lines = cart.Items
-            .Select(i => new ReceiptLine(i.ProductName, i.Quantity.Value, i.UnitPrice.Amount, i.LineTotal.Amount))
+        var priced = cart.PricedLines;
+        var lines = priced
+            .Select(l => new ReceiptLine(l.Item.ProductName, l.Item.Quantity.Value, l.Item.UnitPrice.Amount, l.Amounts.Total, l.Amounts.Discount))
             .ToList();
 
         return new ReceiptDocument(
@@ -65,10 +66,10 @@ public static class PosReceiptFactory
             payment,
             options.FooterLines ?? [],
             // FIX-08b: the tax contained in the total, one line per rate (rates without tax are not printed)
-            cart.Items.Where(i => i.TaxAmount.Amount > 0m)
-                .GroupBy(i => i.TaxRate)
+            priced.Where(l => l.Amounts.Tax > 0m)
+                .GroupBy(l => l.Item.TaxRate)
                 .OrderByDescending(g => g.Key)
-                .Select(g => new ReceiptTax(g.Key, g.Sum(i => i.TaxAmount.Amount)))
+                .Select(g => new ReceiptTax(g.Key, g.Sum(l => l.Amounts.Tax)))
                 .ToList());
     }
 

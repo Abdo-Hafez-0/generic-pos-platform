@@ -63,8 +63,18 @@ internal sealed class PosCartConfiguration : IEntityTypeConfiguration<PosCart>
             .HasForeignKey("CartId")
             .OnDelete(DeleteBehavior.Cascade);
 
+        // FIX-08c: the cart discount as given (null = none)
+        builder.Property(c => c.CartDiscountKind).HasConversion<int?>();
+        builder.Property(c => c.CartDiscountValue).HasColumnType("TEXT");
+
         // Computed properties - derived from items
+        builder.Ignore(c => c.CartDiscount);
+        builder.Ignore(c => c.AfterLineDiscounts);
+        builder.Ignore(c => c.CartDiscountAmount);
+        builder.Ignore(c => c.PricedLines);
         builder.Ignore(c => c.Subtotal);
+        builder.Ignore(c => c.DiscountTotal);
+        builder.Ignore(c => c.TaxTotal);
         builder.Ignore(c => c.Total);
         builder.Ignore(c => c.TotalQuantity);
     }
@@ -111,6 +121,13 @@ internal sealed class PosCartItemConfiguration : IEntityTypeConfiguration<PosCar
         builder.HasIndex(i => i.CartId);
         builder.HasIndex(i => i.CatalogProductId);
 
+        // FIX-08c: the line discount as given (null = none)
+        builder.Property(i => i.LineDiscountKind).HasConversion<int?>();
+        builder.Property(i => i.LineDiscountValue).HasColumnType("TEXT");
+
+        builder.Ignore(i => i.LineDiscount);
+        builder.Ignore(i => i.Gross);
+        builder.Ignore(i => i.LineDiscountAmount);
         builder.Ignore(i => i.Amounts);
         builder.Ignore(i => i.TaxAmount);
         builder.Ignore(i => i.LineTotal);

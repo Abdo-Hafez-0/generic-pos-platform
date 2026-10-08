@@ -12,6 +12,7 @@ public static class POSCapabilities
     public const string ReprintReceipt = "pos.receipt.reprint";
     public const string OpenDrawer = "pos.drawer.open";
     public const string PrintLabel = "pos.label.print";
+    public const string GiveDiscounts = "pos.discount.give";   // FIX-08c
 
     public static IReadOnlyList<CapabilityDescriptor> All { get; } =
     [
@@ -19,7 +20,8 @@ public static class POSCapabilities
         new(CreateSale, Module, "Sell", "Start a cart, add, change and remove items, read the scale and check out.", LicenseRequirement.Module, IsSensitive: true),
         new(ReprintReceipt, Module, "Reprint receipts", "Print the receipt of a completed sale again.", LicenseRequirement.Module),
         new(OpenDrawer, Module, "Open the cash drawer", "Open the cash drawer without a sale.", LicenseRequirement.Module, IsSensitive: true),
-        new(PrintLabel, Module, "Print product labels", "Print shelf or product labels.", LicenseRequirement.Module)
+        new(PrintLabel, Module, "Print product labels", "Print shelf or product labels.", LicenseRequirement.Module),
+        new(GiveDiscounts, Module, "Give discounts", "Give a discount on a line or on the whole cart at the till, up to the configured maximum.", LicenseRequirement.Module, IsSensitive: true)
     ];
 }
 

@@ -92,12 +92,22 @@
                     </TextBox.InputBindings>
                 </TextBox>
                 <Button x:Name="AddButton" Content="{x:Static res:PosText.Add}" Margin="12,0,0,0" Command="{Binding AddCommand}"/>
+                <!-- FIX-08c: discounts, for those who may give them -->
+                <StackPanel Orientation="Horizontal" Margin="24,0,0,0" Visibility="{Binding CanGiveDiscounts, Converter={StaticResource VisibleWhenTrue}}">
+                    <TextBlock Text="{x:Static res:PosText.Discount}" Margin="0,0,8,0"/>
+                    <TextBox x:Name="DiscountBox" Width="70" Text="{Binding DiscountText, UpdateSourceTrigger=PropertyChanged}"
+                             AutomationProperties.Name="{x:Static res:PosText.Discount}" ToolTip="{x:Static res:PosText.DiscountHint}"/>
+                    <ComboBox x:Name="DiscountKindBox" Width="80" Margin="6,0,0,0" ItemsSource="{Binding DiscountKinds}" SelectedItem="{Binding DiscountKind}"
+                              DisplayMemberPath="Text" AutomationProperties.Name="{x:Static res:PosText.Discount}"/>
+                    <Button x:Name="LineDiscountButton" Content="{x:Static res:PosText.DiscountOnLine}" Margin="6,0,0,0" Command="{Binding LineDiscountCommand}"/>
+                    <Button x:Name="CartDiscountButton" Content="{x:Static res:PosText.DiscountOnCart}" Margin="6,0,0,0" Command="{Binding CartDiscountCommand}"/>
+                </StackPanel>
                 <!-- FIX-02: scans are added wherever the focus is on this screen -->
                 <TextBlock x:Name="ScannerReadyText" Text="{x:Static res:PosText.ScannerReady}" Foreground="#A6E3A1" Margin="16,0,0,0"
                            Visibility="{Binding ScannerReady, Converter={StaticResource VisibleWhenTrue}}"/>
             </StackPanel>
 
-            <DataGrid Grid.Row="1" x:Name="CartGrid" ItemsSource="{Binding Items}" AutoGenerateColumns="False"
+            <DataGrid Grid.Row="1" x:Name="CartGrid" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}" AutoGenerateColumns="False"
                       IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column"
                       Background="#181825" RowBackground="#1E1E2E" AlternatingRowBackground="#232336" Foreground="#CDD6F4"
                       BorderBrush="#313244" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#313244" RowHeight="28"
@@ -114,6 +124,7 @@
                     <DataGridTextColumn Header="{x:Static res:PosText.Product}" Binding="{Binding ProductName}" Width="*" MinWidth="160" ElementStyle="{StaticResource Cell}"/>
                     <DataGridTextColumn Header="{x:Static res:PosText.Quantity}" Binding="{Binding Quantity}" Width="90" ElementStyle="{StaticResource Number}"/>
                     <DataGridTextColumn Header="{x:Static res:PosText.UnitPrice}" Binding="{Binding UnitPrice, StringFormat=N2}" Width="120" ElementStyle="{StaticResource Number}"/>
+                    <DataGridTextColumn Header="{x:Static res:PosText.Discount}" Binding="{Binding Discount, StringFormat=N2}" Width="100" ElementStyle="{StaticResource Number}"/>
                     <DataGridTextColumn Header="{x:Static res:PosText.LineTotal}" Binding="{Binding LineTotal, StringFormat=N2}" Width="130" ElementStyle="{StaticResource Number}"/>
                 </DataGrid.Columns>
             </DataGrid>
@@ -128,6 +139,8 @@
                 <TextBlock DockPanel.Dock="Right" Text="{x:Static res:PosText.TaxIncluded}" Foreground="#A6ADC8" Margin="12,0,0,0"/>
                 <TextBlock x:Name="TotalText" DockPanel.Dock="Right" Text="{Binding Total, StringFormat=N2}" FontSize="18" FontWeight="Bold"/>
                 <TextBlock DockPanel.Dock="Right" Text="{x:Static res:PosText.Total}" FontWeight="Bold" Margin="16,0,6,0"/>
+                <TextBlock x:Name="DiscountTotalText" DockPanel.Dock="Right" Text="{Binding DiscountTotal, StringFormat=-0.00;-0.00;0.00}" Margin="6,0,0,0"/>
+                <TextBlock DockPanel.Dock="Right" Text="{x:Static res:PosText.Discount}" Margin="12,0,0,0"/>
                 <TextBlock x:Name="SubtotalText" DockPanel.Dock="Right" Text="{Binding Subtotal, StringFormat=N2}"/>
                 <TextBlock DockPanel.Dock="Right" Text="{x:Static res:PosText.Subtotal}" Margin="0,0,6,0"/>
             </DockPanel>

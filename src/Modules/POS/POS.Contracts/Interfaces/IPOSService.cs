@@ -29,6 +29,12 @@ public interface IPOSService
 
     Task<POSOperationResult> ClearCartAsync(Guid cartId, CancellationToken cancellationToken = default);
 
+    /// <summary>Gives a discount on the line of a product (percentage or tax-included amount); value 0 removes it. FIX-08c.</summary>
+    Task<POSOperationResult> SetLineDiscountAsync(Guid cartId, Guid productId, POSDiscountKind kind, decimal value, CancellationToken cancellationToken = default);
+
+    /// <summary>Gives a discount on the whole cart (percentage or tax-included amount), spread over the lines; value 0 removes it. FIX-08c.</summary>
+    Task<POSOperationResult> SetCartDiscountAsync(Guid cartId, POSDiscountKind kind, decimal value, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Creates, confirms and completes the sale in Sales and issues stock from Inventory. If <paramref name="payment"/> is given,
     /// the payment for the cart total is recorded through the optional Payments module between confirming the sale and issuing stock.

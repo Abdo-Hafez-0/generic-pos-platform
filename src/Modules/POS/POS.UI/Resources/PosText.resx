@@ -75,6 +75,33 @@
   <data name="ItemAdded" xml:space="preserve">
     <value>Item added.</value>
   </data>
+  <data name="Discount" xml:space="preserve">
+    <value>Discount</value>
+  </data>
+  <data name="DiscountPercent" xml:space="preserve">
+    <value>%</value>
+  </data>
+  <data name="DiscountAmount" xml:space="preserve">
+    <value>Amount</value>
+  </data>
+  <data name="DiscountOnLine" xml:space="preserve">
+    <value>On selected line</value>
+  </data>
+  <data name="DiscountOnCart" xml:space="preserve">
+    <value>On whole cart</value>
+  </data>
+  <data name="DiscountHint" xml:space="preserve">
+    <value>Enter 0 to remove a discount.</value>
+  </data>
+  <data name="DiscountInvalid" xml:space="preserve">
+    <value>Enter the discount as a number of zero or more.</value>
+  </data>
+  <data name="DiscountGiven" xml:space="preserve">
+    <value>Discount given.</value>
+  </data>
+  <data name="DiscountRemoved" xml:space="preserve">
+    <value>Discount removed.</value>
+  </data>
   <data name="TaxIncluded" xml:space="preserve">
     <value>incl. tax</value>
   </data>

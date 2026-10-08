@@ -179,15 +179,18 @@ public sealed class CheckoutCartCommandHandler(
 
         var saleId = created.SaleId;
 
-        // 4. Add lines — the cart's price snapshot is passed to Sales
-        foreach (var item in cart.Items)
+        // 4. Add lines — the cart's price snapshot is passed to Sales, with each line's discount (its own plus its share of a cart
+        //    discount - FIX-08c) and its tax rate snapshot (FIX-08b); Sales computes the same amounts with the same rule.
+        foreach (var line in cart.PricedLines)
         {
+            var item = line.Item;
             var added = await salesService.AddItemAsync(
                 saleId,
                 item.CatalogProductId,
                 item.Quantity.Value,
                 item.UnitPrice.Amount,
-                taxRate: item.TaxRate,                 // FIX-08b: the snapshot taken when the line was added
+                discount: line.Amounts.Discount,
+                taxRate: item.TaxRate,
                 warehouseId: session.WarehouseId,
                 cancellationToken: cancellationToken);
 
@@ -328,8 +331,10 @@ public sealed class CheckoutCartCommandHandler(
     {
         var total = done.Cart.Total.Amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
         var paid = payment is null ? "no payment recorded" : $"paid by {payment.Method.ToString().ToLowerInvariant()}";
+        var discount = done.Cart.DiscountTotal.Amount;
+        var discounted = discount > 0m ? $" after a discount of {discount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}" : string.Empty;
         return BusinessEvent.Create("pos", "sale.completed", "sale", done.SaleId.ToString(),
-            $"Sale of {done.Cart.Items.Count} line(s), total {total}, {paid}.",
+            $"Sale of {done.Cart.Items.Count} line(s), total {total}{discounted}, {paid}.",
             $"cart={done.Cart.Id.Value};session={done.Session.Id.Value};warehouse={done.Session.WarehouseId};payment={done.PaymentId?.ToString() ?? "none"}");
     }
 

@@ -33,7 +33,9 @@ internal sealed class SalesReader(SalesDbContext dbContext) : ISalesReader
             GrandTotal: sale.GrandTotal.Amount,
             ItemCount: sale.Items.Count,
             CreatedAt: sale.CreatedAt,
-            CompletedAt: sale.CompletedAt);
+            CompletedAt: sale.CompletedAt,
+            CustomerId: sale.CustomerId,
+            CustomerName: sale.CustomerName);
     }
 
     public async Task<IReadOnlyList<SaleSummaryResult>> GetRecentAsync(
@@ -53,7 +55,9 @@ internal sealed class SalesReader(SalesDbContext dbContext) : ISalesReader
             GrandTotal: sale.GrandTotal.Amount,
             ItemCount: sale.Items.Count,
             CreatedAt: sale.CreatedAt,
-            CompletedAt: sale.CompletedAt)).ToList().AsReadOnly();
+            CompletedAt: sale.CompletedAt,
+            CustomerId: sale.CustomerId,
+            CustomerName: sale.CustomerName)).ToList().AsReadOnly();
     }
 
     private static SaleStatusContract ToContract(SaleStatus status) => status switch

@@ -23,10 +23,11 @@ internal sealed class SalesService(
     public async Task<CreateSaleResult> CreateSaleAsync(
         string? reference = null,
         string? notes = null,
+        SaleCustomer? customer = null,
         CancellationToken cancellationToken = default)
     {
         var result = await createHandler.HandleAsync(
-            new CreateSaleCommand(reference, notes), cancellationToken);
+            new CreateSaleCommand(reference, notes, customer), cancellationToken);
 
         return result.IsSuccess
             ? CreateSaleResult.Success(result.Value)

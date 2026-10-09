@@ -15,6 +15,9 @@ namespace Sales.UI.ViewModels;
 public sealed record SaleRow(SaleDto Sale, string TimeText, string StatusText, int ItemCount)
 {
     public bool IsCompleted => Sale.Status == SaleStatus.Completed;
+
+    /// <summary>The customer snapshot taken at the sale (FIX-11): "C-001 Jane Doe", or empty.</summary>
+    public string CustomerText => Sale.CustomerId is null ? string.Empty : $"{Sale.CustomerCode} {Sale.CustomerName}";
 }
 
 /// <summary>
@@ -57,8 +60,14 @@ public sealed class SalesHistoryViewModel : ViewModelBase, INavigationAware
             if (value is not null)
                 foreach (var line in value.Sale.Items) Lines.Add(line);
             Raise(nameof(HasSelection));
+            Raise(nameof(SelectedCustomerText));
         }
     }
+
+    /// <summary>The selected sale's customer in words (FIX-11), or null when it has none.</summary>
+    public string? SelectedCustomerText => Selected is { Sale.CustomerId: not null } row
+        ? string.Format(CultureInfo.CurrentCulture, SalesText.SaleCustomer, row.CustomerText)
+        : null;
 
     public bool HasSelection => Selected is not null;
     public string SummaryText { get => _summaryText; private set => Set(ref _summaryText, value); }

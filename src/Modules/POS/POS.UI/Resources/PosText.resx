@@ -189,4 +189,31 @@
   <data name="PaymentPartCash" xml:space="preserve">
     <value>{0} {1} (handed over {2}, change {3})</value>
   </data>
+  <data name="Customer" xml:space="preserve">
+    <value>Customer</value>
+  </data>
+  <data name="FindCustomer" xml:space="preserve">
+    <value>Find customer</value>
+  </data>
+  <data name="CustomerSearchHint" xml:space="preserve">
+    <value>Code, name or phone of an existing customer (optional). Only code and name are shown here.</value>
+  </data>
+  <data name="ChooseCustomerButton" xml:space="preserve">
+    <value>Choose</value>
+  </data>
+  <data name="RemoveCustomer" xml:space="preserve">
+    <value>Remove customer</value>
+  </data>
+  <data name="NoCustomerFound" xml:space="preserve">
+    <value>No active customer matches. Customers are added on the Customers screen.</value>
+  </data>
+  <data name="ChooseCustomer" xml:space="preserve">
+    <value>Several customers match: choose one.</value>
+  </data>
+  <data name="CustomerChosen" xml:space="preserve">
+    <value>Customer: {0}.</value>
+  </data>
+  <data name="CustomerRemoved" xml:space="preserve">
+    <value>The sale has no customer now.</value>
+  </data>
 </root>

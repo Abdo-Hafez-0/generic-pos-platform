@@ -381,4 +381,16 @@ public sealed class SaleDomainTests
         Assert.Equal("Sales.Sale.CannotConfirm", sale.Confirm().Error.Code);
         Assert.Equal("Sales.Sale.CannotComplete", sale.Complete().Error.Code);
     }
+
+    [Fact]
+    public void The_customer_can_only_be_set_on_a_draft_sale()
+    {
+        var sale = Sale.Create("R").Value;
+        Assert.True(sale.AssignCustomer(Guid.NewGuid(), "C-1", "Jane").IsSuccess);
+        Assert.Equal("Sales.Sale.CustomerInvalid", sale.AssignCustomer(Guid.Empty, "C-1", "Jane").Error.Code);
+
+        sale.Cancel("test");
+        Assert.Equal("Sales.Sale.NotDraft", sale.AssignCustomer(Guid.NewGuid(), "C-2", "Joe").Error.Code);
+        Assert.Equal("Jane", sale.CustomerName);
+    }
 }

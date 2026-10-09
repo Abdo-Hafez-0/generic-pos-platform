@@ -47,6 +47,14 @@ public sealed class Sale
     /// <summary>Optional notes for this sale.</summary>
     public string? Notes { get; private set; }
 
+    /// <summary>
+    /// The customer the sale was made to (FIX-11), optional. A plain Guid reference to a Customers customer plus a code/name SNAPSHOT taken
+    /// at the sale (rule 14): later changes in Customers never rewrite history. Sales never calls the Customers module itself.
+    /// </summary>
+    public Guid? CustomerId { get; private set; }
+    public string? CustomerCode { get; private set; }
+    public string? CustomerName { get; private set; }
+
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
     public DateTime? CompletedAt { get; private set; }
@@ -106,6 +114,23 @@ public sealed class Sale
 
         sale._domainEvents.Add(new SaleCreatedEvent(sale.Id, now));
         return Result.Success(sale);
+    }
+
+    /// <summary>Records the customer of a Draft sale (FIX-11): ID plus a code/name snapshot.</summary>
+    public Result AssignCustomer(Guid customerId, string code, string name)
+    {
+        if (Status != SaleStatus.Draft)
+            return Result.Failure(Error.Conflict("Sales.Sale.NotDraft", "The customer can only be set on a draft sale."));
+        if (customerId == Guid.Empty || string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
+            return Result.Failure(Error.Validation("Sales.Sale.CustomerInvalid", "A customer needs an ID, a code and a name."));
+        if (code.Trim().Length > 30 || name.Trim().Length > 200)
+            return Result.Failure(Error.Validation("Sales.Sale.CustomerTooLong", "The customer code (30) or name (200) is too long."));
+
+        CustomerId = customerId;
+        CustomerCode = code.Trim();
+        CustomerName = name.Trim();
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
     }
 
     // -----------------------------------------------------------------------

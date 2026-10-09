@@ -87,6 +87,8 @@ public static class POSServicesExtensions
         services.AddTransient<CheckoutCartCommandHandler>();
         services.AddTransient<SetLineDiscountCommandHandler>();   // FIX-08c
         services.AddTransient<SetCartDiscountCommandHandler>();   // FIX-08c
+        services.AddTransient<FindSaleCustomersQueryHandler>();   // FIX-11
+        services.AddTransient<SetSaleCustomerCommandHandler>();   // FIX-11
 
         services.AddTransient<GetPosSessionQueryHandler>();
         services.AddTransient<GetCartQueryHandler>();

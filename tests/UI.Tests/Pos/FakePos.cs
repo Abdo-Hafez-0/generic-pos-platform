@@ -25,6 +25,8 @@ internal sealed class FakeTill
     public POSPaymentRequest? LastPayment { get; set; }
     public IReadOnlyList<POSPaymentRequest>? LastPayments { get; set; }
     public decimal ChangeDue { get; set; }
+    public List<POSCustomerResult> Customers { get; } = [];
+    public Dictionary<Guid, POSCustomerResult> CartCustomer { get; } = [];
 
     public Guid AddWarehouse(string name)
     {
@@ -53,7 +55,9 @@ internal sealed class FakeTill
         if (!Carts.TryGetValue(cartId, out var items)) return null;
         var total = items.Sum(i => i.LineTotal);
         return new POSCartResult(cartId, CartSession[cartId], CheckedOut.Contains(cartId) ? POSCartStatusContract.CheckedOut : POSCartStatusContract.Open,
-            items.ToList(), total, total, null, DateTime.UtcNow, null);
+            items.ToList(), total, total, null, DateTime.UtcNow, null,
+            CustomerId: CartCustomer.GetValueOrDefault(cartId)?.CustomerId, CustomerCode: CartCustomer.GetValueOrDefault(cartId)?.Code,
+            CustomerName: CartCustomer.GetValueOrDefault(cartId)?.Name);
     }
 }
 
@@ -146,6 +150,21 @@ internal sealed class FakePosService : IPOSService, IPOSReader
 
         _till.CheckedOut.Add(cartId);
         return Task.FromResult(POSCheckoutResult.Success(Guid.NewGuid(), hardwareNotices: _till.HardwareNotices));
+    }
+
+    public Task<POSCustomerSearchResult> FindCustomersAsync(string text, CancellationToken cancellationToken = default)
+    {
+        Enter("find customers");
+        return Task.FromResult(POSCustomerSearchResult.Success(_till.Customers
+            .Where(c => c.Code.Contains(text, StringComparison.OrdinalIgnoreCase) || c.Name.Contains(text, StringComparison.OrdinalIgnoreCase)).ToList()));
+    }
+
+    public Task<POSOperationResult> SetCustomerAsync(Guid cartId, Guid? customerId, CancellationToken cancellationToken = default)
+    {
+        Enter("set customer");
+        if (customerId is { } id) _till.CartCustomer[cartId] = _till.Customers.Single(c => c.CustomerId == id);
+        else _till.CartCustomer.Remove(cartId);
+        return Task.FromResult(POSOperationResult.Success());
     }
 
     public Task<POSCheckoutResult> CheckoutWithPaymentsAsync(Guid cartId, IReadOnlyList<POSPaymentRequest> payments, string? transactionReference = null, CancellationToken cancellationToken = default)

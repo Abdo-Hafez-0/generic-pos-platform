@@ -23,6 +23,8 @@ internal sealed class POSService(
     CheckoutCartCommandHandler checkoutHandler,
     SetLineDiscountCommandHandler lineDiscountHandler,
     SetCartDiscountCommandHandler cartDiscountHandler,
+    FindSaleCustomersQueryHandler findCustomersHandler,
+    SetSaleCustomerCommandHandler setCustomerHandler,
     ILogger<POSService>? logger = null) : IPOSService
 {
     private readonly ILogger _logger = logger ?? NullLogger<POSService>.Instance;
@@ -85,6 +87,19 @@ internal sealed class POSService(
     public Task<POSOperationResult> SetCartDiscountAsync(Guid cartId, POSDiscountKind kind, decimal value, CancellationToken cancellationToken = default)
         => GuardAsync("cart discount", POSOperationResult.Failure, async () =>
             ToOperation(await cartDiscountHandler.HandleAsync(new SetCartDiscountCommand(cartId, (POS.Domain.ValueObjects.DiscountKind)(int)kind, value), cancellationToken)));
+
+    public Task<POSCustomerSearchResult> FindCustomersAsync(string text, CancellationToken cancellationToken = default)
+        => GuardAsync("find customers", POSCustomerSearchResult.Failure, async () =>
+        {
+            var found = await findCustomersHandler.HandleAsync(new FindSaleCustomersQuery(text), cancellationToken);
+            return found.IsSuccess
+                ? POSCustomerSearchResult.Success(found.Value)
+                : POSCustomerSearchResult.Failure(found.Error.Code, found.Error.Description);
+        });
+
+    public Task<POSOperationResult> SetCustomerAsync(Guid cartId, Guid? customerId, CancellationToken cancellationToken = default)
+        => GuardAsync("set customer", POSOperationResult.Failure, async () =>
+            ToOperation(await setCustomerHandler.HandleAsync(new SetSaleCustomerCommand(cartId, customerId), cancellationToken)));
 
     /// <summary>
     /// An unexpected failure (database locked or unavailable, disk error) must reach the cashier as a plain statement that the action did not

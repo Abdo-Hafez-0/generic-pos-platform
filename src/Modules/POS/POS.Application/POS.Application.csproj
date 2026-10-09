@@ -13,7 +13,8 @@
     <ProjectReference Include="..\..\Catalog\Catalog.Contracts\Catalog.Contracts.csproj" />
     <ProjectReference Include="..\..\Inventory\Inventory.Contracts\Inventory.Contracts.csproj" />
     <ProjectReference Include="..\..\Sales\Sales.Contracts\Sales.Contracts.csproj" />
-    <!-- OPTIONAL integrations (resolved only if the module is installed): Pricing, Payments, CashManagement (FIX-04) -->
+    <!-- OPTIONAL integrations (resolved only if the module is installed): Pricing, Payments, CashManagement (FIX-04), Customers (FIX-11) -->
+    <ProjectReference Include="..\..\Customers\Customers.Contracts\Customers.Contracts.csproj" />
     <ProjectReference Include="..\..\Pricing\Pricing.Contracts\Pricing.Contracts.csproj" />
     <ProjectReference Include="..\..\Payments\Payments.Contracts\Payments.Contracts.csproj" />
     <ProjectReference Include="..\..\CashManagement\CashManagement.Contracts\CashManagement.Contracts.csproj" />

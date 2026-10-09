@@ -16,10 +16,11 @@ namespace Sales.Contracts.Interfaces;
 /// </summary>
 public interface ISalesService
 {
-    /// <summary>Creates a new Sale. Returns the new SaleId on success.</summary>
+    /// <summary>Creates a new Sale, optionally for a customer (FIX-11, stored as a snapshot). Returns the new SaleId on success.</summary>
     Task<CreateSaleResult> CreateSaleAsync(
         string? reference = null,
         string? notes = null,
+        SaleCustomer? customer = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Adds an item to a Draft Sale. Returns the new SaleItemId on success.</summary>

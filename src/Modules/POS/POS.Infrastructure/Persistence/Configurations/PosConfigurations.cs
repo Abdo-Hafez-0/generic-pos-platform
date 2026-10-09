@@ -67,6 +67,11 @@ internal sealed class PosCartConfiguration : IEntityTypeConfiguration<PosCart>
         builder.Property(c => c.CartDiscountKind).HasConversion<int?>();
         builder.Property(c => c.CartDiscountValue).HasColumnType("TEXT");
 
+        // FIX-11: plain Guid reference to a Customers customer (no FK) and the code/name snapshot
+        builder.Property(c => c.CustomerId);
+        builder.Property(c => c.CustomerCode).HasMaxLength(30);
+        builder.Property(c => c.CustomerName).HasMaxLength(200);
+
         // Computed properties - derived from items
         builder.Ignore(c => c.CartDiscount);
         builder.Ignore(c => c.AfterLineDiscounts);

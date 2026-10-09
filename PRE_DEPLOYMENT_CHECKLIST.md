@@ -124,7 +124,18 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] POS screen: Pay with / Amount / Note / Add payment, the parts with Remove, Still due and Change; a cart change clears the parts
   - [x] Real exe: 3 x 2.50 paid card 5.00 (approval 4711) + cash 10.00 -> change 7.50, drawer 50 -> 52.50, printed receipt shows both parts; a card part above what is due refused; a sale without parts still cash
   - Carried forward: parts of an open cart are not kept across sign-out/restart (decided); refunds to the original methods (no refund flow yet)
-- [ ] **FIX-11 Customer on a sale** (Stage 8): a sale can carry an optional customer
+- [x] **FIX-11 Customer on a sale** (Stage 8): a sale can carry an optional customer - done 2026-10-09
+
+  Decisions (2026-10-09, user):
+  1. **Anyone who sells** (pos.sale.create) can find an existing active customer by code, name or phone and attach them; the till shows code and name only, never e-mail, phone or addresses (Stage 11: cashiers do not read customer records).
+  2. **Pick existing only**: customers are created on the Customers screen, not at the till.
+  3. **Shown in Sales history**: a Customer column and the selected sale's customer (the code/name snapshot taken at the sale).
+
+  - [x] Sales: `Sale.CustomerId/Code/Name` snapshot (AssignCustomer on a draft), ISalesService.CreateSaleAsync(customer:), SaleCustomer, SaleSummaryResult +CustomerId/Name, migration AddSaleCustomer
+  - [x] POS: the cart keeps the chosen customer (resumed with the till), IPOSService.FindCustomersAsync / SetCustomerAsync through the OPTIONAL Customers contracts, checkout hands the snapshot to Sales, migration AddCartCustomer
+  - [x] Screens: Customer row on the POS screen (find, choose among several, remove); Sales history Customer column and detail
+  - [x] Real exe: two customers created, "jan" offers both, Jane Doe chosen, the till restarted with her still on the cart, sold; Sales history shows "C-001 Jane Doe"; older sales unchanged after the upgrade
+  - Carried forward: customer on the receipt and in the audit entry (not chosen); a customer's purchase history / reports by customer; customer pricing (optional Discounts module)
 - [ ] **FIX-12 Sales report limit** (Stage 8): Sales.Contracts exposes a ranged query so the report no longer stops at 2000 sales
   - [ ] The daily breakdown uses UTC dates; a shop outside UTC sees sales near midnight on the wrong day (found in FIX-01d; the overview screen lists only days with sales meanwhile)
 - [ ] **FIX-13 Arabic / non-ASCII support** (Stage 10)
@@ -216,4 +227,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-08 | FIX-08c | 0f749f8 | Discounts at the till; FIX-08 complete; 2543 tests, 0 warnings; real exe with a printed receipt |
 | 2026-10-08 | FIX-09 plan, FIX-09a | a1d02f8 | Decisions recorded; part deliveries and closing short; 2555 tests, 0 warnings; real exe |
 | 2026-10-08 | FIX-09b | 2b1ccec | Supplier returns; FIX-09 complete; 2564 tests, 0 warnings; real exe with an in-place database upgrade |
-| 2026-10-09 | FIX-10 | (this commit) | Decisions recorded; split payments at the till; 2575 tests, 0 warnings; real exe with a printed receipt |
+| 2026-10-09 | FIX-10 | 50089d2 | Decisions recorded; split payments at the till; 2575 tests, 0 warnings; real exe with a printed receipt |
+| 2026-10-09 | FIX-11 | (this commit) | Decisions recorded; an optional customer on a sale; 2587 tests, 0 warnings; real exe with an in-place upgrade |

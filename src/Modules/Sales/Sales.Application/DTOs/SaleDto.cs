@@ -19,7 +19,10 @@ public sealed record SaleDto(
     DateTime? CompletedAt,
     DateTime? CancelledAt,
     string? CancellationReason,
-    IReadOnlyList<SaleItemDto> Items);
+    IReadOnlyList<SaleItemDto> Items,
+    Guid? CustomerId = null,
+    string? CustomerCode = null,
+    string? CustomerName = null);
 
 /// <summary>
 /// DTO representing a single line item within a Sale.

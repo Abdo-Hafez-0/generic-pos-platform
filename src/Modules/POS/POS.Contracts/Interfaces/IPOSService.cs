@@ -36,6 +36,15 @@ public interface IPOSService
     Task<POSOperationResult> SetCartDiscountAsync(Guid cartId, POSDiscountKind kind, decimal value, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// FIX-11: finds ACTIVE customers whose code, name, e-mail or phone contains the text (through the optional Customers module); the result
+    /// holds only code and name. Allowed to anyone who may sell.
+    /// </summary>
+    Task<POSCustomerSearchResult> FindCustomersAsync(string text, CancellationToken cancellationToken = default);
+
+    /// <summary>FIX-11: makes an active customer the customer of the cart's sale; null removes the customer. Allowed to anyone who may sell.</summary>
+    Task<POSOperationResult> SetCustomerAsync(Guid cartId, Guid? customerId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Creates, confirms and completes the sale in Sales and issues stock from Inventory. If <paramref name="payment"/> is given,
     /// the payment for the cart total is recorded through the optional Payments module between confirming the sale and issuing stock.
     /// </summary>

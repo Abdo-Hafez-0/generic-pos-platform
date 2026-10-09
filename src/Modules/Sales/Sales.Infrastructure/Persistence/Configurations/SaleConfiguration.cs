@@ -31,6 +31,12 @@ internal sealed class SaleConfiguration : IEntityTypeConfiguration<Sale>
         builder.Property(s => s.Notes)
             .HasMaxLength(500);
 
+        // FIX-11: plain Guid reference to a Customers customer (no FK) and the code/name snapshot
+        builder.Property(s => s.CustomerId);
+        builder.Property(s => s.CustomerCode).HasMaxLength(30);
+        builder.Property(s => s.CustomerName).HasMaxLength(200);
+        builder.HasIndex(s => s.CustomerId);
+
         builder.Property(s => s.CancellationReason)
             .HasMaxLength(500);
 

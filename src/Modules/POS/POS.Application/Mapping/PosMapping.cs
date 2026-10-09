@@ -49,5 +49,8 @@ public static class PosMapping
         TaxTotal: cart.TaxTotal.Amount,
         DiscountTotal: cart.DiscountTotal.Amount,
         CartDiscountKind: cart.CartDiscount is { } given ? (POSDiscountKind)(int)given.Kind : null,
-        CartDiscountValue: cart.CartDiscount?.Value);
+        CartDiscountValue: cart.CartDiscount?.Value,
+        CustomerId: cart.CustomerId,
+        CustomerCode: cart.CustomerCode,
+        CustomerName: cart.CustomerName);
 }

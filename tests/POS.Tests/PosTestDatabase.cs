@@ -97,6 +97,8 @@ public sealed class PosTestDatabase : IAsyncDisposable
         services.AddTransient<CheckoutCartCommandHandler>();
         services.AddTransient<SetLineDiscountCommandHandler>();   // FIX-08c
         services.AddTransient<SetCartDiscountCommandHandler>();   // FIX-08c
+        services.AddTransient<FindSaleCustomersQueryHandler>();   // FIX-11 (Customers optional: register stubs through configureServices)
+        services.AddTransient<SetSaleCustomerCommandHandler>();   // FIX-11
         services.AddTransient<GetPosSessionQueryHandler>();
         services.AddTransient<GetCartQueryHandler>();
         services.AddTransient<GetCurrentCartQueryHandler>();
@@ -203,18 +205,20 @@ public sealed class StubSales : ISalesService
     public Guid? LastSaleId { get; private set; }
     public string? CreatedReference { get; private set; }
     public string? CreatedNotes { get; private set; }
+    public Sales.Contracts.Models.SaleCustomer? CreatedCustomer { get; private set; }
     public string? CompletedTransactionReference { get; private set; }
     public List<AddedItem> Items { get; } = [];
     public List<string> Calls { get; } = [];
     public List<string> CancelReasons { get; } = [];
 
-    public Task<CreateSaleResult> CreateSaleAsync(string? reference = null, string? notes = null, CancellationToken cancellationToken = default)
+    public Task<CreateSaleResult> CreateSaleAsync(string? reference = null, string? notes = null, Sales.Contracts.Models.SaleCustomer? customer = null, CancellationToken cancellationToken = default)
     {
         Calls.Add("create");
         if (FailAt == "create") return Task.FromResult(CreateSaleResult.Failure("Sales.Stub", "create failed"));
         LastSaleId = Guid.NewGuid();
         CreatedReference = reference;
         CreatedNotes = notes;
+        CreatedCustomer = customer;
         return Task.FromResult(CreateSaleResult.Success(LastSaleId.Value));
     }
 

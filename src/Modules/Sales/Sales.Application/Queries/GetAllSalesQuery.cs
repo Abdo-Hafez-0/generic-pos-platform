@@ -53,6 +53,9 @@ internal static class SaleDtoMapper
             SubTotal: i.SubTotal.Amount,
             TaxAmount: i.TaxAmount.Amount,
             LineTotal: i.LineTotal.Amount
-        )).ToList().AsReadOnly()
+        )).ToList().AsReadOnly(),
+        CustomerId: sale.CustomerId,
+        CustomerCode: sale.CustomerCode,
+        CustomerName: sale.CustomerName
     );
 }

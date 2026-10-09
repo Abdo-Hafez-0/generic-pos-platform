@@ -401,6 +401,52 @@ public sealed class PosViewModelTests
         Assert.Equal(40m, _vm.AmountDue);
     }
 
+    // FIX-11: a customer on the sale
+
+    [Fact]
+    public async Task One_matching_customer_is_attached_at_once_and_can_be_removed()
+    {
+        await CartOf20Async();
+        var jane = new POSCustomerResult(Guid.NewGuid(), "C-001", "Jane Doe");
+        _till.Customers.Add(jane);
+        Assert.False(_vm.HasCustomer);
+
+        _vm.CustomerSearch = "jane";
+        await Run(_vm.FindCustomerCommand);
+
+        Assert.Equal("C-001 Jane Doe", _vm.CustomerText);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, PosText.CustomerChosen, "C-001 Jane Doe"), _vm.StatusMessage);
+        Assert.Equal(string.Empty, _vm.CustomerSearch);
+
+        await Run(_vm.RemoveCustomerCommand);
+        Assert.False(_vm.HasCustomer);
+        Assert.Equal(PosText.CustomerRemoved, _vm.StatusMessage);
+    }
+
+    [Fact]
+    public async Task Several_matches_are_offered_to_choose_from_and_none_says_where_customers_are_added()
+    {
+        await CartOf20Async();
+        _till.Customers.Add(new POSCustomerResult(Guid.NewGuid(), "C-001", "Jane Doe"));
+        _till.Customers.Add(new POSCustomerResult(Guid.NewGuid(), "C-002", "Janet Smith"));
+
+        _vm.CustomerSearch = "jan";
+        await Run(_vm.FindCustomerCommand);
+        Assert.True(_vm.HasFoundCustomers);
+        Assert.False(_vm.HasCustomer);
+        Assert.False(_vm.ChooseCustomerCommand.CanExecute(null));   // nothing chosen yet
+
+        _vm.FoundCustomer = _vm.FoundCustomers[1];
+        await Run(_vm.ChooseCustomerCommand);
+        Assert.Equal("C-002 Janet Smith", _vm.CustomerText);
+        Assert.False(_vm.HasFoundCustomers);
+
+        _vm.CustomerSearch = "nobody";
+        await Run(_vm.FindCustomerCommand);
+        Assert.Equal(PosText.NoCustomerFound, _vm.ErrorMessage);
+        Assert.Equal("C-002 Janet Smith", _vm.CustomerText);   // the chosen customer stays
+    }
+
     // FIX-08c: discounts
 
     [Fact]

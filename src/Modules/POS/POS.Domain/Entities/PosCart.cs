@@ -42,6 +42,14 @@ public sealed class PosCart
     /// <summary>The Sales module's sale ID once checked out. Reference by ID only.</summary>
     public Guid? SaleId { get; private set; }
 
+    /// <summary>
+    /// The customer the sale is for (FIX-11), optional: a plain Guid reference to a Customers customer plus the code/name snapshot taken
+    /// when the cashier chose them (no contact details are kept here). Handed to Sales at checkout.
+    /// </summary>
+    public Guid? CustomerId { get; private set; }
+    public string? CustomerCode { get; private set; }
+    public string? CustomerName { get; private set; }
+
     public IReadOnlyList<PosCartItem> Items => _items.AsReadOnly();
 
     /// <summary>Stored form of <see cref="CartDiscount"/> (FIX-08c): null = no cart discount.</summary>
@@ -191,6 +199,27 @@ public sealed class PosCart
 
         CartDiscountKind = rule?.Kind;
         CartDiscountValue = rule?.Value;
+        Touch();
+        return Result.Success();
+    }
+
+    /// <summary>Chooses the customer of the sale (FIX-11), or with a null ID removes them. Open carts only.</summary>
+    public Result SetCustomer(Guid? customerId, string? code = null, string? name = null)
+    {
+        var open = EnsureOpen();
+        if (open.IsFailure) return open;
+
+        if (customerId is { } id)
+        {
+            if (id == Guid.Empty || string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
+                return Result.Failure(Error.Validation("POS.Cart.CustomerInvalid", "A customer needs an ID, a code and a name."));
+            (CustomerId, CustomerCode, CustomerName) = (id, code.Trim(), name.Trim());
+        }
+        else
+        {
+            (CustomerId, CustomerCode, CustomerName) = (null, null, null);
+        }
+
         Touch();
         return Result.Success();
     }

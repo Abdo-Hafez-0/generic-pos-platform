@@ -75,13 +75,17 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="{x:Static res:SalesText.Time}" Binding="{Binding TimeText}" Width="150" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:SalesText.Reference}" Binding="{Binding Sale.Reference}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:SalesText.Customer}" Binding="{Binding CustomerText}" Width="200" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:SalesText.Status}" Binding="{Binding StatusText}" Width="110" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:SalesText.Items}" Binding="{Binding ItemCount}" Width="70" ElementStyle="{StaticResource Number}"/>
                 <DataGridTextColumn Header="{x:Static res:SalesText.Total}" Binding="{Binding Sale.GrandTotal, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Number}"/>
             </DataGrid.Columns>
         </DataGrid>
 
-        <TextBlock Grid.Row="2" Text="{x:Static res:SalesText.SelectSale}" Foreground="#6C7086" Margin="0,8,0,4"/>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,4">
+            <TextBlock Text="{x:Static res:SalesText.SelectSale}" Foreground="#6C7086"/>
+            <TextBlock x:Name="SaleCustomerText" Text="{Binding SelectedCustomerText}" FontWeight="SemiBold" Margin="16,0,0,0"/>
+        </StackPanel>
 
         <DataGrid Grid.Row="3" x:Name="LinesGrid" ItemsSource="{Binding Lines}" AutomationProperties.Name="{x:Static res:SalesText.Items}">
             <DataGrid.Columns>

@@ -26,7 +26,8 @@ namespace Sales.Application.Commands;
 /// </summary>
 public sealed record CreateSaleCommand(
     string? Reference = null,
-    string? Notes = null);
+    string? Notes = null,
+    Sales.Contracts.Models.SaleCustomer? Customer = null);
 
 public sealed class CreateSaleCommandHandler(
     ISaleRepository saleRepository,
@@ -39,6 +40,13 @@ public sealed class CreateSaleCommandHandler(
         var saleResult = Sale.Create(command.Reference, command.Notes);
         if (saleResult.IsFailure)
             return Result.Failure<Guid>(saleResult.Error);
+
+        // FIX-11: the customer the caller (POS) found through Customers.Contracts, recorded as a snapshot
+        if (command.Customer is { } customer)
+        {
+            var assigned = saleResult.Value.AssignCustomer(customer.CustomerId, customer.Code, customer.Name);
+            if (assigned.IsFailure) return Result.Failure<Guid>(assigned.Error);
+        }
 
         await saleRepository.AddAsync(saleResult.Value, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);

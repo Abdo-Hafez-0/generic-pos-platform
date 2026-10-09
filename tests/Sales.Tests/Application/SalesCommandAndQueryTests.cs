@@ -49,6 +49,42 @@ public sealed class SalesCommandAndQueryTests
             .HandleAsync(new GetSaleByIdQuery(saleId));
     }
 
+    // --- FIX-11: the customer of a sale ---
+
+    [Fact]
+    public async Task A_sale_keeps_the_customer_snapshot_it_was_created_with()
+    {
+        await using var db = await SalesTestDatabase.CreateAsync();
+        var customerId = Guid.NewGuid();
+        using var scope = db.CreateScope();
+        var created = await scope.ServiceProvider.GetRequiredService<Sales.Contracts.Interfaces.ISalesService>()
+            .CreateSaleAsync("POS-1", customer: new Sales.Contracts.Models.SaleCustomer(customerId, " C-001 ", " Jane Doe "));
+        Assert.True(created.IsSuccess, created.ErrorMessage);
+
+        var dto = (await GetAsync(db, created.SaleId))!;
+        var summary = await scope.ServiceProvider.GetRequiredService<Sales.Contracts.Interfaces.ISalesReader>().FindByIdAsync(created.SaleId);
+
+        Assert.Equal((customerId, "C-001", "Jane Doe"), (dto.CustomerId, dto.CustomerCode, dto.CustomerName));
+        Assert.Equal((customerId, "Jane Doe"), (summary!.CustomerId, summary.CustomerName));
+        var plain = (await GetAsync(db, await CreateSaleAsync(db)))!;
+        Assert.Null(plain.CustomerId);   // a customer stays optional
+    }
+
+    [Fact]
+    public async Task An_incomplete_customer_is_refused_and_no_sale_is_created()
+    {
+        await using var db = await SalesTestDatabase.CreateAsync();
+        using var scope = db.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<Sales.Contracts.Interfaces.ISalesService>();
+
+        var noName = await service.CreateSaleAsync(customer: new Sales.Contracts.Models.SaleCustomer(Guid.NewGuid(), "C-1", " "));
+        var tooLong = await service.CreateSaleAsync(customer: new Sales.Contracts.Models.SaleCustomer(Guid.NewGuid(), new string('C', 31), "x"));
+
+        Assert.Equal("Sales.Sale.CustomerInvalid", noName.ErrorCode);
+        Assert.Equal("Sales.Sale.CustomerTooLong", tooLong.ErrorCode);
+        Assert.Empty(await scope.ServiceProvider.GetRequiredService<Sales.Contracts.Interfaces.ISalesReader>().GetRecentAsync());
+    }
+
     // --- CreateSale ---
 
     [Fact]

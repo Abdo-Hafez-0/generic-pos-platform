@@ -180,9 +180,11 @@ public sealed class CheckoutCartCommandHandler(
         }
 
         // 3. Create the sale in Sales (through Sales.Contracts only)
+        // FIX-11: the customer chosen at the till goes to Sales as a snapshot (Sales never asks Customers)
         var created = await salesService.CreateSaleAsync(
             reference: $"POS-{command.CartId:N}",
             notes: $"POS cashier: {session.CashierReference}",
+            customer: cart.CustomerId is { } customerId ? new Sales.Contracts.Models.SaleCustomer(customerId, cart.CustomerCode!, cart.CustomerName!) : null,
             cancellationToken: cancellationToken);
         if (!created.IsSuccess)
             return Result.Failure<Committed>(Error.Failure(

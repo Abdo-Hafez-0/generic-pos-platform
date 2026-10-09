@@ -51,6 +51,9 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     private PaymentChoice _paymentMethod;
     private string _paymentAmountText = string.Empty;
     private string _paymentNote = string.Empty;
+    private string _customerSearch = string.Empty;
+    private POSCustomerResult? _foundCustomer;
+    private string? _customerText;
 
     public PosViewModel(IUiActionRunner runner, ICurrentUser currentUser, IPOSBarcodeInput? scanner = null)
     {
@@ -69,6 +72,9 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
         _paymentMethod = PaymentMethods[0];
         AddPaymentCommand = Command(AddPaymentAsync, () => HasOpenSession && Items.Count > 0 && AmountDue > 0m && !string.IsNullOrWhiteSpace(PaymentAmountText));
         RemovePaymentCommand = Command<PaymentPart>(part => { if (part is not null) RemovePayment(part); return Task.CompletedTask; }, part => part is not null);
+        FindCustomerCommand = Command(FindCustomerAsync, () => HasOpenSession && _cartId.HasValue && !string.IsNullOrWhiteSpace(CustomerSearch));
+        ChooseCustomerCommand = Command(() => FoundCustomer is { } c ? SetCustomerAsync(c.CustomerId) : Task.CompletedTask, () => _cartId.HasValue && FoundCustomer is not null);
+        RemoveCustomerCommand = Command(() => SetCustomerAsync(null), () => _cartId.HasValue && HasCustomer);
         CheckoutCommand = Command(CheckoutAsync, () => CanCheckout);
         CloseSessionCommand = Command(CloseSessionAsync, () => HasOpenSession && Items.Count == 0);
     }
@@ -85,6 +91,24 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     public ICommand LineDiscountCommand { get; }
     public ICommand CartDiscountCommand { get; }
     public ICommand AddPaymentCommand { get; }
+    public ICommand FindCustomerCommand { get; }
+    public ICommand ChooseCustomerCommand { get; }
+    public ICommand RemoveCustomerCommand { get; }
+
+    /// <summary>Code, name or phone of the customer to find (FIX-11).</summary>
+    public string CustomerSearch { get => _customerSearch; set => Set(ref _customerSearch, value); }
+
+    /// <summary>Customers found when the search matched several (code and name only).</summary>
+    public ObservableCollection<POSCustomerResult> FoundCustomers { get; } = [];
+
+    public POSCustomerResult? FoundCustomer { get => _foundCustomer; set => Set(ref _foundCustomer, value); }
+
+    public bool HasFoundCustomers => FoundCustomers.Count > 0;
+
+    /// <summary>The customer of the sale in progress ("C-001 Jane Doe"), or null.</summary>
+    public string? CustomerText { get => _customerText; private set { if (Set(ref _customerText, value)) Raise(nameof(HasCustomer)); } }
+
+    public bool HasCustomer => CustomerText is not null;
     public ICommand RemovePaymentCommand { get; }
 
     /// <summary>Cash, card or other (FIX-10).</summary>
@@ -533,9 +557,55 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
         }
         TaxTotal = cart?.TaxTotal ?? 0m;
         DiscountTotal = cart?.DiscountTotal ?? 0m;
+        CustomerText = cart?.CustomerId is null ? null : $"{cart.CustomerCode} {cart.CustomerName}";
         SelectedItem = SelectedItem is { } chosen ? Items.FirstOrDefault(i => i.ProductId == chosen.ProductId) : null;
         RaisePayments();
         BindScanner();
+    }
+
+    private async Task FindCustomerAsync()
+    {
+        var text = CustomerSearch.Trim();
+        var found = await _runner.QueryAsync((scope, ct) => scope.Get<IPOSService>().FindCustomersAsync(text, ct));
+        if (!Accept(found)) return;
+        FoundCustomers.Clear();
+        FoundCustomer = null;
+        Raise(nameof(HasFoundCustomers));
+        if (!found.Value.IsSuccess) { Fail(found.Value.ErrorMessage); return; }
+
+        switch (found.Value.Customers.Count)
+        {
+            case 0:
+                Fail(PosText.NoCustomerFound);
+                break;
+            case 1:
+                await SetCustomerAsync(found.Value.Customers[0].CustomerId);   // the only match is attached at once
+                break;
+            default:
+                foreach (var c in found.Value.Customers) FoundCustomers.Add(c);
+                Raise(nameof(HasFoundCustomers));
+                StatusMessage = PosText.ChooseCustomer;
+                break;
+        }
+    }
+
+    private async Task SetCustomerAsync(Guid? customerId)
+    {
+        if (_cartId is not { } cartId) return;
+        var changed = await _runner.QueryAsync(async (scope, ct) =>
+        {
+            var set = await scope.Get<IPOSService>().SetCustomerAsync(cartId, customerId, ct);
+            return new CartChange(set.IsSuccess, set.ErrorMessage, await scope.Get<IPOSReader>().GetCartAsync(cartId, ct));
+        });
+        if (!Accept(changed)) return;
+
+        ShowCart(changed.Value.Cart);
+        if (!changed.Value.IsSuccess) { Fail(changed.Value.ErrorMessage); return; }
+
+        FoundCustomers.Clear();
+        (FoundCustomer, CustomerSearch, ErrorMessage) = (null, string.Empty, null);
+        Raise(nameof(HasFoundCustomers));
+        StatusMessage = customerId is null ? PosText.CustomerRemoved : string.Format(CultureInfo.CurrentCulture, PosText.CustomerChosen, CustomerText);
     }
 
     private Task AddPaymentAsync()

@@ -100,6 +100,42 @@ public sealed class PosScreenOnRealDesktopTests
     }
 
     [Fact]
+    public async Task A_sale_to_a_customer_shows_the_customer_in_sales_history()
+    {
+        // FIX-11 on the real host: Customers installed; the till sees code and name; Sales keeps the snapshot
+        await using var desktop = await OfflineDesktop.StartAsync();
+        var shop = await CreateShopAsync(desktop.Services, salePrice: 2.5m, stock: 10m);
+        using (var scope = desktop.Services.CreateScope())
+            Assert.True((await scope.ServiceProvider.GetRequiredService<global::Customers.Application.Commands.CreateCustomerCommandHandler>()
+                .HandleAsync(new global::Customers.Application.Commands.CreateCustomerCommand("C-001", "Jane Doe", Phone: "0100 555 123"))).IsSuccess);
+
+        var vm = Screen(desktop.Services);
+        await vm.OnNavigatedToAsync();
+        await Run(vm, vm.OpenSessionCommand);
+        vm.ProductCode = shop.Sku;
+        await Run(vm, vm.AddCommand);
+        vm.CustomerSearch = "555";
+        await Run(vm, vm.FindCustomerCommand);
+        Assert.Equal("C-001 Jane Doe", vm.CustomerText);
+
+        // the till is resumed in a new screen with its customer
+        var again = Screen(desktop.Services);
+        await again.OnNavigatedToAsync();
+        Assert.Equal("C-001 Jane Doe", again.CustomerText);
+        await Run(again, again.CheckoutCommand);
+        Assert.Null(again.ErrorMessage);
+        Assert.False(again.HasCustomer);   // the next customer's cart starts without one
+
+        var history = new global::Sales.UI.ViewModels.SalesHistoryViewModel(
+            new UiActionRunner(desktop.Services.GetRequiredService<IServiceScopeFactory>(), NullLogger<UiActionRunner>.Instance));
+        await history.OnNavigatedToAsync();
+        var row = Assert.Single(history.Sales);
+        Assert.Equal("C-001 Jane Doe", row.CustomerText);
+        history.Selected = row;
+        Assert.Contains("Jane Doe", history.SelectedCustomerText);
+    }
+
+    [Fact]
     public async Task The_cashiers_open_till_and_cart_survive_leaving_the_screen_and_come_back_in_a_new_screen()
     {
         await using var desktop = await OfflineDesktop.StartAsync();

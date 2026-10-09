@@ -63,4 +63,18 @@ public sealed record POSCartResult(
     decimal TaxTotal = 0m,
     decimal DiscountTotal = 0m,
     POSDiscountKind? CartDiscountKind = null,
-    decimal? CartDiscountValue = null);
+    decimal? CartDiscountValue = null,
+    Guid? CustomerId = null,
+    string? CustomerCode = null,
+    string? CustomerName = null);
+
+/// <summary>A customer as the till may show them (FIX-11): code and name only, never contact details.</summary>
+public sealed record POSCustomerResult(Guid CustomerId, string Code, string Name);
+
+/// <summary>Customers found for the till; a failure when the Customers module is not installed or the user may not sell.</summary>
+public sealed record POSCustomerSearchResult(bool IsSuccess, IReadOnlyList<POSCustomerResult> Customers, string? ErrorCode = null, string? ErrorMessage = null)
+{
+    public static POSCustomerSearchResult Success(IReadOnlyList<POSCustomerResult> customers) => new(true, customers);
+
+    public static POSCustomerSearchResult Failure(string errorCode, string errorMessage) => new(false, [], errorCode, errorMessage);
+}

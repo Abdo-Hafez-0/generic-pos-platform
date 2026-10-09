@@ -15,4 +15,6 @@ public sealed record SaleSummaryResult(
     decimal GrandTotal,
     int ItemCount,
     DateTime CreatedAt,
-    DateTime? CompletedAt);
+    DateTime? CompletedAt,
+    Guid? CustomerId = null,
+    string? CustomerName = null);

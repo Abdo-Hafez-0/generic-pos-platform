@@ -46,6 +46,8 @@ internal sealed class DesktopServicesRegistrar : IHostingModule
         // FIX-01a: the shell. Singletons only: a screen's view model lives as long as the signed-in session, and reaches scoped services
         // (handlers, contexts) per action through IUiActionRunner.
         services.AddSingleton<IUiActionRunner, UiActionRunner>();
+        // FIX-13a: receipts with Arabic (or any non-ASCII text) are drawn with a Windows font and printed as a picture
+        services.AddSingleton<Platform.Application.Abstractions.Hardware.IReceiptImageRenderer, Client.Desktop.Printing.WpfReceiptImageRenderer>();
         services.AddSingleton<NavigationBuilder>();
         services.AddSingleton<IScreenFactory, WpfScreenFactory>();
         services.AddSingleton<ShellViewModel>();

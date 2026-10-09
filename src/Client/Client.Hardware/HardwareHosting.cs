@@ -34,7 +34,8 @@ public static class HardwareServiceCollectionExtensions
         services.AddSingleton(options);
 
         services.AddSingleton<IBarcodeScanner>(sp => HardwareFactory.CreateScanner(options.Scanner, sp.GetRequiredService<TimeProvider>(), Logger(sp)));
-        services.AddSingleton<IReceiptPrinter>(sp => HardwareFactory.CreateReceiptPrinter(options.ReceiptPrinter, Logger(sp)));
+        // FIX-13a: the desktop registers an IReceiptImageRenderer (fonts); without one, receipts are ASCII text as before
+        services.AddSingleton<IReceiptPrinter>(sp => HardwareFactory.CreateReceiptPrinter(options.ReceiptPrinter, Logger(sp), sp.GetService<IReceiptImageRenderer>()));
         services.AddSingleton<ILabelPrinter>(sp => HardwareFactory.CreateLabelPrinter(options.LabelPrinter, Logger(sp)));
         services.AddSingleton<ICashDrawer>(sp => HardwareFactory.CreateCashDrawer(options.CashDrawer, options.ReceiptPrinter, Logger(sp)));
         services.AddSingleton<IScale>(_ => HardwareFactory.CreateScale(options.Scale));

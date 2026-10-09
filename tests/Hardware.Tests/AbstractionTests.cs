@@ -13,11 +13,13 @@ public sealed class AbstractionTests
     [Fact]
     public void ThereAreExactlyTheFiveStage10Abstractions_EachAnInterface()
     {
-        var found = typeof(IHardwareDevice).Assembly.GetExportedTypes()
+        var interfaces = typeof(IHardwareDevice).Assembly.GetExportedTypes()
             .Where(t => t.IsInterface && t.Namespace == typeof(IHardwareDevice).Namespace && t != typeof(IHardwareDevice))
             .ToList();
 
-        Assert.Equivalent(Devices, found);
+        Assert.Equivalent(Devices, interfaces.Where(t => typeof(IHardwareDevice).IsAssignableFrom(t)).ToList());
+        // FIX-13a: the only other interface is the receipt picture renderer, a helper of the receipt printer (not a device)
+        Assert.Equal([typeof(IReceiptImageRenderer)], interfaces.Where(t => !typeof(IHardwareDevice).IsAssignableFrom(t)).ToArray());
     }
 
     [Fact]

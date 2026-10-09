@@ -48,7 +48,7 @@ public static class HardwareFactory
         return new NullBarcodeScanner(Unknown("barcode scanner", options.Type));
     }
 
-    public static IReceiptPrinter CreateReceiptPrinter(ReceiptPrinterOptions options, ILogger? logger = null)
+    public static IReceiptPrinter CreateReceiptPrinter(ReceiptPrinterOptions options, ILogger? logger = null, IReceiptImageRenderer? imageRenderer = null)
     {
         if (IsNone(options.Type)) return new NullReceiptPrinter(DeviceStatus.NotConfigured());
         if (!Is(options.Type, "EscPosTcp") && !Is(options.Type, "EscPosFile"))
@@ -57,7 +57,8 @@ public static class HardwareFactory
         var (transport, problem) = Transport(Is(options.Type, "EscPosTcp"), options, logger);
         return transport is null
             ? new NullReceiptPrinter(problem!)
-            : new EscPosReceiptPrinter(transport, options.CharactersPerLine, options.CutPaper, logger);
+            : new EscPosReceiptPrinter(transport, options.CharactersPerLine, options.CutPaper, logger, imageRenderer,
+                Enum.TryParse<ReceiptImageMode>(options.PrintAsImage, ignoreCase: true, out var mode) ? mode : ReceiptImageMode.Auto, options.DotsPerLine);
     }
 
     public static ILabelPrinter CreateLabelPrinter(LabelPrinterOptions options, ILogger? logger = null)

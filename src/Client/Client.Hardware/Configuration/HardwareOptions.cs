@@ -53,6 +53,12 @@ public sealed class ReceiptPrinterOptions : DeviceConnectionOptions
     public int CharactersPerLine { get; set; } = 42;
 
     public bool CutPaper { get; set; } = true;
+
+    /// <summary>FIX-13a: Auto (a picture only when a text needs more than ASCII, e.g. Arabic) | Always | Never.</summary>
+    public string PrintAsImage { get; set; } = "Auto";
+
+    /// <summary>FIX-13a: dots across the paper for pictures (576 for 80 mm, 384 for 58 mm at 203 dpi).</summary>
+    public int DotsPerLine { get; set; } = 576;
 }
 
 /// <summary>Type: None | ZplTcp | ZplFile.</summary>

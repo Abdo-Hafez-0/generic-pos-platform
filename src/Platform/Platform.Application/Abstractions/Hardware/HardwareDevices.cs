@@ -58,6 +58,25 @@ public sealed record ReceiptDocument(
     public IReadOnlyList<ReceiptPayment> AllPayments => Payments is { Count: > 0 } several ? several : Payment is { } one ? [one] : [];
 }
 
+/// <summary>
+/// One line of a receipt laid out for printing (FIX-13a): <see cref="Left"/> starts the line, <see cref="Right"/> (an amount) ends it,
+/// <see cref="Center"/> centres <see cref="Left"/> alone; <see cref="Rule"/> is a separator line. Texts may be in any script.
+/// </summary>
+public sealed record ReceiptImageLine(string Left, string Right = "", bool Bold = false, bool Center = false, bool Rule = false);
+
+/// <summary>A black-and-white picture: <see cref="Rows"/> holds <see cref="Height"/> rows of <see cref="Width"/>/8 bytes, most significant bit = leftmost dot, 1 = black.</summary>
+public sealed record MonochromeImage(int Width, int Height, byte[] Rows);
+
+/// <summary>
+/// Draws receipt lines as a picture with a real font (FIX-13a), so text a receipt printer's character set cannot print - Arabic with joined
+/// letters and right-to-left order, accents, other scripts - is printed as an image. Implemented by the desktop (it has the fonts).
+/// </summary>
+public interface IReceiptImageRenderer
+{
+    /// <summary>Renders the lines <paramref name="widthDots"/> dots wide (a multiple of 8; 576 for 80 mm, 384 for 58 mm paper).</summary>
+    MonochromeImage Render(IReadOnlyList<ReceiptImageLine> lines, int widthDots);
+}
+
 public interface IReceiptPrinter : IHardwareDevice
 {
     Task<Result> PrintAsync(ReceiptDocument receipt, CancellationToken cancellationToken = default);

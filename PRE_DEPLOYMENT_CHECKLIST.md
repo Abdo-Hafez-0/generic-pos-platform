@@ -142,8 +142,18 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Real exe (Egypt, UTC+3 in October): a sale at 23:30 local on 8 Oct and one at 00:30 local on 9 Oct (21:30 UTC on 8 Oct) -> 8 Oct 1 sale 7.50, 9 Oct 2 sales 7.50 (UTC days would have put 10.00 on 8 Oct)
   - Not chosen: a time-zone setting separate from the computer's (the till runs in the shop); Sales history still lists at most 1000 sales per period (a screen list, its totals are of what it shows)
 - [ ] **FIX-13 Arabic / non-ASCII support** (Stage 10)
-  - [ ] Receipts: code pages (Arabic etc. print as `?` today)
-  - [ ] UI: localization resources and right-to-left layout
+
+  Decisions (2026-10-09, user):
+  1. **Screens now, messages later**: every screen text (resources + the sign-in window) in Arabic with right-to-left layout checked screen by screen; the sentences business rules return stay English for now (a follow-up item).
+  2. **Claude drafts the Arabic, the user reviews**: Modern Standard Arabic for every string, with a list of uncertain terms.
+  3. **Language per user**: each user chooses Arabic or English; the screens switch at that user's sign-in; the sign-in window follows the installation default.
+  4. **Receipts with Arabic print as a picture** (rendered with a Windows font, ESC/POS GS v 0); ASCII receipts stay text.
+
+  - [x] **FIX-13a Receipts as a picture** (2026-10-09): `IReceiptImageRenderer` (Platform hardware abstraction) implemented by the desktop with WPF (Arial; Arabic shaped and right-aligned, amounts at the right edge); the ESC/POS formatter lays the receipt out as lines and sends them as text or, when a text needs more than ASCII, as a raster picture in 128-row bands; printer settings `PrintAsImage` (Auto | Always | Never) and `DotsPerLine` (576 / 384); a renderer failure falls back to text
+    - [x] Real exe: a product named "مياه معدنية ١٫٥ لتر" sold with an English one -> the receipt file holds a 576 x 456 picture; decoded, the Arabic name is joined and right-aligned, totals and labels unchanged
+    - Carried forward: receipt labels (Receipt, TOTAL, Change ...) stay English until the receipt follows a language (with FIX-13b/c or later)
+  - [ ] **FIX-13b Language per user** (and the sign-in window's texts in resources)
+  - [ ] **FIX-13c Arabic translations** of every screen text, right-to-left checked screen by screen
 
 ### A3. Low priority - documentation
 
@@ -232,4 +242,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-08 | FIX-09b | 2b1ccec | Supplier returns; FIX-09 complete; 2564 tests, 0 warnings; real exe with an in-place database upgrade |
 | 2026-10-09 | FIX-10 | 50089d2 | Decisions recorded; split payments at the till; 2575 tests, 0 warnings; real exe with a printed receipt |
 | 2026-10-09 | FIX-11 | 18d25ef | Decisions recorded; an optional customer on a sale; 2587 tests, 0 warnings; real exe with an in-place upgrade |
-| 2026-10-09 | FIX-12 | (this commit) | Ranged completed-sales read (no 2000 cap), local-day breakdown; 2589 tests, 0 warnings; real exe across local midnight |
+| 2026-10-09 | FIX-12 | b87b317 | Ranged completed-sales read (no 2000 cap), local-day breakdown; 2589 tests, 0 warnings; real exe across local midnight |
+| 2026-10-09 | FIX-13 plan, FIX-13a | (this commit) | Decisions recorded; receipts with Arabic printed as a picture; 2605 tests, 0 warnings; real exe receipt decoded |

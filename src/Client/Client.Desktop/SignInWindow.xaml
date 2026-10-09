@@ -1,7 +1,8 @@
 <Window x:Class="Client.Desktop.SignInWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Generic POS Platform - Sign in"
+        xmlns:res="clr-namespace:Client.Desktop.Resources"
+        Title="{x:Static res:SignInText.WindowTitle}"
         Width="420"
         SizeToContent="Height"
         ResizeMode="NoResize"
@@ -29,34 +30,34 @@
     </Window.Resources>
 
     <StackPanel Margin="24">
-        <TextBlock x:Name="Heading" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,4" Text="Sign in"/>
+        <TextBlock x:Name="Heading" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,4" Text="{x:Static res:SignInText.SignInHeading}"/>
         <TextBlock x:Name="Explanation" TextWrapping="Wrap" Foreground="#A6ADC8" Margin="0,0,0,8"/>
 
         <!-- first-run setup and sign-in -->
         <StackPanel x:Name="IdentityPanel">
-            <TextBlock Text="User name"/>
+            <TextBlock Text="{x:Static res:SignInText.UserName}"/>
             <TextBox x:Name="UsernameBox"/>
             <StackPanel x:Name="DisplayNamePanel">
-                <TextBlock Text="Your name"/>
+                <TextBlock Text="{x:Static res:SignInText.YourName}"/>
                 <TextBox x:Name="DisplayNameBox"/>
             </StackPanel>
-            <TextBlock x:Name="PasswordLabel" Text="Password"/>
+            <TextBlock x:Name="PasswordLabel" Text="{x:Static res:SignInText.Password}"/>
             <PasswordBox x:Name="PasswordBox"/>
         </StackPanel>
 
         <!-- new password (first run, or replacing a temporary password) -->
         <StackPanel x:Name="NewPasswordPanel">
-            <TextBlock Text="New password (at least 10 characters)"/>
+            <TextBlock Text="{x:Static res:SignInText.NewPassword}"/>
             <PasswordBox x:Name="NewPasswordBox"/>
-            <TextBlock Text="Repeat the new password"/>
+            <TextBlock Text="{x:Static res:SignInText.RepeatPassword}"/>
             <PasswordBox x:Name="ConfirmPasswordBox"/>
         </StackPanel>
 
         <TextBlock x:Name="ErrorText" Foreground="#F38BA8" TextWrapping="Wrap" Margin="0,12,0,0"/>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button x:Name="CancelButton" Content="Exit" Width="90" Margin="0,0,8,0" Padding="4" IsCancel="True" Click="OnCancel"/>
-            <Button x:Name="PrimaryButton" Content="Sign in" Width="140" Padding="4" IsDefault="True" Click="OnPrimary"/>
+            <Button x:Name="CancelButton" Content="{x:Static res:SignInText.Exit}" Width="90" Margin="0,0,8,0" Padding="4" IsCancel="True" Click="OnCancel"/>
+            <Button x:Name="PrimaryButton" Content="{x:Static res:SignInText.SignInButton}" Width="140" Padding="4" IsDefault="True" Click="OnPrimary"/>
         </StackPanel>
     </StackPanel>
 </Window>

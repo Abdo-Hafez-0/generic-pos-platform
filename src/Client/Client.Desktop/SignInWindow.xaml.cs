@@ -25,6 +25,7 @@ public partial class SignInWindow : Window
     {
         _scopes = scopes;
         InitializeComponent();
+        FlowDirection = Platform.Presentation.Localization.UiCulture.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;   // FIX-13b
         Loaded += async (_, _) => await ShowCurrentStageAsync();
     }
 
@@ -58,13 +59,9 @@ public partial class SignInWindow : Window
 
         (Heading.Text, Explanation.Text, PrimaryButton.Content) = mode switch
         {
-            Mode.FirstRun => ("Welcome - create the administrator",
-                "No user exists yet. The account you create now holds every permission and can create the other users. Keep its password safe.",
-                "Create and sign in"),
-            Mode.ChangePassword => ("Choose your own password",
-                "Your password was set by an administrator. Replace it with one only you know before you continue.",
-                "Change and sign in"),
-            _ => ("Sign in", string.Empty, "Sign in")
+            Mode.FirstRun => (Client.Desktop.Resources.SignInText.FirstRunHeading, Client.Desktop.Resources.SignInText.FirstRunExplanation, Client.Desktop.Resources.SignInText.FirstRunButton),
+            Mode.ChangePassword => (Client.Desktop.Resources.SignInText.ChangePasswordHeading, Client.Desktop.Resources.SignInText.ChangePasswordExplanation, Client.Desktop.Resources.SignInText.ChangePasswordButton),
+            _ => (Client.Desktop.Resources.SignInText.SignInHeading, string.Empty, Client.Desktop.Resources.SignInText.SignInButton)
         };
 
         (mode == Mode.ChangePassword ? (UIElement)NewPasswordBox : UsernameBox).Focus();

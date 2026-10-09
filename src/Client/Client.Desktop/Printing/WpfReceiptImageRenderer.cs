@@ -95,7 +95,7 @@ public sealed class WpfReceiptImageRenderer : IReceiptImageRenderer
 
     private static FormattedText Text(string text, double fontSize, bool bold, double maxWidth)
     {
-        var formatted = new FormattedText(text, CultureInfo.CurrentUICulture,
+        var formatted = new FormattedText(text, CultureInfo.InvariantCulture,
             IsRightToLeft(text) ? FlowDirection.RightToLeft : FlowDirection.LeftToRight,
             new Typeface(new FontFamily(FontFamilyName), FontStyles.Normal, bold ? FontWeights.Bold : FontWeights.Normal, FontStretches.Normal),
             fontSize, Brushes.Black, 1.0)

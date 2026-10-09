@@ -28,7 +28,7 @@ namespace Client.Desktop;
 /// Registered services:
 /// - MainWindow (Transient) — WPF shell window, created once per application lifetime.
 /// - SignInWindow (Transient) + a factory — the Stage 11 start screen (first-run setup / sign-in / password change).
-/// - DesktopSignOut — signs out through the Users flow in its own scope.
+/// - DesktopSession — the start screen, the shell window in the signed-in user's language, sign-out and language changes (FIX-13b).
 /// - The shell (FIX-01a): IUiActionRunner (one DI scope per user action), NavigationBuilder, the WPF screen factory, ShellViewModel.
 /// - The screens of the module UIs (IScreenProvider), one registration per module UI.
 ///
@@ -40,8 +40,7 @@ internal sealed class DesktopServicesRegistrar : IHostingModule
     {
         services.AddTransient<MainWindow>();
         services.AddTransient<SignInWindow>();
-        services.AddSingleton<Func<SignInWindow>>(sp => () => sp.GetRequiredService<SignInWindow>());
-        services.AddSingleton<DesktopSignOut>();
+        services.AddSingleton<DesktopSession>();
 
         // FIX-01a: the shell. Singletons only: a screen's view model lives as long as the signed-in session, and reaches scoped services
         // (handlers, contexts) per action through IUiActionRunner.
@@ -70,12 +69,3 @@ internal sealed class DesktopServicesRegistrar : IHostingModule
     }
 }
 
-/// <summary>Signs the current user out through <see cref="InteractiveSignInService"/> (audited), in its own DI scope.</summary>
-public sealed class DesktopSignOut(IServiceScopeFactory scopes)
-{
-    public async Task SignOutAsync()
-    {
-        using var scope = scopes.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<InteractiveSignInService>().SignOutAsync();
-    }
-}

@@ -54,28 +54,22 @@ public partial class App : Application
                 "GenericPOS application started. Environment: {Environment}",
                 Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production");
 
-            // FIX-01a: the display language (Ui:Culture, default English) before the first window; an unknown value falls back to English.
-            var culture = UiCulture.Apply(_applicationHost.Services.GetRequiredService<IConfiguration>()["Ui:Culture"]);
-            logger.LogInformation("Display language: {Culture}.", culture.Name);
-
             // Stage 11: nobody reaches the shell without signing in. The start screen handles first-run setup (create the first
-            // administrator), sign-in and the forced change of a temporary password. Closing it exits the application.
+            // administrator), sign-in and the forced change of a temporary password, in the installation's language (Ui:Culture, FIX-01a;
+            // an unknown value falls back to English). Closing it exits the application.
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            var signIn = _applicationHost.Services.GetRequiredService<SignInWindow>();
-            signIn.ContentRendered += (_, _) => _ = ConfirmHealthyStartAsync(_applicationHost.Services, logger);
-            if (signIn.ShowDialog() != true)
+            var session = _applicationHost.Services.GetRequiredService<DesktopSession>();
+            UiCulture.ApplyFormatting(session.InstallationLanguage);   // numbers and dates: the installation's, whatever the screen language
+            logger.LogInformation("Installation language: {Culture}.", UiCulture.Resolve(session.InstallationLanguage).Name);
+            if (!session.ShowSignIn(signIn => signIn.ContentRendered += (_, _) => _ = ConfirmHealthyStartAsync(_applicationHost.Services, logger)))
             {
                 logger.LogInformation("Nobody signed in; the application exits.");
                 Shutdown(exitCode: 0);
                 return;
             }
 
-            // Create and show the main window.
-            // The MainWindow is resolved from DI so it can receive services via constructor injection.
-            var mainWindow = _applicationHost.Services.GetRequiredService<MainWindow>();
-            MainWindow = mainWindow;
-            ShutdownMode = ShutdownMode.OnMainWindowClose;
-            mainWindow.Show();
+            // FIX-13b: the shell window (resolved from DI in DesktopSession) in the signed-in user's own language
+            await session.OpenShellAsync();
         }
         catch (Exception ex)
         {

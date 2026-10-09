@@ -42,4 +42,44 @@ public sealed class UiCultureTests : IDisposable
         UiCulture.Apply("en");
         Assert.False(UiCulture.IsRightToLeft);
     }
+
+    [Theory]
+    [InlineData("ar", "ar")]
+    [InlineData("ar-EG", "ar")]
+    [InlineData("EN", "en")]
+    [InlineData("fr", null)]
+    [InlineData(null, null)]
+    public void The_offered_languages_are_found_by_culture_name(string? culture, string? expected)
+        => Assert.Equal(expected, UiLanguages.Find(culture)?.Code);
+
+    [Fact]
+    public async Task A_language_chosen_inside_an_async_method_stays_for_screens_opened_later()
+    {
+        // FIX-13b (found in the real executable): .NET restores the thread culture when an async method that changed it returns, so a
+        // screen opened afterwards read English again. The display language lives in UiCulture.Current and in every resource class.
+        static async Task ChooseArabicAsync()
+        {
+            await Task.Yield();
+            UiCulture.Apply("ar");
+        }
+
+        UiCulture.Apply("en");
+        await ChooseArabicAsync();
+
+        Assert.Equal("ar", UiCulture.Current.Name);
+        Assert.True(UiCulture.IsRightToLeft);
+        Assert.Equal("ar", POS.UI.Resources.PosText.Culture?.Name);          // a module screen's texts
+        Assert.Equal("ar", Client.Desktop.Resources.ShellText.Culture?.Name); // the shell's texts
+        UiCulture.Apply("en");
+        Assert.Equal("en", POS.UI.Resources.PosText.Culture?.Name);
+    }
+
+    [Fact]
+    public void The_screen_language_does_not_change_how_numbers_are_written()
+    {
+        UiCulture.ApplyFormatting("en");
+        UiCulture.Apply("ar");
+        Assert.Equal("2.50", 2.5m.ToString("0.00", CultureInfo.CurrentCulture));
+        UiCulture.Apply("en");
+    }
 }

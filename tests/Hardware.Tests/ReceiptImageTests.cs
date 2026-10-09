@@ -117,7 +117,7 @@ public sealed class ReceiptImageTests
     }
 
     [Fact]
-    public void The_factory_reads_the_picture_settings()
+    public async Task The_factory_reads_the_picture_settings()
     {
         var path = Path.Combine(Path.GetTempPath(), $"receipt-{Guid.NewGuid():N}.bin");
         File.WriteAllBytes(path, []);
@@ -128,7 +128,7 @@ public sealed class ReceiptImageTests
                 new Client.Hardware.Configuration.ReceiptPrinterOptions { Type = "EscPosFile", Path = path, PrintAsImage = "always", DotsPerLine = 384 },
                 imageRenderer: renderer);
 
-            Assert.True(printer.PrintAsync(Receipt()).GetAwaiter().GetResult().IsSuccess);
+            Assert.True((await printer.PrintAsync(Receipt())).IsSuccess);
             Assert.Equal(384, Assert.Single(renderer.Calls).Width);
             Assert.Equal([(48, 40)], RasterCommands(File.ReadAllBytes(path)));
         }

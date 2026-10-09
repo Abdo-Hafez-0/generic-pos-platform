@@ -170,6 +170,7 @@ namespace Users.Domain.Entities
         public const int MaxUsernameLength = 50;
         public const int MaxDisplayNameLength = 100;
         public const int MaxEmailLength = 200;
+        public const int MaxLanguageLength = 10;
 
         private readonly List<UserRole> _roles = [];
 
@@ -182,6 +183,13 @@ namespace Users.Domain.Entities
 
         public string DisplayName { get; private set; } = string.Empty;
         public string? Email { get; private set; }
+
+        /// <summary>
+        /// The screen language this user works in (FIX-13b), a culture name such as "ar" or "en"; null = the installation's default. Applied by
+        /// the desktop when the user signs in.
+        /// </summary>
+        public string? Language { get; private set; }
+
         public UserStatus Status { get; private set; }
         public DateTime CreatedAt { get; private set; }
         public DateTime? UpdatedAt { get; private set; }
@@ -228,6 +236,25 @@ namespace Users.Domain.Entities
 
             DisplayName = displayName.Trim();
             Email = string.IsNullOrWhiteSpace(email) ? null : email.Trim();
+            UpdatedAt = DateTime.UtcNow;
+            return Result.Success();
+        }
+
+        /// <summary>Chooses the user's screen language (a culture name like "ar", "en" or "ar-EG"); null or empty = the installation default.</summary>
+        public Result SetLanguage(string? language)
+        {
+            if (string.IsNullOrWhiteSpace(language))
+            {
+                Language = null;
+            }
+            else
+            {
+                var value = language.Trim();
+                if (value.Length > MaxLanguageLength || !value.All(c => char.IsAsciiLetter(c) || c == '-') || value.StartsWith('-') || value.EndsWith('-'))
+                    return Result.Failure(Error.Validation("Users.User.LanguageInvalid", "The language must be a language code such as \"en\" or \"ar\"."));
+                Language = value.ToLowerInvariant();
+            }
+
             UpdatedAt = DateTime.UtcNow;
             return Result.Success();
         }

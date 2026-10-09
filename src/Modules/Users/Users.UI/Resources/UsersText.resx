@@ -50,4 +50,6 @@
   <data name="Granted" xml:space="preserve"><value>{0}: allowed for {1}.</value></data>
   <data name="Revoked" xml:space="preserve"><value>{0}: no longer allowed for {1}.</value></data>
   <data name="UnknownPermission" xml:space="preserve"><value>(not offered by an installed module)</value></data>
+  <data name="Language" xml:space="preserve"><value>Screen language</value></data>
+  <data name="LanguageDefault" xml:space="preserve"><value>The installation's language</value></data>
 </root>

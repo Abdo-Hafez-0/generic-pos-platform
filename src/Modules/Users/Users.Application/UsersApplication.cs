@@ -50,7 +50,7 @@ namespace Users.Application.DTOs
 
     public sealed record UserDto(
         Guid UserId, string Username, string DisplayName, string? Email, Domain.Enums.UserStatus Status,
-        IReadOnlyList<RoleSummaryDto> Roles, DateTime CreatedAt);
+        IReadOnlyList<RoleSummaryDto> Roles, DateTime CreatedAt, string? Language = null);
 
     public sealed record RoleSummaryDto(Guid RoleId, string Name);
 
@@ -103,6 +103,34 @@ namespace Users.Application.Commands
             if (user is null) return Result.Failure(UsersErrors.UserNotFound(command.UserId));
 
             var result = user.Update(command.DisplayName, command.Email);
+            if (result.IsFailure) return result;
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success();
+        }
+    }
+
+    /// <summary>
+    /// FIX-13b: sets a user's screen language (null = the installation default). Everyone may choose their OWN language; choosing another
+    /// user's needs users.manage.
+    /// </summary>
+    public sealed record SetUserLanguageCommand(Guid UserId, string? Language);
+
+    public sealed class SetUserLanguageCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null)
+    {
+        public async Task<Result> HandleAsync(SetUserLanguageCommand command, CancellationToken cancellationToken = default)
+        {
+            var self = currentUser is { IsAuthenticated: true } me && me.UserId == command.UserId;
+            if (!self)
+            {
+                var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.Manage, cancellationToken);
+                if (allowed.IsFailure) return allowed;
+            }
+
+            var user = await users.GetByIdAsync(new UserId(command.UserId), cancellationToken);
+            if (user is null) return Result.Failure(UsersErrors.UserNotFound(command.UserId));
+
+            var result = user.SetLanguage(command.Language);
             if (result.IsFailure) return result;
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -376,7 +404,26 @@ namespace Users.Application.Queries
             var assigned = await roles.GetByIdsAsync(user.Roles.Select(r => r.RoleId).ToList(), cancellationToken);
             return Result.Success<UserDto?>(new UserDto(
                 user.Id.Value, user.Username, user.DisplayName, user.Email, user.Status,
-                assigned.OrderBy(r => r.Name).Select(r => new RoleSummaryDto(r.Id.Value, r.Name)).ToList(), user.CreatedAt));
+                assigned.OrderBy(r => r.Name).Select(r => new RoleSummaryDto(r.Id.Value, r.Name)).ToList(), user.CreatedAt, user.Language));
+        }
+    }
+
+    /// <summary>FIX-13b: a user's screen language (null = the installation default). Everyone may read their OWN; another user's needs users.view.</summary>
+    public sealed record GetUserLanguageQuery(Guid UserId);
+
+    public sealed class GetUserLanguageQueryHandler(IUserRepository users, IAuthorizationService authorization, ICurrentUser? currentUser = null)
+    {
+        public async Task<Result<string?>> HandleAsync(GetUserLanguageQuery query, CancellationToken cancellationToken = default)
+        {
+            var self = currentUser is { IsAuthenticated: true } me && me.UserId == query.UserId;
+            if (!self)
+            {
+                var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.View, cancellationToken);
+                if (allowed.IsFailure) return Result.Failure<string?>(allowed.Error);
+            }
+
+            var user = await users.GetByIdAsync(new UserId(query.UserId), cancellationToken);
+            return user is null ? Result.Failure<string?>(Users.Application.Commands.UsersErrors.UserNotFound(query.UserId)) : Result.Success(user.Language);
         }
     }
 

@@ -76,6 +76,12 @@
                       StronglyTypedNamespace="Client.Desktop.Resources"
                       StronglyTypedFileName="$(IntermediateOutputPath)ShellText.Designer.cs"
                       PublicClass="true" />
+    <EmbeddedResource Update="Resources\SignInText.resx"
+                      StronglyTypedLanguage="CSharp"
+                      StronglyTypedClassName="SignInText"
+                      StronglyTypedNamespace="Client.Desktop.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)SignInText.Designer.cs"
+                      PublicClass="true" />
     <EmbeddedResource Update="Resources\LicenseText.resx"
                       StronglyTypedLanguage="CSharp"
                       StronglyTypedClassName="LicenseText"

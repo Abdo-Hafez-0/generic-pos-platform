@@ -152,7 +152,10 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] **FIX-13a Receipts as a picture** (2026-10-09): `IReceiptImageRenderer` (Platform hardware abstraction) implemented by the desktop with WPF (Arial; Arabic shaped and right-aligned, amounts at the right edge); the ESC/POS formatter lays the receipt out as lines and sends them as text or, when a text needs more than ASCII, as a raster picture in 128-row bands; printer settings `PrintAsImage` (Auto | Always | Never) and `DotsPerLine` (576 / 384); a renderer failure falls back to text
     - [x] Real exe: a product named "مياه معدنية ١٫٥ لتر" sold with an English one -> the receipt file holds a 576 x 456 picture; decoded, the Arabic name is joined and right-aligned, totals and labels unchanged
     - Carried forward: receipt labels (Receipt, TOTAL, Change ...) stay English until the receipt follows a language (with FIX-13b/c or later)
-  - [ ] **FIX-13b Language per user** (and the sign-in window's texts in resources)
+  - [x] **FIX-13b Language per user** (2026-10-09): `User.Language` (migration AddUserLanguage), SetUserLanguage (own language for everyone, another user's with users.manage) and GetUserLanguage; `DesktopSession`: the start screen in the installation's language, the shell opened in the signed-in user's language (a new shell window per sign-in or language change); language chooser in the shell header and on the Users screen; sign-in window texts in SignInText.resx
+    - [x] Found in the real exe and fixed: .NET restores the thread culture when an async method that changed it returns, so screens opened later read the old language - the display language now lives in `UiCulture.Current` and in every resource class; numbers and dates keep the installation's format
+    - [x] Real exe: Arabic chosen in the header -> the shell reopens right to left; sign-out -> the start screen in English; sign-in -> right to left again; English chosen -> left to right
+    - Note for screenshots: PrintWindow of a right-to-left window is mirrored (flip it to see the screen)
   - [ ] **FIX-13c Arabic translations** of every screen text, right-to-left checked screen by screen
 
 ### A3. Low priority - documentation
@@ -243,4 +246,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-09 | FIX-10 | 50089d2 | Decisions recorded; split payments at the till; 2575 tests, 0 warnings; real exe with a printed receipt |
 | 2026-10-09 | FIX-11 | 18d25ef | Decisions recorded; an optional customer on a sale; 2587 tests, 0 warnings; real exe with an in-place upgrade |
 | 2026-10-09 | FIX-12 | b87b317 | Ranged completed-sales read (no 2000 cap), local-day breakdown; 2589 tests, 0 warnings; real exe across local midnight |
-| 2026-10-09 | FIX-13 plan, FIX-13a | (this commit) | Decisions recorded; receipts with Arabic printed as a picture; 2605 tests, 0 warnings; real exe receipt decoded |
+| 2026-10-09 | FIX-13 plan, FIX-13a | 4c978ef | Decisions recorded; receipts with Arabic printed as a picture; 2605 tests, 0 warnings; real exe receipt decoded |
+| 2026-10-09 | FIX-13b | (this commit) | Language per user, sign-in texts in resources, display language independent of the thread culture; 2619 tests, 0 warnings; real exe |

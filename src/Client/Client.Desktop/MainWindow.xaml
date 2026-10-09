@@ -51,6 +51,9 @@
             <DockPanel LastChildFill="False">
                 <TextBlock DockPanel.Dock="Left" Text="{x:Static res:ShellText.ApplicationTitle}" FontSize="18" FontWeight="SemiBold"/>
                 <Button x:Name="SignOutButton" DockPanel.Dock="Right" Content="{x:Static res:ShellText.SignOut}" Padding="10,2" Click="OnSignOut"/>
+                <!-- FIX-13b: the signed-in user's screen language -->
+                <ComboBox x:Name="LanguageBox" DockPanel.Dock="Right" Width="110" Margin="12,0,0,0" DisplayMemberPath="NativeName"
+                          AutomationProperties.Name="{x:Static res:ShellText.Language}" ToolTip="{x:Static res:ShellText.Language}"/>
                 <TextBlock x:Name="SignedInText" DockPanel.Dock="Right" Margin="12,0" VerticalAlignment="Center"
                            Foreground="#A6ADC8" Text="{Binding SignedInText}"/>
             </DockPanel>

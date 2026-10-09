@@ -43,6 +43,7 @@ public sealed class UsersViewModel : ViewModelBase, INavigationAware
     private string _newEmail = string.Empty;
     private string _editDisplayName = string.Empty;
     private string _editEmail = string.Empty;
+    private LanguageChoice _editLanguage = null!;
     private RoleDto? _roleToAssign;
     private RoleSummaryDto? _selectedRole;
 
@@ -52,6 +53,8 @@ public sealed class UsersViewModel : ViewModelBase, INavigationAware
         SearchCommand = Command(() => LoadAsync(CancellationToken.None));
         CreateCommand = Command<string>(CreateAsync, _ => CanCreate);
         SaveDetailsCommand = Command(SaveDetailsAsync, () => User is not null && !string.IsNullOrWhiteSpace(EditDisplayName));
+        Languages = [new(null, UsersText.LanguageDefault), .. Platform.Presentation.Localization.UiLanguages.All.Select(l => new LanguageChoice(l.Code, l.NativeName))];
+        _editLanguage = Languages[0];
         DeactivateCommand = Command(() => SetActiveAsync(false), () => User is { Status: UserStatus.Active });
         ReactivateCommand = Command(() => SetActiveAsync(true), () => User is { Status: UserStatus.Inactive });
         AssignRoleCommand = Command(AssignRoleAsync, () => User is not null && RoleToAssign is not null && User.Roles.All(r => r.RoleId != RoleToAssign.RoleId));
@@ -100,6 +103,7 @@ public sealed class UsersViewModel : ViewModelBase, INavigationAware
             if (!Set(ref _user, value)) return;
             EditDisplayName = value?.DisplayName ?? string.Empty;
             EditEmail = value?.Email ?? string.Empty;
+            EditLanguage = Languages.FirstOrDefault(l => l.Code == Platform.Presentation.Localization.UiLanguages.Find(value?.Language)?.Code) ?? Languages[0];
             UserRoles.Clear();
             if (value is not null) foreach (var role in value.Roles.OrderBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase)) UserRoles.Add(role);
             SelectedRole = null;
@@ -122,6 +126,11 @@ public sealed class UsersViewModel : ViewModelBase, INavigationAware
 
     public string EditDisplayName { get => _editDisplayName; set => Set(ref _editDisplayName, value); }
     public string EditEmail { get => _editEmail; set => Set(ref _editEmail, value); }
+
+    /// <summary>FIX-13b: the screen languages a user can have; the first is "the installation's language".</summary>
+    public IReadOnlyList<LanguageChoice> Languages { get; }
+
+    public LanguageChoice EditLanguage { get => _editLanguage; set => Set(ref _editLanguage, value); }
     public RoleDto? RoleToAssign { get => _roleToAssign; set => Set(ref _roleToAssign, value); }
     public RoleSummaryDto? SelectedRole { get => _selectedRole; set => Set(ref _selectedRole, value); }
 
@@ -187,8 +196,13 @@ public sealed class UsersViewModel : ViewModelBase, INavigationAware
     private async Task SaveDetailsAsync()
     {
         if (User is not { } user) return;
-        var (name, email) = (EditDisplayName.Trim(), Blank(EditEmail));
-        if (await ChangeAsync(user.UserId, (scope, ct) => scope.Get<UpdateUserCommandHandler>().HandleAsync(new UpdateUserCommand(user.UserId, name, email), ct)))
+        var (name, email, language) = (EditDisplayName.Trim(), Blank(EditEmail), EditLanguage.Code);
+        if (await ChangeAsync(user.UserId, async (scope, ct) =>
+            {
+                var updated = await scope.Get<UpdateUserCommandHandler>().HandleAsync(new UpdateUserCommand(user.UserId, name, email), ct);
+                if (updated.IsFailure || language == user.Language) return updated;
+                return await scope.Get<SetUserLanguageCommandHandler>().HandleAsync(new SetUserLanguageCommand(user.UserId, language), ct);   // FIX-13b
+            }))
             StatusMessage = string.Format(CultureInfo.CurrentCulture, UsersText.DetailsSaved, name);
     }
 
@@ -248,3 +262,6 @@ public sealed class UsersViewModel : ViewModelBase, INavigationAware
         StatusMessage = null;
     }
 }
+
+/// <summary>A screen language choice on the Users screen (FIX-13b); a null code means "the installation's language".</summary>
+public sealed record LanguageChoice(string? Code, string Text);

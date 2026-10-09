@@ -23,26 +23,29 @@ public partial class MainWindow : Window
 {
     private readonly ILogger<MainWindow> _logger;
     private readonly ShellViewModel _shell;
-    private readonly Func<SignInWindow> _signInWindow;
-    private readonly Func<Task> _signOut;
+    private readonly DesktopSession _session;
     private readonly ScannerKeyboard _scanner;
+    private bool _replaced;
 
     public MainWindow(
         ILogger<MainWindow> logger,
         ShellViewModel shell,
-        Func<SignInWindow> signInWindow,
-        DesktopSignOut signOut,
+        DesktopSession session,
         ScannerKeyboard? scanner = null)
     {
         _logger = logger;
         _shell = shell;
-        _signInWindow = signInWindow;
-        _signOut = signOut.SignOutAsync;
+        _session = session;
         _scanner = scanner ?? ScannerKeyboard.None;
         InitializeComponent();
         FlowDirection = UiCulture.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
         DataContext = shell;
         Loaded += async (_, _) => await _shell.RefreshAsync();
+
+        // FIX-13b: the signed-in user's own language; choosing another reopens the shell in it
+        LanguageBox.ItemsSource = UiLanguages.All;
+        LanguageBox.SelectedItem = UiLanguages.Find(UiCulture.Current.Name);
+        LanguageBox.SelectionChanged += OnLanguageChosen;
 
         // Preview (tunnelling) events: the window sees every key before the focused control does.
         PreviewTextInput += (_, e) => _scanner.OnText(e.Text, FocusIsInTextInput());
@@ -55,22 +58,25 @@ public partial class MainWindow : Window
     /// <summary>A text box (also the editable part of a combo box) or a password box has the keyboard focus.</summary>
     private static bool FocusIsInTextInput() => Keyboard.FocusedElement is TextBoxBase or PasswordBox;
 
-    private async void OnSignOut(object sender, RoutedEventArgs e)
+    private async void OnSignOut(object sender, RoutedEventArgs e) => await _session.SignOutAsync(this);
+
+    private async void OnLanguageChosen(object sender, SelectionChangedEventArgs e)
     {
-        await _signOut();
-        await _shell.ResetAsync();
-        _logger.LogInformation("User signed out; returning to the start screen.");
+        if (LanguageBox.SelectedItem is not UiLanguage chosen || UiLanguages.Find(UiCulture.Current.Name) == chosen) return;
 
-        Hide();
-        var signIn = _signInWindow();
-        if (signIn.ShowDialog() != true)
+        var saved = await _session.ChangeMyLanguageAsync(chosen.Code);
+        if (saved.IsFailure)
         {
-            Application.Current.Shutdown();
-            return;
+            _logger.LogWarning("The language could not be saved: {Error}", saved.Error);
+            LanguageBox.SelectedItem = UiLanguages.Find(UiCulture.Current.Name);
         }
+    }
 
-        Show();
-        await _shell.RefreshAsync();
+    /// <summary>Closes this window because a new shell window (another user or language) took its place; the application keeps running.</summary>
+    public void CloseForReplacement()
+    {
+        _replaced = true;
+        Close();
     }
 
     protected override void OnContentRendered(EventArgs e)
@@ -81,7 +87,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
-        _logger.LogInformation("Main window closed. Application shutting down.");
+        _logger.LogInformation(_replaced ? "Main window replaced (sign-in or language change)." : "Main window closed. Application shutting down.");
         base.OnClosed(e);
     }
 }

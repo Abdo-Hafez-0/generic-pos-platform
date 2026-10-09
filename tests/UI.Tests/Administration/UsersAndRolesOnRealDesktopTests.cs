@@ -138,4 +138,31 @@ public sealed class UsersAndRolesOnRealDesktopTests
         Assert.Equal(UsersText.Inactive, vm.Users.Single(u => u.User.Username == "omar").StatusText);
         Assert.False(vm.ResetPasswordCommand.CanExecute("x"));
     }
+
+    [Fact]
+    public async Task The_administrator_gives_a_user_a_screen_language_and_can_set_it_back_to_the_installations()
+    {
+        // FIX-13b: the language is kept with the user and applied by the desktop when that user signs in
+        await using var desktop = await OfflineDesktop.StartAsync();
+        var vm = new UsersViewModel(Runner(desktop.Services));
+        await vm.OnNavigatedToAsync();
+        (vm.NewUsername, vm.NewDisplayName) = ("nour", "Nour");
+        await Run(vm, vm.CreateCommand, TemporaryPassword);
+        Assert.Equal(UsersText.LanguageDefault, vm.EditLanguage.Text);
+        Assert.Equal(["", "en", "ar"], vm.Languages.Select(l => l.Code ?? "").ToArray());
+
+        vm.EditLanguage = vm.Languages.Single(l => l.Code == "ar");
+        await Run(vm, vm.SaveDetailsCommand);
+
+        Assert.Null(vm.ErrorMessage);
+        Assert.Equal("ar", vm.User?.Language);
+        Assert.Equal("العربية", vm.EditLanguage.Text);
+        using (var scope = desktop.Services.CreateScope())
+            Assert.Equal("ar", (await scope.ServiceProvider.GetRequiredService<global::Users.Application.Queries.GetUserLanguageQueryHandler>()
+                .HandleAsync(new global::Users.Application.Queries.GetUserLanguageQuery(vm.User!.UserId))).Value);
+
+        vm.EditLanguage = vm.Languages[0];
+        await Run(vm, vm.SaveDetailsCommand);
+        Assert.Null(vm.User?.Language);
+    }
 }

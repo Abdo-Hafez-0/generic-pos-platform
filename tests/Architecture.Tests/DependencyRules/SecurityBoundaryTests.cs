@@ -312,13 +312,23 @@ public sealed class SecurityBoundaryTests
     [Fact(DisplayName = "ARCH-SEC-017: The desktop shows the sign-in window before the shell and exits when nobody signs in; the window is glue over InteractiveSignInService")]
     public void DesktopRequiresSignInBeforeTheShell()
     {
+        // FIX-13b: App asks DesktopSession for the start screen and only then for the shell (opened in the user's language)
         var app = File.ReadAllText(Path.Combine(RepoRoot(), "src", "Client", "Client.Desktop", "App.xaml.cs"));
-        var signIn = app.IndexOf("GetRequiredService<SignInWindow>()", StringComparison.Ordinal);
-        var shell = app.IndexOf("GetRequiredService<MainWindow>()", StringComparison.Ordinal);
+        var signIn = app.IndexOf("session.ShowSignIn(", StringComparison.Ordinal);
+        var shell = app.IndexOf("session.OpenShellAsync()", StringComparison.Ordinal);
 
-        Assert.True(signIn >= 0 && shell > signIn, "App must resolve and show SignInWindow before MainWindow.");
-        Assert.Contains("ShowDialog() != true", app[signIn..shell]);
+        Assert.True(signIn >= 0 && shell > signIn, "App must show the start screen before the shell.");
         Assert.Contains("Shutdown(", app[signIn..shell]);
+
+        var session = File.ReadAllText(Path.Combine(RepoRoot(), "src", "Client", "Client.Desktop", "Shell", "DesktopSession.cs"));
+        var showSignIn = session[session.IndexOf("public bool ShowSignIn", StringComparison.Ordinal)..session.IndexOf("public async Task OpenShellAsync", StringComparison.Ordinal)];
+        Assert.Contains("GetRequiredService<SignInWindow>()", showSignIn);
+        Assert.Contains("ShowDialog() == true", showSignIn);
+        Assert.DoesNotContain("MainWindow", showSignIn);
+        // after a sign-out nobody reaches the shell again without signing in; closing the start screen ends the application
+        var signOut = session[session.IndexOf("public async Task SignOutAsync", StringComparison.Ordinal)..];
+        Assert.True(signOut.IndexOf("ShowSignIn()", StringComparison.Ordinal) is var again and > 0
+            && signOut.IndexOf("Shutdown()", StringComparison.Ordinal) > again && signOut.IndexOf("OpenShellAsync()", StringComparison.Ordinal) > again);
 
         // the window decides nothing itself: no handler, repository or hasher is used directly
         var window = File.ReadAllText(Path.Combine(RepoRoot(), "src", "Client", "Client.Desktop", "SignInWindow.xaml.cs"));

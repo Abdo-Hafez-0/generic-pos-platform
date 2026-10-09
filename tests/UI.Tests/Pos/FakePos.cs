@@ -23,6 +23,8 @@ internal sealed class FakeTill
     public List<(Guid? ProductId, POSDiscountKind Kind, decimal Value)> Discounts { get; } = [];
     public IReadOnlyList<POSHardwareNotice>? HardwareNotices { get; set; }
     public POSPaymentRequest? LastPayment { get; set; }
+    public IReadOnlyList<POSPaymentRequest>? LastPayments { get; set; }
+    public decimal ChangeDue { get; set; }
 
     public Guid AddWarehouse(string name)
     {
@@ -144,6 +146,17 @@ internal sealed class FakePosService : IPOSService, IPOSReader
 
         _till.CheckedOut.Add(cartId);
         return Task.FromResult(POSCheckoutResult.Success(Guid.NewGuid(), hardwareNotices: _till.HardwareNotices));
+    }
+
+    public Task<POSCheckoutResult> CheckoutWithPaymentsAsync(Guid cartId, IReadOnlyList<POSPaymentRequest> payments, string? transactionReference = null, CancellationToken cancellationToken = default)
+    {
+        Enter("checkout");
+        _till.LastPayments = payments;
+        if (_till.CheckoutRefusal is { } refusal)
+            return Task.FromResult(POSCheckoutResult.Failure("POS.Checkout.Refused", refusal));
+
+        _till.CheckedOut.Add(cartId);
+        return Task.FromResult(POSCheckoutResult.Success(Guid.NewGuid(), changeDue: _till.ChangeDue, hardwareNotices: _till.HardwareNotices));
     }
 
     public Task<POSSessionResult?> GetSessionAsync(Guid sessionId, CancellationToken cancellationToken = default)

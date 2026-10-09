@@ -321,6 +321,86 @@ public sealed class PosViewModelTests
         Assert.Equal(new POSPaymentRequest(POSPaymentMethod.Cash), _till.LastPayment);
     }
 
+    // FIX-10: split payments
+
+    private static string Money(decimal value) => value.ToString(CultureInfo.CurrentCulture);
+
+    private async Task CartOf20Async()
+    {
+        _till.Products["WINE-1"] = (Guid.NewGuid(), "Wine", 20m);
+        await OpenTillAsync();
+        _vm.ProductCode = "WINE-1";
+        await Run(_vm.AddCommand);
+    }
+
+    private async Task PayAsync(POSPaymentMethod method, decimal amount, string note = "")
+    {
+        _vm.PaymentMethod = _vm.PaymentMethods.Single(m => m.Method == method);
+        (_vm.PaymentAmountText, _vm.PaymentNote) = (Money(amount), note);
+        await Run(_vm.AddPaymentCommand);
+    }
+
+    [Fact]
+    public async Task Card_then_cash_with_change_covers_the_total_and_checkout_sends_every_part()
+    {
+        await CartOf20Async();
+        _till.ChangeDue = 3m;
+
+        await PayAsync(POSPaymentMethod.Card, 12m, "approval 4711");
+        Assert.Equal((12m, 8m), (_vm.AmountPaid, _vm.AmountDue));
+        Assert.Equal(8m.ToString("0.00", CultureInfo.CurrentCulture), _vm.PaymentAmountText);   // the next part starts at what is due
+        Assert.False(_vm.CheckoutCommand.CanExecute(null));   // parts entered: only once they cover the total
+
+        await PayAsync(POSPaymentMethod.Cash, 11m);   // handed over 11 for 8 due
+        Assert.Equal((0m, 3m), (_vm.AmountDue, _vm.ChangeDue));
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, PosText.PaymentCoveredWithChange, 3m), _vm.StatusMessage);
+        Assert.False(_vm.AddPaymentCommand.CanExecute(null));   // nothing left to pay
+        Assert.Contains("approval 4711", _vm.Payments[0].Text);
+
+        await Run(_vm.CheckoutCommand);
+
+        Assert.Equal([new POSPaymentRequest(POSPaymentMethod.Card, MethodDetail: "approval 4711", Amount: 12m), new POSPaymentRequest(POSPaymentMethod.Cash, TenderedAmount: 11m, Amount: 8m)],
+            _till.LastPayments);
+        Assert.Null(_till.LastPayment);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, PosText.SaleCompletedWithChange, 20m, 3m), _vm.StatusMessage);
+        Assert.Empty(_vm.Payments);   // the next customer starts without parts
+    }
+
+    [Fact]
+    public async Task Card_or_other_parts_cannot_exceed_what_is_due_and_other_needs_a_description()
+    {
+        await CartOf20Async();
+
+        await PayAsync(POSPaymentMethod.Card, 20.01m);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, PosText.PaymentMoreThanDue, 20m), _vm.ErrorMessage);
+        await PayAsync(POSPaymentMethod.Other, 5m);
+        Assert.Equal(PosText.PaymentNoteRequired, _vm.ErrorMessage);
+        await PayAsync(POSPaymentMethod.Cash, 0.001m);
+        Assert.Equal(PosText.PaymentAmountInvalid, _vm.ErrorMessage);
+        Assert.Empty(_vm.Payments);
+
+        await PayAsync(POSPaymentMethod.Other, 5m, "voucher");
+        Assert.Null(_vm.ErrorMessage);
+        Assert.Equal(15m, _vm.AmountDue);
+    }
+
+    [Fact]
+    public async Task A_part_can_be_removed_and_a_cart_change_clears_the_parts()
+    {
+        await CartOf20Async();
+        await PayAsync(POSPaymentMethod.Card, 5m);
+        await PayAsync(POSPaymentMethod.Card, 6m);
+
+        await Run(_vm.RemovePaymentCommand, _vm.Payments[0]);
+        Assert.Equal(14m, _vm.AmountDue);
+        Assert.Single(_vm.Payments);
+
+        _vm.ProductCode = "WINE-1";
+        await Run(_vm.AddCommand);   // the total changes to 40
+        Assert.Empty(_vm.Payments);
+        Assert.Equal(40m, _vm.AmountDue);
+    }
+
     // FIX-08c: discounts
 
     [Fact]

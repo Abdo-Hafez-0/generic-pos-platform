@@ -48,6 +48,9 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     private string _discountText = string.Empty;
     private DiscountChoice _discountKind;
     private POSCartItemResult? _selectedItem;
+    private PaymentChoice _paymentMethod;
+    private string _paymentAmountText = string.Empty;
+    private string _paymentNote = string.Empty;
 
     public PosViewModel(IUiActionRunner runner, ICurrentUser currentUser, IPOSBarcodeInput? scanner = null)
     {
@@ -62,6 +65,10 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
         _discountKind = DiscountKinds[0];
         LineDiscountCommand = Command(GiveLineDiscountAsync, () => CanGiveDiscounts && HasOpenSession && SelectedItem is not null && !string.IsNullOrWhiteSpace(DiscountText));
         CartDiscountCommand = Command(GiveCartDiscountAsync, () => CanGiveDiscounts && HasOpenSession && Items.Count > 0 && !string.IsNullOrWhiteSpace(DiscountText));
+        PaymentMethods = [new(POSPaymentMethod.Cash, PosText.PayCash), new(POSPaymentMethod.Card, PosText.PayCard), new(POSPaymentMethod.Other, PosText.PayOther)];
+        _paymentMethod = PaymentMethods[0];
+        AddPaymentCommand = Command(AddPaymentAsync, () => HasOpenSession && Items.Count > 0 && AmountDue > 0m && !string.IsNullOrWhiteSpace(PaymentAmountText));
+        RemovePaymentCommand = Command<PaymentPart>(part => { if (part is not null) RemovePayment(part); return Task.CompletedTask; }, part => part is not null);
         CheckoutCommand = Command(CheckoutAsync, () => CanCheckout);
         CloseSessionCommand = Command(CloseSessionAsync, () => HasOpenSession && Items.Count == 0);
     }
@@ -77,6 +84,35 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     public ICommand CloseSessionCommand { get; }
     public ICommand LineDiscountCommand { get; }
     public ICommand CartDiscountCommand { get; }
+    public ICommand AddPaymentCommand { get; }
+    public ICommand RemovePaymentCommand { get; }
+
+    /// <summary>Cash, card or other (FIX-10).</summary>
+    public IReadOnlyList<PaymentChoice> PaymentMethods { get; }
+
+    public PaymentChoice PaymentMethod { get => _paymentMethod; set { if (Set(ref _paymentMethod, value)) Raise(nameof(PaymentNeedsNote)); } }
+
+    /// <summary>The amount of the next part as typed; for cash, what the customer hands over (more than due gives change).</summary>
+    public string PaymentAmountText { get => _paymentAmountText; set => Set(ref _paymentAmountText, value); }
+
+    /// <summary>A note for a card part (e.g. approval code), the description of an "Other" part (required).</summary>
+    public string PaymentNote { get => _paymentNote; set => Set(ref _paymentNote, value); }
+
+    public bool PaymentNeedsNote => PaymentMethod.Method == POSPaymentMethod.Other;
+
+    /// <summary>The parts of a split payment taken so far for the cart on the till (kept on the screen until checkout).</summary>
+    public ObservableCollection<PaymentPart> Payments { get; } = [];
+
+    public bool HasPayments => Payments.Count > 0;
+
+    /// <summary>What the parts pay of the total.</summary>
+    public decimal AmountPaid => Payments.Sum(p => p.Amount);
+
+    /// <summary>What is still to be paid (0 once the parts cover the total).</summary>
+    public decimal AmountDue => Math.Max(0m, Total - AmountPaid);
+
+    /// <summary>The change to hand back: cash handed over beyond what the cash part pays.</summary>
+    public decimal ChangeDue => Payments.Sum(p => p.Change);
 
     /// <summary>Percentage or amount (FIX-08c).</summary>
     public IReadOnlyList<DiscountChoice> DiscountKinds { get; }
@@ -161,7 +197,8 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     /// <summary>True while no till is open (the warehouse choice is shown).</summary>
     public bool NeedsSession => !HasOpenSession;
 
-    public bool CanCheckout => _cartId.HasValue && Items.Count > 0 && !IsBusy;
+    /// <summary>A cart with items; with payment parts entered, only once they cover the total (no parts = the whole total in cash).</summary>
+    public bool CanCheckout => _cartId.HasValue && Items.Count > 0 && !IsBusy && (Payments.Count == 0 || AmountDue == 0m);
 
     public Guid? SessionId => _sessionId;
 
@@ -380,11 +417,14 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
 
     private async Task SellAsync(Guid cartId, Guid sessionId, decimal total)
     {
+        var parts = Payments.Select(p => p.Request).ToList();
         var checkedOut = await _runner.QueryAsync(async (scope, ct) =>
         {
             var service = scope.Get<IPOSService>();
-            // FIX-04: the customer pays the total in cash (method choice, tendered amount and split payments come with FIX-10).
-            var result = await service.CheckoutAsync(cartId, payment: CashPayment, cancellationToken: ct);
+            // FIX-10: the parts entered on the screen; none = the whole total in cash (FIX-04)
+            var result = parts.Count == 0
+                ? await service.CheckoutAsync(cartId, payment: CashPayment, cancellationToken: ct)
+                : await service.CheckoutWithPaymentsAsync(cartId, parts, cancellationToken: ct);
             if (!result.IsSuccess)
                 return new CheckoutOutcome(result, null);
 
@@ -404,8 +444,11 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
         // The sale is complete whatever the peripherals did; tell the cashier what must be done by hand.
         HardwareMessage = sale.HardwareNotices is { Count: > 0 } notices ? string.Join(" ", notices.Select(n => n.Message)) : null;
         _cartId = nextCart?.CartId;
+        ClearPayments();
         ShowCart(nextCart);
-        StatusMessage = string.Format(CultureInfo.CurrentCulture, PosText.SaleCompleted, total);
+        StatusMessage = sale.ChangeDue > 0m
+            ? string.Format(CultureInfo.CurrentCulture, PosText.SaleCompletedWithChange, total, sale.ChangeDue)
+            : string.Format(CultureInfo.CurrentCulture, PosText.SaleCompleted, total);
     }
 
     private async Task CloseSessionAsync()
@@ -480,12 +523,75 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
             foreach (var item in cart.Items) Items.Add(item);
 
         Subtotal = cart?.Subtotal ?? 0m;
+        var before = Total;
         Total = cart?.Total ?? 0m;
+        if (Total != before && Payments.Count > 0)
+        {
+            // the parts were for the old total: take them again (nothing was recorded yet)
+            ClearPayments();
+            StatusMessage = PosText.PaymentsCleared;
+        }
         TaxTotal = cart?.TaxTotal ?? 0m;
         DiscountTotal = cart?.DiscountTotal ?? 0m;
         SelectedItem = SelectedItem is { } chosen ? Items.FirstOrDefault(i => i.ProductId == chosen.ProductId) : null;
-        Raise(nameof(CanCheckout));
+        RaisePayments();
         BindScanner();
+    }
+
+    private Task AddPaymentAsync()
+    {
+        if (!decimal.TryParse(PaymentAmountText, NumberStyles.Number, CultureInfo.CurrentCulture, out var amount) || amount <= 0m || decimal.Round(amount, 2) != amount)
+        {
+            Fail(PosText.PaymentAmountInvalid);
+            return Task.CompletedTask;
+        }
+
+        var method = PaymentMethod.Method;
+        var note = string.IsNullOrWhiteSpace(PaymentNote) ? null : PaymentNote.Trim();
+        var due = AmountDue;
+        if (method == POSPaymentMethod.Other && note is null)
+        {
+            Fail(PosText.PaymentNoteRequired);
+            return Task.CompletedTask;
+        }
+
+        if (method != POSPaymentMethod.Cash && amount > due)
+        {
+            Fail(string.Format(CultureInfo.CurrentCulture, PosText.PaymentMoreThanDue, due));
+            return Task.CompletedTask;
+        }
+
+        // cash may be more than is due: the part pays what is due and the rest is the change
+        var part = method == POSPaymentMethod.Cash
+            ? new POSPaymentRequest(method, TenderedAmount: amount, MethodDetail: note, Amount: Math.Min(amount, due))
+            : new POSPaymentRequest(method, MethodDetail: note, Amount: amount);
+        Payments.Add(PaymentPart.From(part, PaymentMethod.Text));
+        (PaymentNote, ErrorMessage) = (string.Empty, null);
+        RaisePayments();
+        PaymentAmountText = AmountDue > 0m ? AmountDue.ToString("0.00", CultureInfo.CurrentCulture) : string.Empty;
+        StatusMessage = AmountDue > 0m
+            ? string.Format(CultureInfo.CurrentCulture, PosText.PaymentAdded, AmountDue)
+            : ChangeDue > 0m ? string.Format(CultureInfo.CurrentCulture, PosText.PaymentCoveredWithChange, ChangeDue) : PosText.PaymentCovered;
+        return Task.CompletedTask;
+    }
+
+    private void RemovePayment(PaymentPart part)
+    {
+        Payments.Remove(part);
+        RaisePayments();
+        PaymentAmountText = AmountDue.ToString("0.00", CultureInfo.CurrentCulture);
+    }
+
+    private void ClearPayments()
+    {
+        Payments.Clear();
+        (PaymentAmountText, PaymentNote) = (string.Empty, string.Empty);
+        RaisePayments();
+    }
+
+    private void RaisePayments()
+    {
+        foreach (var name in new[] { nameof(HasPayments), nameof(AmountPaid), nameof(AmountDue), nameof(ChangeDue), nameof(CanCheckout) }) Raise(name);
     }
 
     private Task GiveLineDiscountAsync()
@@ -534,5 +640,25 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     {
         ErrorMessage = string.IsNullOrWhiteSpace(message) ? PosText.ActionFailed : message;
         StatusMessage = null;
+    }
+}
+
+/// <summary>A payment method the till offers (FIX-10).</summary>
+public sealed record PaymentChoice(POSPaymentMethod Method, string Text);
+
+/// <summary>One part of a split payment as the till shows it: what it pays and, for cash, what was handed over and the change.</summary>
+public sealed record PaymentPart(POSPaymentRequest Request, string Text)
+{
+    public decimal Amount => Request.Amount ?? 0m;
+    public decimal Change => Request.TenderedAmount is { } tendered ? Math.Max(0m, tendered - Amount) : 0m;
+
+    public static PaymentPart From(POSPaymentRequest request, string methodName)
+    {
+        var amount = (request.Amount ?? 0m).ToString("N2", CultureInfo.CurrentCulture);
+        var text = request.Method == POSPaymentMethod.Cash && request.TenderedAmount is { } tendered && tendered > request.Amount
+            ? string.Format(CultureInfo.CurrentCulture, PosText.PaymentPartCash, methodName, amount, tendered.ToString("N2", CultureInfo.CurrentCulture),
+                (tendered - request.Amount!.Value).ToString("N2", CultureInfo.CurrentCulture))
+            : string.Format(CultureInfo.CurrentCulture, PosText.PaymentPart, methodName, amount);
+        return new(request, request.MethodDetail is { } note ? $"{text} ({note})" : text);
     }
 }

@@ -104,14 +104,21 @@ internal sealed class POSService(
         }
     }
 
-    public async Task<POSCheckoutResult> CheckoutAsync(
+    public Task<POSCheckoutResult> CheckoutAsync(
         Guid cartId, string? transactionReference = null, POSPaymentRequest? payment = null, CancellationToken cancellationToken = default)
+        => CheckoutAsync(new CheckoutCartCommand(cartId, transactionReference, payment), cancellationToken);
+
+    public Task<POSCheckoutResult> CheckoutWithPaymentsAsync(
+        Guid cartId, IReadOnlyList<POSPaymentRequest> payments, string? transactionReference = null, CancellationToken cancellationToken = default)
+        => CheckoutAsync(new CheckoutCartCommand(cartId, transactionReference, Payments: payments ?? []), cancellationToken);
+
+    private async Task<POSCheckoutResult> CheckoutAsync(CheckoutCartCommand command, CancellationToken cancellationToken)
     {
+        var cartId = command.CartId;
         Result<CheckoutOutcome> result;
         try
         {
-            result = await checkoutHandler.HandleAsync(
-                new CheckoutCartCommand(cartId, transactionReference, payment), cancellationToken);
+            result = await checkoutHandler.HandleAsync(command, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -128,7 +135,7 @@ internal sealed class POSService(
         foreach (var notice in result.Value.HardwareNotices ?? [])
             _logger.LogWarning("Sale {SaleId} completed but a peripheral failed ({Device}, {Code}): {Message}", result.Value.SaleId, notice.Device, notice.ErrorCode, notice.Message);
 
-        return POSCheckoutResult.Success(result.Value.SaleId, result.Value.PaymentId, result.Value.ChangeDue, result.Value.HardwareNotices);
+        return POSCheckoutResult.Success(result.Value.SaleId, result.Value.PaymentId, result.Value.ChangeDue, result.Value.HardwareNotices, result.Value.PaymentIds);
     }
 
     private static POSOperationResult ToOperation(Result result)

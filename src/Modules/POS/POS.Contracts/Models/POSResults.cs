@@ -42,12 +42,14 @@ public sealed record POSAddItemResult(bool IsSuccess, Guid ItemId, string? Error
 /// HardwareNotices lists peripheral problems (receipt not printed, drawer not opened) that occurred AFTER the sale was completed and
 /// saved: the sale is valid regardless, the notices only tell the cashier what to do by hand.
 /// </summary>
+/// FIX-10: with several payments, PaymentIds lists them all (PaymentId is the first) and ChangeDue is the change from the cash.
 public sealed record POSCheckoutResult(
     bool IsSuccess, Guid SaleId, string? ErrorCode, string? ErrorMessage, Guid? PaymentId = null, decimal ChangeDue = 0m,
-    IReadOnlyList<POSHardwareNotice>? HardwareNotices = null)
+    IReadOnlyList<POSHardwareNotice>? HardwareNotices = null, IReadOnlyList<Guid>? PaymentIds = null)
 {
-    public static POSCheckoutResult Success(Guid saleId, Guid? paymentId = null, decimal changeDue = 0m, IReadOnlyList<POSHardwareNotice>? hardwareNotices = null) =>
-        new(true, saleId, null, null, paymentId, changeDue, hardwareNotices);
+    public static POSCheckoutResult Success(Guid saleId, Guid? paymentId = null, decimal changeDue = 0m, IReadOnlyList<POSHardwareNotice>? hardwareNotices = null,
+        IReadOnlyList<Guid>? paymentIds = null) =>
+        new(true, saleId, null, null, paymentId, changeDue, hardwareNotices, paymentIds);
 
     public static POSCheckoutResult Failure(string errorCode, string errorMessage) =>
         new(false, Guid.Empty, errorCode, errorMessage);
@@ -61,8 +63,9 @@ public enum POSPaymentMethod
     Other = 3
 }
 
-/// <summary>An optional payment to record at checkout for the full cart total.</summary>
+/// <summary>A payment to record at checkout: the whole cart total, or one part of a split payment (FIX-10).</summary>
 /// <param name="Method">Payment method.</param>
-/// <param name="TenderedAmount">Cash handed over (cash only); must cover the total. The change is returned in the result.</param>
-/// <param name="MethodDetail">Required for <see cref="POSPaymentMethod.Other"/>; optional description otherwise.</param>
-public sealed record POSPaymentRequest(POSPaymentMethod Method, decimal? TenderedAmount = null, string? MethodDetail = null);
+/// <param name="TenderedAmount">Cash handed over (cash only); must cover <paramref name="Amount"/>. Only cash gives change; it is returned in the result.</param>
+/// <param name="MethodDetail">Required for <see cref="POSPaymentMethod.Other"/>; an optional note otherwise (e.g. a card approval code).</param>
+/// <param name="Amount">What this payment pays of the sale; null = the whole cart total (a single payment). In a split payment every part names its amount and the amounts add up to the total.</param>
+public sealed record POSPaymentRequest(POSPaymentMethod Method, decimal? TenderedAmount = null, string? MethodDetail = null, decimal? Amount = null);

@@ -109,6 +109,27 @@ public sealed class EscPosReceiptTests
     }
 
     [Fact]
+    public void A_split_payment_prints_every_part_in_order_and_the_change_of_the_cash()
+    {
+        // FIX-10: card 3.00 + cash 2.25 (5.00 handed over, 2.75 back)
+        var receipt = Receipt() with
+        {
+            Payments = [new ReceiptPayment("Card (approval 4711)", 3m), new ReceiptPayment("Cash", 2.25m, 5m, 2.75m)]
+        };
+
+        var lines = Render(receipt, width: 32).Split('\n');
+        var card = Array.FindIndex(lines, l => l.Contains("Card (approval 4711)"));
+        var cash = Array.FindIndex(lines, l => l.Contains("Cash") && !l.Contains("Cashier"));
+
+        Assert.True(card > Array.FindIndex(lines, l => l.Contains("TOTAL")) && cash > card);
+        Assert.EndsWith("3.00", lines[card].TrimEnd());
+        Assert.EndsWith("2.25", lines[cash].TrimEnd());
+        Assert.EndsWith("5.00", lines[cash + 1].TrimEnd());
+        Assert.EndsWith("2.75", lines[cash + 2].TrimEnd());
+        Assert.Single(lines, l => l.Contains("Change"));
+    }
+
+    [Fact]
     public void NoPaymentLines_WhenThePaymentIsUnknown()
     {
         var text = Render(Receipt());

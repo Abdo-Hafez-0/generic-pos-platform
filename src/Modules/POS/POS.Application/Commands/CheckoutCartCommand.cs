@@ -54,10 +54,16 @@ namespace POS.Application.Commands;
 /// nothing is cancelled or voided afterwards. Hosts that register no IAtomicOperation (unit-test hosts) fall back to the earlier
 /// step-by-step flow with compensation (cancel the sale, void the payment).
 /// </summary>
-public sealed record CheckoutCartCommand(Guid CartId, string? TransactionReference = null, POSPaymentRequest? Payment = null);
+/// <summary>
+/// Checks out a cart. <see cref="Payment"/> is a single payment for the whole total (its Amount may be left out); <see cref="Payments"/>
+/// (FIX-10) is a split payment - every part names its amount and the amounts add up to the total. Give one or the other.
+/// </summary>
+public sealed record CheckoutCartCommand(Guid CartId, string? TransactionReference = null, POSPaymentRequest? Payment = null,
+    IReadOnlyList<POSPaymentRequest>? Payments = null);
 
 /// <summary>A successful checkout: the sale, and the payment/change when a payment was recorded.</summary>
-public sealed record CheckoutOutcome(Guid SaleId, Guid? PaymentId, decimal ChangeDue, IReadOnlyList<POSHardwareNotice>? HardwareNotices = null);
+public sealed record CheckoutOutcome(Guid SaleId, Guid? PaymentId, decimal ChangeDue, IReadOnlyList<POSHardwareNotice>? HardwareNotices = null,
+    IReadOnlyList<Guid>? PaymentIds = null);
 
 public sealed class CheckoutCartCommandHandler(
     IPosCartRepository cartRepository,
@@ -79,7 +85,11 @@ public sealed class CheckoutCartCommandHandler(
     IBusinessEventSink? businessEvents = null)
 {
     /// <summary>What a committed checkout leaves behind for the peripherals step.</summary>
-    private sealed record Committed(PosCart Cart, PosSession Session, Guid SaleId, Guid? PaymentId, decimal ChangeDue);
+    private sealed record Committed(PosCart Cart, PosSession Session, Guid SaleId, IReadOnlyList<Guid> PaymentIds, decimal ChangeDue,
+        IReadOnlyList<POSPaymentRequest> Parts)
+    {
+        public Guid? PaymentId => PaymentIds.Count > 0 ? PaymentIds[0] : null;
+    }
 
     private bool Transactional => atomicOperation is not null;
 
@@ -103,11 +113,11 @@ public sealed class CheckoutCartCommandHandler(
 
         // 8b. The audit log (FIX-05): after the commit, best effort - it can never undo or delay the sale.
         var done = committed.Value;
-        await businessEvents.TryRecordAsync(SaleCompleted(done, command.Payment));
+        await businessEvents.TryRecordAsync(SaleCompleted(done));
 
         // 9. Peripherals. The sale is complete and saved; from here on only hardware can go wrong, and that can never undo it.
-        var notices = await RunPeripheralsAsync(done.Cart, done.Session, done.SaleId, command.Payment, done.ChangeDue);
-        return Result.Success(new CheckoutOutcome(done.SaleId, done.PaymentId, done.ChangeDue, notices));
+        var notices = await RunPeripheralsAsync(done);
+        return Result.Success(new CheckoutOutcome(done.SaleId, done.PaymentId, done.ChangeDue, notices, done.PaymentIds));
     }
 
     private async Task<Result<Committed>> CommitSaleAsync(CheckoutCartCommand command, CancellationToken cancellationToken)
@@ -131,21 +141,22 @@ public sealed class CheckoutCartCommandHandler(
             return Result.Failure<Committed>(Error.Conflict(
                 "POS.Checkout.SessionNotOpen", "The cart's POS session is not open."));
 
-        // 1b. Optional payment: needs the Payments module and, for cash, enough money tendered
-        if (command.Payment is not null)
+        // 1b. Optional payment(s): need the Payments module; the parts must add up to the total; only cash may be tendered above its part
+        var parts = PaymentParts(command, cart.Total.Amount);
+        if (parts.Count > 0)
         {
             if (paymentService is null)
                 return Result.Failure<Committed>(Error.Conflict(
                     "POS.Checkout.PaymentsUnavailable", "A payment was requested but the Payments module is not installed."));
 
-            if (command.Payment.TenderedAmount is { } tendered && tendered < cart.Total.Amount)
-                return Result.Failure<Committed>(Error.Validation(
-                    "POS.Checkout.TenderInsufficient", $"The cash tendered ({tendered}) does not cover the total ({cart.Total.Amount})."));
+            var checkedParts = CheckParts(parts, cart.Total.Amount);
+            if (checkedParts.IsFailure) return Result.Failure<Committed>(checkedParts.Error);
         }
 
         // 1c. Cash goes into an open drawer shift (FIX-04): without one the cash sale is refused before anything is written.
         Guid? cashShiftId = null;
-        if (command.Payment?.Method == POSPaymentMethod.Cash && TracksCash)
+        var cashKept = parts.Where(p => p.Method == POSPaymentMethod.Cash).Sum(p => p.Amount!.Value);
+        if (parts.Any(p => p.Method == POSPaymentMethod.Cash) && TracksCash)
         {
             var drawer = (cashOptions ?? new PosCashOptions()).DrawerCode;
             var shift = await cashShifts!.GetOpenSessionAsync(drawer, cancellationToken);
@@ -213,25 +224,26 @@ public sealed class CheckoutCartCommandHandler(
                 $"{Describe(confirmed.ErrorCode, confirmed.ErrorMessage)} {Outcome}"));
         }
 
-        // 5b. Record the payment (optional Payments module) for the full cart total
-        Guid? paymentId = null;
+        // 5b. Record the payment(s) (optional Payments module): one record per part, together the cart total (FIX-10)
+        var paymentIds = new List<Guid>();
         var changeDue = 0m;
-        if (command.Payment is not null)
+        foreach (var part in parts)
         {
             var payment = await paymentService!.RecordPaymentAsync(new RecordPaymentRequest(
-                "sale", saleId, cart.Total.Amount, (PaymentMethodContract)(int)command.Payment.Method,
-                command.Payment.MethodDetail, command.Payment.TenderedAmount, session.CashierReference), cancellationToken);
+                "sale", saleId, part.Amount!.Value, (PaymentMethodContract)(int)part.Method,
+                part.MethodDetail, part.TenderedAmount, session.CashierReference), cancellationToken);
 
             if (!payment.IsSuccess)
             {
+                if (!Transactional) await VoidQuietlyAsync(paymentIds, "POS checkout failed while recording the payment.", cancellationToken);
                 await CancelQuietlyAsync(saleId, "POS checkout failed while recording the payment.", cancellationToken);
                 return Result.Failure<Committed>(Error.Failure(
                     "POS.Checkout.PaymentFailed",
                     $"The payment could not be recorded: {Describe(payment.ErrorCode, payment.ErrorMessage)} {Outcome}"));
             }
 
-            paymentId = payment.PaymentId;
-            changeDue = payment.ChangeDue;
+            paymentIds.Add(payment.PaymentId);
+            changeDue += payment.ChangeDue;
         }
 
         // 6. Issue stock through Inventory.Contracts
@@ -247,8 +259,8 @@ public sealed class CheckoutCartCommandHandler(
 
             if (!issue.IsSuccess)
             {
-                if (!Transactional && paymentId is { } recorded)   // compensate: the payment was taken for a sale that will not complete
-                    await paymentService!.VoidPaymentAsync(recorded, "POS checkout failed while issuing stock.", cancellationToken);
+                if (!Transactional)   // compensate: the payments were taken for a sale that will not complete
+                    await VoidQuietlyAsync(paymentIds, "POS checkout failed while issuing stock.", cancellationToken);
 
                 await CancelQuietlyAsync(saleId, "POS checkout failed while issuing stock.", cancellationToken);
                 var note = !Transactional && issued > 0
@@ -265,14 +277,15 @@ public sealed class CheckoutCartCommandHandler(
         // 6b. The cash taken goes into the drawer shift (FIX-04), in the same transaction as the sale.
         if (cashShiftId is { } cashShift)
         {
+            // only the cash kept goes into the drawer: the cash parts of the sale (the change went back to the customer)
             var recorded = await cashRecorder!.RecordMovementAsync(new RecordCashMovementRequest(
-                cashShift, CashMovementKindContract.CashSale, cart.Total.Amount,
+                cashShift, CashMovementKindContract.CashSale, cashKept,
                 ReferenceType: "sale", ReferenceId: saleId, RecordedBy: session.CashierReference), cancellationToken);
 
             if (!recorded.IsSuccess)
             {
-                if (!Transactional && paymentId is { } taken)
-                    await paymentService!.VoidPaymentAsync(taken, "POS checkout failed while recording the cash in the drawer.", cancellationToken);
+                if (!Transactional)
+                    await VoidQuietlyAsync(paymentIds, "POS checkout failed while recording the cash in the drawer.", cancellationToken);
 
                 await CancelQuietlyAsync(saleId, "POS checkout failed while recording the cash in the drawer.", cancellationToken);
                 var stockNote = !Transactional && issued > 0
@@ -291,7 +304,7 @@ public sealed class CheckoutCartCommandHandler(
                 "POS.Checkout.CompleteSaleFailed",
                 Transactional
                     ? $"Sales could not complete the sale: {Describe(completed.ErrorCode, completed.ErrorMessage)} {Outcome}"
-                    : $"Stock was issued but Sales could not complete sale '{saleId}': {Describe(completed.ErrorCode, completed.ErrorMessage)} The sale remains Confirmed and the cart open.{(paymentId is null ? string.Empty : $" Payment '{paymentId}' stays recorded.")}"));
+                    : $"Stock was issued but Sales could not complete sale '{saleId}': {Describe(completed.ErrorCode, completed.ErrorMessage)} The sale remains Confirmed and the cart open.{(paymentIds.Count == 0 ? string.Empty : $" {paymentIds.Count} payment(s) stay recorded.")}"));
 
         // 8. Record the outcome in POS
         var checkedOut = cart.MarkCheckedOut(saleId);
@@ -300,11 +313,54 @@ public sealed class CheckoutCartCommandHandler(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result.Success(new Committed(cart, session, saleId, paymentId, changeDue));
+        return Result.Success(new Committed(cart, session, saleId, paymentIds, changeDue, parts));
     }
 
-    private async Task<IReadOnlyList<POSHardwareNotice>> RunPeripheralsAsync(
-        PosCart cart, PosSession session, Guid saleId, POSPaymentRequest? payment, decimal changeDue)
+    /// <summary>The payment parts of a checkout: the split payment as given, or the single payment for the whole total.</summary>
+    private static IReadOnlyList<POSPaymentRequest> PaymentParts(CheckoutCartCommand command, decimal total)
+        => command.Payments is { } several
+            ? several
+            : command.Payment is { } one ? [one with { Amount = one.Amount ?? total }] : [];
+
+    /// <summary>
+    /// FIX-10 rules, checked before anything is written: every part pays something; card/other parts carry no tendered amount; cash may be
+    /// tendered above its part (that is the change) but not below; the parts add up exactly to the total.
+    /// </summary>
+    private static Result CheckParts(IReadOnlyList<POSPaymentRequest> parts, decimal total)
+    {
+        foreach (var part in parts)
+        {
+            if (part.Amount is not { } amount || amount <= 0m)
+                return Result.Failure(Error.Validation("POS.Checkout.PaymentAmountInvalid", "Every payment needs an amount greater than zero."));
+            if (decimal.Round(amount, 2) != amount)
+                return Result.Failure(Error.Validation("POS.Checkout.PaymentAmountInvalid", "A payment amount has at most 2 decimals."));
+            if (part.Method != POSPaymentMethod.Cash && part.TenderedAmount is not null)
+                return Result.Failure(Error.Validation("POS.Checkout.TenderedOnlyForCash", "Only cash is tendered; a card or other payment is the exact amount."));
+            if (part.Method == POSPaymentMethod.Other && string.IsNullOrWhiteSpace(part.MethodDetail))
+                return Result.Failure(Error.Validation("POS.Checkout.MethodDetailRequired", "Describe the \"Other\" payment (for example: bank transfer, voucher)."));
+            if (part.TenderedAmount is { } tendered && tendered < amount)
+                return Result.Failure(Error.Validation(
+                    "POS.Checkout.TenderInsufficient", $"The cash tendered ({Money(tendered)}) does not cover {(parts.Count == 1 ? "the total" : "its part")} ({Money(amount)})."));
+        }
+
+        var paid = parts.Sum(p => p.Amount!.Value);
+        if (paid != total)
+            return Result.Failure(Error.Validation("POS.Checkout.PaymentsDoNotMatchTotal",
+                paid < total
+                    ? $"The payments add up to {Money(paid)}; {Money(total - paid)} of the total {Money(total)} is still due."
+                    : $"The payments add up to {Money(paid)}, more than the total {Money(total)}. Only cash gives change: enter the cash handed over as tendered."));
+        return Result.Success();
+    }
+
+    private static string Money(decimal value) => value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+
+    private async Task VoidQuietlyAsync(IEnumerable<Guid> paymentIds, string reason, CancellationToken cancellationToken)
+    {
+        foreach (var id in paymentIds)
+            await paymentService!.VoidPaymentAsync(id, reason, cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<POSHardwareNotice>> RunPeripheralsAsync(Committed done)
     {
         var options = receiptOptions ?? new PosReceiptOptions();
         var notices = new List<POSHardwareNotice>();
@@ -312,13 +368,13 @@ public sealed class CheckoutCartCommandHandler(
         // No cancellation token: the sale is finished, so the cashier's cancellation must not hide that. Device calls are bounded by their own timeouts.
         if (options.AutoPrintReceipt && receiptPrinter is not null)
         {
-            var receiptPayment = payment is null ? null : PosReceiptFactory.ToReceiptPayment(payment, cart.Total.Amount, changeDue);
-            var receipt = PosReceiptFactory.Create(cart, session, saleId, receiptPayment, options, (timeProvider ?? TimeProvider.System).GetUtcNow());
+            var payments = done.Parts.Select(PosReceiptFactory.ToReceiptPayment).ToList();
+            var receipt = PosReceiptFactory.CreateWithPayments(done.Cart, done.Session, done.SaleId, payments, options, (timeProvider ?? TimeProvider.System).GetUtcNow());
             await NoticeIfFailedAsync(notices, "receipt printer", "the receipt could not be printed",
                 () => receiptPrinter.PrintAsync(receipt, CancellationToken.None));
         }
 
-        if (options.AutoOpenDrawerOnCashSale && cashDrawer is not null && payment?.Method == POSPaymentMethod.Cash)
+        if (options.AutoOpenDrawerOnCashSale && cashDrawer is not null && done.Parts.Any(p => p.Method == POSPaymentMethod.Cash))
         {
             await NoticeIfFailedAsync(notices, "cash drawer", "the cash drawer could not be opened",
                 () => cashDrawer.OpenAsync(CancellationToken.None));
@@ -327,10 +383,15 @@ public sealed class CheckoutCartCommandHandler(
         return notices;
     }
 
-    private static BusinessEvent SaleCompleted(Committed done, POSPaymentRequest? payment)
+    private static BusinessEvent SaleCompleted(Committed done)
     {
         var total = done.Cart.Total.Amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
-        var paid = payment is null ? "no payment recorded" : $"paid by {payment.Method.ToString().ToLowerInvariant()}";
+        var paid = done.Parts.Count switch
+        {
+            0 => "no payment recorded",
+            1 => $"paid by {done.Parts[0].Method.ToString().ToLowerInvariant()}",
+            _ => "paid by " + string.Join(" + ", done.Parts.Select(p => $"{p.Method.ToString().ToLowerInvariant()} {Money(p.Amount!.Value)}")),
+        };
         var discount = done.Cart.DiscountTotal.Amount;
         var discounted = discount > 0m ? $" after a discount of {discount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}" : string.Empty;
         return BusinessEvent.Create("pos", "sale.completed", "sale", done.SaleId.ToString(),

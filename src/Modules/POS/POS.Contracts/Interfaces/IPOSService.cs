@@ -40,4 +40,10 @@ public interface IPOSService
     /// the payment for the cart total is recorded through the optional Payments module between confirming the sale and issuing stock.
     /// </summary>
     Task<POSCheckoutResult> CheckoutAsync(Guid cartId, string? transactionReference = null, POSPaymentRequest? payment = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// FIX-10: checks out with a split payment - several parts (cash, card, other), each naming its amount; the amounts add up to the cart
+    /// total, only cash may be tendered above its amount (the change). Every part is recorded in the same transaction as the sale.
+    /// </summary>
+    Task<POSCheckoutResult> CheckoutWithPaymentsAsync(Guid cartId, IReadOnlyList<POSPaymentRequest> payments, string? transactionReference = null, CancellationToken cancellationToken = default);
 }

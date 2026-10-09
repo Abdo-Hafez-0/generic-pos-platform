@@ -120,4 +120,73 @@
   <data name="ActionFailed" xml:space="preserve">
     <value>That did not work. Please try again.</value>
   </data>
+  <data name="PayCash" xml:space="preserve">
+    <value>Cash</value>
+  </data>
+  <data name="PayCard" xml:space="preserve">
+    <value>Card</value>
+  </data>
+  <data name="PayOther" xml:space="preserve">
+    <value>Other</value>
+  </data>
+  <data name="PayWith" xml:space="preserve">
+    <value>Pay with</value>
+  </data>
+  <data name="PaymentAmount" xml:space="preserve">
+    <value>Amount</value>
+  </data>
+  <data name="PaymentNoteLabel" xml:space="preserve">
+    <value>Note</value>
+  </data>
+  <data name="PaymentNoteHint" xml:space="preserve">
+    <value>Card: an optional note (e.g. approval code). Other: describe it (e.g. bank transfer, voucher).</value>
+  </data>
+  <data name="PaymentAmountHint" xml:space="preserve">
+    <value>For cash, what the customer hands over: more than is due gives change.</value>
+  </data>
+  <data name="AddPayment" xml:space="preserve">
+    <value>Add payment</value>
+  </data>
+  <data name="AmountDue" xml:space="preserve">
+    <value>Still due</value>
+  </data>
+  <data name="ChangeLabel" xml:space="preserve">
+    <value>Change</value>
+  </data>
+  <data name="RemovePayment" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="PaymentsHint" xml:space="preserve">
+    <value>Split payment: add each part. Without parts, Checkout takes the whole total in cash.</value>
+  </data>
+  <data name="PaymentAmountInvalid" xml:space="preserve">
+    <value>Enter the amount as a number greater than zero with at most 2 decimals.</value>
+  </data>
+  <data name="PaymentNoteRequired" xml:space="preserve">
+    <value>Describe the other payment in the note (for example: bank transfer, voucher).</value>
+  </data>
+  <data name="PaymentMoreThanDue" xml:space="preserve">
+    <value>A card or other payment can be at most what is still due ({0:N2}). Only cash gives change.</value>
+  </data>
+  <data name="PaymentAdded" xml:space="preserve">
+    <value>Payment added; {0:N2} is still due.</value>
+  </data>
+  <data name="PaymentCovered" xml:space="preserve">
+    <value>The total is covered; press Checkout.</value>
+  </data>
+  <data name="PaymentCoveredWithChange" xml:space="preserve">
+    <value>The total is covered; give {0:N2} change, then press Checkout.</value>
+  </data>
+  <data name="PaymentsCleared" xml:space="preserve">
+    <value>The total changed, so the payments entered were cleared; enter them again.</value>
+  </data>
+  <data name="SaleCompletedWithChange" xml:space="preserve">
+    <value>Sale completed: {0:N2}. Change: {1:N2}.</value>
+  </data>
+  <data name="PaymentPart" xml:space="preserve">
+    <value>{0} {1}</value>
+  </data>
+  <data name="PaymentPartCash" xml:space="preserve">
+    <value>{0} {1} (handed over {2}, change {3})</value>
+  </data>
 </root>

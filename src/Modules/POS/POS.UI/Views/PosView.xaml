@@ -74,6 +74,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
@@ -144,6 +145,44 @@
                 <TextBlock x:Name="SubtotalText" DockPanel.Dock="Right" Text="{Binding Subtotal, StringFormat=N2}"/>
                 <TextBlock DockPanel.Dock="Right" Text="{x:Static res:PosText.Subtotal}" Margin="0,0,6,0"/>
             </DockPanel>
+            <!-- FIX-10: how the customer pays - one or more parts; none = the whole total in cash -->
+            <StackPanel Grid.Row="3" Margin="0,10,0,0" x:Name="PaymentPanel">
+                <TextBlock Text="{x:Static res:PosText.PaymentsHint}" Foreground="#A6ADC8" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                <WrapPanel>
+                    <TextBlock Text="{x:Static res:PosText.PayWith}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="PaymentMethodBox" Width="100" ItemsSource="{Binding PaymentMethods}" SelectedItem="{Binding PaymentMethod}"
+                              DisplayMemberPath="Text" AutomationProperties.Name="{x:Static res:PosText.PayWith}"/>
+                    <TextBlock Text="{x:Static res:PosText.PaymentAmount}" Margin="12,0,8,0" VerticalAlignment="Center"/>
+                    <TextBox x:Name="PaymentAmountBox" Width="90" Text="{Binding PaymentAmountText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{x:Static res:PosText.PaymentAmountHint}"
+                             AutomationProperties.Name="{x:Static res:PosText.PaymentAmount}">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding AddPaymentCommand}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+                    <TextBlock Text="{x:Static res:PosText.PaymentNoteLabel}" Margin="12,0,8,0" VerticalAlignment="Center"/>
+                    <TextBox x:Name="PaymentNoteBox" Width="170" Text="{Binding PaymentNote, UpdateSourceTrigger=PropertyChanged}" ToolTip="{x:Static res:PosText.PaymentNoteHint}"
+                             AutomationProperties.Name="{x:Static res:PosText.PaymentNoteLabel}"/>
+                    <Button x:Name="AddPaymentButton" Content="{x:Static res:PosText.AddPayment}" Margin="12,0,0,0" Command="{Binding AddPaymentCommand}"/>
+                    <StackPanel Orientation="Horizontal" Margin="16,0,0,0" Visibility="{Binding HasPayments, Converter={StaticResource VisibleWhenTrue}}">
+                        <TextBlock Text="{x:Static res:PosText.AmountDue}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="AmountDueText" Text="{Binding AmountDue, StringFormat=N2}" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Static res:PosText.ChangeLabel}" Margin="16,0,6,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ChangeDueText" Text="{Binding ChangeDue, StringFormat=N2}" FontWeight="Bold" Foreground="#F9E2AF" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </WrapPanel>
+                <ItemsControl x:Name="PaymentList" ItemsSource="{Binding Payments}" Margin="0,6,0,0" AutomationProperties.Name="{x:Static res:PosText.PayWith}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                <TextBlock Text="{Binding Text}" VerticalAlignment="Center" MinWidth="320"/>
+                                <Button Content="{x:Static res:PosText.RemovePayment}" Margin="8,0,0,0" Padding="8,1"
+                                        Command="{Binding DataContext.RemovePaymentCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"
+                                        AutomationProperties.Name="{x:Static res:PosText.RemovePayment}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
         </Grid>
 
         <!-- What happened -->

@@ -45,6 +45,10 @@ public sealed class PosReceiptOptions
 public static class PosReceiptFactory
 {
     public static ReceiptDocument Create(PosCart cart, PosSession session, Guid saleId, ReceiptPayment? payment, PosReceiptOptions options, DateTimeOffset fallbackTime)
+        => CreateWithPayments(cart, session, saleId, payment is null ? [] : [payment], options, fallbackTime);
+
+    /// <summary>FIX-10: one receipt payment per part (a single payment is printed as before).</summary>
+    public static ReceiptDocument CreateWithPayments(PosCart cart, PosSession session, Guid saleId, IReadOnlyList<ReceiptPayment> payments, PosReceiptOptions options, DateTimeOffset fallbackTime)
     {
         var issuedAt = cart.CheckedOutAt is { } at
             ? new DateTimeOffset(DateTime.SpecifyKind(at, DateTimeKind.Utc))
@@ -63,18 +67,28 @@ public static class PosReceiptFactory
             session.CashierReference,
             lines,
             cart.Total.Amount,
-            payment,
+            payments.Count == 1 ? payments[0] : null,
             options.FooterLines ?? [],
             // FIX-08b: the tax contained in the total, one line per rate (rates without tax are not printed)
             priced.Where(l => l.Amounts.Tax > 0m)
                 .GroupBy(l => l.Item.TaxRate)
                 .OrderByDescending(g => g.Key)
                 .Select(g => new ReceiptTax(g.Key, g.Sum(l => l.Amounts.Tax)))
-                .ToList());
+                .ToList(),
+            payments.Count > 1 ? payments : null);
     }
 
     public static ReceiptPayment ToReceiptPayment(POSPaymentRequest payment, decimal total, decimal changeDue)
         => new(payment.Method.ToString(), total, payment.TenderedAmount, payment.Method == POSPaymentMethod.Cash ? changeDue : null);
+
+    /// <summary>A part of a (split) payment as the receipt prints it: its amount, and for cash what was tendered and the change.</summary>
+    public static ReceiptPayment ToReceiptPayment(POSPaymentRequest part)
+    {
+        var amount = part.Amount ?? 0m;
+        var change = part.Method == POSPaymentMethod.Cash && part.TenderedAmount is { } tendered ? Math.Max(0m, tendered - amount) : (decimal?)null;
+        var method = string.IsNullOrWhiteSpace(part.MethodDetail) || part.Method == POSPaymentMethod.Cash ? part.Method.ToString() : $"{part.Method} ({part.MethodDetail!.Trim()})";
+        return new(method, amount, part.TenderedAmount, part.Method == POSPaymentMethod.Cash ? change ?? 0m : null);
+    }
 }
 
 // ---- explicit device operations (each returns a Result; hardware problems are failed results, never exceptions) ---------

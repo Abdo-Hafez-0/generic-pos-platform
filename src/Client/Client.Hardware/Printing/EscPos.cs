@@ -68,7 +68,7 @@ public static class EscPosReceiptFormatter
         foreach (var tax in receipt.Taxes ?? [])
             Line(Pair($"incl. tax {Quantity(tax.Rate * 100m)}%", Money(tax.Amount), width));
 
-        if (receipt.Payment is { } payment)
+        foreach (var payment in receipt.AllPayments)
         {
             Line(Pair(payment.Method, Money(payment.Amount), width));
             if (payment.Tendered is { } tendered) Line(Pair("Tendered", Money(tendered), width));

@@ -40,7 +40,7 @@ public sealed record ReceiptTax(decimal Rate, decimal Amount);
 /// <summary>How the sale was paid, when known.</summary>
 public sealed record ReceiptPayment(string Method, decimal Amount, decimal? Tendered = null, decimal? Change = null);
 
-/// <summary>Printer-independent receipt content.</summary>
+/// <summary>Printer-independent receipt content. FIX-10: a split payment is in <see cref="Payments"/> (one entry per part).</summary>
 public sealed record ReceiptDocument(
     string? StoreName,
     IReadOnlyList<string> HeaderLines,
@@ -51,7 +51,12 @@ public sealed record ReceiptDocument(
     decimal Total,
     ReceiptPayment? Payment,
     IReadOnlyList<string> FooterLines,
-    IReadOnlyList<ReceiptTax>? Taxes = null);
+    IReadOnlyList<ReceiptTax>? Taxes = null,
+    IReadOnlyList<ReceiptPayment>? Payments = null)
+{
+    /// <summary>Every payment to print (FIX-10: a split payment has several; a single one may come as <see cref="Payment"/>).</summary>
+    public IReadOnlyList<ReceiptPayment> AllPayments => Payments is { Count: > 0 } several ? several : Payment is { } one ? [one] : [];
+}
 
 public interface IReceiptPrinter : IHardwareDevice
 {

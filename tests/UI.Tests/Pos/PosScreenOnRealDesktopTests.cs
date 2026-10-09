@@ -65,6 +65,41 @@ public sealed class PosScreenOnRealDesktopTests
     }
 
     [Fact]
+    public async Task A_split_payment_records_each_part_and_only_the_cash_kept_goes_into_the_drawer()
+    {
+        // FIX-10 on the real host: Payments and CashManagement installed, one transaction; the test kit opened the MAIN drawer with 50.00
+        await using var desktop = await OfflineDesktop.StartAsync();
+        var shop = await CreateShopAsync(desktop.Services, salePrice: 2.5m, stock: 10m);
+        var vm = Screen(desktop.Services);
+        await vm.OnNavigatedToAsync();
+        await Run(vm, vm.OpenSessionCommand);
+        (vm.ProductCode, vm.QuantityText) = (shop.Sku, "4");
+        await Run(vm, vm.AddCommand);
+        Assert.Equal(10m, vm.Total);
+
+        vm.PaymentMethod = vm.PaymentMethods.Single(m => m.Method == POS.Contracts.Models.POSPaymentMethod.Card);
+        (vm.PaymentAmountText, vm.PaymentNote) = (6.5m.ToString(System.Globalization.CultureInfo.CurrentCulture), "approval 4711");
+        await Run(vm, vm.AddPaymentCommand);
+        vm.PaymentMethod = vm.PaymentMethods.Single(m => m.Method == POS.Contracts.Models.POSPaymentMethod.Cash);
+        vm.PaymentAmountText = "5";   // 3.50 due, 5 handed over
+        await Run(vm, vm.AddPaymentCommand);
+        Assert.Equal(1.5m, vm.ChangeDue);
+
+        await Run(vm, vm.CheckoutCommand);
+        Assert.Null(vm.ErrorMessage);
+        Assert.Contains(1.5m.ToString("N2", System.Globalization.CultureInfo.CurrentCulture), vm.StatusMessage);
+
+        using var scope = desktop.Services.CreateScope();
+        var saleId = (await scope.ServiceProvider.GetRequiredService<global::Sales.Contracts.Interfaces.ISalesReader>().GetRecentAsync(5)).Single().SaleId;
+        var payments = await scope.ServiceProvider.GetRequiredService<global::Payments.Contracts.Interfaces.IPaymentReader>().GetPaymentsForReferenceAsync("sale", saleId);
+        Assert.Equal([(global::Payments.Contracts.Models.PaymentMethodContract.Card, 6.5m, (decimal?)null, "approval 4711"), (global::Payments.Contracts.Models.PaymentMethodContract.Cash, 3.5m, 5m, null)],
+            payments.OrderByDescending(p => p.Amount).Select(p => (p.Method, p.Amount, p.TenderedAmount, p.MethodDetail)).ToArray());
+        var drawer = await scope.ServiceProvider.GetRequiredService<CashManagement.Contracts.Interfaces.ICashSessionReader>().GetOpenSessionAsync("MAIN");
+        Assert.Equal(53.5m, drawer!.Balance);   // 50 float + the 3.50 cash kept (the 1.50 change went back)
+        Assert.Equal(6m, (await scope.ServiceProvider.GetRequiredService<IInventoryReader>().GetStockLevelByProductAsync(shop.ProductId, shop.WarehouseId))!.OnHand);
+    }
+
+    [Fact]
     public async Task The_cashiers_open_till_and_cart_survive_leaving_the_screen_and_come_back_in_a_new_screen()
     {
         await using var desktop = await OfflineDesktop.StartAsync();

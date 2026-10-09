@@ -112,7 +112,18 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
     - [x] Real exe (database upgraded in place from 09a): 2 of 6 received juice returned (4.00), 5 more refused ("Only 4 ... received 6, already returned 2"), 1 water returned from the closed-short order; stock 30 / 4; audit entry with the reason
     - Found: an administrator created before a capability existed does not hold it (first-run setup grants the capabilities of that moment); the new permission had to be ticked on Roles and permissions - flagged as a separate task
     - Carried forward: supplier credit / refund money (no payables in Purchasing); returns are not in the Business overview; a return of several lines at once exists in the command but the screen returns one line at a time
-- [ ] **FIX-10 POS split payments** (Stage 8): offer the split payments the Payments API already supports
+- [x] **FIX-10 POS split payments** (Stage 8): offer the split payments the Payments API already supports - done 2026-10-09
+
+  Decisions (2026-10-09, user):
+  1. **Add parts, then finish**: the cashier adds payment parts (cash, card, other) and sees what is still due; Checkout is enabled once the parts cover the total; every part is recorded in the one checkout transaction. Parts live on the screen only (a resumed cart's parts are entered again). No parts = the whole total in cash, as before.
+  2. **Only cash gives change**: card/other parts never exceed what is due; a cash part may be tendered above what it pays (the change is shown and printed); only the cash kept goes into the drawer shift; any cash part needs an open shift.
+  3. **Optional note**: card parts take an optional note (e.g. approval code); "Other" needs a description; nothing is sent anywhere (no terminal integration).
+
+  - [x] IPOSService.CheckoutWithPaymentsAsync (POSPaymentRequest +Amount; POSCheckoutResult +PaymentIds); the checkout checks the parts before anything is written (amounts > 0 with 2 decimals, add up exactly to the total, tendered only for cash and not below its part, Other described)
+  - [x] Receipt: one line per part, then tendered and change for the cash (ReceiptDocument.Payments); the audit entry names the parts ("paid by card 5.00 + cash 2.50")
+  - [x] POS screen: Pay with / Amount / Note / Add payment, the parts with Remove, Still due and Change; a cart change clears the parts
+  - [x] Real exe: 3 x 2.50 paid card 5.00 (approval 4711) + cash 10.00 -> change 7.50, drawer 50 -> 52.50, printed receipt shows both parts; a card part above what is due refused; a sale without parts still cash
+  - Carried forward: parts of an open cart are not kept across sign-out/restart (decided); refunds to the original methods (no refund flow yet)
 - [ ] **FIX-11 Customer on a sale** (Stage 8): a sale can carry an optional customer
 - [ ] **FIX-12 Sales report limit** (Stage 8): Sales.Contracts exposes a ranged query so the report no longer stops at 2000 sales
   - [ ] The daily breakdown uses UTC dates; a shop outside UTC sees sales near midnight on the wrong day (found in FIX-01d; the overview screen lists only days with sales meanwhile)
@@ -204,4 +215,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-08 | FIX-08b | 787737b | Tax at the till and in Sales (prices include tax, one shared line rule); 2526 tests, 0 warnings |
 | 2026-10-08 | FIX-08c | 0f749f8 | Discounts at the till; FIX-08 complete; 2543 tests, 0 warnings; real exe with a printed receipt |
 | 2026-10-08 | FIX-09 plan, FIX-09a | a1d02f8 | Decisions recorded; part deliveries and closing short; 2555 tests, 0 warnings; real exe |
-| 2026-10-08 | FIX-09b | (this commit) | Supplier returns; FIX-09 complete; 2564 tests, 0 warnings; real exe with an in-place database upgrade |
+| 2026-10-08 | FIX-09b | 2b1ccec | Supplier returns; FIX-09 complete; 2564 tests, 0 warnings; real exe with an in-place database upgrade |
+| 2026-10-09 | FIX-10 | (this commit) | Decisions recorded; split payments at the till; 2575 tests, 0 warnings; real exe with a printed receipt |

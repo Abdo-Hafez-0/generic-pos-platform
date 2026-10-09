@@ -24,15 +24,27 @@ public sealed class ReportingApplicationTests
 
     private sealed class StubSales(IReadOnlyList<SaleSummaryResult> sales) : ISalesReader
     {
-        public int LastLimit { get; private set; }
+        public (DateTime From, DateTime To)? LastRange { get; private set; }
 
         public Task<SaleSummaryResult?> FindByIdAsync(Guid saleId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task<IReadOnlyList<SaleSummaryResult>> GetRecentAsync(int limit = 50, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("FIX-12: the report reads the completed sales of its range, not a recent list");
+
+        // like the real reader: every COMPLETED sale in the inclusive range, no count limit
+        public Task<IReadOnlyList<CompletedSaleResult>> GetCompletedBetweenAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
         {
-            LastLimit = limit;
-            return Task.FromResult<IReadOnlyList<SaleSummaryResult>>(sales.Take(limit).ToList());
+            LastRange = (fromUtc, toUtc);
+            return Task.FromResult<IReadOnlyList<CompletedSaleResult>>(sales
+                .Where(x => x.Status == SaleStatusContract.Completed && x.CompletedAt is { } at && at >= fromUtc && at <= toUtc)
+                .Select(x => new CompletedSaleResult(x.SaleId, x.CompletedAt!.Value, x.GrandTotal, 0m)).ToList());
         }
+    }
+
+    /// <summary>The shop's time zone as the report sees it (FIX-12); tests never depend on the computer's own zone.</summary>
+    private sealed class ZoneClock(TimeZoneInfo zone) : TimeProvider
+    {
+        public override TimeZoneInfo LocalTimeZone => zone;
     }
 
     private sealed class StubInventory(IReadOnlyList<StockLevelDto> levels) : IInventoryReader
@@ -79,6 +91,7 @@ public sealed class ReportingApplicationTests
         services.AddReportingCore();
         // These tests are about report content; the authorization boundary is covered in ReportingAuthorizationTests.
         services.AddSingleton<Platform.Application.Abstractions.Authorization.IAuthorizationService, global::Tests.Common.Security.AllowAllAuthorizationService>();
+        services.AddSingleton<TimeProvider>(new ZoneClock(TimeZoneInfo.Utc));   // UTC days unless a test chooses a zone
         configure?.Invoke(services);
         return services.BuildServiceProvider();
     }
@@ -131,42 +144,73 @@ public sealed class ReportingApplicationTests
     }
 
     [Fact]
-    public async Task SalesReport_ScansABoundedWindow()
+    public async Task SalesReport_reads_every_sale_completed_in_the_range_however_many()
     {
-        var stub = new StubSales([]);
+        // FIX-12: the earlier report scanned the 2000 most recent sales and could stop short; now nothing is left out
+        var sales = Enumerable.Range(0, 5000).Select(i => Sale(SaleStatusContract.Completed, 1m, Jan1.AddDays(10).AddSeconds(i))).ToList();
+        var stub = new StubSales(sales);
         await using var sp = Build(s => s.AddSingleton<ISalesReader>(stub));
 
-        await sp.GetRequiredService<GetSalesReportQueryHandler>().HandleAsync(new GetSalesReportQuery(Jan1, Jan31));
+        var r = await sp.GetRequiredService<GetSalesReportQueryHandler>().HandleAsync(new GetSalesReportQuery(Jan1, Jan31));
 
-        Assert.Equal(GetSalesReportQueryHandler.MaxSalesScanned, stub.LastLimit);
+        Assert.Equal((5000, 5000m, false), (r.Value.SaleCount, r.Value.GrandTotal, r.Value.IsTruncated));
+        Assert.Equal((Jan1, Jan31), stub.LastRange);
     }
 
     [Fact]
-    public async Task SalesReport_IsTruncated_WhenTheScanWindowIsFullAndDoesNotReachTheRangeStart()
+    public async Task SalesReport_counts_a_sale_on_the_shops_local_day_not_the_UTC_day()
     {
-        // 2000 sales, all created after the start of the range: older sales (possibly completed in range) were not scanned
-        var sales = Enumerable.Range(0, GetSalesReportQueryHandler.MaxSalesScanned)
-            .Select(i => Sale(SaleStatusContract.Completed, 1m, Jan1.AddDays(10), createdAt: Jan1.AddDays(9)))
-            .ToList();
-        await using var sp = Build(s => s.AddSingleton<ISalesReader>(new StubSales(sales)));
+        // a shop at UTC+2: a sale at 23:30 UTC on 1 January was made at 01:30 on 2 January there
+        var cairo = TimeZoneInfo.CreateCustomTimeZone("Test+2", TimeSpan.FromHours(2), "Test+2", "Test+2");
+        var localJan1 = new DateTime(2026, 1, 1, 0, 0, 0) - TimeSpan.FromHours(2);   // the shop's 1 January starts at 22:00 UTC the day before
+        var localJan3End = new DateTime(2026, 1, 4, 0, 0, 0) - TimeSpan.FromHours(2) - TimeSpan.FromTicks(1);
+        var sales = new[]
+        {
+            Sale(SaleStatusContract.Completed, 10m, new DateTime(2026, 1, 1, 23, 30, 0, DateTimeKind.Utc)),   // local 2 January 01:30
+            Sale(SaleStatusContract.Completed, 5m, new DateTime(2025, 12, 31, 22, 15, 0, DateTimeKind.Utc)),  // local 1 January 00:15
+        };
+        await using var sp = Build(s =>
+        {
+            s.AddSingleton<ISalesReader>(new StubSales(sales));
+            s.AddSingleton<TimeProvider>(new ZoneClock(cairo));
+        });
 
-        var r = await sp.GetRequiredService<GetSalesReportQueryHandler>().HandleAsync(new GetSalesReportQuery(Jan1, Jan31));
+        var r = await sp.GetRequiredService<GetSalesReportQueryHandler>().HandleAsync(
+            new GetSalesReportQuery(DateTime.SpecifyKind(localJan1, DateTimeKind.Utc), DateTime.SpecifyKind(localJan3End, DateTimeKind.Utc)));
 
-        Assert.True(r.Value.IsTruncated);
-        Assert.Equal(GetSalesReportQueryHandler.MaxSalesScanned, r.Value.SaleCount);
+        Assert.Equal([new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 2), new DateOnly(2026, 1, 3)], r.Value.Days.Select(d => d.Date).ToArray());
+        Assert.Equal([5m, 10m, 0m], r.Value.Days.Select(d => d.Total).ToArray());
+        Assert.Equal(15m, r.Value.GrandTotal);
     }
 
     [Fact]
-    public async Task SalesReport_IsNotTruncated_WhenTheWindowIsFullButReachesBackBeforeTheRange()
+    public async Task SalesReport_follows_daylight_saving_when_grouping_days()
     {
-        var sales = Enumerable.Range(0, GetSalesReportQueryHandler.MaxSalesScanned)
-            .Select(i => Sale(SaleStatusContract.Completed, 1m, Jan1.AddDays(10), createdAt: i == 0 ? Jan1.AddDays(-30) : Jan1.AddDays(9)))
-            .ToList();
-        await using var sp = Build(s => s.AddSingleton<ISalesReader>(new StubSales(sales)));
+        // a zone at UTC+1 in winter and UTC+2 in summer (last Sunday of March 01:00 UTC -> last Sunday of October 01:00 UTC)
+        var rule = TimeZoneInfo.AdjustmentRule.CreateAdjustmentRule(DateTime.MinValue.Date, DateTime.MaxValue.Date, TimeSpan.FromHours(1),
+            TimeZoneInfo.TransitionTime.CreateFloatingDateRule(new DateTime(1, 1, 1, 2, 0, 0), 3, 5, DayOfWeek.Sunday),
+            TimeZoneInfo.TransitionTime.CreateFloatingDateRule(new DateTime(1, 1, 1, 3, 0, 0), 10, 5, DayOfWeek.Sunday));
+        var zone = TimeZoneInfo.CreateCustomTimeZone("Test+1/+2", TimeSpan.FromHours(1), "Test+1/+2", "Winter", "Summer", [rule]);
+        var sales = new[]
+        {
+            Sale(SaleStatusContract.Completed, 7m, new DateTime(2026, 7, 1, 22, 30, 0, DateTimeKind.Utc)),   // summer: 00:30 on 2 July
+            Sale(SaleStatusContract.Completed, 3m, new DateTime(2026, 1, 15, 22, 30, 0, DateTimeKind.Utc)),  // winter: 23:30 on 15 January
+        };
+        await using var sp = Build(s =>
+        {
+            s.AddSingleton<ISalesReader>(new StubSales(sales));
+            s.AddSingleton<TimeProvider>(new ZoneClock(zone));
+        });
 
-        var r = await sp.GetRequiredService<GetSalesReportQueryHandler>().HandleAsync(new GetSalesReportQuery(Jan1, Jan31));
+        var summer = await sp.GetRequiredService<GetSalesReportQueryHandler>().HandleAsync(
+            new GetSalesReportQuery(new DateTime(2026, 6, 30, 22, 0, 0, DateTimeKind.Utc), new DateTime(2026, 7, 2, 21, 59, 59, DateTimeKind.Utc)));
+        var winter = await sp.GetRequiredService<GetSalesReportQueryHandler>().HandleAsync(
+            new GetSalesReportQuery(new DateTime(2026, 1, 14, 23, 0, 0, DateTimeKind.Utc), new DateTime(2026, 1, 16, 22, 59, 59, DateTimeKind.Utc)));
 
-        Assert.False(r.Value.IsTruncated);
+        Assert.Equal([0m, 7m], summer.Value.Days.Select(d => d.Total).ToArray());          // 1 and 2 July
+        Assert.Equal(new DateOnly(2026, 7, 2), summer.Value.Days[1].Date);
+        Assert.Equal([3m, 0m], winter.Value.Days.Select(d => d.Total).ToArray());          // 15 and 16 January
+        Assert.Equal(new DateOnly(2026, 1, 15), winter.Value.Days[0].Date);
     }
 
     // ------------------------------------------------------------------ the other reports

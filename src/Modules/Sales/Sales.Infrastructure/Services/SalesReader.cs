@@ -60,6 +60,24 @@ internal sealed class SalesReader(SalesDbContext dbContext) : ISalesReader
             CustomerName: sale.CustomerName)).ToList().AsReadOnly();
     }
 
+    public async Task<IReadOnlyList<CompletedSaleResult>> GetCompletedBetweenAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
+    {
+        var (from, to) = (AsUtc(fromUtc), AsUtc(toUtc));
+
+        // Totals are computed from the lines (Sale.GrandTotal), so the lines are loaded - read-only, nothing is tracked.
+        var sales = await dbContext.Sales.AsNoTracking()
+            .Include(s => s.Items)
+            .Where(s => s.Status == SaleStatus.Completed && s.CompletedAt != null && s.CompletedAt >= from && s.CompletedAt <= to)
+            .OrderBy(s => s.CompletedAt)
+            .ToListAsync(cancellationToken);
+
+        return sales.Select(s => new CompletedSaleResult(s.Id.Value, DateTime.SpecifyKind(s.CompletedAt!.Value, DateTimeKind.Utc), s.GrandTotal.Amount, s.TaxTotal.Amount))
+            .ToList().AsReadOnly();
+    }
+
+    private static DateTime AsUtc(DateTime value)
+        => value.Kind == DateTimeKind.Local ? value.ToUniversalTime() : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+
     private static SaleStatusContract ToContract(SaleStatus status) => status switch
     {
         SaleStatus.Draft => SaleStatusContract.Draft,

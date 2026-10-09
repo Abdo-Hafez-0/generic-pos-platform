@@ -136,8 +136,11 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Screens: Customer row on the POS screen (find, choose among several, remove); Sales history Customer column and detail
   - [x] Real exe: two customers created, "jan" offers both, Jane Doe chosen, the till restarted with her still on the cart, sold; Sales history shows "C-001 Jane Doe"; older sales unchanged after the upgrade
   - Carried forward: customer on the receipt and in the audit entry (not chosen); a customer's purchase history / reports by customer; customer pricing (optional Discounts module)
-- [ ] **FIX-12 Sales report limit** (Stage 8): Sales.Contracts exposes a ranged query so the report no longer stops at 2000 sales
-  - [ ] The daily breakdown uses UTC dates; a shop outside UTC sees sales near midnight on the wrong day (found in FIX-01d; the overview screen lists only days with sales meanwhile)
+- [x] **FIX-12 Sales report limit** (Stage 8): Sales.Contracts exposes a ranged query so the report no longer stops at 2000 sales - done 2026-10-09
+  - [x] `ISalesReader.GetCompletedBetweenAsync(fromUtc, toUtc)` - every completed sale of the range, oldest first, no count limit (index on sal_Sales.CompletedAt, migration AddSaleCompletedAtIndex); the sales report and the Business overview use it (IsTruncated is always false now)
+  - [x] The daily breakdown uses the shop's local calendar days (the computer's time zone, daylight saving included, through TimeProvider); the overview lists every day of the period again
+  - [x] Real exe (Egypt, UTC+3 in October): a sale at 23:30 local on 8 Oct and one at 00:30 local on 9 Oct (21:30 UTC on 8 Oct) -> 8 Oct 1 sale 7.50, 9 Oct 2 sales 7.50 (UTC days would have put 10.00 on 8 Oct)
+  - Not chosen: a time-zone setting separate from the computer's (the till runs in the shop); Sales history still lists at most 1000 sales per period (a screen list, its totals are of what it shows)
 - [ ] **FIX-13 Arabic / non-ASCII support** (Stage 10)
   - [ ] Receipts: code pages (Arabic etc. print as `?` today)
   - [ ] UI: localization resources and right-to-left layout
@@ -228,4 +231,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-08 | FIX-09 plan, FIX-09a | a1d02f8 | Decisions recorded; part deliveries and closing short; 2555 tests, 0 warnings; real exe |
 | 2026-10-08 | FIX-09b | 2b1ccec | Supplier returns; FIX-09 complete; 2564 tests, 0 warnings; real exe with an in-place database upgrade |
 | 2026-10-09 | FIX-10 | 50089d2 | Decisions recorded; split payments at the till; 2575 tests, 0 warnings; real exe with a printed receipt |
-| 2026-10-09 | FIX-11 | (this commit) | Decisions recorded; an optional customer on a sale; 2587 tests, 0 warnings; real exe with an in-place upgrade |
+| 2026-10-09 | FIX-11 | 18d25ef | Decisions recorded; an optional customer on a sale; 2587 tests, 0 warnings; real exe with an in-place upgrade |
+| 2026-10-09 | FIX-12 | (this commit) | Ranged completed-sales read (no 2000 cap), local-day breakdown; 2589 tests, 0 warnings; real exe across local midnight |

@@ -18,4 +18,10 @@ public interface ISalesReader
 
     /// <summary>Returns a list of recent sales (most recent first), limited to the given count.</summary>
     Task<IReadOnlyList<SaleSummaryResult>> GetRecentAsync(int limit = 50, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// FIX-12: EVERY sale COMPLETED in [<paramref name="fromUtc"/>, <paramref name="toUtc"/>] (inclusive, UTC), oldest first - no count limit,
+    /// so a report over a busy period is never cut off. Reporting limits the range itself (at most 366 days).
+    /// </summary>
+    Task<IReadOnlyList<CompletedSaleResult>> GetCompletedBetweenAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default);
 }

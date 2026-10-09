@@ -55,7 +55,10 @@ public sealed class BusinessOverviewOnRealDesktopTests
         Assert.Equal("1", Value(vm, ReportsText.SalesCard, ReportsText.SaleCount));
         Assert.Equal(10m.ToString("N2", CultureInfo.CurrentCulture), Value(vm, ReportsText.SalesCard, ReportsText.SalesTotal));
         Assert.Equal("6", Value(vm, ReportsText.InventoryCard, ReportsText.TotalOnHand));
-        Assert.Equal(10m, Assert.Single(vm.Days).Total);
+        // FIX-12: every day of the period is listed, in the computer's local calendar; the sale is on today's local date
+        Assert.Equal(Enumerable.Range(0, (vm.ToDate - vm.FromDate).Days + 1).Select(i => DateOnly.FromDateTime(vm.FromDate.AddDays(i))), vm.Days.Select(d => d.Date));
+        Assert.Equal(10m, vm.Days.Single(d => d.Date == DateOnly.FromDateTime(DateTime.Now)).Total);
+        Assert.Equal(10m, vm.Days.Sum(d => d.Total));
     }
 
     [Fact]

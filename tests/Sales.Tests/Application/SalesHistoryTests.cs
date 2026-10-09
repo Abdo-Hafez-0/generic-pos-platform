@@ -66,4 +66,40 @@ public sealed class SalesHistoryTests
         Assert.Empty((await HistoryAsync(db, DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2))).Sales);
         Assert.Empty((await HistoryAsync(db, DateTime.UtcNow.AddHours(1), DateTime.UtcNow.AddHours(-1))).Sales);
     }
+
+    // ------------------------------------------------------------------ FIX-12: the ranged read for reports
+
+    [Fact]
+    public async Task Reports_read_every_completed_sale_of_a_range_even_beyond_2000()
+    {
+        await using var db = await StartAsync();
+        var before = DateTime.UtcNow.AddSeconds(-1);
+        for (var i = 0; i < 2050; i++) await SaleAsync(db, $"S-{i}", 1m, SaleStatus.Completed);
+        await SaleAsync(db, "draft", 1m, SaleStatus.Draft);
+        await SaleAsync(db, "cancelled", 1m, SaleStatus.Cancelled);
+        var after = DateTime.UtcNow.AddSeconds(1);
+
+        using var scope = db.CreateScope();
+        var reader = scope.ServiceProvider.GetRequiredService<Sales.Contracts.Interfaces.ISalesReader>();
+        var all = await reader.GetCompletedBetweenAsync(before, after);
+        var none = await reader.GetCompletedBetweenAsync(after, after.AddDays(1));
+
+        Assert.Equal(2050, all.Count);                                  // no 2000 cap; drafts and cancelled sales are not included
+        Assert.All(all, s => Assert.Equal((10m, DateTimeKind.Utc), (s.GrandTotal, s.CompletedAt.Kind)));
+        Assert.True(all.Zip(all.Skip(1)).All(p => p.First.CompletedAt <= p.Second.CompletedAt));   // oldest first
+        Assert.Empty(none);
+    }
+
+    [Fact]
+    public async Task The_range_is_inclusive_at_both_ends()
+    {
+        await using var db = await StartAsync();
+        var id = await SaleAsync(db, "S-1", 1m, SaleStatus.Completed);
+        using var scope = db.CreateScope();
+        var reader = scope.ServiceProvider.GetRequiredService<Sales.Contracts.Interfaces.ISalesReader>();
+        var at = (await reader.GetCompletedBetweenAsync(DateTime.UtcNow.AddMinutes(-1), DateTime.UtcNow.AddMinutes(1))).Single().CompletedAt;
+
+        Assert.Equal(id, Assert.Single(await reader.GetCompletedBetweenAsync(at, at)).SaleId);
+        Assert.Empty(await reader.GetCompletedBetweenAsync(at.AddTicks(1), at.AddMinutes(1)));
+    }
 }

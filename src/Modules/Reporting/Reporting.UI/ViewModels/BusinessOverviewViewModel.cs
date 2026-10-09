@@ -83,9 +83,8 @@ public sealed class BusinessOverviewViewModel : ViewModelBase, INavigationAware
 
         Days.Clear();
         if (o.Sales is { IsAvailable: true, Data: { } sales })
-            // only days with sales: the report's days are UTC dates, so empty edge days of a local period would be confusing
-            // (local-day breakdown belongs to the sales report work, FIX-12)
-            foreach (var day in sales.Days.Where(d => d.SaleCount > 0).OrderBy(d => d.Date)) Days.Add(day);
+            // FIX-12: the report's days are the shop's local calendar days, so every day of the chosen period is listed (empty ones too)
+            foreach (var day in sales.Days.OrderBy(d => d.Date)) Days.Add(day);
     }
 
     private static IReadOnlyList<ReportLine> Party(PartySummaryDto p) =>

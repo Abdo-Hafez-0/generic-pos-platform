@@ -47,19 +47,26 @@ namespace Reporting.Domain.Calculations
 
     public sealed record SalesFigures(int SaleCount, decimal GrandTotal, decimal AverageSale, IReadOnlyList<DailySales> Days);
 
-    /// <summary>Pure sales arithmetic: no I/O, no other module. Sales outside the range are ignored; every day of the range is listed.</summary>
+    /// <summary>
+    /// Pure sales arithmetic: no I/O, no other module. Sales outside the range are ignored; every day of the range is listed.
+    /// FIX-12: days are the SHOP's calendar days in <paramref name="zone"/> (daylight saving included), not UTC dates: a sale at 00:30 local
+    /// time belongs to that local day even when it is still the previous day in UTC. Without a zone, UTC days (the earlier behaviour).
+    /// </summary>
     public static class SalesCalculator
     {
-        public static SalesFigures Calculate(IEnumerable<SaleFact> facts, DateRange range)
+        public static SalesFigures Calculate(IEnumerable<SaleFact> facts, DateRange range, TimeZoneInfo? zone = null)
         {
+            zone ??= TimeZoneInfo.Utc;
             var inRange = facts.Where(f => range.Contains(f.CompletedAt)).ToList();
 
+            DateOnly LocalDay(DateTime instant) => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(ToUtc(instant), zone));
+
             var byDay = inRange
-                .GroupBy(f => DateOnly.FromDateTime(ToUtc(f.CompletedAt)))
+                .GroupBy(f => LocalDay(f.CompletedAt))
                 .ToDictionary(g => g.Key, g => (Count: g.Count(), Total: g.Sum(f => f.GrandTotal)));
 
             var days = new List<DailySales>();
-            for (var day = DateOnly.FromDateTime(range.From); day <= DateOnly.FromDateTime(range.To); day = day.AddDays(1))
+            for (var day = LocalDay(range.From); day <= LocalDay(range.To); day = day.AddDays(1))
             {
                 byDay.TryGetValue(day, out var entry);
                 days.Add(new DailySales(day, entry.Count, entry.Total));

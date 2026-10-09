@@ -59,15 +59,14 @@ namespace Reporting.Application.Queries
     using Reporting.Application.DTOs;
 
     /// <summary>
-    /// Completed sales in a range, from Sales.Contracts. Sales exposes only a "recent sales" list, so at most <see cref="MaxSalesScanned"/>
-    /// sales are scanned; when that window may not reach back to the start of the range the report says it is truncated.
+    /// Completed sales in a range, from Sales.Contracts. FIX-12: EVERY sale completed in the range is read (Sales' ranged query; no
+    /// 2000-sale scan window any more, so IsTruncated is always false), and the daily breakdown uses the shop's local calendar days (the time
+    /// zone of the computer, from TimeProvider) instead of UTC dates.
     /// </summary>
     public sealed record GetSalesReportQuery(DateTime From, DateTime To);
 
-    public sealed class GetSalesReportQueryHandler(IAuthorizationService authorization, ISalesReader? salesReader = null)
+    public sealed class GetSalesReportQueryHandler(IAuthorizationService authorization, ISalesReader? salesReader = null, TimeProvider? clock = null)
     {
-        public const int MaxSalesScanned = 2000;
-
         public async Task<Result<SalesReportDto>> HandleAsync(GetSalesReportQuery query, CancellationToken cancellationToken = default)
         {
             var allowed = await authorization.AuthorizeAsync(Reporting.Application.Security.ReportingCapabilities.ViewReports, cancellationToken);
@@ -77,20 +76,14 @@ namespace Reporting.Application.Queries
             if (range.IsFailure) return Result.Failure<SalesReportDto>(range.Error);
             if (salesReader is null) return Result.Failure<SalesReportDto>(ReportingErrors.Unavailable("Sales"));
 
-            var recent = await salesReader.GetRecentAsync(MaxSalesScanned, cancellationToken);
+            var completed = await salesReader.GetCompletedBetweenAsync(range.Value.From, range.Value.To, cancellationToken);
 
-            var facts = recent
-                .Where(s => s.Status == SaleStatusContract.Completed && s.CompletedAt is not null)
-                .Select(s => new SaleFact(s.CompletedAt!.Value, s.GrandTotal));
-            var figures = SalesCalculator.Calculate(facts, range.Value);
-
-            // The list is ordered by creation time, newest first. If it is full and its oldest sale is newer than the range start,
-            // sales created before that point (which may have completed inside the range) were not scanned.
-            var truncated = recent.Count >= MaxSalesScanned && recent.Min(s => s.CreatedAt) > range.Value.From;
+            var facts = completed.Select(s => new SaleFact(s.CompletedAt, s.GrandTotal));
+            var figures = SalesCalculator.Calculate(facts, range.Value, (clock ?? TimeProvider.System).LocalTimeZone);
 
             return Result.Success(new SalesReportDto(
                 range.Value.From, range.Value.To, figures.SaleCount, figures.GrandTotal, figures.AverageSale,
-                figures.Days.Select(d => new DailySalesDto(d.Date, d.SaleCount, d.Total)).ToList(), truncated));
+                figures.Days.Select(d => new DailySalesDto(d.Date, d.SaleCount, d.Total)).ToList(), IsTruncated: false));
         }
     }
 

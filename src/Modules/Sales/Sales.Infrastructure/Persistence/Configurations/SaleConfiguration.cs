@@ -48,6 +48,7 @@ internal sealed class SaleConfiguration : IEntityTypeConfiguration<Sale>
         // Status index for filtering
         builder.HasIndex(s => s.Status);
         builder.HasIndex(s => s.CreatedAt);
+        builder.HasIndex(s => s.CompletedAt);   // FIX-12: reports read completed sales by range
 
         // Owned items collection — separate table (sal_SaleItems)
         // Note: no HasPrincipalKey — EF resolves via the configured Id property conversion

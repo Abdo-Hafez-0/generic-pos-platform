@@ -18,8 +18,8 @@ namespace Reporting.Contracts.Models
     public sealed record DailySalesData(DateOnly Date, int SaleCount, decimal Total);
 
     /// <summary>
-    /// Completed sales in a range. IsTruncated means only the most recent sales could be scanned (Sales.Contracts exposes only a "recent" list),
-    /// so older sales in the range may be missing and the figures are a lower bound.
+    /// Completed sales in a range; Days are the shop's local calendar days (FIX-12). Every completed sale of the range is read, so IsTruncated
+    /// is always false since FIX-12 (kept for callers written against the earlier 2000-sale scan window).
     /// </summary>
     public sealed record SalesReportData(
         DateTime From, DateTime To, int SaleCount, decimal GrandTotal, decimal AverageSale, IReadOnlyList<DailySalesData> Days, bool IsTruncated);

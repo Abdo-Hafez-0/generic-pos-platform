@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+    <data name="ScreenTitle" xml:space="preserve">
+    <value>الترخيص</value>
+  </data>
+  <data name="State" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
+  <data name="Customer" xml:space="preserve">
+    <value>العميل</value>
+  </data>
+  <data name="ValidUntil" xml:space="preserve">
+    <value>صالح حتى</value>
+  </data>
+  <data name="RenewBy" xml:space="preserve">
+    <value>جدِّد عبر الإنترنت قبل</value>
+  </data>
+  <data name="Modules" xml:space="preserve">
+    <value>الوحدات المرخّصة</value>
+  </data>
+  <data name="InstallationId" xml:space="preserve">
+    <value>معرّف التثبيت (أعطه للمورّد عند الطلب)</value>
+  </data>
+  <data name="NotAvailable" xml:space="preserve">
+    <value>-</value>
+  </data>
+  <data name="ActivateHeading" xml:space="preserve">
+    <value>تفعيل هذا التثبيت</value>
+  </data>
+  <data name="ActivationKey" xml:space="preserve">
+    <value>مفتاح التفعيل</value>
+  </data>
+  <data name="Activate" xml:space="preserve">
+    <value>تفعيل</value>
+  </data>
+  <data name="Renew" xml:space="preserve">
+    <value>جدِّد الآن</value>
+  </data>
+  <data name="ActivateHint" xml:space="preserve">
+    <value>يحتاج التفعيل إلى اتصال بالإنترنت مرة واحدة. البيع لا يحتاج إليه أبدًا.</value>
+  </data>
+  <data name="Activated" xml:space="preserve">
+    <value>تم تفعيل التثبيت.</value>
+  </data>
+  <data name="Renewed" xml:space="preserve">
+    <value>تم تجديد الترخيص.</value>
+  </data>
+  <data name="StateUnlicensed" xml:space="preserve">
+    <value>غير مفعّل</value>
+  </data>
+  <data name="StateActive" xml:space="preserve">
+    <value>نشط</value>
+  </data>
+  <data name="StateGracePeriod" xml:space="preserve">
+    <value>نشط - التجديد متأخر</value>
+  </data>
+  <data name="StateExpired" xml:space="preserve">
+    <value>منتهي الصلاحية</value>
+  </data>
+  <data name="StateSuspended" xml:space="preserve">
+    <value>موقوف</value>
+  </data>
+  <data name="StateRevoked" xml:space="preserve">
+    <value>ملغى</value>
+  </data>
+  <data name="StateInvalid" xml:space="preserve">
+    <value>غير صالح</value>
+  </data>
+</root>

@@ -141,7 +141,7 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] The daily breakdown uses the shop's local calendar days (the computer's time zone, daylight saving included, through TimeProvider); the overview lists every day of the period again
   - [x] Real exe (Egypt, UTC+3 in October): a sale at 23:30 local on 8 Oct and one at 00:30 local on 9 Oct (21:30 UTC on 8 Oct) -> 8 Oct 1 sale 7.50, 9 Oct 2 sales 7.50 (UTC days would have put 10.00 on 8 Oct)
   - Not chosen: a time-zone setting separate from the computer's (the till runs in the shop); Sales history still lists at most 1000 sales per period (a screen list, its totals are of what it shows)
-- [ ] **FIX-13 Arabic / non-ASCII support** (Stage 10)
+- [x] **FIX-13 Arabic / non-ASCII support** (Stage 10) - done 2026-10-09
 
   Decisions (2026-10-09, user):
   1. **Screens now, messages later**: every screen text (resources + the sign-in window) in Arabic with right-to-left layout checked screen by screen; the sentences business rules return stay English for now (a follow-up item).
@@ -156,7 +156,9 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
     - [x] Found in the real exe and fixed: .NET restores the thread culture when an async method that changed it returns, so screens opened later read the old language - the display language now lives in `UiCulture.Current` and in every resource class; numbers and dates keep the installation's format
     - [x] Real exe: Arabic chosen in the header -> the shell reopens right to left; sign-out -> the start screen in English; sign-in -> right to left again; English chosen -> left to right
     - Note for screenshots: PrintWindow of a right-to-left window is mirrored (flip it to see the screen)
-  - [ ] **FIX-13c Arabic translations** of every screen text, right-to-left checked screen by screen
+  - [x] **FIX-13c Arabic translations** (2026-10-09): all 524 screen texts in 16 `*.ar.resx` files (Modern Standard Arabic, drafted by Claude - to be reviewed by the user, see PROJECT_STATE "FIX-13c Summary" for the terms to check); a test keeps every text translated with the same placeholders
+    - [x] Real exe: all 17 screens opened in Arabic and checked right to left; fixed on the way: the license state in the status bar was not translated; the signed-in name and a user's heading lost their closing parenthesis (a left-to-right mark keeps it); phone numbers showed their digit groups reversed (left-to-right mark in the grids, phone/e-mail boxes typed left to right); the POS discount row and the Users search row now wrap instead of running off the screen
+    - Carried forward (user decision): the sentences that business rules return (refusals, errors, audit summaries) and the permission names/descriptions on the Roles screen stay English - a follow-up item; receipt labels stay English
 
 ### A3. Low priority - documentation
 
@@ -247,4 +249,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-09 | FIX-11 | 18d25ef | Decisions recorded; an optional customer on a sale; 2587 tests, 0 warnings; real exe with an in-place upgrade |
 | 2026-10-09 | FIX-12 | b87b317 | Ranged completed-sales read (no 2000 cap), local-day breakdown; 2589 tests, 0 warnings; real exe across local midnight |
 | 2026-10-09 | FIX-13 plan, FIX-13a | 4c978ef | Decisions recorded; receipts with Arabic printed as a picture; 2605 tests, 0 warnings; real exe receipt decoded |
-| 2026-10-09 | FIX-13b | (this commit) | Language per user, sign-in texts in resources, display language independent of the thread culture; 2619 tests, 0 warnings; real exe |
+| 2026-10-09 | FIX-13b | 3d8063e | Language per user, sign-in texts in resources, display language independent of the thread culture; 2619 tests, 0 warnings; real exe |
+| 2026-10-09 | FIX-13c | (this commit) | Arabic translations of every screen text, right-to-left fixes; FIX-13 complete; 2636 tests, 0 warnings; real exe, 17 screens checked |

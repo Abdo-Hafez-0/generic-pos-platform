@@ -115,7 +115,7 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
 
         var notice = _licenses is null ? null : LicenseNotice.Describe(_licenses.Current);
         LicenseText = notice?.Message ?? string.Empty;
-        StatusText = _licenses is null ? ShellText.Ready : string.Format(CultureInfo.CurrentCulture, ShellText.ReadyWithLicense, _licenses.Current.State);
+        StatusText = _licenses is null ? ShellText.Ready : string.Format(CultureInfo.CurrentCulture, ShellText.ReadyWithLicense, Screens.Licensing.LicenseViewModel.Describe(_licenses.Current.State));
 
         await BusyAsync(async () =>
         {

@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+    <data name="ScreenTitle" xml:space="preserve">
+    <value>درج النقود</value>
+  </data>
+  <data name="Drawer" xml:space="preserve">
+    <value>الدرج</value>
+  </data>
+  <data name="Show" xml:space="preserve">
+    <value>عرض</value>
+  </data>
+  <data name="NoOpenSession" xml:space="preserve">
+    <value>لا توجد وردية مفتوحة لهذا الدرج.</value>
+  </data>
+  <data name="OpeningFloat" xml:space="preserve">
+    <value>رصيد الافتتاح</value>
+  </data>
+  <data name="OpenShift" xml:space="preserve">
+    <value>فتح وردية</value>
+  </data>
+  <data name="OpenedBy" xml:space="preserve">
+    <value>فتحها {0} في {1}</value>
+  </data>
+  <data name="Balance" xml:space="preserve">
+    <value>المتوقع في الدرج</value>
+  </data>
+  <data name="MovementHeading" xml:space="preserve">
+    <value>إيداع أو سحب نقدي</value>
+  </data>
+  <data name="Kind" xml:space="preserve">
+    <value>النوع</value>
+  </data>
+  <data name="PayIn" xml:space="preserve">
+    <value>إيداع</value>
+  </data>
+  <data name="PayOut" xml:space="preserve">
+    <value>سحب</value>
+  </data>
+  <data name="CashSale" xml:space="preserve">
+    <value>بيع نقدي</value>
+  </data>
+  <data name="CashRefund" xml:space="preserve">
+    <value>استرداد نقدي</value>
+  </data>
+  <data name="Amount" xml:space="preserve">
+    <value>المبلغ</value>
+  </data>
+  <data name="Reason" xml:space="preserve">
+    <value>السبب</value>
+  </data>
+  <data name="Record" xml:space="preserve">
+    <value>تسجيل</value>
+  </data>
+  <data name="CloseHeading" xml:space="preserve">
+    <value>عُدّ النقود وأغلق الوردية</value>
+  </data>
+  <data name="Counted" xml:space="preserve">
+    <value>النقود المعدودة</value>
+  </data>
+  <data name="Notes" xml:space="preserve">
+    <value>ملاحظات</value>
+  </data>
+  <data name="CloseShift" xml:space="preserve">
+    <value>إغلاق الوردية</value>
+  </data>
+  <data name="Time" xml:space="preserve">
+    <value>الوقت</value>
+  </data>
+  <data name="By" xml:space="preserve">
+    <value>بواسطة</value>
+  </data>
+  <data name="RecentHeading" xml:space="preserve">
+    <value>الورديات الأخيرة</value>
+  </data>
+  <data name="Opened" xml:space="preserve">
+    <value>فُتحت</value>
+  </data>
+  <data name="Closed" xml:space="preserve">
+    <value>أُغلقت</value>
+  </data>
+  <data name="Variance" xml:space="preserve">
+    <value>الفرق</value>
+  </data>
+  <data name="ShiftOpened" xml:space="preserve">
+    <value>وردية الدرج {0} مفتوحة.</value>
+  </data>
+  <data name="MovementRecorded" xml:space="preserve">
+    <value>تم التسجيل. المتوقع في الدرج: {0:N2}.</value>
+  </data>
+  <data name="ShiftClosed" xml:space="preserve">
+    <value>أُغلقت الوردية. المتوقع {0:N2}، المعدود {1:N2}، الفرق {2:+0.00;-0.00;0.00}.</value>
+  </data>
+  <data name="AmountInvalid" xml:space="preserve">
+    <value>أدخل مبلغًا أكبر من صفر.</value>
+  </data>
+  <data name="FloatInvalid" xml:space="preserve">
+    <value>أدخل رصيد الافتتاح صفرًا أو أكثر.</value>
+  </data>
+  <data name="CountInvalid" xml:space="preserve">
+    <value>أدخل النقود المعدودة صفرًا أو أكثر.</value>
+  </data>
+  <data name="DrawerRequired" xml:space="preserve">
+    <value>أدخل رمز الدرج.</value>
+  </data>
+</root>

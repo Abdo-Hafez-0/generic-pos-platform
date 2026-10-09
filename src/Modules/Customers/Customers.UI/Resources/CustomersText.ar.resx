@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+    <data name="ScreenTitle" xml:space="preserve">
+    <value>العملاء</value>
+  </data>
+  <data name="Search" xml:space="preserve">
+    <value>بحث</value>
+  </data>
+  <data name="SearchHint" xml:space="preserve">
+    <value>الرمز أو الاسم أو البريد الإلكتروني أو الهاتف</value>
+  </data>
+  <data name="ShowInactive" xml:space="preserve">
+    <value>عرض العملاء غير النشطين</value>
+  </data>
+  <data name="New" xml:space="preserve">
+    <value>عميل جديد</value>
+  </data>
+  <data name="Edit" xml:space="preserve">
+    <value>تعديل المحدد</value>
+  </data>
+  <data name="Deactivate" xml:space="preserve">
+    <value>إيقاف المحدد</value>
+  </data>
+  <data name="Reactivate" xml:space="preserve">
+    <value>إعادة تنشيط المحدد</value>
+  </data>
+  <data name="Save" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Code" xml:space="preserve">
+    <value>الرمز</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>الاسم</value>
+  </data>
+  <data name="Email" xml:space="preserve">
+    <value>البريد الإلكتروني</value>
+  </data>
+  <data name="Phone" xml:space="preserve">
+    <value>الهاتف</value>
+  </data>
+  <data name="Notes" xml:space="preserve">
+    <value>ملاحظات</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
+  <data name="Active" xml:space="preserve">
+    <value>نشط</value>
+  </data>
+  <data name="Inactive" xml:space="preserve">
+    <value>غير نشط</value>
+  </data>
+  <data name="Created" xml:space="preserve">
+    <value>تم إنشاء العميل {0}.</value>
+  </data>
+  <data name="Saved" xml:space="preserve">
+    <value>تم حفظ العميل {0}.</value>
+  </data>
+  <data name="Deactivated" xml:space="preserve">
+    <value>العميل {0} غير نشط الآن. يبقى سجله محفوظًا.</value>
+  </data>
+  <data name="Reactivated" xml:space="preserve">
+    <value>العميل {0} نشط مرة أخرى.</value>
+  </data>
+  <data name="Count" xml:space="preserve">
+    <value>عرض {0} من {1} عميل. ابحث للعثور على غيرهم.</value>
+  </data>
+  <data name="NoResults" xml:space="preserve">
+    <value>لا يوجد عميل مطابق.</value>
+  </data>
+</root>

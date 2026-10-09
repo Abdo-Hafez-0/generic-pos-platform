@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+    <data name="ScreenTitle" xml:space="preserve">
+    <value>نقطة البيع</value>
+  </data>
+  <data name="Cashier" xml:space="preserve">
+    <value>الكاشير: {0}</value>
+  </data>
+  <data name="Warehouse" xml:space="preserve">
+    <value>البيع من</value>
+  </data>
+  <data name="OpenSession" xml:space="preserve">
+    <value>فتح الصندوق</value>
+  </data>
+  <data name="CloseSession" xml:space="preserve">
+    <value>إغلاق الصندوق</value>
+  </data>
+  <data name="ProductCode" xml:space="preserve">
+    <value>الباركود / رمز الصنف</value>
+  </data>
+  <data name="Quantity" xml:space="preserve">
+    <value>الكمية</value>
+  </data>
+  <data name="Add" xml:space="preserve">
+    <value>إضافة</value>
+  </data>
+  <data name="Product" xml:space="preserve">
+    <value>الصنف</value>
+  </data>
+  <data name="UnitPrice" xml:space="preserve">
+    <value>سعر الوحدة</value>
+  </data>
+  <data name="LineTotal" xml:space="preserve">
+    <value>إجمالي السطر</value>
+  </data>
+  <data name="Subtotal" xml:space="preserve">
+    <value>المجموع الفرعي</value>
+  </data>
+  <data name="Total" xml:space="preserve">
+    <value>الإجمالي</value>
+  </data>
+  <data name="RemoveSelected" xml:space="preserve">
+    <value>حذف المحدد</value>
+  </data>
+  <data name="Checkout" xml:space="preserve">
+    <value>إتمام البيع</value>
+  </data>
+  <data name="ChooseWarehouse" xml:space="preserve">
+    <value>اختر المخزن الذي تبيع منه، ثم افتح الصندوق.</value>
+  </data>
+  <data name="NoWarehouses" xml:space="preserve">
+    <value>لا يوجد مخزن نشط للبيع منه بعد. أنشئ مخزنًا في «الأصناف والمخزون» أولًا.</value>
+  </data>
+  <data name="SessionOpened" xml:space="preserve">
+    <value>الصندوق مفتوح.</value>
+  </data>
+  <data name="SessionResumed" xml:space="preserve">
+    <value>تمت متابعة صندوقك المفتوح.</value>
+  </data>
+  <data name="SessionClosed" xml:space="preserve">
+    <value>الصندوق مغلق.</value>
+  </data>
+  <data name="ItemAdded" xml:space="preserve">
+    <value>تمت إضافة الصنف.</value>
+  </data>
+  <data name="Discount" xml:space="preserve">
+    <value>الخصم</value>
+  </data>
+  <data name="DiscountPercent" xml:space="preserve">
+    <value>%</value>
+  </data>
+  <data name="DiscountAmount" xml:space="preserve">
+    <value>مبلغ</value>
+  </data>
+  <data name="DiscountOnLine" xml:space="preserve">
+    <value>على السطر المحدد</value>
+  </data>
+  <data name="DiscountOnCart" xml:space="preserve">
+    <value>على السلة كلها</value>
+  </data>
+  <data name="DiscountHint" xml:space="preserve">
+    <value>أدخل 0 لإزالة الخصم.</value>
+  </data>
+  <data name="DiscountInvalid" xml:space="preserve">
+    <value>أدخل الخصم رقمًا يساوي صفرًا أو أكثر.</value>
+  </data>
+  <data name="DiscountGiven" xml:space="preserve">
+    <value>تم تطبيق الخصم.</value>
+  </data>
+  <data name="DiscountRemoved" xml:space="preserve">
+    <value>تمت إزالة الخصم.</value>
+  </data>
+  <data name="TaxIncluded" xml:space="preserve">
+    <value>شامل الضريبة</value>
+  </data>
+  <data name="ScannerReady" xml:space="preserve">
+    <value>الماسح جاهز</value>
+  </data>
+  <data name="ItemRemoved" xml:space="preserve">
+    <value>تم حذف الصنف.</value>
+  </data>
+  <data name="SaleCompleted" xml:space="preserve">
+    <value>تم البيع: {0:N2}.</value>
+  </data>
+  <data name="QuantityInvalid" xml:space="preserve">
+    <value>أدخل كمية أكبر من صفر.</value>
+  </data>
+  <data name="ActionFailed" xml:space="preserve">
+    <value>لم ينجح ذلك. حاول مرة أخرى.</value>
+  </data>
+  <data name="PayCash" xml:space="preserve">
+    <value>نقدًا</value>
+  </data>
+  <data name="PayCard" xml:space="preserve">
+    <value>بطاقة</value>
+  </data>
+  <data name="PayOther" xml:space="preserve">
+    <value>أخرى</value>
+  </data>
+  <data name="PayWith" xml:space="preserve">
+    <value>الدفع بـ</value>
+  </data>
+  <data name="PaymentAmount" xml:space="preserve">
+    <value>المبلغ</value>
+  </data>
+  <data name="PaymentNoteLabel" xml:space="preserve">
+    <value>ملاحظة</value>
+  </data>
+  <data name="PaymentNoteHint" xml:space="preserve">
+    <value>البطاقة: ملاحظة اختيارية (مثل رمز الموافقة). أخرى: صِفها (مثل تحويل بنكي أو قسيمة).</value>
+  </data>
+  <data name="PaymentAmountHint" xml:space="preserve">
+    <value>في النقد: ما يدفعه العميل فعلًا؛ إن زاد عن المستحق يُعاد الباقي.</value>
+  </data>
+  <data name="AddPayment" xml:space="preserve">
+    <value>إضافة دفعة</value>
+  </data>
+  <data name="AmountDue" xml:space="preserve">
+    <value>المتبقي</value>
+  </data>
+  <data name="ChangeLabel" xml:space="preserve">
+    <value>الباقي</value>
+  </data>
+  <data name="RemovePayment" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="PaymentsHint" xml:space="preserve">
+    <value>دفع مجزّأ: أضف كل جزء على حدة. بدون أجزاء، يأخذ «إتمام البيع» الإجمالي كاملًا نقدًا.</value>
+  </data>
+  <data name="PaymentAmountInvalid" xml:space="preserve">
+    <value>أدخل المبلغ رقمًا أكبر من صفر بخانتين عشريتين على الأكثر.</value>
+  </data>
+  <data name="PaymentNoteRequired" xml:space="preserve">
+    <value>صِف الدفعة الأخرى في الملاحظة (مثلًا: تحويل بنكي، قسيمة).</value>
+  </data>
+  <data name="PaymentMoreThanDue" xml:space="preserve">
+    <value>دفعة البطاقة أو الدفعة الأخرى لا تتجاوز المتبقي ({0:N2}). النقد وحده يُعاد منه الباقي.</value>
+  </data>
+  <data name="PaymentAdded" xml:space="preserve">
+    <value>تمت إضافة الدفعة؛ المتبقي {0:N2}.</value>
+  </data>
+  <data name="PaymentCovered" xml:space="preserve">
+    <value>تمت تغطية الإجمالي؛ اضغط «إتمام البيع».</value>
+  </data>
+  <data name="PaymentCoveredWithChange" xml:space="preserve">
+    <value>تمت تغطية الإجمالي؛ أعطِ الباقي {0:N2} ثم اضغط «إتمام البيع».</value>
+  </data>
+  <data name="PaymentsCleared" xml:space="preserve">
+    <value>تغيّر الإجمالي، فمُسحت الدفعات المدخلة؛ أدخلها مرة أخرى.</value>
+  </data>
+  <data name="SaleCompletedWithChange" xml:space="preserve">
+    <value>تم البيع: {0:N2}. الباقي: {1:N2}.</value>
+  </data>
+  <data name="PaymentPart" xml:space="preserve">
+    <value>{0} {1}</value>
+  </data>
+  <data name="PaymentPartCash" xml:space="preserve">
+    <value>{0} {1} (المدفوع {2}، الباقي {3})</value>
+  </data>
+  <data name="Customer" xml:space="preserve">
+    <value>العميل</value>
+  </data>
+  <data name="FindCustomer" xml:space="preserve">
+    <value>بحث عن عميل</value>
+  </data>
+  <data name="CustomerSearchHint" xml:space="preserve">
+    <value>رمز عميل موجود أو اسمه أو هاتفه (اختياري). يظهر هنا الرمز والاسم فقط.</value>
+  </data>
+  <data name="ChooseCustomerButton" xml:space="preserve">
+    <value>اختيار</value>
+  </data>
+  <data name="RemoveCustomer" xml:space="preserve">
+    <value>إزالة العميل</value>
+  </data>
+  <data name="NoCustomerFound" xml:space="preserve">
+    <value>لا يوجد عميل نشط مطابق. يُضاف العملاء من شاشة «العملاء».</value>
+  </data>
+  <data name="ChooseCustomer" xml:space="preserve">
+    <value>يطابق أكثر من عميل: اختر واحدًا.</value>
+  </data>
+  <data name="CustomerChosen" xml:space="preserve">
+    <value>العميل: {0}.</value>
+  </data>
+  <data name="CustomerRemoved" xml:space="preserve">
+    <value>لم يعد للبيع عميل.</value>
+  </data>
+</root>

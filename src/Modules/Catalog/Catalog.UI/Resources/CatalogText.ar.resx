@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+    <data name="ProductsTitle" xml:space="preserve">
+    <value>الأصناف</value>
+  </data>
+  <data name="CategoriesTitle" xml:space="preserve">
+    <value>الفئات والوحدات</value>
+  </data>
+  <data name="Search" xml:space="preserve">
+    <value>بحث</value>
+  </data>
+  <data name="SearchHint" xml:space="preserve">
+    <value>الاسم أو رمز الصنف أو الباركود</value>
+  </data>
+  <data name="IncludeInactive" xml:space="preserve">
+    <value>عرض الأصناف غير النشطة</value>
+  </data>
+  <data name="NewProduct" xml:space="preserve">
+    <value>صنف جديد</value>
+  </data>
+  <data name="EditProduct" xml:space="preserve">
+    <value>تعديل المحدد</value>
+  </data>
+  <data name="Deactivate" xml:space="preserve">
+    <value>إيقاف المحدد</value>
+  </data>
+  <data name="Save" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Sku" xml:space="preserve">
+    <value>رمز الصنف</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>الاسم</value>
+  </data>
+  <data name="Category" xml:space="preserve">
+    <value>الفئة</value>
+  </data>
+  <data name="Unit" xml:space="preserve">
+    <value>الوحدة</value>
+  </data>
+  <data name="SalePrice" xml:space="preserve">
+    <value>سعر البيع</value>
+  </data>
+  <data name="CostPrice" xml:space="preserve">
+    <value>سعر التكلفة</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="Barcodes" xml:space="preserve">
+    <value>الباركودات</value>
+  </data>
+  <data name="AddBarcode" xml:space="preserve">
+    <value>إضافة باركود</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
+  <data name="StatusActive" xml:space="preserve">
+    <value>نشط</value>
+  </data>
+  <data name="StatusInactive" xml:space="preserve">
+    <value>غير نشط</value>
+  </data>
+  <data name="StatusDiscontinued" xml:space="preserve">
+    <value>متوقف</value>
+  </data>
+  <data name="Truncated" xml:space="preserve">
+    <value>تُعرض أول {0} أصناف فقط. ضيّق البحث للعثور على غيرها.</value>
+  </data>
+  <data name="NoProducts" xml:space="preserve">
+    <value>لا يوجد صنف مطابق.</value>
+  </data>
+  <data name="Created" xml:space="preserve">
+    <value>تم إنشاء الصنف {0}.</value>
+  </data>
+  <data name="Saved" xml:space="preserve">
+    <value>تم حفظ الصنف {0}.</value>
+  </data>
+  <data name="Deactivated" xml:space="preserve">
+    <value>لم يعد الصنف {0} يُباع. يبقى سجله محفوظًا.</value>
+  </data>
+  <data name="PriceInvalid" xml:space="preserve">
+    <value>أدخل سعر البيع رقمًا يساوي صفرًا أو أكثر.</value>
+  </data>
+  <data name="CostInvalid" xml:space="preserve">
+    <value>أدخل سعر التكلفة رقمًا يساوي صفرًا أو أكثر، أو اتركه فارغًا.</value>
+  </data>
+  <data name="ChooseCategoryUnit" xml:space="preserve">
+    <value>اختر فئة ووحدة.</value>
+  </data>
+  <data name="NeedCategoriesAndUnits" xml:space="preserve">
+    <value>أنشئ فئة واحدة ووحدة واحدة على الأقل في «الفئات والوحدات» قبل إضافة الأصناف.</value>
+  </data>
+  <data name="CostHidden" xml:space="preserve">
+    <value>أسعار التكلفة غير معروضة لحسابك؛ الحفظ يُبقي التكلفة المخزّنة كما هي.</value>
+  </data>
+  <data name="Categories" xml:space="preserve">
+    <value>الفئات</value>
+  </data>
+  <data name="Units" xml:space="preserve">
+    <value>الوحدات</value>
+  </data>
+  <data name="Abbreviation" xml:space="preserve">
+    <value>الاختصار</value>
+  </data>
+  <data name="AddCategory" xml:space="preserve">
+    <value>إضافة فئة</value>
+  </data>
+  <data name="AddUnit" xml:space="preserve">
+    <value>إضافة وحدة</value>
+  </data>
+  <data name="CategoryAdded" xml:space="preserve">
+    <value>تمت إضافة الفئة {0}.</value>
+  </data>
+  <data name="UnitAdded" xml:space="preserve">
+    <value>تمت إضافة الوحدة {0}.</value>
+  </data>
+</root>

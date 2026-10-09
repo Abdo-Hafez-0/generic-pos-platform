@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+    <data name="UsersTitle" xml:space="preserve">
+    <value>المستخدمون</value>
+  </data>
+  <data name="RolesTitle" xml:space="preserve">
+    <value>الأدوار والصلاحيات</value>
+  </data>
+  <data name="Search" xml:space="preserve">
+    <value>بحث</value>
+  </data>
+  <data name="SearchHint" xml:space="preserve">
+    <value>اسم المستخدم أو الاسم</value>
+  </data>
+  <data name="ShowInactive" xml:space="preserve">
+    <value>عرض المستخدمين غير النشطين</value>
+  </data>
+  <data name="Username" xml:space="preserve">
+    <value>اسم المستخدم</value>
+  </data>
+  <data name="DisplayName" xml:space="preserve">
+    <value>الاسم</value>
+  </data>
+  <data name="Email" xml:space="preserve">
+    <value>البريد الإلكتروني</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
+  <data name="Active" xml:space="preserve">
+    <value>نشط</value>
+  </data>
+  <data name="Inactive" xml:space="preserve">
+    <value>غير نشط</value>
+  </data>
+  <data name="NewUserHeading" xml:space="preserve">
+    <value>مستخدم جديد</value>
+  </data>
+  <data name="TemporaryPassword" xml:space="preserve">
+    <value>كلمة مرور مؤقتة</value>
+  </data>
+  <data name="TemporaryPasswordHint" xml:space="preserve">
+    <value>يجب أن يختار المستخدم كلمة مرور جديدة عند أول تسجيل دخول.</value>
+  </data>
+  <data name="CreateUser" xml:space="preserve">
+    <value>إنشاء المستخدم</value>
+  </data>
+  <data name="SelectedHeading" xml:space="preserve">
+    <value>{0} ({1})‎</value>
+  </data>
+  <data name="SelectUser" xml:space="preserve">
+    <value>اختر مستخدمًا لتغيير بياناته أو أدواره أو كلمة مروره.</value>
+  </data>
+  <data name="SaveDetails" xml:space="preserve">
+    <value>حفظ البيانات</value>
+  </data>
+  <data name="Deactivate" xml:space="preserve">
+    <value>إيقاف</value>
+  </data>
+  <data name="Reactivate" xml:space="preserve">
+    <value>إعادة تنشيط</value>
+  </data>
+  <data name="Roles" xml:space="preserve">
+    <value>الأدوار</value>
+  </data>
+  <data name="AssignRole" xml:space="preserve">
+    <value>منح الدور</value>
+  </data>
+  <data name="RemoveRole" xml:space="preserve">
+    <value>سحب الدور المحدد</value>
+  </data>
+  <data name="ResetPassword" xml:space="preserve">
+    <value>تعيين كلمة مرور مؤقتة</value>
+  </data>
+  <data name="UserCreated" xml:space="preserve">
+    <value>تم إنشاء المستخدم {0}. أخبره بكلمة المرور المؤقتة؛ سيختار كلمته الخاصة عند أول تسجيل دخول.</value>
+  </data>
+  <data name="DetailsSaved" xml:space="preserve">
+    <value>تم حفظ بيانات {0}.</value>
+  </data>
+  <data name="Deactivated" xml:space="preserve">
+    <value>لم يعد بإمكان {0} تسجيل الدخول. يبقى سجله محفوظًا.</value>
+  </data>
+  <data name="Reactivated" xml:space="preserve">
+    <value>يمكن لـ {0} تسجيل الدخول مرة أخرى.</value>
+  </data>
+  <data name="RoleAssigned" xml:space="preserve">
+    <value>أصبح لـ {0} الدور {1}.</value>
+  </data>
+  <data name="RoleRemoved" xml:space="preserve">
+    <value>سُحب الدور {1} من {0}.</value>
+  </data>
+  <data name="PasswordSet" xml:space="preserve">
+    <value>تم تعيين كلمة مرور مؤقتة لـ {0}. سيختار كلمته الخاصة عند تسجيل الدخول التالي.</value>
+  </data>
+  <data name="PasswordRequired" xml:space="preserve">
+    <value>أدخل كلمة مرور مؤقتة.</value>
+  </data>
+  <data name="Count" xml:space="preserve">
+    <value>عرض {0} من {1} مستخدم. ابحث للعثور على غيرهم.</value>
+  </data>
+  <data name="RoleName" xml:space="preserve">
+    <value>اسم الدور</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="CreateRole" xml:space="preserve">
+    <value>إنشاء الدور</value>
+  </data>
+  <data name="RoleCreated" xml:space="preserve">
+    <value>تم إنشاء الدور {0}. اختر ما يُسمح له به.</value>
+  </data>
+  <data name="SelectRole" xml:space="preserve">
+    <value>اختر دورًا لتحديد ما يُسمح له به.</value>
+  </data>
+  <data name="Permissions" xml:space="preserve">
+    <value>ما يُسمح للدور {0} به</value>
+  </data>
+  <data name="Allowed" xml:space="preserve">
+    <value>مسموح</value>
+  </data>
+  <data name="Module" xml:space="preserve">
+    <value>المجال</value>
+  </data>
+  <data name="Permission" xml:space="preserve">
+    <value>الصلاحية</value>
+  </data>
+  <data name="Sensitive" xml:space="preserve">
+    <value>حساسة</value>
+  </data>
+  <data name="Granted" xml:space="preserve">
+    <value>{0}: مسموح لـ {1}.</value>
+  </data>
+  <data name="Revoked" xml:space="preserve">
+    <value>{0}: لم يعد مسموحًا لـ {1}.</value>
+  </data>
+  <data name="UnknownPermission" xml:space="preserve">
+    <value>(لا تقدّمها أي وحدة مثبّتة)</value>
+  </data>
+  <data name="Language" xml:space="preserve">
+    <value>لغة الشاشات</value>
+  </data>
+  <data name="LanguageDefault" xml:space="preserve">
+    <value>لغة التثبيت</value>
+  </data>
+</root>

@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+    <data name="ScreenTitle" xml:space="preserve">
+    <value>أوامر الشراء</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
+  <data name="AllStatuses" xml:space="preserve">
+    <value>كل الأوامر</value>
+  </data>
+  <data name="Draft" xml:space="preserve">
+    <value>مسودة</value>
+  </data>
+  <data name="Submitted" xml:space="preserve">
+    <value>مطلوب</value>
+  </data>
+  <data name="Received" xml:space="preserve">
+    <value>مُستلَم</value>
+  </data>
+  <data name="Cancelled" xml:space="preserve">
+    <value>ملغى</value>
+  </data>
+  <data name="Show" xml:space="preserve">
+    <value>عرض</value>
+  </data>
+  <data name="Number" xml:space="preserve">
+    <value>الرقم</value>
+  </data>
+  <data name="Supplier" xml:space="preserve">
+    <value>المورد</value>
+  </data>
+  <data name="Total" xml:space="preserve">
+    <value>الإجمالي</value>
+  </data>
+  <data name="Created" xml:space="preserve">
+    <value>تاريخ الإنشاء</value>
+  </data>
+  <data name="NewHeading" xml:space="preserve">
+    <value>أمر جديد</value>
+  </data>
+  <data name="FindSupplier" xml:space="preserve">
+    <value>بحث عن مورد</value>
+  </data>
+  <data name="SupplierHint" xml:space="preserve">
+    <value>رمز المورد أو اسمه</value>
+  </data>
+  <data name="Reference" xml:space="preserve">
+    <value>المرجع</value>
+  </data>
+  <data name="CreateOrder" xml:space="preserve">
+    <value>إنشاء الأمر</value>
+  </data>
+  <data name="NoSupplierFound" xml:space="preserve">
+    <value>لا يوجد مورد نشط مطابق. أضف الموردين في «العملاء والموردون».</value>
+  </data>
+  <data name="OrderHeading" xml:space="preserve">
+    <value>الأمر {0} - {1} ({2})</value>
+  </data>
+  <data name="SelectOrder" xml:space="preserve">
+    <value>اختر أمرًا، أو أنشئ أمرًا جديدًا.</value>
+  </data>
+  <data name="ProductCode" xml:space="preserve">
+    <value>رمز الصنف</value>
+  </data>
+  <data name="Product" xml:space="preserve">
+    <value>الصنف</value>
+  </data>
+  <data name="Quantity" xml:space="preserve">
+    <value>الكمية</value>
+  </data>
+  <data name="UnitCost" xml:space="preserve">
+    <value>تكلفة الوحدة</value>
+  </data>
+  <data name="UnitCostHint" xml:space="preserve">
+    <value>فارغ: سعر تكلفة الصنف</value>
+  </data>
+  <data name="LineTotal" xml:space="preserve">
+    <value>إجمالي السطر</value>
+  </data>
+  <data name="ReceivedColumn" xml:space="preserve">
+    <value>المُستلَم</value>
+  </data>
+  <data name="AddLine" xml:space="preserve">
+    <value>إضافة سطر</value>
+  </data>
+  <data name="RemoveLine" xml:space="preserve">
+    <value>حذف السطر المحدد</value>
+  </data>
+  <data name="Submit" xml:space="preserve">
+    <value>إرسال الأمر</value>
+  </data>
+  <data name="CancelReason" xml:space="preserve">
+    <value>السبب</value>
+  </data>
+  <data name="CancelOrder" xml:space="preserve">
+    <value>إلغاء الأمر</value>
+  </data>
+  <data name="Warehouse" xml:space="preserve">
+    <value>إلى المخزن</value>
+  </data>
+  <data name="Receive" xml:space="preserve">
+    <value>استلام الشحنة</value>
+  </data>
+  <data name="OrderCreated" xml:space="preserve">
+    <value>تم إنشاء الأمر {0}. أضف أسطره.</value>
+  </data>
+  <data name="LineAdded" xml:space="preserve">
+    <value>تمت إضافة السطر.</value>
+  </data>
+  <data name="LineRemoved" xml:space="preserve">
+    <value>تم حذف السطر.</value>
+  </data>
+  <data name="OrderSubmitted" xml:space="preserve">
+    <value>تم إرسال الأمر {0}.</value>
+  </data>
+  <data name="OrderCancelled" xml:space="preserve">
+    <value>تم إلغاء الأمر {0}.</value>
+  </data>
+  <data name="OrderReceived" xml:space="preserve">
+    <value>تم استلام الأمر {0}: أضيف {1} سطر إلى المخزون.</value>
+  </data>
+  <data name="QuantityInvalid" xml:space="preserve">
+    <value>أدخل كمية أكبر من صفر.</value>
+  </data>
+  <data name="CostInvalid" xml:space="preserve">
+    <value>أدخل تكلفة الوحدة صفرًا أو أكثر، أو اتركها فارغة.</value>
+  </data>
+  <data name="ChooseWarehouse" xml:space="preserve">
+    <value>اختر المخزن الذي يستلم الشحنة.</value>
+  </data>
+  <data name="PartiallyReceived" xml:space="preserve">
+    <value>مُستلَم جزئيًا</value>
+  </data>
+  <data name="ClosedShort" xml:space="preserve">
+    <value>مُغلق بنقص</value>
+  </data>
+  <data name="Outstanding" xml:space="preserve">
+    <value>المتبقي</value>
+  </data>
+  <data name="ReceiveNow" xml:space="preserve">
+    <value>الواصل</value>
+  </data>
+  <data name="ReceiveNowHint" xml:space="preserve">
+    <value>الكمية التي وصلت من كل سطر في هذه الشحنة. تبدأ بالمتبقي المتوقع؛ غيّرها عند الاستلام الجزئي.</value>
+  </data>
+  <data name="OrderPartlyReceived" xml:space="preserve">
+    <value>الأمر {0}: أضيف {1} سطر إلى المخزون؛ الباقي ما زال متوقعًا.</value>
+  </data>
+  <data name="CloseShort" xml:space="preserve">
+    <value>إغلاق بنقص</value>
+  </data>
+  <data name="CloseShortHint" xml:space="preserve">
+    <value>ينهي الأمر بما وصل: لم يعد الباقي متوقعًا.</value>
+  </data>
+  <data name="OrderClosedShort" xml:space="preserve">
+    <value>أُغلق الأمر {0} بنقص؛ لم يعد الباقي متوقعًا.</value>
+  </data>
+  <data name="ReceiveQuantityInvalid" xml:space="preserve">
+    <value>أدخل الكمية الواصلة من كل سطر صفرًا أو أكثر.</value>
+  </data>
+  <data name="ReturnedColumn" xml:space="preserve">
+    <value>المُرتجَع</value>
+  </data>
+  <data name="ReturnSelected" xml:space="preserve">
+    <value>إرجاع السطر المحدد:</value>
+  </data>
+  <data name="ReturnQuantity" xml:space="preserve">
+    <value>الكمية</value>
+  </data>
+  <data name="ReturnReason" xml:space="preserve">
+    <value>السبب</value>
+  </data>
+  <data name="ReturnButton" xml:space="preserve">
+    <value>إرجاع إلى المورد</value>
+  </data>
+  <data name="ReturnHint" xml:space="preserve">
+    <value>اختر سطرًا مُستلَمًا. تخرج البضاعة من المخزن الذي استُلم فيه الأمر، بتكلفة الوحدة في الأمر.</value>
+  </data>
+  <data name="ReturnMade" xml:space="preserve">
+    <value>تم تسجيل المرتجع {0}: بضاعة قيمتها {1} أُعيدت إلى المورد وخرجت من المخزون.</value>
+  </data>
+  <data name="ReturnsHeading" xml:space="preserve">
+    <value>المرتجعات إلى المورد</value>
+  </data>
+  <data name="ReturnLine" xml:space="preserve">
+    <value>{0} ({1}): {2} - {3} - {4}</value>
+  </data>
+</root>

@@ -117,7 +117,8 @@ public sealed class LicenseViewModel : ViewModelBase, INavigationAware
 
     private static string FormatDate(DateTimeOffset value) => value.ToLocalTime().ToString("d", CultureInfo.CurrentCulture);
 
-    private static string Describe(LicenseState state) => state switch
+    /// <summary>The license state in words of the display language (also the shell's status bar, FIX-13c).</summary>
+    public static string Describe(LicenseState state) => state switch
     {
         LicenseState.Active => LicenseText.StateActive,
         LicenseState.GracePeriod => LicenseText.StateGracePeriod,

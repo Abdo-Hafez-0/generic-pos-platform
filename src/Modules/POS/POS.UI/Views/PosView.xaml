@@ -78,7 +78,8 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+            <!-- FIX-13c: wraps on narrow windows and longer (translated) labels instead of running off the screen -->
+            <WrapPanel Grid.Row="0" Margin="0,0,0,8">
                 <TextBlock Text="{x:Static res:PosText.ProductCode}" Margin="0,0,8,0"/>
                 <TextBox x:Name="ProductCodeBox" Width="240" Text="{Binding ProductCode, UpdateSourceTrigger=PropertyChanged}"
                          AutomationProperties.Name="{x:Static res:PosText.ProductCode}">
@@ -107,7 +108,7 @@
                 <!-- FIX-02: scans are added wherever the focus is on this screen -->
                 <TextBlock x:Name="ScannerReadyText" Text="{x:Static res:PosText.ScannerReady}" Foreground="#A6E3A1" Margin="16,0,0,0"
                            Visibility="{Binding ScannerReady, Converter={StaticResource VisibleWhenTrue}}"/>
-            </StackPanel>
+            </WrapPanel>
 
             <!-- FIX-11: the customer of the sale (optional; code and name only) -->
             <WrapPanel Grid.Row="1" Margin="0,0,0,8" x:Name="CustomerPanel">

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+    <data name="ScreenTitle" xml:space="preserve">
+    <value>نظرة عامة على النشاط</value>
+  </data>
+  <data name="From" xml:space="preserve">
+    <value>من</value>
+  </data>
+  <data name="To" xml:space="preserve">
+    <value>إلى</value>
+  </data>
+  <data name="Show" xml:space="preserve">
+    <value>عرض</value>
+  </data>
+  <data name="SalesCard" xml:space="preserve">
+    <value>المبيعات</value>
+  </data>
+  <data name="SaleCount" xml:space="preserve">
+    <value>المبيعات المكتملة</value>
+  </data>
+  <data name="SalesTotal" xml:space="preserve">
+    <value>الإيرادات</value>
+  </data>
+  <data name="AverageSale" xml:space="preserve">
+    <value>متوسط البيع</value>
+  </data>
+  <data name="SalesTruncated" xml:space="preserve">
+    <value>احتُسبت أحدث المبيعات فقط؛ قد تنقص بداية هذه الفترة. اختر فترة أقصر.</value>
+  </data>
+  <data name="InventoryCard" xml:space="preserve">
+    <value>المخزون</value>
+  </data>
+  <data name="StockItems" xml:space="preserve">
+    <value>أسطر المخزون</value>
+  </data>
+  <data name="Products" xml:space="preserve">
+    <value>الأصناف في سجلات المخزون</value>
+  </data>
+  <data name="TotalOnHand" xml:space="preserve">
+    <value>الوحدات المتاحة</value>
+  </data>
+  <data name="OutOfStock" xml:space="preserve">
+    <value>أسطر نفد مخزونها</value>
+  </data>
+  <data name="PurchasingCard" xml:space="preserve">
+    <value>المشتريات</value>
+  </data>
+  <data name="Orders" xml:space="preserve">
+    <value>الأوامر</value>
+  </data>
+  <data name="OrdersByStatus" xml:space="preserve">
+    <value>مسودة / بانتظار البضاعة / مُستلَم أو مُغلق / ملغى</value>
+  </data>
+  <data name="OpenValue" xml:space="preserve">
+    <value>القيمة المتبقية للاستلام</value>
+  </data>
+  <data name="ReceivedValue" xml:space="preserve">
+    <value>القيمة المُستلَمة</value>
+  </data>
+  <data name="CustomersCard" xml:space="preserve">
+    <value>العملاء</value>
+  </data>
+  <data name="SuppliersCard" xml:space="preserve">
+    <value>الموردون</value>
+  </data>
+  <data name="PartyCounts" xml:space="preserve">
+    <value>نشط / غير نشط</value>
+  </data>
+  <data name="Total" xml:space="preserve">
+    <value>الإجمالي</value>
+  </data>
+  <data name="Day" xml:space="preserve">
+    <value>اليوم</value>
+  </data>
+  <data name="RangeInvalid" xml:space="preserve">
+    <value>يجب ألا يسبق تاريخُ النهاية تاريخَ البداية.</value>
+  </data>
+</root>

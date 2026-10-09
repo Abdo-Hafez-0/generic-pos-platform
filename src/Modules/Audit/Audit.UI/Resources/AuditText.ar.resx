@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+    <data name="ScreenTitle" xml:space="preserve">
+    <value>سجل التدقيق</value>
+  </data>
+  <data name="Module" xml:space="preserve">
+    <value>الوحدة</value>
+  </data>
+  <data name="Action" xml:space="preserve">
+    <value>الإجراء</value>
+  </data>
+  <data name="From" xml:space="preserve">
+    <value>من</value>
+  </data>
+  <data name="To" xml:space="preserve">
+    <value>إلى</value>
+  </data>
+  <data name="Show" xml:space="preserve">
+    <value>عرض</value>
+  </data>
+  <data name="Previous" xml:space="preserve">
+    <value>الأحدث</value>
+  </data>
+  <data name="Next" xml:space="preserve">
+    <value>الأقدم</value>
+  </data>
+  <data name="Time" xml:space="preserve">
+    <value>الوقت</value>
+  </data>
+  <data name="Actor" xml:space="preserve">
+    <value>المستخدم</value>
+  </data>
+  <data name="Subject" xml:space="preserve">
+    <value>العنصر</value>
+  </data>
+  <data name="Summary" xml:space="preserve">
+    <value>الملخص</value>
+  </data>
+  <data name="Details" xml:space="preserve">
+    <value>التفاصيل</value>
+  </data>
+  <data name="PageInfo" xml:space="preserve">
+    <value>السجلات {0}-{1} من {2}، الأحدث أولًا.</value>
+  </data>
+  <data name="NoEntries" xml:space="preserve">
+    <value>لا توجد سجلات مطابقة.</value>
+  </data>
+  <data name="RangeInvalid" xml:space="preserve">
+    <value>يجب ألا يسبق تاريخُ النهاية تاريخَ البداية.</value>
+  </data>
+</root>

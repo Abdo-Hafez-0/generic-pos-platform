@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+    <data name="ScreenTitle" xml:space="preserve">
+    <value>الأسعار</value>
+  </data>
+  <data name="ListsHeading" xml:space="preserve">
+    <value>قوائم الأسعار</value>
+  </data>
+  <data name="Code" xml:space="preserve">
+    <value>الرمز</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>الاسم</value>
+  </data>
+  <data name="Default" xml:space="preserve">
+    <value>الافتراضية</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
+  <data name="Active" xml:space="preserve">
+    <value>نشطة</value>
+  </data>
+  <data name="Inactive" xml:space="preserve">
+    <value>غير نشطة</value>
+  </data>
+  <data name="Yes" xml:space="preserve">
+    <value>نعم</value>
+  </data>
+  <data name="MakeDefault" xml:space="preserve">
+    <value>استخدامها للبيع</value>
+  </data>
+  <data name="AddList" xml:space="preserve">
+    <value>إضافة قائمة أسعار</value>
+  </data>
+  <data name="SetDefault" xml:space="preserve">
+    <value>استخدام المحددة للبيع</value>
+  </data>
+  <data name="DeactivateList" xml:space="preserve">
+    <value>إيقاف القائمة المحددة</value>
+  </data>
+  <data name="ProductHeading" xml:space="preserve">
+    <value>أسعار صنف</value>
+  </data>
+  <data name="ProductCode" xml:space="preserve">
+    <value>رمز الصنف أو الباركود</value>
+  </data>
+  <data name="Find" xml:space="preserve">
+    <value>بحث</value>
+  </data>
+  <data name="CatalogPrice" xml:space="preserve">
+    <value>{0} ({1}) - سعر الكتالوج {2:N2}</value>
+  </data>
+  <data name="PriceNow" xml:space="preserve">
+    <value>السعر في نقطة البيع الآن: {0:N2} (قائمة الأسعار {1}).</value>
+  </data>
+  <data name="CatalogApplies" xml:space="preserve">
+    <value>لا ينطبق أي سعر من قوائم الأسعار الآن: تستخدم نقطة البيع سعر الكتالوج {0:N2}.</value>
+  </data>
+  <data name="List" xml:space="preserve">
+    <value>قائمة الأسعار</value>
+  </data>
+  <data name="Amount" xml:space="preserve">
+    <value>السعر</value>
+  </data>
+  <data name="MinimumQuantity" xml:space="preserve">
+    <value>من كمية</value>
+  </data>
+  <data name="ValidFrom" xml:space="preserve">
+    <value>صالح من</value>
+  </data>
+  <data name="ValidUntil" xml:space="preserve">
+    <value>صالح حتى</value>
+  </data>
+  <data name="ValidUntilHint" xml:space="preserve">
+    <value>اتركه فارغًا إن لم يكن له تاريخ انتهاء. تاريخ الانتهاء مشمول.</value>
+  </data>
+  <data name="AddPrice" xml:space="preserve">
+    <value>إضافة سعر</value>
+  </data>
+  <data name="DeactivatePrice" xml:space="preserve">
+    <value>إيقاف السعر المحدد</value>
+  </data>
+  <data name="ListAdded" xml:space="preserve">
+    <value>تمت إضافة قائمة الأسعار {0}.</value>
+  </data>
+  <data name="DefaultSet" xml:space="preserve">
+    <value>قائمة الأسعار {0} مستخدمة الآن للبيع.</value>
+  </data>
+  <data name="ListDeactivated" xml:space="preserve">
+    <value>قائمة الأسعار {0} غير نشطة.</value>
+  </data>
+  <data name="PriceAdded" xml:space="preserve">
+    <value>تمت إضافة السعر.</value>
+  </data>
+  <data name="PriceDeactivated" xml:space="preserve">
+    <value>تم إيقاف السعر.</value>
+  </data>
+  <data name="AmountInvalid" xml:space="preserve">
+    <value>أدخل السعر رقمًا يساوي صفرًا أو أكثر.</value>
+  </data>
+  <data name="QuantityInvalid" xml:space="preserve">
+    <value>أدخل الحد الأدنى للكمية رقمًا أكبر من صفر.</value>
+  </data>
+  <data name="ChooseList" xml:space="preserve">
+    <value>اختر قائمة الأسعار.</value>
+  </data>
+  <data name="NoLists" xml:space="preserve">
+    <value>أضف قائمة أسعار أولًا.</value>
+  </data>
+  <data name="UntilBeforeFrom" xml:space="preserve">
+    <value>يجب ألا يسبق تاريخُ النهاية تاريخَ البداية.</value>
+  </data>
+  <data name="TaxScreenTitle" xml:space="preserve">
+    <value>نسب الضريبة</value>
+  </data>
+  <data name="TaxRatesHeading" xml:space="preserve">
+    <value>نسب الضريبة</value>
+  </data>
+  <data name="TaxIncludedHint" xml:space="preserve">
+    <value>الأسعار شاملة الضريبة: تحدد النسبة مقدار الضريبة داخل السعر. يحتفظ البيع بالنسبة التي بيع بها، فتغيير النسبة لا يغيّر المبيعات السابقة أبدًا.</value>
+  </data>
+  <data name="TaxPercent" xml:space="preserve">
+    <value>النسبة %</value>
+  </data>
+  <data name="AddTaxRate" xml:space="preserve">
+    <value>إضافة نسبة</value>
+  </data>
+  <data name="EditTaxName" xml:space="preserve">
+    <value>اسم النسبة المحددة</value>
+  </data>
+  <data name="EditTaxPercent" xml:space="preserve">
+    <value>النسبة % للنسبة المحددة</value>
+  </data>
+  <data name="ChangeTaxRate" xml:space="preserve">
+    <value>تغيير المحددة</value>
+  </data>
+  <data name="SetDefaultTax" xml:space="preserve">
+    <value>استخدامها افتراضيًا</value>
+  </data>
+  <data name="DeactivateTaxRate" xml:space="preserve">
+    <value>إيقاف المحددة</value>
+  </data>
+  <data name="ProductTaxHeading" xml:space="preserve">
+    <value>نسبة ضريبة صنف</value>
+  </data>
+  <data name="ProductTaxChoice" xml:space="preserve">
+    <value>نسبة الضريبة</value>
+  </data>
+  <data name="SaveProductTax" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
+  <data name="UseDefaultTax" xml:space="preserve">
+    <value>استخدام النسبة الافتراضية</value>
+  </data>
+  <data name="TaxPercentInvalid" xml:space="preserve">
+    <value>أدخل النسبة مئويةً بين 0 و100، مثل 14.</value>
+  </data>
+  <data name="TaxRateAdded" xml:space="preserve">
+    <value>تمت إضافة نسبة الضريبة {0}.</value>
+  </data>
+  <data name="TaxRateChanged" xml:space="preserve">
+    <value>تم تغيير نسبة الضريبة {0}.</value>
+  </data>
+  <data name="TaxDefaultSet" xml:space="preserve">
+    <value>نسبة الضريبة {0} هي الافتراضية الآن.</value>
+  </data>
+  <data name="TaxRateDeactivated" xml:space="preserve">
+    <value>نسبة الضريبة {0} غير نشطة؛ الأصناف التي كانت تستخدمها تستخدم الافتراضية الآن.</value>
+  </data>
+  <data name="ProductTaxSaved" xml:space="preserve">
+    <value>تم حفظ نسبة ضريبة {0}.</value>
+  </data>
+  <data name="ProductTaxOwn" xml:space="preserve">
+    <value>{0} ({1}): {2} % ({3}، مختارة لهذا الصنف).</value>
+  </data>
+  <data name="ProductTaxDefault" xml:space="preserve">
+    <value>{0} ({1}): {2} % ({3}، النسبة الافتراضية).</value>
+  </data>
+  <data name="ProductTaxNone" xml:space="preserve">
+    <value>{0} ({1}): بلا ضريبة - لم تُعرَّف أي نسبة ضريبة بعد.</value>
+  </data>
+</root>

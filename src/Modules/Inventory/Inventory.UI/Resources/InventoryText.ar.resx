@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+    <data name="WarehousesTitle" xml:space="preserve">
+    <value>المخازن</value>
+  </data>
+  <data name="StockTitle" xml:space="preserve">
+    <value>المخزون</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>الاسم</value>
+  </data>
+  <data name="Code" xml:space="preserve">
+    <value>الرمز</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
+  <data name="Active" xml:space="preserve">
+    <value>نشط</value>
+  </data>
+  <data name="Inactive" xml:space="preserve">
+    <value>غير نشط</value>
+  </data>
+  <data name="AddWarehouse" xml:space="preserve">
+    <value>إضافة مخزن</value>
+  </data>
+  <data name="WarehouseAdded" xml:space="preserve">
+    <value>تمت إضافة المخزن {0}.</value>
+  </data>
+  <data name="Search" xml:space="preserve">
+    <value>بحث</value>
+  </data>
+  <data name="SearchHint" xml:space="preserve">
+    <value>رمز الصنف أو اسمه</value>
+  </data>
+  <data name="AllWarehouses" xml:space="preserve">
+    <value>كل المخازن</value>
+  </data>
+  <data name="Warehouse" xml:space="preserve">
+    <value>المخزن</value>
+  </data>
+  <data name="Sku" xml:space="preserve">
+    <value>رمز الصنف</value>
+  </data>
+  <data name="Product" xml:space="preserve">
+    <value>الصنف</value>
+  </data>
+  <data name="OnHand" xml:space="preserve">
+    <value>الكمية المتاحة</value>
+  </data>
+  <data name="ReceiveHeading" xml:space="preserve">
+    <value>استلام مخزون</value>
+  </data>
+  <data name="ProductCode" xml:space="preserve">
+    <value>رمز الصنف أو الباركود</value>
+  </data>
+  <data name="Quantity" xml:space="preserve">
+    <value>الكمية</value>
+  </data>
+  <data name="Reference" xml:space="preserve">
+    <value>المرجع (إذن التسليم، اختياري)</value>
+  </data>
+  <data name="ReferenceLabel" xml:space="preserve">
+    <value>المرجع</value>
+  </data>
+  <data name="Receive" xml:space="preserve">
+    <value>استلام</value>
+  </data>
+  <data name="AdjustHeading" xml:space="preserve">
+    <value>تصحيح السطر المحدد</value>
+  </data>
+  <data name="AdjustBy" xml:space="preserve">
+    <value>التغيير بمقدار (+ أو -)</value>
+  </data>
+  <data name="Reason" xml:space="preserve">
+    <value>السبب</value>
+  </data>
+  <data name="Notes" xml:space="preserve">
+    <value>ملاحظات</value>
+  </data>
+  <data name="Adjust" xml:space="preserve">
+    <value>تصحيح</value>
+  </data>
+  <data name="Received" xml:space="preserve">
+    <value>تم استلام {0} × {1} في {2}.</value>
+  </data>
+  <data name="Adjusted" xml:space="preserve">
+    <value>تم تصحيح {0} في {1} بمقدار {2}.</value>
+  </data>
+  <data name="QuantityInvalid" xml:space="preserve">
+    <value>أدخل كمية أكبر من صفر.</value>
+  </data>
+  <data name="AdjustInvalid" xml:space="preserve">
+    <value>أدخل تغييرًا لا يساوي صفرًا، مثل 3 أو -2.</value>
+  </data>
+  <data name="ChooseWarehouse" xml:space="preserve">
+    <value>اختر المخزن الذي يستلم المخزون.</value>
+  </data>
+  <data name="NoWarehouses" xml:space="preserve">
+    <value>لا يوجد مخزن بعد. أضف مخزنًا في «المخازن» أولًا.</value>
+  </data>
+  <data name="NoStock" xml:space="preserve">
+    <value>لم يُسجَّل أي مخزون بعد.</value>
+  </data>
+  <data name="ReasonCycleCount" xml:space="preserve">
+    <value>جرد</value>
+  </data>
+  <data name="ReasonDamageWrite" xml:space="preserve">
+    <value>تالف أو مشطوب</value>
+  </data>
+  <data name="ReasonFound" xml:space="preserve">
+    <value>وُجد</value>
+  </data>
+  <data name="ReasonTransferIn" xml:space="preserve">
+    <value>تحويل وارد</value>
+  </data>
+  <data name="ReasonTransferOut" xml:space="preserve">
+    <value>تحويل صادر</value>
+  </data>
+  <data name="ReasonOpeningBalance" xml:space="preserve">
+    <value>رصيد افتتاحي</value>
+  </data>
+  <data name="ReasonOther" xml:space="preserve">
+    <value>أخرى</value>
+  </data>
+</root>

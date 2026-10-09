@@ -92,7 +92,7 @@
                 <DataGridTextColumn Header="{x:Static res:CustomersText.Code}" Binding="{Binding Customer.Code}" Width="110" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:CustomersText.Name}" Binding="{Binding Customer.Name}" Width="*" MinWidth="160" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:CustomersText.Email}" Binding="{Binding Customer.Email}" Width="200" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:CustomersText.Phone}" Binding="{Binding Customer.Phone}" Width="140" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:CustomersText.Phone}" Binding="{Binding Customer.Phone, StringFormat=&#x200E;{0}}" Width="140" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:CustomersText.Status}" Binding="{Binding StatusText}" Width="90" ElementStyle="{StaticResource Cell}"/>
             </DataGrid.Columns>
         </DataGrid>
@@ -117,9 +117,9 @@
             <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="{x:Static res:CustomersText.Name}"/>
             <TextBox Grid.Row="1" Grid.Column="1" x:Name="CustomerNameBox" Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CustomersText.Name}"/>
             <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="{x:Static res:CustomersText.Email}"/>
-            <TextBox Grid.Row="2" Grid.Column="1" x:Name="CustomerEmailBox" Text="{Binding EditEmail, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CustomersText.Email}"/>
+            <TextBox Grid.Row="2" Grid.Column="1" x:Name="CustomerEmailBox" FlowDirection="LeftToRight" Text="{Binding EditEmail, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CustomersText.Email}"/>
             <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="{x:Static res:CustomersText.Phone}"/>
-            <TextBox Grid.Row="3" Grid.Column="1" x:Name="CustomerPhoneBox" Width="220" HorizontalAlignment="Left" Text="{Binding EditPhone, UpdateSourceTrigger=PropertyChanged}"
+            <TextBox Grid.Row="3" Grid.Column="1" x:Name="CustomerPhoneBox" FlowDirection="LeftToRight" Width="220" HorizontalAlignment="Left" Text="{Binding EditPhone, UpdateSourceTrigger=PropertyChanged}"
                      AutomationProperties.Name="{x:Static res:CustomersText.Phone}"/>
             <TextBlock Grid.Row="4" Style="{StaticResource Label}" Text="{x:Static res:CustomersText.Notes}" VerticalAlignment="Top"/>
             <TextBox Grid.Row="4" Grid.Column="1" x:Name="CustomerNotesBox" Height="70" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top"

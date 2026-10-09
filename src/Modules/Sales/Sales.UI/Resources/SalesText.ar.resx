@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+    <data name="ScreenTitle" xml:space="preserve">
+    <value>سجل المبيعات</value>
+  </data>
+  <data name="From" xml:space="preserve">
+    <value>من</value>
+  </data>
+  <data name="To" xml:space="preserve">
+    <value>إلى</value>
+  </data>
+  <data name="Show" xml:space="preserve">
+    <value>عرض</value>
+  </data>
+  <data name="Time" xml:space="preserve">
+    <value>الوقت</value>
+  </data>
+  <data name="Reference" xml:space="preserve">
+    <value>المرجع</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
+  <data name="Items" xml:space="preserve">
+    <value>الأصناف</value>
+  </data>
+  <data name="Total" xml:space="preserve">
+    <value>الإجمالي</value>
+  </data>
+  <data name="Product" xml:space="preserve">
+    <value>الصنف</value>
+  </data>
+  <data name="Sku" xml:space="preserve">
+    <value>رمز الصنف</value>
+  </data>
+  <data name="Quantity" xml:space="preserve">
+    <value>الكمية</value>
+  </data>
+  <data name="UnitPrice" xml:space="preserve">
+    <value>سعر الوحدة</value>
+  </data>
+  <data name="LineTotal" xml:space="preserve">
+    <value>إجمالي السطر</value>
+  </data>
+  <data name="Summary" xml:space="preserve">
+    <value>المبيعات المكتملة: {0}، الإجمالي {1:N2}</value>
+  </data>
+  <data name="Truncated" xml:space="preserve">
+    <value>تُعرض أحدث {0} عملية بيع فقط من هذه الفترة، والإجماليات تخصّها. اختر فترة أقصر لرؤية الكل.</value>
+  </data>
+  <data name="NoSales" xml:space="preserve">
+    <value>لا توجد مبيعات في هذه الفترة.</value>
+  </data>
+  <data name="RangeInvalid" xml:space="preserve">
+    <value>يجب ألا يسبق تاريخُ النهاية تاريخَ البداية.</value>
+  </data>
+  <data name="StatusDraft" xml:space="preserve">
+    <value>مفتوح</value>
+  </data>
+  <data name="StatusConfirmed" xml:space="preserve">
+    <value>مؤكَّد</value>
+  </data>
+  <data name="StatusCompleted" xml:space="preserve">
+    <value>مكتمل</value>
+  </data>
+  <data name="StatusCancelled" xml:space="preserve">
+    <value>ملغى</value>
+  </data>
+  <data name="SelectSale" xml:space="preserve">
+    <value>اختر عملية بيع لرؤية أسطرها.</value>
+  </data>
+  <data name="Customer" xml:space="preserve">
+    <value>العميل</value>
+  </data>
+  <data name="SaleCustomer" xml:space="preserve">
+    <value>العميل: {0}</value>
+  </data>
+</root>

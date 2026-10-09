@@ -77,7 +77,7 @@
 
         <!-- the users, and a new user -->
         <DockPanel Grid.Column="0">
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+            <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                 <TextBox x:Name="UserSearchBox" Width="180" Margin="0,0,8,0" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                          AutomationProperties.Name="{x:Static res:UsersText.SearchHint}" ToolTip="{x:Static res:UsersText.SearchHint}">
                     <TextBox.InputBindings>
@@ -86,7 +86,7 @@
                 </TextBox>
                 <Button x:Name="UserSearchButton" Content="{x:Static res:UsersText.Search}" Command="{Binding SearchCommand}"/>
                 <CheckBox x:Name="ShowInactiveUsersBox" Content="{x:Static res:UsersText.ShowInactive}" IsChecked="{Binding ShowInactive}"/>
-            </StackPanel>
+            </WrapPanel>
 
             <Grid DockPanel.Dock="Bottom" Margin="0,12,0,0">
                 <Grid.ColumnDefinitions>
@@ -107,7 +107,7 @@
                 <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="{x:Static res:UsersText.DisplayName}"/>
                 <TextBox Grid.Row="2" Grid.Column="1" x:Name="NewDisplayNameBox" Text="{Binding NewDisplayName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:UsersText.DisplayName}"/>
                 <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="{x:Static res:UsersText.Email}"/>
-                <TextBox Grid.Row="3" Grid.Column="1" x:Name="NewEmailBox" Text="{Binding NewEmail, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:UsersText.Email}"/>
+                <TextBox Grid.Row="3" Grid.Column="1" x:Name="NewEmailBox" FlowDirection="LeftToRight" Text="{Binding NewEmail, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:UsersText.Email}"/>
                 <TextBlock Grid.Row="4" Style="{StaticResource Label}" Text="{x:Static res:UsersText.TemporaryPassword}"/>
                 <PasswordBox Grid.Row="4" Grid.Column="1" x:Name="NewPasswordBox" ToolTip="{x:Static res:UsersText.TemporaryPasswordHint}" AutomationProperties.Name="{x:Static res:UsersText.TemporaryPassword}"/>
                 <Button Grid.Row="5" Grid.Column="1" x:Name="CreateUserButton" HorizontalAlignment="Left" Margin="0,6,0,0"
@@ -146,7 +146,7 @@
                 <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="{x:Static res:UsersText.DisplayName}"/>
                 <TextBox Grid.Row="0" Grid.Column="1" x:Name="EditDisplayNameBox" Text="{Binding EditDisplayName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:UsersText.DisplayName}"/>
                 <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="{x:Static res:UsersText.Email}"/>
-                <TextBox Grid.Row="1" Grid.Column="1" x:Name="EditEmailBox" Text="{Binding EditEmail, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:UsersText.Email}"/>
+                <TextBox Grid.Row="1" Grid.Column="1" x:Name="EditEmailBox" FlowDirection="LeftToRight" Text="{Binding EditEmail, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:UsersText.Email}"/>
                 <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="{x:Static res:UsersText.Language}"/>
                 <ComboBox Grid.Row="2" Grid.Column="1" x:Name="EditLanguageBox" HorizontalAlignment="Left" Width="200" Margin="0,4,0,0"
                           ItemsSource="{Binding Languages}" SelectedItem="{Binding EditLanguage}" DisplayMemberPath="Text"

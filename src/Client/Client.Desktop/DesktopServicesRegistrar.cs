@@ -51,6 +51,7 @@ internal sealed class DesktopServicesRegistrar : IHostingModule
         services.AddSingleton<IScreenFactory, WpfScreenFactory>();
         services.AddSingleton<ShellViewModel>();
         services.AddSingleton<IShellNavigation>(sp => sp.GetRequiredService<ShellViewModel>());
+        services.AddSingleton<IApplicationRestarter, DesktopRestarter>();   // MISS-04d: "Restart now" after a confirmed restore
 
         // Screens declared by the module UIs (IScreenProvider), one per module UI.
         services.AddSingleton<IScreenProvider, DesktopScreens>(); // license screen (FIX-01e, done first)

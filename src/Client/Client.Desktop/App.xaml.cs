@@ -39,6 +39,9 @@ public partial class App : Application
 
         try
         {
+            // MISS-04d: after "Restart now" (a confirmed restore) wait until the previous copy has ended, so the data files are free.
+            Shell.RestartHandoff.WaitForPreviousInstance();
+
             // Build the application host from the desktop composition (DesktopComposition: platform, client components, every module).
             var builder = ApplicationHostBuilder.Create();
             foreach (var module in DesktopComposition.HostingModules())

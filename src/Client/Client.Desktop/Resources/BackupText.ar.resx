@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ScreenTitle" xml:space="preserve">
+    <value>النسخ الاحتياطي</value>
+  </data>
+  <data name="LastBackup" xml:space="preserve">
+    <value>آخر نسخة احتياطية</value>
+  </data>
+  <data name="NoBackupYet" xml:space="preserve">
+    <value>لم تُنشأ أي نسخة احتياطية بعد.</value>
+  </data>
+  <data name="LastBackupValue" xml:space="preserve">
+    <value>{0} - {1}</value>
+  </data>
+  <data name="Folder" xml:space="preserve">
+    <value>مجلد النسخ الاحتياطي</value>
+  </data>
+  <data name="NoFolder" xml:space="preserve">
+    <value>لم يتم اختيار مجلد</value>
+  </data>
+  <data name="Schedule" xml:space="preserve">
+    <value>النسخ اليومي</value>
+  </data>
+  <data name="ScheduleAt" xml:space="preserve">
+    <value>كل يوم الساعة {0}</value>
+  </data>
+  <data name="ScheduleOff" xml:space="preserve">
+    <value>متوقف</value>
+  </data>
+  <data name="Unencrypted" xml:space="preserve">
+    <value>النسخ الاحتياطية في هذا المجلد نسخ عادية من بيانات المتجر وغير مشفرة. احفظ وحدة التخزين في مكان آمن.</value>
+  </data>
+  <data name="BackUpNow" xml:space="preserve">
+    <value>نسخ احتياطي الآن</value>
+  </data>
+  <data name="BackupMade" xml:space="preserve">
+    <value>تم إنشاء النسخة الاحتياطية {0}.</value>
+  </data>
+  <data name="History" xml:space="preserve">
+    <value>النسخ الاحتياطية</value>
+  </data>
+  <data name="Made" xml:space="preserve">
+    <value>تاريخ الإنشاء</value>
+  </data>
+  <data name="File" xml:space="preserve">
+    <value>الملف</value>
+  </data>
+  <data name="Where" xml:space="preserve">
+    <value>المكان</value>
+  </data>
+  <data name="Size" xml:space="preserve">
+    <value>الحجم</value>
+  </data>
+  <data name="How" xml:space="preserve">
+    <value>الطريقة</value>
+  </data>
+  <data name="Checked" xml:space="preserve">
+    <value>الفحص</value>
+  </data>
+  <data name="OriginManual" xml:space="preserve">
+    <value>يدويًا</value>
+  </data>
+  <data name="OriginScheduled" xml:space="preserve">
+    <value>مجدول</value>
+  </data>
+  <data name="WhereLocal" xml:space="preserve">
+    <value>مجلد النسخ الاحتياطي</value>
+  </data>
+  <data name="WhereBeforeRestore" xml:space="preserve">
+    <value>محفوظة قبل الاستعادة</value>
+  </data>
+  <data name="NotChecked" xml:space="preserve">
+    <value>لم تُفحص</value>
+  </data>
+  <data name="CheckPassed" xml:space="preserve">
+    <value>سليمة</value>
+  </data>
+  <data name="CheckFailed" xml:space="preserve">
+    <value>فاشلة</value>
+  </data>
+  <data name="Check" xml:space="preserve">
+    <value>فحص</value>
+  </data>
+  <data name="CheckedGood" xml:space="preserve">
+    <value>النسخة الاحتياطية {0} كاملة وقابلة للقراءة.</value>
+  </data>
+  <data name="Restore" xml:space="preserve">
+    <value>استعادة...</value>
+  </data>
+  <data name="RestoreFromFile" xml:space="preserve">
+    <value>استعادة من ملف...</value>
+  </data>
+  <data name="Delete" xml:space="preserve">
+    <value>حذف...</value>
+  </data>
+  <data name="DeleteQuestion" xml:space="preserve">
+    <value>حذف النسخة الاحتياطية {0}؟ لا يمكن التراجع عن ذلك.</value>
+  </data>
+  <data name="DeleteYes" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Keep" xml:space="preserve">
+    <value>الإبقاء عليها</value>
+  </data>
+  <data name="Deleted" xml:space="preserve">
+    <value>تم حذف النسخة الاحتياطية {0}.</value>
+  </data>
+  <data name="RestoreQuestion" xml:space="preserve">
+    <value>سيُستبدل كل ما أُدخل بعد {0} بالنسخة الاحتياطية {1}. تُحفظ نسخة من البيانات الحالية، وبعد ذلك يسجّل الجميع الدخول بالمستخدمين وكلمات المرور المحفوظة في النسخة الاحتياطية.</value>
+  </data>
+  <data name="ConfirmRestore" xml:space="preserve">
+    <value>استعادة</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="RestorePending" xml:space="preserve">
+    <value>تتم استعادة {0} عند إعادة تشغيل التطبيق. يحتاج الجميع إلى تسجيل الدخول من جديد.</value>
+  </data>
+  <data name="RestartNow" xml:space="preserve">
+    <value>إعادة التشغيل الآن</value>
+  </data>
+  <data name="CancelPending" xml:space="preserve">
+    <value>إلغاء الاستعادة</value>
+  </data>
+  <data name="RestoreCancelled" xml:space="preserve">
+    <value>تم إلغاء الاستعادة. لم يتغير شيء.</value>
+  </data>
+  <data name="LastRestore" xml:space="preserve">
+    <value>آخر استعادة ({0}): {1}</value>
+  </data>
+  <data name="Settings" xml:space="preserve">
+    <value>الإعدادات</value>
+  </data>
+  <data name="Browse" xml:space="preserve">
+    <value>استعراض...</value>
+  </data>
+  <data name="KeepNewest" xml:space="preserve">
+    <value>الاحتفاظ بأحدث</value>
+  </data>
+  <data name="KeepUnit" xml:space="preserve">
+    <value>نسخة</value>
+  </data>
+  <data name="DailyAt" xml:space="preserve">
+    <value>إنشاء نسخة احتياطية كل يوم الساعة</value>
+  </data>
+  <data name="TimeHint" xml:space="preserve">
+    <value>(سس:دد، أثناء تشغيل التطبيق)</value>
+  </data>
+  <data name="Save" xml:space="preserve">
+    <value>حفظ الإعدادات</value>
+  </data>
+  <data name="Saved" xml:space="preserve">
+    <value>تم حفظ الإعدادات.</value>
+  </data>
+  <data name="InvalidTime" xml:space="preserve">
+    <value>أدخل الوقت بالساعات والدقائق، مثل 23:00.</value>
+  </data>
+  <data name="InvalidKeep" xml:space="preserve">
+    <value>أدخل عدد النسخ الاحتياطية التي يُحتفظ بها، مثل 14.</value>
+  </data>
+  <data name="ChooseFolder" xml:space="preserve">
+    <value>اختر مجلد النسخ الاحتياطي</value>
+  </data>
+  <data name="ChooseFile" xml:space="preserve">
+    <value>اختر ملف النسخة الاحتياطية المراد استعادته</value>
+  </data>
+  <data name="BackupFiles" xml:space="preserve">
+    <value>ملفات النسخ الاحتياطي</value>
+  </data>
+</root>

@@ -90,6 +90,12 @@
                       StronglyTypedNamespace="Client.Desktop.Resources"
                       StronglyTypedFileName="$(IntermediateOutputPath)LicenseText.Designer.cs"
                       PublicClass="true" />
+    <EmbeddedResource Update="Resources\BackupText.resx"
+                      StronglyTypedLanguage="CSharp"
+                      StronglyTypedClassName="BackupText"
+                      StronglyTypedNamespace="Client.Desktop.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)BackupText.Designer.cs"
+                      PublicClass="true" />
   </ItemGroup>
   <!-- The XAML temporary-assembly compile also needs the generated resource classes: src/Directory.Build.targets. -->
 

@@ -115,7 +115,7 @@ public sealed class LocalBackupTests : IDisposable
         Assert.Contains("Your data was not changed", made.Error.Description);
         Assert.Empty(await _world.Service.GetHistoryAsync());
         Assert.Empty(_world.StagingFiles());
-        Assert.Empty(_world.Events.Events);
+        Assert.Equal(["backup.failed"], _world.Events.Actions());   // MISS-04c: a failed attempt is audited
     }
 
     [Fact]

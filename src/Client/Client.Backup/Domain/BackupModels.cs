@@ -40,13 +40,37 @@ public sealed record BackupRecord(
 /// <summary>
 /// The backup settings a person with <c>backup.configure</c> changes. <see cref="LocalFolder"/> null = no local destination yet
 /// (nothing is backed up until one is chosen). <see cref="KeepLocal"/> = how many local backups are kept (oldest removed first).
+/// <see cref="ScheduleEnabled"/> = a backup is made every day at <see cref="DailyAt"/> (null = 23:00, local time) while the application
+/// runs, and caught up at the next start when that time was missed (MISS-04c). Settings saved before MISS-04c read as scheduled at 23:00.
 /// </summary>
-public sealed record BackupSettings(string? LocalFolder, int KeepLocal)
+public sealed record BackupSettings(string? LocalFolder, int KeepLocal, bool ScheduleEnabled = true, TimeOnly? DailyAt = null)
 {
     public const int DefaultKeepLocal = 14;
     public const int MinKeepLocal = 1;
     public const int MaxKeepLocal = 365;
+    public static readonly TimeOnly DefaultDailyAt = new(23, 0);
+
+    /// <summary>The time of the daily backup.</summary>
+    public TimeOnly ScheduledTime() => DailyAt ?? DefaultDailyAt;
 }
+
+/// <summary>
+/// The last backup ATTEMPT (kept as <c>status.json</c> next to the database): what the shell's notice and the scheduler's retry pause
+/// are based on. A refused request (busy, no folder chosen) is not an attempt.
+/// </summary>
+public sealed record BackupStatus(DateTimeOffset LastAttemptAt, BackupOrigin LastAttemptOrigin, bool LastAttemptSucceeded, string? LastFailure);
+
+public enum BackupNoticeKind
+{
+    /// <summary>No backup folder chosen: the shop's data is not being backed up.</summary>
+    NotConfigured = 0,
+
+    /// <summary>The last backup attempt failed (<see cref="BackupNotice.Reason"/> says why).</summary>
+    LastBackupFailed = 1
+}
+
+/// <summary>Something about backups the people who can act on it should see in the shell (MISS-04c).</summary>
+public sealed record BackupNotice(BackupNoticeKind Kind, DateTimeOffset? At = null, string? Reason = null);
 
 /// <summary>A copy of the database taken by <c>IDatabaseSnapshotter</c>, already checked, in the backup staging folder.</summary>
 public sealed record DatabaseSnapshot(string Path, long SizeBytes, string Sha256, IReadOnlyList<string> Migrations);

@@ -27,9 +27,16 @@ public sealed class BackupService(
     TimeProvider clock,
     BackupGate gate,
     ILogger<BackupService> logger,
-    IBusinessEventSink? events = null)
+    IBusinessEventSink? events = null,
+    IBackupStatusStore? status = null) : IBackupNoticeSource
 {
     public const string AuditModule = "backup";
+
+    /// <summary>The actor recorded for scheduled backups: the application did it, not whoever happens to be signed in.</summary>
+    public const string ScheduledActor = "scheduled backup";
+
+    /// <summary>Raised after every backup attempt and settings change (MISS-04c: the shell's notice follows it).</summary>
+    public event EventHandler? Changed;
 
     // ------------------------------------------------------------------ make a backup
 
@@ -39,41 +46,14 @@ public sealed class BackupService(
             return Error.Conflict(BackupErrorCodes.Busy, "A backup is already being made. Try again when it has finished.");
 
         var staged = Path.Combine(workspace.StagingDirectory, Guid.NewGuid().ToString("N") + ".db");
+        Result<BackupRecord> result;
         try
         {
             var current = await settings.ReadAsync(cancellationToken);
             if (string.IsNullOrWhiteSpace(current.LocalFolder))
                 return Error.Validation(BackupErrorCodes.NotConfigured, "No backup folder has been chosen yet, so no backup was made.");
 
-            Directory.CreateDirectory(workspace.StagingDirectory);
-            var snapshot = await snapshotter.SnapshotAsync(staged, cancellationToken);
-            if (snapshot.IsFailure)
-                return Result.Failure<BackupRecord>(snapshot.Error);
-
-            var takenAt = clock.GetLocalNow();
-            var destination = localDestinations.Create(current.LocalFolder);
-            var stored = await destination.StoreAsync(staged, $"genericpos-{takenAt:yyyyMMdd-HHmmss}.db", cancellationToken);
-            if (stored.IsFailure)
-                return Result.Failure<BackupRecord>(stored.Error);
-
-            var record = new BackupRecord(
-                Guid.NewGuid(), Path.GetFileName(stored.Value), destination.Kind, stored.Value, takenAt, snapshot.Value.SizeBytes,
-                snapshot.Value.Sha256, runtime.ApplicationVersion, snapshot.Value.Migrations, origin);
-
-            var records = (await history.ReadAsync(cancellationToken)).ToList();
-            records.Add(record);
-            var expired = await ApplyRetentionAsync(records, current, cancellationToken);
-            await history.WriteAsync(records, CancellationToken.None);
-
-            logger.LogInformation("Backup {File} made ({Bytes} bytes, {Origin}).", record.FileName, record.SizeBytes, origin);
-            await events.TryRecordAsync(BusinessEvent.Create(AuditModule, "backup.created", "backup", record.Id.ToString(),
-                $"Backup {record.FileName} made ({FormatSize(record.SizeBytes)}, {origin.ToString().ToLowerInvariant()}).",
-                $"destination={record.Destination};migrations={record.Migrations.Count}"));
-            foreach (var old in expired)
-                await events.TryRecordAsync(BusinessEvent.Create(AuditModule, "backup.expired", "backup", old.Id.ToString(),
-                    $"Old backup {old.FileName} removed (only the newest {current.KeepLocal} are kept)."));
-
-            return record;
+            result = await MakeAsync(current, origin, staged, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -82,12 +62,105 @@ public sealed class BackupService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Backup failed.");
-            return Error.Failure(BackupErrorCodes.Failed, "The backup could not be made. Your data was not changed.");
+            result = Error.Failure(BackupErrorCodes.Failed, "The backup could not be made. Your data was not changed.");
         }
         finally
         {
             TryDelete(staged);
             gate.Exit();
+        }
+
+        await RecordAttemptAsync(origin, result);
+        return result;
+    }
+
+    private async Task<Result<BackupRecord>> MakeAsync(BackupSettings current, BackupOrigin origin, string staged, CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(workspace.StagingDirectory);
+        var snapshot = await snapshotter.SnapshotAsync(staged, cancellationToken);
+        if (snapshot.IsFailure)
+            return Result.Failure<BackupRecord>(snapshot.Error);
+
+        var takenAt = clock.GetLocalNow();
+        var destination = localDestinations.Create(current.LocalFolder!);
+        var stored = await destination.StoreAsync(staged, $"genericpos-{takenAt:yyyyMMdd-HHmmss}.db", cancellationToken);
+        if (stored.IsFailure)
+            return Result.Failure<BackupRecord>(stored.Error);
+
+        var record = new BackupRecord(
+            Guid.NewGuid(), Path.GetFileName(stored.Value), destination.Kind, stored.Value, takenAt, snapshot.Value.SizeBytes,
+            snapshot.Value.Sha256, runtime.ApplicationVersion, snapshot.Value.Migrations, origin);
+
+        var records = (await history.ReadAsync(cancellationToken)).ToList();
+        records.Add(record);
+        var expired = await ApplyRetentionAsync(records, current, cancellationToken);
+        await history.WriteAsync(records, CancellationToken.None);
+
+        logger.LogInformation("Backup {File} made ({Bytes} bytes, {Origin}).", record.FileName, record.SizeBytes, origin);
+        await events.TryRecordAsync(As(origin, BusinessEvent.Create(AuditModule, "backup.created", "backup", record.Id.ToString(),
+            $"Backup {record.FileName} made ({FormatSize(record.SizeBytes)}, {origin.ToString().ToLowerInvariant()}).",
+            $"destination={record.Destination};migrations={record.Migrations.Count}")));
+        foreach (var old in expired)
+            await events.TryRecordAsync(As(origin, BusinessEvent.Create(AuditModule, "backup.expired", "backup", old.Id.ToString(),
+                $"Old backup {old.FileName} removed (only the newest {current.KeepLocal} are kept).")));
+
+        return record;
+    }
+
+    /// <summary>Scheduled work is the application's, never the signed-in person's.</summary>
+    private static BusinessEvent As(BackupOrigin origin, BusinessEvent businessEvent)
+        => origin == BackupOrigin.Scheduled ? businessEvent with { ActorName = ScheduledActor } : businessEvent;
+
+    /// <summary>Remembers the attempt (the shell's notice, the scheduler's retry pause) and tells the shell. Never fails the backup.</summary>
+    private async Task RecordAttemptAsync(BackupOrigin origin, Result<BackupRecord> result)
+    {
+        try
+        {
+            if (status is not null)
+                await status.WriteAsync(new BackupStatus(clock.GetLocalNow(), origin, result.IsSuccess, result.IsFailure ? result.Error.Description : null));
+            if (result.IsFailure)
+                await events.TryRecordAsync(As(origin, BusinessEvent.Create(AuditModule, "backup.failed", "backup", null, result.Error.Description)));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "The outcome of the backup attempt could not be recorded.");
+        }
+
+        RaiseChanged();
+    }
+
+    // ------------------------------------------------------------------ notice (MISS-04c)
+
+    /// <summary>
+    /// Null when all is well. No folder chosen comes first (nothing is being backed up at all); otherwise the last attempt, if it failed.
+    /// A later successful backup clears the notice.
+    /// </summary>
+    public async Task<BackupNotice?> GetNoticeAsync(CancellationToken cancellationToken = default)
+    {
+        var current = await settings.ReadAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(current.LocalFolder))
+            return new BackupNotice(BackupNoticeKind.NotConfigured);
+
+        var last = status is null ? null : await status.ReadAsync(cancellationToken);
+        return last is { LastAttemptSucceeded: false }
+            ? new BackupNotice(BackupNoticeKind.LastBackupFailed, last.LastAttemptAt, last.LastFailure)
+            : null;
+    }
+
+    /// <summary>The last backup attempt, if any (the scheduler waits before retrying a failed one).</summary>
+    public async Task<BackupStatus?> GetLastAttemptAsync(CancellationToken cancellationToken = default)
+        => status is null ? null : await status.ReadAsync(cancellationToken);
+
+    private void RaiseChanged()
+    {
+        try
+        {
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception ex)
+        {
+            // A listener's fault never turns a finished backup into a failure.
+            logger.LogWarning(ex, "A listener of backup changes failed.");
         }
     }
 
@@ -230,7 +303,8 @@ public sealed class BackupService(
     /// Changes the folder and how many backups it keeps. The folder must be a full path the application can write to (checked now, with a
     /// small test file, so a wrong choice is found today and not at 23:00). An empty folder turns local backups off.
     /// </summary>
-    public async Task<Result<BackupSettings>> UpdateSettingsAsync(string? localFolder, int keepLocal, CancellationToken cancellationToken = default)
+    public async Task<Result<BackupSettings>> UpdateSettingsAsync(string? localFolder, int keepLocal, bool scheduleEnabled = true, TimeOnly? dailyAt = null,
+        CancellationToken cancellationToken = default)
     {
         if (keepLocal is < BackupSettings.MinKeepLocal or > BackupSettings.MaxKeepLocal)
             return Error.Validation(BackupErrorCodes.InvalidSettings, $"Keep between {BackupSettings.MinKeepLocal} and {BackupSettings.MaxKeepLocal} backups.");
@@ -252,10 +326,13 @@ public sealed class BackupService(
         await gate.EnterAsync(cancellationToken);
         try
         {
-            var updated = new BackupSettings(folder, keepLocal);
+            var updated = new BackupSettings(folder, keepLocal, scheduleEnabled, dailyAt);
             await settings.WriteAsync(updated, cancellationToken);
             await events.TryRecordAsync(BusinessEvent.Create(AuditModule, "backup.settings-changed", "backup-settings", null,
-                folder is null ? "Local backups turned off (no backup folder)." : $"Backups go to {folder}; the newest {keepLocal} are kept."));
+                folder is null ? "Local backups turned off (no backup folder)."
+                    : $"Backups go to {folder}; the newest {keepLocal} are kept; " +
+                      (scheduleEnabled ? $"a backup is made every day at {updated.ScheduledTime():HH\\:mm}." : "no daily backup.")));
+            RaiseChanged();
             return updated;
         }
         finally

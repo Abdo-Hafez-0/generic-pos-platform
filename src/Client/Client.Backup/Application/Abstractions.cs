@@ -19,6 +19,25 @@ public interface IDatabaseSnapshotter
     Task<IReadOnlyList<string>> ReadLiveMigrationsAsync(CancellationToken cancellationToken = default);
 }
 
+/// <summary>The last backup attempt (kept next to the database).</summary>
+public interface IBackupStatusStore
+{
+    Task<BackupStatus?> ReadAsync(CancellationToken cancellationToken = default);
+
+    Task WriteAsync(BackupStatus status, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// What the shell shows about backups (MISS-04c): null when all is well. <see cref="Changed"/> is raised (on any thread) after a backup
+/// attempt or a settings change, so the notice appears or disappears without anyone reopening a screen.
+/// </summary>
+public interface IBackupNoticeSource
+{
+    event EventHandler? Changed;
+
+    Task<BackupNotice?> GetNoticeAsync(CancellationToken cancellationToken = default);
+}
+
 /// <summary>The confirmed restore waiting for the next start, and the outcome of the last one (both kept next to the database).</summary>
 public interface IRestoreStateStore
 {

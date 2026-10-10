@@ -165,6 +165,48 @@ public sealed class BackupIntegrationTests
         }
     }
 
+    /// <summary>
+    /// MISS-04c on the production-like desktop: with a backup folder preset by configuration and no backup yet, the scheduler makes one in
+    /// the background shortly after the start (catch-up), records it as the application's - not the signed-in administrator's - and the
+    /// shop sells meanwhile.
+    /// </summary>
+    [Fact]
+    public async Task The_scheduler_makes_the_missing_backup_in_the_background_shortly_after_the_start()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "genericpos-sched-" + Guid.NewGuid().ToString("N"));
+        string[] keys = ["GENERICPOS_Backup__LocalFolder", "GENERICPOS_Backup__SchedulerStartDelaySeconds"];
+        Environment.SetEnvironmentVariable(keys[0], folder);
+        Environment.SetEnvironmentVariable(keys[1], "0");
+        try
+        {
+            await using var desktop = await OfflineDesktop.StartAsync();
+            var services = desktop.Services;
+            var shop = await CreateShopAsync(services);
+            var (_, cart) = await OpenCartAsync(services, shop, 1m);
+            Assert.True((await CheckoutAsync(services, cart)).IsSuccess);
+
+            IReadOnlyList<BackupRecord> history = [];
+            for (var i = 0; i < 200 && history.Count == 0; i++)
+            {
+                await Task.Delay(50);
+                history = (await InScopeAsync(services, p => p.GetRequiredService<GetBackupHistoryQueryHandler>().HandleAsync(new GetBackupHistoryQuery()))).Value;
+            }
+
+            var made = Assert.Single(history);
+            Assert.Equal(BackupOrigin.Scheduled, made.Origin);
+            Assert.StartsWith(folder, made.Location);
+            Assert.Equal(BackupService.ScheduledActor, (await AuditEntryAsync(services, "backup.created")).ActorName);
+            Assert.Null(await services.GetRequiredService<IBackupNoticeSource>().GetNoticeAsync());
+            Assert.Equal(0, desktop.Network.Requests);
+        }
+        finally
+        {
+            foreach (var key in keys) Environment.SetEnvironmentVariable(key, null);
+            SqliteConnection.ClearAllPools();
+            IntegrationHost.DeleteFolder(folder);
+        }
+    }
+
     [Fact]
     public async Task Before_a_folder_is_chosen_the_desktop_starts_and_backing_up_explains_what_is_missing()
     {

@@ -83,7 +83,8 @@ public sealed class BackupWorld : IDisposable
             Clock,
             gate,
             NullLogger<BackupService>.Instance,
-            Events);
+            Events,
+            new JsonBackupStatusStore(Workspace, NullLogger<JsonBackupStatusStore>.Instance));
         return Service;
     }
 

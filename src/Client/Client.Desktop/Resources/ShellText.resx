@@ -24,6 +24,12 @@
   <data name="Ready" xml:space="preserve">
     <value>Ready</value>
   </data>
+  <data name="BackupNotConfigured" xml:space="preserve">
+    <value>No backup folder has been chosen, so the shop's data is not being backed up.</value>
+  </data>
+  <data name="BackupFailed" xml:space="preserve">
+    <value>The last backup ({0}) failed: {1}</value>
+  </data>
   <data name="ReadyWithLicense" xml:space="preserve">
     <value>Ready - license: {0}</value>
   </data>

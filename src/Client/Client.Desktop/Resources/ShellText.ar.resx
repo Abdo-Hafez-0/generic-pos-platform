@@ -24,6 +24,12 @@
   <data name="Ready" xml:space="preserve">
     <value>جاهز</value>
   </data>
+  <data name="BackupNotConfigured" xml:space="preserve">
+    <value>لم يتم اختيار مجلد للنسخ الاحتياطي، لذلك لا يتم نسخ بيانات المتجر احتياطيًا.</value>
+  </data>
+  <data name="BackupFailed" xml:space="preserve">
+    <value>فشل آخر نسخ احتياطي ({0}): {1}</value>
+  </data>
   <data name="ReadyWithLicense" xml:space="preserve">
     <value>جاهز - الترخيص: {0}</value>
   </data>

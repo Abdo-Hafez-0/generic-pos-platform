@@ -182,7 +182,7 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Capabilities `backup.create` / `backup.restore` / `backup.delete` (+ `backup.configure`) declared and enforced (MISS-04a; restore is enforced when it is built in 04b)
   - [x] Local backup (to a folder / USB) for shops without internet (MISS-04a; the screen is 04d)
   - [x] **MISS-04b** Restore flow (database not in use during restore) (2026-10-10): prepare/confirm while running, swap at the next start before the database opens, before-restore copy kept and listed
-  - [ ] Scheduling
+  - [x] **MISS-04c** Scheduling (2026-10-10): daily at a set time while the application runs, catch-up after a missed time, 30-minute retry pause, shell notice when a backup fails or no folder is chosen
 - [ ] **MISS-05 Log file and crash reports** (Stage 12)
   - [ ] Rolling log file under LocalAppData (no secrets)
   - [ ] Unhandled-exception crash report collection
@@ -258,4 +258,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-10 | FIX-14, FIX-15 | 980066e | PROJECT_STATE.md brought up to date (Next Task, stage table); Part A complete |
 | 2026-10-10 | MISS-04 design | 7decb78, a58bef1 | Design drafted, all decisions made and approved |
 | 2026-10-10 | MISS-04a | a58bef1 | Local backup core (Client.Backup); 2681 tests, 0 warnings; real exe start-up |
-| 2026-10-10 | MISS-04b | (this commit) | Restore across a restart (IStartupPreparation, before-restore copy); 2699 tests, 0 warnings; real exe restore at start |
+| 2026-10-10 | MISS-04b | 7a6f5fa | Restore across a restart (IStartupPreparation, before-restore copy); 2699 tests, 0 warnings; real exe restore at start |
+| 2026-10-10 | MISS-04c | (this commit) | Daily scheduled backup, catch-up, retry pause, shell notice; 2725 tests, 0 warnings; real exe notice after a failed scheduled backup |

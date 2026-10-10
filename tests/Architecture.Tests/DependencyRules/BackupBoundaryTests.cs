@@ -108,6 +108,20 @@ public sealed class BackupBoundaryTests
         Assert.DoesNotContain("DbContext", step);
     }
 
+    [Fact(DisplayName = "ARCH-BAK-009: Scheduled backups run in the background, are never attributed to the signed-in person, and the shell only reads a notice")]
+    public void ScheduledBackupsAreTheApplications()
+    {
+        Assert.True(typeof(Microsoft.Extensions.Hosting.BackgroundService).IsAssignableFrom(typeof(Client.Backup.Infrastructure.BackupScheduler)));
+
+        var service = Source("Application", "BackupService.cs");
+        Assert.Contains("origin == BackupOrigin.Scheduled ? businessEvent with { ActorName = ScheduledActor }", service);
+
+        var shell = File.ReadAllText(Path.Combine(RepoRoot(), "src", "Client", "Client.Desktop", "Shell", "ShellViewModel.cs"));
+        Assert.Contains("IBackupNoticeSource", shell);
+        foreach (var direct in new[] { "BackupService", "RestoreService", "ScheduledBackupRunner" })
+            Assert.DoesNotContain(direct, shell);
+    }
+
     [Fact(DisplayName = "ARCH-BAK-007: The live database is opened read-only for a backup, and no process-wide connection pool is cleared")]
     public void SnapshotNeverWritesTheLiveDatabase()
     {

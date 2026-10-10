@@ -146,7 +146,12 @@
 
         <!-- Status bar -->
         <Border Grid.Row="2" Background="#181825" Padding="16,6">
-            <TextBlock x:Name="StatusText" Text="{Binding StatusText}" Foreground="#6C7086" FontSize="11"/>
+            <DockPanel LastChildFill="True">
+                <!-- MISS-04c: a backup problem, for the people who can act on it -->
+                <TextBlock x:Name="BackupNoticeText" DockPanel.Dock="Right" Text="{Binding BackupNoticeText}" Foreground="#F9E2AF" FontSize="11"
+                           TextWrapping="Wrap" MaxWidth="700" Margin="16,0,0,0"/>
+                <TextBlock x:Name="StatusText" Text="{Binding StatusText}" Foreground="#6C7086" FontSize="11"/>
+            </DockPanel>
         </Border>
     </Grid>
 </Window>

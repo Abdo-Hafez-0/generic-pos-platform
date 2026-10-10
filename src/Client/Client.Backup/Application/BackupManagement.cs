@@ -171,7 +171,7 @@ public sealed class GetRestoreStatusQueryHandler(RestoreService restores, IAutho
     }
 }
 
-public sealed record UpdateBackupSettingsCommand(string? LocalFolder, int KeepLocal);
+public sealed record UpdateBackupSettingsCommand(string? LocalFolder, int KeepLocal, bool ScheduleEnabled = true, TimeOnly? DailyAt = null);
 
 public sealed class UpdateBackupSettingsCommandHandler(BackupService backups, IAuthorizationService authorization)
 {
@@ -180,6 +180,6 @@ public sealed class UpdateBackupSettingsCommandHandler(BackupService backups, IA
         var allowed = await authorization.AuthorizeAsync(BackupCapabilities.Configure, cancellationToken);
         if (allowed.IsFailure) return Result.Failure<BackupSettings>(allowed.Error);
 
-        return await backups.UpdateSettingsAsync(command.LocalFolder, command.KeepLocal, cancellationToken);
+        return await backups.UpdateSettingsAsync(command.LocalFolder, command.KeepLocal, command.ScheduleEnabled, command.DailyAt, cancellationToken);
     }
 }

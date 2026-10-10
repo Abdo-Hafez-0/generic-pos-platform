@@ -10,7 +10,8 @@ namespace Client.Backup.Infrastructure;
 /// The backup component's own folder, next to the database (default %LOCALAPPDATA%\GenericPOS\Backup):
 ///
 ///   history.json    the backup history (what was made, where, its fingerprint, the last check)
-///   settings.json   the backup folder and how many backups it keeps
+///   settings.json   the backup folder, how many backups it keeps, the daily schedule
+///   status.json     the last backup attempt (for the shell's notice and the scheduler's retry pause)
 ///   staging\        copies being prepared or checked; emptied at every start
 ///   restore\        a backup being restored (checked, waiting for confirmation or for the restart)
 ///   restore-pending.json / restore-outcome.json   the confirmed restore, and what happened to the last one
@@ -27,6 +28,8 @@ public sealed class BackupWorkspace(string root) : IBackupWorkspace
     public string HistoryPath => Path.Combine(Root, "history.json");
 
     public string SettingsPath => Path.Combine(Root, "settings.json");
+
+    public string StatusPath => Path.Combine(Root, "status.json");
 
     public string RestoreDirectory => Path.Combine(Root, "restore");
 
@@ -89,6 +92,15 @@ public sealed class JsonBackupHistoryStore(BackupWorkspace workspace, ILogger<Js
 
     public Task WriteAsync(IReadOnlyList<BackupRecord> records, CancellationToken cancellationToken = default)
         => JsonFile.WriteAsync(workspace.HistoryPath, records, cancellationToken);
+}
+
+public sealed class JsonBackupStatusStore(BackupWorkspace workspace, ILogger<JsonBackupStatusStore> logger) : IBackupStatusStore
+{
+    public Task<BackupStatus?> ReadAsync(CancellationToken cancellationToken = default)
+        => JsonFile.ReadAsync<BackupStatus?>(workspace.StatusPath, () => null, logger, cancellationToken);
+
+    public Task WriteAsync(BackupStatus status, CancellationToken cancellationToken = default)
+        => JsonFile.WriteAsync(workspace.StatusPath, status, cancellationToken);
 }
 
 public sealed class JsonRestoreStateStore(BackupWorkspace workspace, ILogger<JsonRestoreStateStore> logger) : IRestoreStateStore

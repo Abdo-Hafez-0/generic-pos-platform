@@ -18,6 +18,8 @@ namespace Client.Backup.Infrastructure;
 ///   Root        - the backup component's own folder (default: "Backup" next to the database file)
 ///   LocalFolder - a backup folder preset by an installer (until someone with backup.configure chooses one)
 ///   KeepLocal   - how many backups the folder keeps (default 14)
+///   ScheduleEnabled / DailyAt ("HH:mm") - the daily backup preset (default on, 23:00)
+///   SchedulerStartDelaySeconds - how long after the start the scheduler first looks (default 60)
 /// </summary>
 public sealed class BackupConfiguration
 {
@@ -28,6 +30,12 @@ public sealed class BackupConfiguration
     public string? LocalFolder { get; set; }
 
     public int? KeepLocal { get; set; }
+
+    public bool? ScheduleEnabled { get; set; }
+
+    public string? DailyAt { get; set; }
+
+    public int? SchedulerStartDelaySeconds { get; set; }
 }
 
 /// <summary>
@@ -108,6 +116,8 @@ public static class BackupServicesExtensions
             ? Path.Combine(Path.GetDirectoryName(databasePath)!, "Backup")
             : config.Root!;
         var keep = Math.Clamp(config.KeepLocal ?? BackupSettings.DefaultKeepLocal, BackupSettings.MinKeepLocal, BackupSettings.MaxKeepLocal);
+        TimeOnly? dailyAt = TimeOnly.TryParseExact(config.DailyAt, "HH:mm", out var at) ? at : null;
+        var startDelay = TimeSpan.FromSeconds(Math.Clamp(config.SchedulerStartDelaySeconds ?? 60, 0, 3600));
 
         services.TryAddSingleton(TimeProvider.System);
         var workspace = new BackupWorkspace(root);
@@ -118,10 +128,16 @@ public static class BackupServicesExtensions
         services.AddSingleton<ILocalDestinationFactory, LocalDestinationFactory>();
         services.AddSingleton<IBackupHistoryStore, JsonBackupHistoryStore>();
         services.AddSingleton<IBackupSettingsStore>(sp => new JsonBackupSettingsStore(
-            workspace, new BackupSettings(string.IsNullOrWhiteSpace(config.LocalFolder) ? null : config.LocalFolder, keep),
+            workspace, new BackupSettings(string.IsNullOrWhiteSpace(config.LocalFolder) ? null : config.LocalFolder, keep, config.ScheduleEnabled ?? true, dailyAt),
             sp.GetRequiredService<ILogger<JsonBackupSettingsStore>>()));
         services.AddSingleton<BackupGate>();
+        services.AddSingleton<IBackupStatusStore, JsonBackupStatusStore>();
         services.AddSingleton<BackupService>();
+        services.AddSingleton<IBackupNoticeSource>(sp => sp.GetRequiredService<BackupService>());
+        // MISS-04c: the daily backup, in the background
+        services.AddSingleton(BackupSchedulerOptions.Default with { StartDelay = startDelay });
+        services.AddSingleton<ScheduledBackupRunner>();
+        services.AddHostedService<BackupScheduler>();
         // MISS-04b: restore across a restart; the swap runs before anything opens the database (IStartupPreparation)
         services.AddSingleton<IRestoreStateStore, JsonRestoreStateStore>();
         services.AddSingleton<RestoreService>();

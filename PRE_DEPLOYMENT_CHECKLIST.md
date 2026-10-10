@@ -173,13 +173,14 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 - [ ] **MISS-02 Module wiring** - covered by FIX-04, FIX-05, FIX-11
 - [ ] **MISS-03 Tax and discounts** - covered by FIX-08
 - [ ] **MISS-04 Client backup module** (Stages 9/11)
-  - [ ] Design first: encryption and key management (who holds the key, recovery, rotation) - approve before building. Draft: `MISS-04_BACKUP_DESIGN.md`
+  - [x] Design first: encryption and key management (who holds the key, recovery, rotation) - approve before building. Draft: `MISS-04_BACKUP_DESIGN.md`
     Decisions (2026-10-10, user): 1. recovery code held by the shop PLUS vendor escrow; 2. only cloud backups are encrypted, local backups are plain SQLite files (lost-USB risk accepted, shown on screen);
     3. local backup and restore in `Client.Backup` for every shop, cloud in a paid optional `CloudBackup` module (license module `cloud-backup`); 4. a separate sensitive `backup.configure` permission.
-    Open: approval of the escrow mechanism (design section 5B), cloud token entry (default: typed in by the owner), backup when the last shift closes.
+    5. escrow mechanism of design section 5B approved; 6. cloud token typed in by the owner; 7. no backup trigger on shift close. Design APPROVED 2026-10-10; build order MISS-04a..f (design section 11).
+  - [x] **MISS-04a** `Client.Backup` core (2026-10-10): local backup to a folder, verify, history, settings, retention, backup.* capabilities
   - [ ] `CloudBackup` optional module with `IBackupClient` / HTTP client to BackupServer.Api
-  - [ ] Capabilities `backup.create` / `backup.restore` / `backup.delete` declared and enforced
-  - [ ] Local backup (to a folder / USB) for shops without internet
+  - [x] Capabilities `backup.create` / `backup.restore` / `backup.delete` (+ `backup.configure`) declared and enforced (MISS-04a; restore is enforced when it is built in 04b)
+  - [x] Local backup (to a folder / USB) for shops without internet (MISS-04a; the screen is 04d)
   - [ ] Restore flow (database not in use during restore)
   - [ ] Scheduling
 - [ ] **MISS-05 Log file and crash reports** (Stage 12)
@@ -254,4 +255,6 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-09 | FIX-13 plan, FIX-13a | 4c978ef | Decisions recorded; receipts with Arabic printed as a picture; 2605 tests, 0 warnings; real exe receipt decoded |
 | 2026-10-09 | FIX-13b | 3d8063e | Language per user, sign-in texts in resources, display language independent of the thread culture; 2619 tests, 0 warnings; real exe |
 | 2026-10-09 | FIX-13c | 22d55cf | Arabic translations of every screen text, right-to-left fixes; FIX-13 complete; 2636 tests, 0 warnings; real exe, 17 screens checked |
-| 2026-10-10 | FIX-14, FIX-15 | (this commit) | PROJECT_STATE.md brought up to date (Next Task, stage table); Part A complete |
+| 2026-10-10 | FIX-14, FIX-15 | 980066e | PROJECT_STATE.md brought up to date (Next Task, stage table); Part A complete |
+| 2026-10-10 | MISS-04 design | 7decb78, (this commit) | Design drafted, all decisions made and approved |
+| 2026-10-10 | MISS-04a | (this commit) | Local backup core (Client.Backup); 2681 tests, 0 warnings; real exe start-up |

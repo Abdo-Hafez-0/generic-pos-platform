@@ -1,6 +1,6 @@
 # MISS-04 Backup Design (draft for approval)
 
-Status: **DRAFT.** The four main decisions were made by the user on 2026-10-10 (section 12); the escrow mechanism derived from them (section 5B) is awaiting approval. Nothing in this document is built.
+Status: **APPROVED** by the user on 2026-10-10 (all decisions in section 12). Build order in section 11.
 
 Sources: `Generic Offline-First Inventory & POS Platform.md` sections 23 (local backup) and 24 (cloud backup); `Architecture & Solution Design.md` sections 63 (cloud backup architecture), 64 (backup independence) and the "no plain-text secrets in configuration" rule; `PROJECT_STATE.md` Stage 9 decision 7 (backup access) and the Stage 11 deferred-limitations register ("needs a key-management design that must not be improvised").
 
@@ -64,7 +64,7 @@ Sources: `Generic Offline-First Inventory & POS Platform.md` sections 23 (local 
 - **Rotation ("make a new recovery code"):** used when the code may have been seen, or was lost while the PC still works. A new code and key are made, and a new backup is taken at once. Old backups stay readable on this PC through the key ring, and elsewhere only with the old code. Cloud copies under the old key age out through the 10-backup retention. Rotation is audited (without the code, obviously).
 - On its own, 5A would leave a shop that lost both the PC and the code with no way back. 5B closes that gap.
 
-### 5B. Vendor escrow (proposed mechanism, **awaiting approval**)
+### 5B. Vendor escrow (approved 2026-10-10)
 
 - **Escrow key pair:** the vendor generates a separate **ECDH P-256** key pair for escrow. It is never the ES256 signing key: one key, one purpose. The private key is created and kept **offline**, the same way as the package-signing key: not on any server, not in the repository, not in AdminPortal. Only the **public key** and its id ship with the client. It is trusted the same way as the license and update keys, and moves into the signed binary with PKG-05.
 - **Escrow slot:** each `.gpbak` data key is also sealed to the escrow public key, ECIES style: an ephemeral ECDH P-256 key, HKDF-SHA256, then AES-256-GCM. This is built into .NET, so no new package is needed. The slot holds the escrow key id, the ephemeral public key and the sealed data key. It is part of the authenticated header, so it cannot be swapped without the file being refused.
@@ -89,7 +89,7 @@ The documents make **local** backup a platform feature (section 23) and **cloud*
 | `CloudBackup` optional module (new) | Adds the cloud destination together with everything only the cloud needs: the `.gpbak` format, the recovery code and key ring (through `ISecretProtector`), the escrow slot, `IBackupClient` (Application) and `HttpBackupClient` (Infrastructure, the only HttpClient user, the same pattern as `Client.Licensing.Http`). Needs the license module `cloud-backup`. Removing it changes nothing else (section 64). |
 | `tools/BackupEscrowRecovery` (new, vendor only) | Offline CLI that turns a recovery request into a one-time restore key (section 5B). It is never deployed to a server. |
 
-The backup token for the cloud is typed in once by the owner (the vendor gives it with the license) and stored DPAPI-protected, never in `appsettings.json`. This is the recommended default; delivering it automatically at activation would be a LicenseServer protocol change.
+The backup token for the cloud is typed in once by the owner (the vendor gives it with the license) and stored DPAPI-protected, never in `appsettings.json` (user decision 6; no LicenseServer protocol change).
 
 ## 7. Capabilities
 
@@ -115,7 +115,7 @@ The running app holds the database open, so a restore cannot happen in place. It
 
 ## 9. Scheduling, retention and offline
 
-- **In-app scheduler** (a hosted service, no Windows Task Scheduler and no service account). It runs a daily backup at a set time (default 23:00) while the app is running. If the last good backup is older than the interval, it catches up at the next start. **Open:** also offer a backup when the last drawer shift of the day is closed (not included unless the user asks).
+- **In-app scheduler** (a hosted service, no Windows Task Scheduler and no service account). It runs a daily backup at a set time (default 23:00) while the app is running. If the last good backup is older than the interval, it catches up at the next start. No backup is triggered by closing a drawer shift (user decision 7).
 - A scheduled backup never interrupts a sale: it uses the online backup API and runs in the background. If it fails, the shell shows a plain notice and keeps working.
 - **Cloud while offline:** the encrypted file is written locally first (an outbox folder) and uploaded when the server can be reached, with retry. A cloud failure never fails the local backup.
 - **Retention:** local destination keeps the last N (default 14); cloud uses the server's per-license count (10). `before-restore` copies do not count and are never removed automatically.
@@ -143,8 +143,6 @@ Made by the user on 2026-10-10:
 3. **Module layout:** local backup in `Client.Backup` for every shop, plus a paid `CloudBackup` module.
 4. **Configuration permission:** a separate sensitive `backup.configure`.
 
-Still open:
-
-5. **Approve the escrow mechanism in section 5B:** a separate offline ECDH key, escrow per backup, identity check, an offline vendor tool, one-time restore keys.
-6. **Cloud token:** typed in by the owner (the default in this design), or delivered at activation.
-7. **Extra trigger:** a backup when the last shift of the day closes (not included unless asked).
+5. **Escrow mechanism** of section 5B approved as written.
+6. **Cloud token:** typed in by the owner.
+7. **No backup trigger** on closing the last shift of the day.

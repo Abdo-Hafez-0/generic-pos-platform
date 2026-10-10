@@ -1,6 +1,7 @@
 using Client.Host.Hosting;
 using Client.Licensing.Http;
 using Client.Security;
+using Client.Backup.Infrastructure;
 using Client.Updater.Http;
 using Client.Updater.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -122,7 +123,7 @@ internal sealed class OfflineDesktop : IAsyncDisposable
                 [.. IntegrationHost.CoreModules, .. IntegrationHost.Stage8Modules], reuseFolder,
                 [
                     new ClientSecurityHostingModule(), .. licenses.HostModules(), new LicenseHttpHostingModule(),
-                    new UpdaterHostingModule(), new UpdateHttpHostingModule(),
+                    new UpdaterHostingModule(), new UpdateHttpHostingModule(), new ClientBackupHostingModule(),
                     new OfflineNetworkModule(network), new FakeHardwareHostingModule(printer, drawer), .. extra ?? []
                 ]);
             host.KeepFiles = keepFiles;

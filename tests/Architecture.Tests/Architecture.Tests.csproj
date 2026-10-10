@@ -28,6 +28,7 @@
     <ProjectReference Include="..\..\src\Client\Client.ModuleHost\Client.ModuleHost.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.Licensing\Client.Licensing.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.Updater\Client.Updater.csproj" />
+    <ProjectReference Include="..\..\src\Client\Client.Backup\Client.Backup.csproj" />
     <!-- Catalog module assemblies (Stage 5A) — Catalog.UI excluded (net10.0-windows) -->
     <ProjectReference Include="..\..\src\Modules\Catalog\Catalog.Domain\Catalog.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Catalog\Catalog.Contracts\Catalog.Contracts.csproj" />

@@ -175,7 +175,7 @@ public sealed class SecurityBoundaryTests
     public void CapabilityProviders_BuildAValidCatalog_AndAreRegistered()
     {
         var providers = new List<ICapabilityProvider>();
-        foreach (var assembly in Layer("Application").Concat([Assemblies.ClientLicensing, Assemblies.ClientUpdater]))
+        foreach (var assembly in Layer("Application").Concat([Assemblies.ClientLicensing, Assemblies.ClientUpdater, Assemblies.ClientBackup]))
             foreach (var type in assembly.GetTypes().Where(t => t is { IsClass: true, IsAbstract: false } && typeof(ICapabilityProvider).IsAssignableFrom(t)))
                 providers.Add((ICapabilityProvider)Activator.CreateInstance(type)!);
 

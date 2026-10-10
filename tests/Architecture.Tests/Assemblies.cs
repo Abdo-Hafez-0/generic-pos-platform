@@ -45,6 +45,10 @@ internal static class Assemblies
     internal static readonly Assembly ClientUpdater =
         typeof(Client.Updater.ClientUpdaterAssemblyMarker).Assembly;
 
+    // MISS-04a: local backup of the business database
+    internal static readonly Assembly ClientBackup =
+        typeof(Client.Backup.ClientBackupAssemblyMarker).Assembly;
+
     // Note: Client.Desktop (net10.0-windows) cannot be referenced here.
     // See ClientLayerTests for documentation of how Desktop boundaries are verified.
 
@@ -84,7 +88,8 @@ internal static class Assemblies
         ClientHost,
         ClientModuleHost,
         ClientLicensing,
-        ClientUpdater
+        ClientUpdater,
+        ClientBackup
         // Client.Desktop excluded — see note above
     ];
 

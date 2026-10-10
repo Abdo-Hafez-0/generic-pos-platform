@@ -34,6 +34,7 @@
     <ProjectReference Include="..\..\src\Client\Client.Updater.Http\Client.Updater.Http.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.Security\Client.Security.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.Updater\Client.Updater.csproj" />
+    <ProjectReference Include="..\..\src\Client\Client.Backup\Client.Backup.csproj" />
     <ProjectReference Include="..\..\src\Licensing\Licensing.Contracts\Licensing.Contracts.csproj" />
     <ProjectReference Include="..\Tests.Common\Tests.Common.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.ModuleHost\Client.ModuleHost.csproj" />

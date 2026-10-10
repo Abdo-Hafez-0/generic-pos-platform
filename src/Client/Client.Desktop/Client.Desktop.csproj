@@ -22,6 +22,8 @@
     <ProjectReference Include="..\Client.Hardware\Client.Hardware.csproj" />
     <ProjectReference Include="..\Client.Updater\Client.Updater.csproj" />
     <ProjectReference Include="..\Client.Updater.Http\Client.Updater.Http.csproj" />
+    <!-- Backup (MISS-04a): local backups of the business database -->
+    <ProjectReference Include="..\Client.Backup\Client.Backup.csproj" />
     <!-- POS module (Stage 5D) - POSHostingModule lives in POS.Infrastructure -->
     <ProjectReference Include="..\..\Modules\POS\POS.Infrastructure\POS.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\POS\POS.UI\POS.UI.csproj" />

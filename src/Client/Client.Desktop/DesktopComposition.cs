@@ -2,6 +2,7 @@ using Audit.Infrastructure.Module;
 using CashManagement.Infrastructure.Module;
 using Catalog.Infrastructure.Module;
 using Client.Desktop.Shell;
+using Client.Backup.Infrastructure;
 using Client.Hardware;
 using Client.Hardware.Scanner;
 using Client.Host.Hosting;
@@ -41,6 +42,7 @@ public static class DesktopComposition
         new LicenseHttpHostingModule(),     // Stage 6: HTTP transport to the license server
         new UpdaterHostingModule(),         // Stage 7: update verification, staging, recovery (local only)
         new UpdateHttpHostingModule(),      // Stage 7: HTTP transport to the update server
+        new ClientBackupHostingModule(),    // MISS-04a: local backups of the business database (no network, no license needed)
         new HardwareHostingModule(),        // Stage 10: optional peripherals (all "None" unless configured)
         new ScannerKeyboardHostingModule(), // FIX-02: the shell window's key presses reach the keyboard-wedge scanner
         new CatalogHostingModule(),         // Stage 5A: Catalog module

@@ -216,8 +216,34 @@ internal static class Assemblies
         .. AllUsersAssemblies,
         .. AllAuditAssemblies,
         .. AllCashManagementAssemblies,
-        .. AllReportingAssemblies
+        .. AllReportingAssemblies,
+        .. AllCloudBackupAssemblies
     ];
+
+    // CloudBackup module assemblies (MISS-04e2; no UI project yet)
+    internal static readonly Assembly CloudBackupDomain =
+        typeof(CloudBackup.Domain.OutboxEntry).Assembly;
+
+    internal static readonly Assembly CloudBackupContracts =
+        typeof(CloudBackup.Contracts.IBackupClient).Assembly;
+
+    internal static readonly Assembly CloudBackupApplication =
+        typeof(CloudBackup.Application.CloudBackupService).Assembly;
+
+    internal static readonly Assembly CloudBackupInfrastructure =
+        typeof(CloudBackup.Infrastructure.CloudBackupModule).Assembly;
+
+    internal static IReadOnlyList<Assembly> AllCloudBackupAssemblies =>
+    [
+        CloudBackupDomain,
+        CloudBackupContracts,
+        CloudBackupApplication,
+        CloudBackupInfrastructure
+    ];
+
+    // The CloudBackup module's HTTP transport (the only cloud-backup project with HttpClient, rule 7)
+    internal static readonly Assembly ClientCloudBackupHttp =
+        typeof(Client.CloudBackup.Http.HttpBackupClient).Assembly;
 
     // Update system + shared security assemblies (Stage 7)
     // Note: UpdateServer.Api is an ASP.NET Core host and is not referenced here.
@@ -482,7 +508,8 @@ internal static class Assemblies
         .. AllCloudServerAssemblies,
         ClientHardware,
         ClientSecurity,
-        SecurityBackupEnvelope
+        SecurityBackupEnvelope,
+        ClientCloudBackupHttp
     ];
 
     // -----------------------------------------------------------------------

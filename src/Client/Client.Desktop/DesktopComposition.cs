@@ -3,6 +3,8 @@ using CashManagement.Infrastructure.Module;
 using Catalog.Infrastructure.Module;
 using Client.Desktop.Shell;
 using Client.Backup.Infrastructure;
+using Client.CloudBackup.Http;
+using CloudBackup.Infrastructure;
 using Client.Hardware;
 using Client.Hardware.Scanner;
 using Client.Host.Hosting;
@@ -58,6 +60,8 @@ public static class DesktopComposition
         new PurchasingHostingModule(),      // Stage 8: Purchasing module
         new SuppliersHostingModule(),       // Stage 8: Suppliers module
         new CustomersHostingModule(),       // Stage 8: Customers module
+        new CloudBackupHostingModule(),     // MISS-04e2: CloudBackup module (optional, licensed as cloud-backup)
+        new CloudBackupHttpHostingModule(), // MISS-04e2: HTTP transport to the backup server
     ];
 }
 

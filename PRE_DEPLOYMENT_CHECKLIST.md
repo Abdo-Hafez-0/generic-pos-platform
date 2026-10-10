@@ -180,7 +180,7 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] **MISS-04a** `Client.Backup` core (2026-10-10): local backup to a folder, verify, history, settings, retention, backup.* capabilities
   - [ ] `CloudBackup` optional module with `IBackupClient` / HTTP client to BackupServer.Api
     - [x] **MISS-04e1** encrypted format library `Security.BackupEnvelope` (2026-10-10): recovery code, shop key, `.gpbak`, escrow slot
-    - [ ] **MISS-04e2** CloudBackup module: key ring, encrypted copy of each backup into an outbox, HTTP client, background upload with retry
+    - [x] **MISS-04e2** CloudBackup module (2026-10-10): key ring, access key, encrypted copy of each backup into an outbox, HTTP client, background upload with retry
     - [ ] **MISS-04e3** Cloud backup screen: recovery code, token, cloud list, restore from the cloud; end to end against BackupServer.Api
     - [ ] **MISS-04f** vendor escrow tool and restore with a one-time restore key
   - [x] Capabilities `backup.create` / `backup.restore` / `backup.delete` (+ `backup.configure`) declared and enforced (MISS-04a; restore is enforced when it is built in 04b)
@@ -266,4 +266,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-10 | MISS-04b | 7a6f5fa | Restore across a restart (IStartupPreparation, before-restore copy); 2699 tests, 0 warnings; real exe restore at start |
 | 2026-10-10 | MISS-04c | 4bd4772 | Daily scheduled backup, catch-up, retry pause, shell notice; 2725 tests, 0 warnings; real exe notice after a failed scheduled backup |
 | 2026-10-10 | MISS-04d | 449c94e | Backup screen with restart after a confirmed restore; 2739 tests, 0 warnings; real exe: settings, backup, check, restore, restart, Arabic |
-| 2026-10-10 | MISS-04e1 | (this commit) | Encrypted cloud backup format library (recovery code, .gpbak, escrow slot); 2753 tests, 0 warnings |
+| 2026-10-10 | MISS-04e1 | d01ad63 | Encrypted cloud backup format library (recovery code, .gpbak, escrow slot); 2753 tests, 0 warnings |
+| 2026-10-10 | MISS-04e2 | (this commit) | Decision 8 (real module, HTTP outside); CloudBackup module + Client.CloudBackup.Http; 2779 tests, 0 warnings; real exe start-up with the module |

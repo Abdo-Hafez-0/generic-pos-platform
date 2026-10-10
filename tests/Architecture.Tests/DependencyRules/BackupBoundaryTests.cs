@@ -140,6 +140,51 @@ public sealed class BackupBoundaryTests
             Assert.DoesNotContain(sources, s => s.Contains(privateKeyApi, StringComparison.Ordinal));
     }
 
+    [Fact(DisplayName = "ARCH-BAK-011: The CloudBackup module never reaches HTTP; its transport (Client.CloudBackup.Http) sees only the module's Contracts")]
+    public void CloudBackupHttpStaysOutsideTheModule()
+    {
+        foreach (var assembly in Assemblies.AllCloudBackupAssemblies)
+        {
+            var result = Types.InAssembly(assembly).Should().NotHaveDependencyOn("System.Net.Http").GetResult();
+            Assert.True(result.IsSuccessful, $"{assembly.GetName().Name} uses HTTP (rule 7): " + string.Join(", ", result.FailingTypeNames ?? []));
+        }
+
+        var refs = Refs(Assemblies.ClientCloudBackupHttp).ToList();
+        Assert.Contains("CloudBackup.Contracts", refs);
+        foreach (var forbidden in new[] { "CloudBackup.Domain", "CloudBackup.Application", "CloudBackup.Infrastructure", "Cloud.Contracts", "BackupServer", "Client.Backup", "Security.BackupEnvelope" })
+            Assert.DoesNotContain(refs, r => r.StartsWith(forbidden, StringComparison.Ordinal));
+    }
+
+    [Fact(DisplayName = "ARCH-BAK-012: Local backup and the CloudBackup module never reference each other; they meet only through IBackupReplica (Platform)")]
+    public void LocalAndCloudBackupMeetOnlyThroughThePlatform()
+    {
+        foreach (var assembly in Assemblies.AllCloudBackupAssemblies)
+            Assert.DoesNotContain(Refs(assembly), r => r == "Client.Backup");
+        Assert.DoesNotContain(Refs(Assemblies.ClientBackup), r => r.StartsWith("CloudBackup", StringComparison.Ordinal));
+        Assert.True(typeof(Platform.Application.Abstractions.Backup.IBackupReplica).IsAssignableFrom(typeof(CloudBackup.Application.CloudBackupService)));
+    }
+
+    [Fact(DisplayName = "ARCH-BAK-013: Cloud backup keys are protected only through the platform's ISecretProtector (no DPAPI or Client.Security in the module) and no private key is handled")]
+    public void CloudBackupKeysUseThePlatformProtector()
+    {
+        foreach (var assembly in Assemblies.AllCloudBackupAssemblies.Append(Assemblies.ClientCloudBackupHttp))
+        {
+            Assert.DoesNotContain(Refs(assembly), r => r is "Client.Security" or "System.Security.Cryptography.ProtectedData");
+            var result = Types.InAssembly(assembly).Should().NotHaveDependencyOn("Platform.Application.Abstractions.Licensing").GetResult();
+            Assert.True(result.IsSuccessful, "Licensing stays centralized (ARCH-SEC-005): the module asks IUnattendedWorkGate.");
+        }
+
+        Assert.True(typeof(Platform.Application.Abstractions.Security.ISecretProtector).Assembly == Assemblies.PlatformApplication);
+    }
+
+    [Fact(DisplayName = "ARCH-BAK-014: The desktop registers the CloudBackup module and its HTTP transport")]
+    public void DesktopRegistersCloudBackup()
+    {
+        var composition = File.ReadAllText(Path.Combine(RepoRoot(), "src", "Client", "Client.Desktop", "DesktopComposition.cs"));
+        Assert.Contains("new CloudBackupHostingModule()", composition);
+        Assert.Contains("new CloudBackupHttpHostingModule()", composition);
+    }
+
     [Fact(DisplayName = "ARCH-BAK-007: The live database is opened read-only for a backup, and no process-wide connection pool is cleared")]
     public void SnapshotNeverWritesTheLiveDatabase()
     {

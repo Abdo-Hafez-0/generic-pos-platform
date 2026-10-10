@@ -22,6 +22,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Client\Client.CloudBackup.Http\Client.CloudBackup.Http.csproj" />
+    <ProjectReference Include="..\..\src\Security\Security.BackupEnvelope\Security.BackupEnvelope.csproj" />
     <ProjectReference Include="..\..\src\Cloud\Cloud.Contracts\Cloud.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Cloud\Cloud.Infrastructure\Cloud.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Cloud\AdminPortal\AdminPortal.Application\AdminPortal.Application.csproj" />

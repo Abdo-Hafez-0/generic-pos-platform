@@ -25,6 +25,8 @@ public static class SecurityServicesExtensions
 
         // Scoped: the permission source (Users) reads the database through a scoped DbContext.
         services.TryAddScoped<IAuthorizationService, AuthorizationService>();
+        // MISS-04e2: the license half of authorization for work done with nobody signed in (same catalog, same license).
+        services.TryAddSingleton<IUnattendedWorkGate, UnattendedWorkGate>();
 
         services.TryAddSingleton<ISecurityEventSink, SecurityEventDispatcher>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<ISecurityEventListener, LoggingSecurityEventListener>());

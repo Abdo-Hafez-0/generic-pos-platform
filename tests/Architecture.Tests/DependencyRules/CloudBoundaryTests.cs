@@ -144,8 +144,13 @@ public sealed class CloudBoundaryTests
         {
             scanned++;
             foreach (var line in File.ReadLines(csproj).Where(l => l.Contains("ProjectReference", StringComparison.Ordinal)))
-                if (ServerPrefixes.Any(p => line.Contains(p.TrimEnd('.'), StringComparison.Ordinal)) || line.Contains("\\Cloud\\", StringComparison.Ordinal))
+            {
+                // MISS-04e2: compare the referenced PROJECT's name (a module called CloudBackup is not a Cloud.* server project)
+                var include = System.Text.RegularExpressions.Regex.Match(line, "Include=\"([^\"]+)\"").Groups[1].Value;
+                var referenced = Path.GetFileNameWithoutExtension(include.Replace('\\', '/'));
+                if (ServerPrefixes.Any(p => referenced.StartsWith(p, StringComparison.Ordinal)) || include.Contains("\\Cloud\\", StringComparison.Ordinal))
                     offenders.Add($"{Path.GetFileName(csproj)}: {line.Trim()}");
+            }
         }
 
         Assert.True(scanned > 40, "The rule would pass vacuously: only " + scanned + " desktop project files were scanned.");

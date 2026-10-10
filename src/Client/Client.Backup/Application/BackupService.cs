@@ -1,6 +1,7 @@
 using Client.Backup.Domain;
 using Microsoft.Extensions.Logging;
 using Platform.Application.Abstractions.Auditing;
+using Platform.Application.Abstractions.Backup;
 using Platform.Core.Results;
 
 namespace Client.Backup.Application;
@@ -28,7 +29,8 @@ public sealed class BackupService(
     BackupGate gate,
     ILogger<BackupService> logger,
     IBusinessEventSink? events = null,
-    IBackupStatusStore? status = null) : IBackupNoticeSource
+    IBackupStatusStore? status = null,
+    IEnumerable<IBackupReplica>? replicas = null) : IBackupNoticeSource
 {
     public const string AuditModule = "backup";
 
@@ -97,6 +99,7 @@ public sealed class BackupService(
         await history.WriteAsync(records, CancellationToken.None);
 
         logger.LogInformation("Backup {File} made ({Bytes} bytes, {Origin}).", record.FileName, record.SizeBytes, origin);
+        await ReplicateAsync(staged, record, cancellationToken);
         await events.TryRecordAsync(As(origin, BusinessEvent.Create(AuditModule, "backup.created", "backup", record.Id.ToString(),
             $"Backup {record.FileName} made ({FormatSize(record.SizeBytes)}, {origin.ToString().ToLowerInvariant()}).",
             $"destination={record.Destination};migrations={record.Migrations.Count}")));
@@ -105,6 +108,28 @@ public sealed class BackupService(
                 $"Old backup {old.FileName} removed (only the newest {current.KeepLocal} are kept).")));
 
         return record;
+    }
+
+    /// <summary>
+    /// MISS-04e2: hands the checked copy to every replica (the CloudBackup module's encrypted copy) before the copy is deleted. The local
+    /// backup is already made and recorded: a replica that fails is logged and never turns it into a failure.
+    /// </summary>
+    private async Task ReplicateAsync(string staged, BackupRecord record, CancellationToken cancellationToken)
+    {
+        if (replicas is null) return;
+        var copy = new BackupCopy(record.Id, record.FileName, record.CreatedAt, record.SizeBytes, record.Sha256, record.ApplicationVersion,
+            record.Migrations, record.Origin == BackupOrigin.Scheduled);
+        foreach (var replica in replicas)
+        {
+            try
+            {
+                await replica.ReplicateAsync(staged, copy, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "A copy of backup {File} could not be handed to {Replica}; the local backup is fine.", record.FileName, replica.GetType().Name);
+            }
+        }
     }
 
     /// <summary>Scheduled work is the application's, never the signed-in person's.</summary>

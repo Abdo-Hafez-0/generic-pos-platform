@@ -122,6 +122,24 @@ public sealed class BackupBoundaryTests
             Assert.DoesNotContain(direct, shell);
     }
 
+    [Fact(DisplayName = "ARCH-BAK-010: The backup envelope is a neutral library: no project reference, no package, no HTTP/EF/WPF, and no private key")]
+    public void BackupEnvelopeIsNeutralAndPublicKeyOnly()
+    {
+        var refs = Refs(Assemblies.SecurityBackupEnvelope).ToList();
+        Assert.All(refs, r => Assert.True(r.StartsWith("System", StringComparison.Ordinal) || r == "netstandard", $"Security.BackupEnvelope references {r}."));
+
+        var project = File.ReadAllText(Path.Combine(RepoRoot(), "src", "Security", "Security.BackupEnvelope", "Security.BackupEnvelope.csproj"));
+        Assert.DoesNotContain("<ProjectReference", project);
+        Assert.DoesNotContain("<PackageReference", project);
+
+        // opening an escrow slot needs the vendor's PRIVATE key: that belongs to the vendor-only side (MISS-04f), never to this library
+        var sources = Directory.EnumerateFiles(Path.Combine(RepoRoot(), "src", "Security", "Security.BackupEnvelope"), "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Select(File.ReadAllText).ToList();
+        foreach (var privateKeyApi in new[] { "ImportPkcs8PrivateKey", "ImportECPrivateKey", "ImportFromPem", "ImportParameters", "ExportPkcs8PrivateKey" })
+            Assert.DoesNotContain(sources, s => s.Contains(privateKeyApi, StringComparison.Ordinal));
+    }
+
     [Fact(DisplayName = "ARCH-BAK-007: The live database is opened read-only for a backup, and no process-wide connection pool is cleared")]
     public void SnapshotNeverWritesTheLiveDatabase()
     {

@@ -49,6 +49,10 @@ internal static class Assemblies
     internal static readonly Assembly ClientBackup =
         typeof(Client.Backup.ClientBackupAssemblyMarker).Assembly;
 
+    // MISS-04e: the encrypted cloud backup format, shared by the CloudBackup module and the vendor's escrow tool
+    internal static readonly Assembly SecurityBackupEnvelope =
+        typeof(Security.BackupEnvelope.BackupEnvelope).Assembly;
+
     // Note: Client.Desktop (net10.0-windows) cannot be referenced here.
     // See ClientLayerTests for documentation of how Desktop boundaries are verified.
 
@@ -477,7 +481,8 @@ internal static class Assemblies
         UpdatePublisher,
         .. AllCloudServerAssemblies,
         ClientHardware,
-        ClientSecurity
+        ClientSecurity,
+        SecurityBackupEnvelope
     ];
 
     // -----------------------------------------------------------------------

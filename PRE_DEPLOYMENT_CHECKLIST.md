@@ -179,6 +179,10 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
     5. escrow mechanism of design section 5B approved; 6. cloud token typed in by the owner; 7. no backup trigger on shift close. Design APPROVED 2026-10-10; build order MISS-04a..f (design section 11).
   - [x] **MISS-04a** `Client.Backup` core (2026-10-10): local backup to a folder, verify, history, settings, retention, backup.* capabilities
   - [ ] `CloudBackup` optional module with `IBackupClient` / HTTP client to BackupServer.Api
+    - [x] **MISS-04e1** encrypted format library `Security.BackupEnvelope` (2026-10-10): recovery code, shop key, `.gpbak`, escrow slot
+    - [ ] **MISS-04e2** CloudBackup module: key ring, encrypted copy of each backup into an outbox, HTTP client, background upload with retry
+    - [ ] **MISS-04e3** Cloud backup screen: recovery code, token, cloud list, restore from the cloud; end to end against BackupServer.Api
+    - [ ] **MISS-04f** vendor escrow tool and restore with a one-time restore key
   - [x] Capabilities `backup.create` / `backup.restore` / `backup.delete` (+ `backup.configure`) declared and enforced (MISS-04a; restore is enforced when it is built in 04b)
   - [x] Local backup (to a folder / USB) for shops without internet (MISS-04a; the screen is 04d)
   - [x] **MISS-04b** Restore flow (database not in use during restore) (2026-10-10): prepare/confirm while running, swap at the next start before the database opens, before-restore copy kept and listed
@@ -261,4 +265,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-10 | MISS-04a | a58bef1 | Local backup core (Client.Backup); 2681 tests, 0 warnings; real exe start-up |
 | 2026-10-10 | MISS-04b | 7a6f5fa | Restore across a restart (IStartupPreparation, before-restore copy); 2699 tests, 0 warnings; real exe restore at start |
 | 2026-10-10 | MISS-04c | 4bd4772 | Daily scheduled backup, catch-up, retry pause, shell notice; 2725 tests, 0 warnings; real exe notice after a failed scheduled backup |
-| 2026-10-10 | MISS-04d | (this commit) | Backup screen with restart after a confirmed restore; 2739 tests, 0 warnings; real exe: settings, backup, check, restore, restart, Arabic |
+| 2026-10-10 | MISS-04d | 449c94e | Backup screen with restart after a confirmed restore; 2739 tests, 0 warnings; real exe: settings, backup, check, restore, restart, Arabic |
+| 2026-10-10 | MISS-04e1 | (this commit) | Encrypted cloud backup format library (recovery code, .gpbak, escrow slot); 2753 tests, 0 warnings |

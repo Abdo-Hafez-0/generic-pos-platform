@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Client\Client.Backup\Client.Backup.csproj" />
+    <ProjectReference Include="..\..\src\Security\Security.BackupEnvelope\Security.BackupEnvelope.csproj" />
     <ProjectReference Include="..\..\src\Platform\Platform.Application\Platform.Application.csproj" />
     <ProjectReference Include="..\Tests.Common\Tests.Common.csproj" />
   </ItemGroup>

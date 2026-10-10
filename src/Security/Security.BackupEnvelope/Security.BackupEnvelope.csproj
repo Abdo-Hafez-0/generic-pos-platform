@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    MISS-04e: the encrypted cloud backup file (.gpbak), shared by the CloudBackup module and the vendor's escrow tool.
+    Recovery code, shop key derivation, chunked AES-256-GCM, the escrow slot sealed to a vendor PUBLIC key.
+    Contains NO private-key handling (opening an escrow slot is vendor-only, MISS-04f), NO HTTP, NO EF, NO UI,
+    no package and no reference to any other project: only what .NET has built in.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+</Project>

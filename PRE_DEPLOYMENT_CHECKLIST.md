@@ -173,7 +173,10 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 - [ ] **MISS-02 Module wiring** - covered by FIX-04, FIX-05, FIX-11
 - [ ] **MISS-03 Tax and discounts** - covered by FIX-08
 - [ ] **MISS-04 Client backup module** (Stages 9/11)
-  - [ ] Design first: encryption and key management (who holds the key, recovery, rotation) - approve before building
+  - [ ] Design first: encryption and key management (who holds the key, recovery, rotation) - approve before building. Draft: `MISS-04_BACKUP_DESIGN.md`
+    Decisions (2026-10-10, user): 1. recovery code held by the shop PLUS vendor escrow; 2. only cloud backups are encrypted, local backups are plain SQLite files (lost-USB risk accepted, shown on screen);
+    3. local backup and restore in `Client.Backup` for every shop, cloud in a paid optional `CloudBackup` module (license module `cloud-backup`); 4. a separate sensitive `backup.configure` permission.
+    Open: approval of the escrow mechanism (design section 5B), cloud token entry (default: typed in by the owner), backup when the last shift closes.
   - [ ] `CloudBackup` optional module with `IBackupClient` / HTTP client to BackupServer.Api
   - [ ] Capabilities `backup.create` / `backup.restore` / `backup.delete` declared and enforced
   - [ ] Local backup (to a folder / USB) for shops without internet

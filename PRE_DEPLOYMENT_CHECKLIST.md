@@ -162,8 +162,8 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 
 ### A3. Low priority - documentation
 
-- [ ] **FIX-14** `PROJECT_STATE.md` "Next Task" still says the desktop has no sign-in screen (stale since the Stage 11 review)
-- [ ] **FIX-15** `PROJECT_STATE.md` stage-status table stops at Stage 11; add Stages 12 and 13
+- [x] **FIX-14** `PROJECT_STATE.md` "Next Task" still says the desktop has no sign-in screen (stale since the Stage 11 review) - done 2026-10-10: "Next Task" now points to Part B and describes the desktop as it is; the stale "no user-administration / license-activation screen" gap removed
+- [x] **FIX-15** `PROJECT_STATE.md` stage-status table stops at Stage 11; add Stages 12 and 13 - done 2026-10-10: rows for Stages 12, 13, the pre-deployment work and Stage 14 (not started)
 
 ---
 
@@ -250,4 +250,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-09 | FIX-12 | b87b317 | Ranged completed-sales read (no 2000 cap), local-day breakdown; 2589 tests, 0 warnings; real exe across local midnight |
 | 2026-10-09 | FIX-13 plan, FIX-13a | 4c978ef | Decisions recorded; receipts with Arabic printed as a picture; 2605 tests, 0 warnings; real exe receipt decoded |
 | 2026-10-09 | FIX-13b | 3d8063e | Language per user, sign-in texts in resources, display language independent of the thread culture; 2619 tests, 0 warnings; real exe |
-| 2026-10-09 | FIX-13c | (this commit) | Arabic translations of every screen text, right-to-left fixes; FIX-13 complete; 2636 tests, 0 warnings; real exe, 17 screens checked |
+| 2026-10-09 | FIX-13c | 22d55cf | Arabic translations of every screen text, right-to-left fixes; FIX-13 complete; 2636 tests, 0 warnings; real exe, 17 screens checked |
+| 2026-10-10 | FIX-14, FIX-15 | (this commit) | PROJECT_STATE.md brought up to date (Next Task, stage table); Part A complete |

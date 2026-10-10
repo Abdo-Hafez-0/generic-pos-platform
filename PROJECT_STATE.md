@@ -499,14 +499,14 @@ Scope source: the Stage 13 task text (the roadmap file is not in the repository)
 
 ## Current Task
 
-**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). FIX-03 COMPLETE (healthy-start confirmation of updates that really run). FIX-04 COMPLETE (POS cash sales go into the open cash drawer shift). FIX-05 COMPLETE (business actions in the audit log). FIX-06 COMPLETE (plain failure messages at every module boundary and screen). FIX-07 COMPLETE (one DI scope per user action, enforced and tested). FIX-08 COMPLETE (a: tax rates in Pricing, b: tax at the till and in Sales, c: discounts at the till). FIX-09 COMPLETE (a: part deliveries and closing short, b: supplier returns). FIX-10 COMPLETE (split payments at the till). FIX-11 COMPLETE (an optional customer on a sale). FIX-12 COMPLETE (sales report reads every sale of its range; local-day breakdown). FIX-13 COMPLETE (a: receipts with Arabic printed as a picture, b: screen language per user, c: Arabic translations of every screen, right to left). Part A of the checklist is done except the documentation items FIX-14/FIX-15. Stage 14 has not been started.**
+**Pre-deployment work (PRE_DEPLOYMENT_CHECKLIST.md). FIX-01 COMPLETE (a..e: shell, POS, Catalog/Inventory/Sales, Stage 8 back office, license, users, roles and permissions - every module has its screens). FIX-02 COMPLETE (barcode scanner input on the POS screen). FIX-03 COMPLETE (healthy-start confirmation of updates that really run). FIX-04 COMPLETE (POS cash sales go into the open cash drawer shift). FIX-05 COMPLETE (business actions in the audit log). FIX-06 COMPLETE (plain failure messages at every module boundary and screen). FIX-07 COMPLETE (one DI scope per user action, enforced and tested). FIX-08 COMPLETE (a: tax rates in Pricing, b: tax at the till and in Sales, c: discounts at the till). FIX-09 COMPLETE (a: part deliveries and closing short, b: supplier returns). FIX-10 COMPLETE (split payments at the till). FIX-11 COMPLETE (an optional customer on a sale). FIX-12 COMPLETE (sales report reads every sale of its range; local-day breakdown). FIX-13 COMPLETE (a: receipts with Arabic printed as a picture, b: screen language per user, c: Arabic translations of every screen, right to left). FIX-14/FIX-15 COMPLETE (this document brought up to date). Part A of the checklist is done. Stage 14 has not been started.**
 
 ---
 
 ## Next Task
 
-**FIX-09 - purchasing gaps: partial-quantity receiving and supplier returns (see PRE_DEPLOYMENT_CHECKLIST.md). Work proceeds one checklist item at a time.**
-A fresh installation can now be set up and sell through the desktop alone: activate (License), categories/units, products, warehouse, receive stock, sell at the till, sales history (verified end to end in the real executable against a real local LicenseServer.Api).
+**Part B of PRE_DEPLOYMENT_CHECKLIST.md (MISS-04..MISS-07; MISS-01..03 are covered by the completed Part A items). MISS-04 (client backup) starts with an encryption and key-management design that must be approved before anything is built. Work proceeds one checklist item at a time.**
+The desktop is a complete application: first-run setup, sign-in, password change and sign-out (Stage 11 review); license activation; every module has its screens in the shell (FIX-01), in English or Arabic per user (FIX-13); a fresh installation can be set up and sell through the desktop alone (activate, categories/units, products, warehouse, receive stock, sell with tax, discounts, split payments and a scanner, print a receipt, cash drawer shift, sales history and reports), verified end to end in the real executable against a real local LicenseServer.Api.
 
 Next roadmap stage: Stage 14 (Packaging / deployment) - only when instructed. Stage 13 follow-ups: "Stage 13 Summary - Remaining limitations". Follow-ups that are NOT part of any completed stage: a launcher that starts the ACTIVE core version and ModuleHost loading modules from the active deployment directories (so activated updates take effect at runtime); IModuleMigrator implementations in the business modules; CLI wrappers for ModulePackager/UpdatePublisher; the client-side CloudBackup module (optional module that talks to BackupServer.Api through an IBackupClient; it must declare and enforce backup.create / backup.restore / backup.delete); a browser UI for AdminPortal; stock-reversal contract; physical-device adapters (Windows spooler, serial/USB scales, vendor SDKs); adoption of Audit / CashManagement / Customers by POS and Sales (see "Stage 8 limitations" and "Stage 9 limitations").
 
@@ -1398,6 +1398,10 @@ Stage | Name                                                  | Status
 9     | Cloud Services & Administration (AdminPortal, BackupServer, durable License/UpdateServer) | COMPLETE (foundation; see Stage 9 limitations)
 10    | Hardware & Device Integration                         | COMPLETE (abstractions + ESC/POS, ZPL, keyboard-wedge adapters; no physical device verified)
 11    | Security Hardening                                    | COMPLETE (authentication incl. desktop start screen, capability authorization, license enforcement, data protection, audit, server hardening; reviewed 2026-10-06)
+12    | Offline & Failure Testing                             | COMPLETE (atomic cross-module operations via IAtomicOperation; offline, cloud-outage, database, hardware and restart failure campaigns; see "Stage 12 Summary")
+13    | Architecture & Integration Verification               | COMPLETE (repository audit; the twelve dependency rules enforced on every project; fail-fast module lifecycle; see "Stage 13 Summary")
+-     | Pre-deployment fixes (PRE_DEPLOYMENT_CHECKLIST.md)    | Part A COMPLETE (FIX-01..FIX-15); Part B in progress
+14    | Packaging & Deployment                                | NOT STARTED (Part C of PRE_DEPLOYMENT_CHECKLIST.md)
 
 ---
 
@@ -2481,7 +2485,7 @@ All 2636 tests pass (FIX-13c: UI 191; FIX-13b: Users 174, UI 174; FIX-13a: Hardw
 Reporting 38, CashManagement 38, Audit 36, Payments 33, Platform.Infrastructure 27). Stage 12 had 2254; Stage 13 added 43 (Architecture +22 new and -6 placeholders removed, Platform.ModuleContract +9, Integration +18).
 Stage 13 limitations: see "Stage 13 Summary - Remaining limitations".
 Stage 12 limitations: see "Stage 12 Summary" (no real process kill, full disk, physical device, UI automation or load campaign; only POS translates unexpected failures into plain results).
-Not defects but known gaps (see the Stage 11 deferred-limitations register): no user-administration / license-activation screen yet; backup encryption not built.
+Not defects but known gaps (see the Stage 11 deferred-limitations register): backup encryption not built (MISS-04). The user-administration and license-activation screens were added in FIX-01e.
 Resolved during Stage 9: stress-running Cloud.Tests exposed rare random failures (about 1 run in 8, different tests each time, SQLite connection-open errors). Cause: the test teardown called the
 process-wide `SqliteConnection.ClearAllPools()` while other tests ran in parallel. Fix: test databases use `Pooling=False` (no global pool clearing); staging-file cleanup in the file stores also
 gained short retries (a briefly locked file never fails an upload) and stale `.part` files are swept at start. 30 consecutive full Cloud.Tests runs passed afterwards.

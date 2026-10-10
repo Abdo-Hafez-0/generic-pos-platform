@@ -99,6 +99,78 @@ public sealed class GetBackupSettingsQueryHandler(BackupService backups, IAuthor
     }
 }
 
+// ------------------------------------------------------------------ restore (MISS-04b): backup.restore for every step that leads to a restore
+
+public sealed record PrepareRestoreCommand(Guid BackupId);
+
+public sealed class PrepareRestoreCommandHandler(RestoreService restores, IAuthorizationService authorization)
+{
+    public async Task<Result<RestorePreparation>> HandleAsync(PrepareRestoreCommand command, CancellationToken cancellationToken = default)
+    {
+        var allowed = await authorization.AuthorizeAsync(BackupCapabilities.Restore, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<RestorePreparation>(allowed.Error);
+
+        return await restores.PrepareAsync(command.BackupId, cancellationToken);
+    }
+}
+
+public sealed record PrepareRestoreFromFileCommand(string Path);
+
+public sealed class PrepareRestoreFromFileCommandHandler(RestoreService restores, IAuthorizationService authorization)
+{
+    public async Task<Result<RestorePreparation>> HandleAsync(PrepareRestoreFromFileCommand command, CancellationToken cancellationToken = default)
+    {
+        var allowed = await authorization.AuthorizeAsync(BackupCapabilities.Restore, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<RestorePreparation>(allowed.Error);
+
+        return await restores.PrepareFromFileAsync(command.Path, cancellationToken);
+    }
+}
+
+public sealed record ConfirmRestoreCommand(Guid PreparationId);
+
+/// <summary>Records who confirmed: the restore itself happens at the next start, when nobody is signed in yet.</summary>
+public sealed class ConfirmRestoreCommandHandler(RestoreService restores, IAuthorizationService authorization, ICurrentUser currentUser)
+{
+    public async Task<Result<PendingRestore>> HandleAsync(ConfirmRestoreCommand command, CancellationToken cancellationToken = default)
+    {
+        var allowed = await authorization.AuthorizeAsync(BackupCapabilities.Restore, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<PendingRestore>(allowed.Error);
+
+        return await restores.ConfirmAsync(command.PreparationId,
+            currentUser.IsAuthenticated ? currentUser.UserId : null, currentUser.IsAuthenticated ? currentUser.UserName : null, cancellationToken);
+    }
+}
+
+public sealed record CancelRestoreCommand;
+
+public sealed class CancelRestoreCommandHandler(RestoreService restores, IAuthorizationService authorization)
+{
+    public async Task<Result> HandleAsync(CancelRestoreCommand command, CancellationToken cancellationToken = default)
+    {
+        var allowed = await authorization.AuthorizeAsync(BackupCapabilities.Restore, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
+        return await restores.CancelAsync(cancellationToken);
+    }
+}
+
+/// <summary>A restore waiting for the restart, and what happened to the last one (for the backup screen's status).</summary>
+public sealed record RestoreStatus(PendingRestore? Pending, RestoreOutcome? LastOutcome);
+
+public sealed record GetRestoreStatusQuery;
+
+public sealed class GetRestoreStatusQueryHandler(RestoreService restores, IAuthorizationService authorization)
+{
+    public async Task<Result<RestoreStatus>> HandleAsync(GetRestoreStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        var allowed = await authorization.AuthorizeAsync(BackupCapabilities.Create, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<RestoreStatus>(allowed.Error);
+
+        return new RestoreStatus(await restores.GetPendingAsync(cancellationToken), await restores.GetLastOutcomeAsync(cancellationToken));
+    }
+}
+
 public sealed record UpdateBackupSettingsCommand(string? LocalFolder, int KeepLocal);
 
 public sealed class UpdateBackupSettingsCommandHandler(BackupService backups, IAuthorizationService authorization)

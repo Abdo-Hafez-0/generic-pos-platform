@@ -95,6 +95,76 @@ public sealed class BackupIntegrationTests
         Assert.Contains(made.Value.Id.ToString(), await File.ReadAllTextAsync(history));
     }
 
+    /// <summary>
+    /// MISS-04b: a restore confirmed by the administrator happens at the next start, before any module opens the database: the shop's
+    /// data is the backup's again, the data before the restore is kept and listed, the restore is in the audit log of the RESTORED data
+    /// under the administrator's name, the administrator signs in with the users of the backup and the shop sells on.
+    /// </summary>
+    [Fact]
+    public async Task A_confirmed_restore_happens_at_the_next_start_and_the_shop_sells_on()
+    {
+        var clock = new global::Tests.Common.Security.TestClock(OfflineDesktop.Start);
+        using var licenses = OfflineDesktop.NewLicenses(clock);
+        string folder;
+        string user;
+        Shop shop;
+        Guid backupId;
+
+        await using (var first = await OfflineDesktop.StartAsync(null, keepFiles: true, licenses, clock))
+        {
+            folder = first.Host.Folder;
+            var services = first.Services;
+            user = services.GetRequiredService<ICurrentUser>().UserName;
+            shop = await CreateShopAsync(services);
+            var (_, cart1) = await OpenCartAsync(services, shop, 1m);
+            Assert.True((await CheckoutAsync(services, cart1)).IsSuccess);
+
+            Assert.True((await InScopeAsync(services, p => p.GetRequiredService<UpdateBackupSettingsCommandHandler>().HandleAsync(
+                new UpdateBackupSettingsCommand(Path.Combine(folder, "usb"), 14)))).IsSuccess);
+            var made = await InScopeAsync(services, p => p.GetRequiredService<CreateBackupCommandHandler>().HandleAsync(new CreateBackupCommand()));
+            Assert.True(made.IsSuccess, made.IsFailure ? made.Error.Description : null);
+            backupId = made.Value.Id;
+
+            var (_, cart2) = await OpenCartAsync(services, shop, 1m);
+            Assert.True((await CheckoutAsync(services, cart2)).IsSuccess);   // entered after the backup: replaced by the restore
+
+            var prepared = await InScopeAsync(services, p => p.GetRequiredService<PrepareRestoreCommandHandler>().HandleAsync(new PrepareRestoreCommand(backupId)));
+            Assert.True(prepared.IsSuccess, prepared.IsFailure ? prepared.Error.Description : null);
+            var confirmed = await InScopeAsync(services, p => p.GetRequiredService<ConfirmRestoreCommandHandler>().HandleAsync(new ConfirmRestoreCommand(prepared.Value.Id)));
+            Assert.True(confirmed.IsSuccess, confirmed.IsFailure ? confirmed.Error.Description : null);
+            Assert.Equal(2L, Count(first.Host.DatabasePath, "sal_Sales"));   // nothing replaced while running
+        }
+
+        SqliteConnection.ClearAllPools();   // the same test process: a real restart is a new process
+        try
+        {
+            await using var second = await OfflineDesktop.StartAsync(folder, keepFiles: true, licenses, clock);
+            var services = second.Services;
+
+            Assert.Equal(1L, Count(second.Host.DatabasePath, "sal_Sales"));
+            var status = await InScopeAsync(services, p => p.GetRequiredService<GetRestoreStatusQueryHandler>().HandleAsync(new GetRestoreStatusQuery()));
+            Assert.Null(status.Value.Pending);
+            Assert.True(status.Value.LastOutcome!.Succeeded, status.Value.LastOutcome.Message);
+
+            var history = await InScopeAsync(services, p => p.GetRequiredService<GetBackupHistoryQueryHandler>().HandleAsync(new GetBackupHistoryQuery()));
+            var before = Assert.Single(history.Value, r => r.Destination == BackupDestinations.BeforeRestore);
+            Assert.Equal(2L, Count(before.Location, "sal_Sales"));
+
+            var restored = await AuditEntryAsync(services, "backup.restored");
+            Assert.Equal(user, restored.ActorName);
+            Assert.Equal(user, services.GetRequiredService<ICurrentUser>().UserName);   // signed in with the users of the backup
+
+            var (_, cart3) = await OpenCartAsync(services, shop, 1m);
+            Assert.True((await CheckoutAsync(services, cart3)).IsSuccess);
+            Assert.Equal(2L, Count(second.Host.DatabasePath, "sal_Sales"));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            IntegrationHost.DeleteFolder(folder);
+        }
+    }
+
     [Fact]
     public async Task Before_a_folder_is_chosen_the_desktop_starts_and_backing_up_explains_what_is_missing()
     {

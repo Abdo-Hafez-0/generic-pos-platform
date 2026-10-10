@@ -23,6 +23,15 @@ public sealed class SqliteDatabaseSnapshotter(string databasePath, ILogger<Sqlit
     public Task<Result<DatabaseSnapshot>> InspectAsync(string path, CancellationToken cancellationToken = default)
         => Task.Run(() => Inspect(path), cancellationToken);
 
+    public Task<IReadOnlyList<string>> ReadLiveMigrationsAsync(CancellationToken cancellationToken = default)
+        => Task.Run<IReadOnlyList<string>>(() =>
+        {
+            if (!File.Exists(databasePath)) return [];
+            using var connection = new SqliteConnection($"Data Source={databasePath};Mode=ReadOnly;Pooling=False");
+            connection.Open();
+            return ReadMigrations(connection);
+        }, cancellationToken);
+
     private Result<DatabaseSnapshot> Snapshot(string targetPath)
     {
         if (!File.Exists(databasePath))

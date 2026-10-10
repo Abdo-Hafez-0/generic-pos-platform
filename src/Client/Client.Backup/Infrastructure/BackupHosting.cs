@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Platform.Application.Abstractions.Auditing;
 using Platform.Application.Abstractions.Authorization;
 using Platform.Infrastructure.Persistence;
 
@@ -29,10 +30,41 @@ public sealed class BackupConfiguration
     public int? KeepLocal { get; set; }
 }
 
-/// <summary>Empties the staging folder at start: a crash during a backup can leave a temporary copy of the shop data behind.</summary>
-public sealed class BackupInitializer(BackupWorkspace workspace, ILogger<BackupInitializer> logger) : IHostedService
+/// <summary>
+/// At start: empties the staging folder (a crash during a backup can leave a temporary copy of the shop data behind), and reports the
+/// outcome of a restore that the start-up step just carried out to the audit log - once, in the RESTORED data, under the name of the
+/// person who confirmed it (nobody is signed in yet).
+/// </summary>
+public sealed class BackupInitializer(
+    BackupWorkspace workspace,
+    ILogger<BackupInitializer> logger,
+    IRestoreStateStore? restoreStates = null,
+    IBusinessEventSink? events = null) : IHostedService
 {
-    public Task StartAsync(CancellationToken cancellationToken)
+    public async Task StartAsync(CancellationToken cancellationToken)
+    {
+        SweepStaging();
+        await ReportRestoreOutcomeAsync();
+    }
+
+    private async Task ReportRestoreOutcomeAsync()
+    {
+        try
+        {
+            if (restoreStates is null || await restoreStates.ReadOutcomeAsync() is not { Reported: false } outcome) return;
+
+            await events.TryRecordAsync(BusinessEvent.Create(BackupService.AuditModule, outcome.Succeeded ? "backup.restored" : "backup.restore-failed", "backup",
+                outcome.Id.ToString(), outcome.Message, $"backup={outcome.SourceFileName};made={outcome.BackupCreatedAt:yyyy-MM-dd HH:mm}")
+                with { ActorId = outcome.RequestedById, ActorName = outcome.RequestedByName });
+            await restoreStates.WriteOutcomeAsync(outcome with { Reported = true });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "The outcome of the last restore could not be reported.");
+        }
+    }
+
+    private void SweepStaging()
     {
         try
         {
@@ -55,8 +87,6 @@ public sealed class BackupInitializer(BackupWorkspace workspace, ILogger<BackupI
             // Backup housekeeping must never stop the shop from starting.
             logger.LogWarning(ex, "The backup working folder could not be prepared.");
         }
-
-        return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
@@ -90,7 +120,14 @@ public static class BackupServicesExtensions
         services.AddSingleton<IBackupSettingsStore>(sp => new JsonBackupSettingsStore(
             workspace, new BackupSettings(string.IsNullOrWhiteSpace(config.LocalFolder) ? null : config.LocalFolder, keep),
             sp.GetRequiredService<ILogger<JsonBackupSettingsStore>>()));
+        services.AddSingleton<BackupGate>();
         services.AddSingleton<BackupService>();
+        // MISS-04b: restore across a restart; the swap runs before anything opens the database (IStartupPreparation)
+        services.AddSingleton<IRestoreStateStore, JsonRestoreStateStore>();
+        services.AddSingleton<RestoreService>();
+        services.AddSingleton<IStartupPreparation>(sp => new PendingRestoreStep(databasePath, workspace,
+            sp.GetRequiredService<IRestoreStateStore>(), sp.GetRequiredService<IBackupHistoryStore>(), sp.GetRequiredService<IDatabaseSnapshotter>(),
+            sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<ILogger<PendingRestoreStep>>()));
 
         services.AddSingleton<ICapabilityProvider, BackupCapabilityProvider>();
         services.AddTransient<CreateBackupCommandHandler>();
@@ -99,6 +136,11 @@ public static class BackupServicesExtensions
         services.AddTransient<DeleteBackupCommandHandler>();
         services.AddTransient<GetBackupSettingsQueryHandler>();
         services.AddTransient<UpdateBackupSettingsCommandHandler>();
+        services.AddTransient<PrepareRestoreCommandHandler>();
+        services.AddTransient<PrepareRestoreFromFileCommandHandler>();
+        services.AddTransient<ConfirmRestoreCommandHandler>();
+        services.AddTransient<CancelRestoreCommandHandler>();
+        services.AddTransient<GetRestoreStatusQueryHandler>();
         services.AddHostedService<BackupInitializer>();
         return services;
     }

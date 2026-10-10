@@ -59,10 +59,20 @@ public sealed class BackupWorld : IDisposable
     public TestClock Clock { get; } = new(Start);
     public RecordingBusinessEventSink Events { get; } = new();
     public BackupService Service { get; private set; }
+    public RestoreService Restores { get; private set; } = null!;
+    public JsonRestoreStateStore States => new(Workspace, NullLogger<JsonRestoreStateStore>.Instance);
 
-    /// <summary>A fresh service over the same files (an application restart).</summary>
+    /// <summary>The start-up step of the NEXT start (what runs before anything opens the database).</summary>
+    public PendingRestoreStep StartupStep() => new(DatabasePath, Workspace, States,
+        new JsonBackupHistoryStore(Workspace, NullLogger<JsonBackupHistoryStore>.Instance), Snapshotter, Clock, NullLogger<PendingRestoreStep>.Instance);
+
+    /// <summary>Fresh services over the same files (an application restart).</summary>
     public BackupService NewService()
     {
+        var gate = new BackupGate();
+        Restores = new RestoreService(Snapshotter, new LocalDestinationFactory(NullLogger<LocalFolderDestination>.Instance),
+            new JsonBackupHistoryStore(Workspace, NullLogger<JsonBackupHistoryStore>.Instance), States, Workspace, Clock, gate,
+            NullLogger<RestoreService>.Instance, Events);
         Service = new BackupService(
             Snapshotter,
             new LocalDestinationFactory(NullLogger<LocalFolderDestination>.Instance),
@@ -71,6 +81,7 @@ public sealed class BackupWorld : IDisposable
             Workspace,
             new BackupRuntime("1.2.3"),
             Clock,
+            gate,
             NullLogger<BackupService>.Instance,
             Events);
         return Service;
@@ -116,6 +127,10 @@ public sealed class BackupWorld : IDisposable
         Execute(connection, $"INSERT INTO sal_Sales (Total, Note) VALUES ('9.99', '{note}');");
     }
 
+    public long Sales() => (long)Scalar(DatabasePath, "SELECT COUNT(*) FROM sal_Sales")!;
+
+    public string[] RestoreFiles() => Directory.Exists(Workspace.RestoreDirectory) ? Directory.GetFiles(Workspace.RestoreDirectory) : [];
+
     public string[] StagingFiles() => Directory.Exists(Workspace.StagingDirectory) ? Directory.GetFiles(Workspace.StagingDirectory) : [];
 
     public string[] BackupFiles(string? folder = null)
@@ -152,4 +167,7 @@ public sealed class GatedSnapshotter(IDatabaseSnapshotter inner) : IDatabaseSnap
 
     public Task<Platform.Core.Results.Result<DatabaseSnapshot>> InspectAsync(string path, CancellationToken cancellationToken = default)
         => inner.InspectAsync(path, cancellationToken);
+
+    public Task<IReadOnlyList<string>> ReadLiveMigrationsAsync(CancellationToken cancellationToken = default)
+        => inner.ReadLiveMigrationsAsync(cancellationToken);
 }

@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using Client.Backup.Domain;
 using Microsoft.Extensions.Logging;
 using Platform.Application.Abstractions.Auditing;
@@ -26,18 +25,17 @@ public sealed class BackupService(
     IBackupWorkspace workspace,
     BackupRuntime runtime,
     TimeProvider clock,
+    BackupGate gate,
     ILogger<BackupService> logger,
     IBusinessEventSink? events = null)
 {
     public const string AuditModule = "backup";
 
-    private readonly SemaphoreSlim _gate = new(1, 1);
-
     // ------------------------------------------------------------------ make a backup
 
     public async Task<Result<BackupRecord>> CreateAsync(BackupOrigin origin, CancellationToken cancellationToken = default)
     {
-        if (!await _gate.WaitAsync(0, cancellationToken))
+        if (!await gate.TryEnterAsync(cancellationToken))
             return Error.Conflict(BackupErrorCodes.Busy, "A backup is already being made. Try again when it has finished.");
 
         var staged = Path.Combine(workspace.StagingDirectory, Guid.NewGuid().ToString("N") + ".db");
@@ -89,7 +87,7 @@ public sealed class BackupService(
         finally
         {
             TryDelete(staged);
-            _gate.Release();
+            gate.Exit();
         }
     }
 
@@ -128,7 +126,7 @@ public sealed class BackupService(
     /// </summary>
     public async Task<Result<BackupRecord>> VerifyAsync(Guid backupId, CancellationToken cancellationToken = default)
     {
-        await _gate.WaitAsync(cancellationToken);
+        await gate.EnterAsync(cancellationToken);
         var staged = Path.Combine(workspace.StagingDirectory, Guid.NewGuid().ToString("N") + ".db");
         try
         {
@@ -161,7 +159,7 @@ public sealed class BackupService(
         finally
         {
             TryDelete(staged);
-            _gate.Release();
+            gate.Exit();
         }
     }
 
@@ -174,24 +172,7 @@ public sealed class BackupService(
             return opened.Error;
 
         Directory.CreateDirectory(workspace.StagingDirectory);
-        string sha256;
-        long size;
-        await using (var source = opened.Value)
-        await using (var target = new FileStream(staged, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-        using (var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
-        {
-            var buffer = new byte[81920];
-            int read;
-            size = 0;
-            while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
-            {
-                hash.AppendData(buffer, 0, read);
-                await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-                size += read;
-            }
-
-            sha256 = Convert.ToHexStringLower(hash.GetHashAndReset());
-        }
+        var (size, sha256) = await BackupFileCopy.CopyAsync(opened.Value, staged, cancellationToken);
 
         if (size != record.SizeBytes || !string.Equals(sha256, record.Sha256, StringComparison.OrdinalIgnoreCase))
             return Error.Failure(BackupErrorCodes.Damaged, $"The backup file {record.FileName} has changed or is damaged since it was made. Do not rely on it.");
@@ -209,7 +190,7 @@ public sealed class BackupService(
 
     public async Task<Result> DeleteAsync(Guid backupId, CancellationToken cancellationToken = default)
     {
-        await _gate.WaitAsync(cancellationToken);
+        await gate.EnterAsync(cancellationToken);
         try
         {
             var records = (await history.ReadAsync(cancellationToken)).ToList();
@@ -237,7 +218,7 @@ public sealed class BackupService(
         }
         finally
         {
-            _gate.Release();
+            gate.Exit();
         }
     }
 
@@ -268,7 +249,7 @@ public sealed class BackupService(
                 return Result.Failure<BackupSettings>(writable.Error);
         }
 
-        await _gate.WaitAsync(cancellationToken);
+        await gate.EnterAsync(cancellationToken);
         try
         {
             var updated = new BackupSettings(folder, keepLocal);
@@ -279,7 +260,7 @@ public sealed class BackupService(
         }
         finally
         {
-            _gate.Release();
+            gate.Exit();
         }
     }
 
@@ -322,6 +303,31 @@ public static class LocalFolderProbe
             logger.LogWarning(ex, "Backup folder {Folder} is not writable.", folder);
             return Error.Failure(BackupErrorCodes.DestinationUnavailable,
                 $"Backups cannot be written to {folder}. Check that the drive is connected and that the folder may be written to.");
+        }
+    }
+}
+
+/// <summary>Copies a backup stream to a file and fingerprints it on the way (one pass, never the whole file in memory).</summary>
+public static class BackupFileCopy
+{
+    public static async Task<(long Size, string Sha256)> CopyAsync(Stream source, string targetPath, CancellationToken cancellationToken)
+    {
+        await using (source)
+        await using (var target = new FileStream(targetPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        using (var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256))
+        {
+            var buffer = new byte[81920];
+            long size = 0;
+            int read;
+            while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
+            {
+                hash.AppendData(buffer, 0, read);
+                await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                size += read;
+            }
+
+            await target.FlushAsync(cancellationToken);
+            return (size, Convert.ToHexStringLower(hash.GetHashAndReset()));
         }
     }
 }

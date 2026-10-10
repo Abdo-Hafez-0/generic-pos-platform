@@ -92,6 +92,22 @@ public sealed class BackupBoundaryTests
         Assert.All(handlers, t => Assert.Contains(t.GetConstructors().Single().GetParameters(), p => p.ParameterType == typeof(IAuthorizationService)));
     }
 
+    [Fact(DisplayName = "ARCH-BAK-008: A restore is put in place by a startup preparation, which the host runs before any hosted service (before anything opens the database)")]
+    public void RestoreRunsBeforeTheDatabaseIsOpened()
+    {
+        Assert.True(typeof(Client.Host.Hosting.IStartupPreparation).IsAssignableFrom(typeof(Client.Backup.Infrastructure.PendingRestoreStep)));
+
+        var host = File.ReadAllText(Path.Combine(RepoRoot(), "src", "Client", "Client.Host", "Hosting", "GenericApplicationHost.cs"));
+        var preparations = host.IndexOf("GetServices<IStartupPreparation>()", StringComparison.Ordinal);
+        var start = host.IndexOf("await _host.StartAsync(", StringComparison.Ordinal);
+        Assert.True(preparations > 0 && start > preparations, "Startup preparations must run before the host starts its hosted services.");
+
+        // the step works on files only: it never resolves a module, a DbContext or anything that opens the database through the platform
+        var step = Source("Infrastructure", "PendingRestoreStep.cs");
+        Assert.DoesNotContain("GetRequiredService", step);
+        Assert.DoesNotContain("DbContext", step);
+    }
+
     [Fact(DisplayName = "ARCH-BAK-007: The live database is opened read-only for a backup, and no process-wide connection pool is cleared")]
     public void SnapshotNeverWritesTheLiveDatabase()
     {

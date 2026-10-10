@@ -12,6 +12,9 @@ namespace Client.Backup.Infrastructure;
 ///   history.json    the backup history (what was made, where, its fingerprint, the last check)
 ///   settings.json   the backup folder and how many backups it keeps
 ///   staging\        copies being prepared or checked; emptied at every start
+///   restore\        a backup being restored (checked, waiting for confirmation or for the restart)
+///   restore-pending.json / restore-outcome.json   the confirmed restore, and what happened to the last one
+///   before-restore\ the shop data as it was before each restore; never removed automatically
 ///
 /// Kept OUTSIDE the business database on purpose: restoring a backup must never erase the record of backups or the settings.
 /// </summary>
@@ -24,6 +27,14 @@ public sealed class BackupWorkspace(string root) : IBackupWorkspace
     public string HistoryPath => Path.Combine(Root, "history.json");
 
     public string SettingsPath => Path.Combine(Root, "settings.json");
+
+    public string RestoreDirectory => Path.Combine(Root, "restore");
+
+    public string BeforeRestoreDirectory => Path.Combine(Root, "before-restore");
+
+    public string PendingRestorePath => Path.Combine(Root, "restore-pending.json");
+
+    public string RestoreOutcomePath => Path.Combine(Root, "restore-outcome.json");
 }
 
 /// <summary>Small JSON files written atomically (temporary file, then rename), so a crash leaves the old or the new file, never half of one.</summary>
@@ -78,6 +89,27 @@ public sealed class JsonBackupHistoryStore(BackupWorkspace workspace, ILogger<Js
 
     public Task WriteAsync(IReadOnlyList<BackupRecord> records, CancellationToken cancellationToken = default)
         => JsonFile.WriteAsync(workspace.HistoryPath, records, cancellationToken);
+}
+
+public sealed class JsonRestoreStateStore(BackupWorkspace workspace, ILogger<JsonRestoreStateStore> logger) : IRestoreStateStore
+{
+    public Task<PendingRestore?> ReadPendingAsync(CancellationToken cancellationToken = default)
+        => JsonFile.ReadAsync<PendingRestore?>(workspace.PendingRestorePath, () => null, logger, cancellationToken);
+
+    public Task WritePendingAsync(PendingRestore pending, CancellationToken cancellationToken = default)
+        => JsonFile.WriteAsync(workspace.PendingRestorePath, pending, cancellationToken);
+
+    public Task ClearPendingAsync(CancellationToken cancellationToken = default)
+    {
+        if (File.Exists(workspace.PendingRestorePath)) File.Delete(workspace.PendingRestorePath);
+        return Task.CompletedTask;
+    }
+
+    public Task<RestoreOutcome?> ReadOutcomeAsync(CancellationToken cancellationToken = default)
+        => JsonFile.ReadAsync<RestoreOutcome?>(workspace.RestoreOutcomePath, () => null, logger, cancellationToken);
+
+    public Task WriteOutcomeAsync(RestoreOutcome outcome, CancellationToken cancellationToken = default)
+        => JsonFile.WriteAsync(workspace.RestoreOutcomePath, outcome, cancellationToken);
 }
 
 /// <summary>Settings saved by <c>backup.configure</c>; until then, the defaults from configuration (an installer may preset a folder).</summary>

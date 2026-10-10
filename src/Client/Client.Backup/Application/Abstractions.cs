@@ -14,6 +14,35 @@ public interface IDatabaseSnapshotter
 
     /// <summary>Checks a database file that is NOT in use (a staged copy of a backup): integrity check and migration list.</summary>
     Task<Result<DatabaseSnapshot>> InspectAsync(string path, CancellationToken cancellationToken = default);
+
+    /// <summary>The migrations applied in the LIVE database (read-only), to refuse restoring data from a newer application version.</summary>
+    Task<IReadOnlyList<string>> ReadLiveMigrationsAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>The confirmed restore waiting for the next start, and the outcome of the last one (both kept next to the database).</summary>
+public interface IRestoreStateStore
+{
+    Task<PendingRestore?> ReadPendingAsync(CancellationToken cancellationToken = default);
+
+    Task WritePendingAsync(PendingRestore pending, CancellationToken cancellationToken = default);
+
+    Task ClearPendingAsync(CancellationToken cancellationToken = default);
+
+    Task<RestoreOutcome?> ReadOutcomeAsync(CancellationToken cancellationToken = default);
+
+    Task WriteOutcomeAsync(RestoreOutcome outcome, CancellationToken cancellationToken = default);
+}
+
+/// <summary>One backup operation at a time across making, checking, deleting and restoring.</summary>
+public sealed class BackupGate
+{
+    private readonly SemaphoreSlim _semaphore = new(1, 1);
+
+    public Task<bool> TryEnterAsync(CancellationToken cancellationToken = default) => _semaphore.WaitAsync(0, cancellationToken);
+
+    public Task EnterAsync(CancellationToken cancellationToken = default) => _semaphore.WaitAsync(cancellationToken);
+
+    public void Exit() => _semaphore.Release();
 }
 
 /// <summary>
@@ -62,4 +91,10 @@ public interface IBackupWorkspace
 {
     /// <summary>Where copies are prepared and checked; emptied at start (a crash can leave a half-written copy behind).</summary>
     string StagingDirectory { get; }
+
+    /// <summary>Where a backup being restored waits (checked, prepared or confirmed) until the next start puts it in place.</summary>
+    string RestoreDirectory { get; }
+
+    /// <summary>Where the shop data as it was before a restore is kept (never removed automatically).</summary>
+    string BeforeRestoreDirectory { get; }
 }

@@ -89,15 +89,27 @@ public sealed class BackupSecurityTests : IDisposable
 
         var services = new ServiceCollection().AddLogging();
         services.AddSingleton<IAuthorizationService, AllowAllAuthorizationService>();
+        services.AddSingleton<ICurrentUser, NobodySignedIn>();
         new ClientBackupHostingModule().RegisterServices(new HostBuilderContext(new Dictionary<object, object>()) { Configuration = configuration }, services);
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
 
         Assert.Equal(Path.Combine(_world.Root, "GenericPOS", "Backup"), provider.GetRequiredService<BackupWorkspace>().Root);
         Assert.Equal(new BackupSettings(_world.BackupFolder, 7), await provider.GetRequiredService<BackupService>().GetSettingsAsync());
         foreach (var type in new[] { typeof(CreateBackupCommandHandler), typeof(VerifyBackupCommandHandler), typeof(GetBackupHistoryQueryHandler),
-                     typeof(DeleteBackupCommandHandler), typeof(GetBackupSettingsQueryHandler), typeof(UpdateBackupSettingsCommandHandler) })
+                     typeof(DeleteBackupCommandHandler), typeof(GetBackupSettingsQueryHandler), typeof(UpdateBackupSettingsCommandHandler),
+                     typeof(PrepareRestoreCommandHandler), typeof(PrepareRestoreFromFileCommandHandler), typeof(ConfirmRestoreCommandHandler),
+                     typeof(CancelRestoreCommandHandler), typeof(GetRestoreStatusQueryHandler) })
             Assert.NotNull(provider.GetRequiredService(type));
         Assert.Contains(provider.GetServices<ICapabilityProvider>(), p => p is BackupCapabilityProvider);
         Assert.Contains(provider.GetServices<IHostedService>(), s => s is BackupInitializer);
+        Assert.IsType<PendingRestoreStep>(Assert.Single(provider.GetServices<Client.Host.Hosting.IStartupPreparation>()));
+    }
+
+    private sealed class NobodySignedIn : ICurrentUser
+    {
+        public bool IsAuthenticated => false;
+        public Guid UserId => Guid.Empty;
+        public string UserName => string.Empty;
+        public string DisplayName => string.Empty;
     }
 }

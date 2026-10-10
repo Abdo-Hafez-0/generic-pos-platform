@@ -53,6 +53,10 @@ internal sealed class GenericApplicationHost : IApplicationHost
         var logger = _host.Services.GetRequiredService<ILogger<GenericApplicationHost>>();
         logger.LogInformation("Application host starting...");
 
+        // MISS-04b: work that must happen before anything opens the database (no hosted service has started yet).
+        foreach (var preparation in _host.Services.GetServices<IStartupPreparation>())
+            await preparation.PrepareAsync(cancellationToken);
+
         await _host.StartAsync(cancellationToken);
 
         logger.LogInformation("Application host started successfully.");

@@ -54,7 +54,47 @@ public sealed record DatabaseSnapshot(string Path, long SizeBytes, string Sha256
 public static class BackupDestinations
 {
     public const string Local = "local";
+
+    /// <summary>The shop data as it was just before a restore (MISS-04b): kept next to the database, never removed automatically.</summary>
+    public const string BeforeRestore = "before-restore";
 }
+
+/// <summary>
+/// A backup checked and copied into place, waiting for the person's confirmation (MISS-04b). Nothing has changed yet.
+/// </summary>
+/// <param name="Id">Identity of this preparation (passed back to confirm or cancel).</param>
+/// <param name="FileName">The backup's file name.</param>
+/// <param name="BackupCreatedAt">When the backup was made (for a loose file: when the file was last written).</param>
+/// <param name="ApplicationVersion">The version that made it ("unknown" for a loose file).</param>
+/// <param name="FromHistory">Whether it came from the backup history (and its fingerprint was compared).</param>
+public sealed record RestorePreparation(Guid Id, string FileName, DateTimeOffset BackupCreatedAt, string ApplicationVersion, bool FromHistory);
+
+/// <summary>
+/// A confirmed restore, waiting for the next start (kept as <c>restore-pending.json</c> next to the database). The startup step puts the
+/// staged file in place of the database before anything opens it, and only if the staged file still has <see cref="Sha256"/>.
+/// </summary>
+public sealed record PendingRestore(
+    Guid Id,
+    string StagedFileName,
+    string Sha256,
+    string SourceFileName,
+    DateTimeOffset BackupCreatedAt,
+    DateTimeOffset RequestedAt,
+    Guid? RequestedById,
+    string? RequestedByName);
+
+/// <summary>What happened to the last restore (kept as <c>restore-outcome.json</c>; reported to the audit log once, after the start).</summary>
+public sealed record RestoreOutcome(
+    Guid Id,
+    bool Succeeded,
+    string Message,
+    string SourceFileName,
+    DateTimeOffset BackupCreatedAt,
+    string? BeforeRestoreFileName,
+    DateTimeOffset CompletedAt,
+    Guid? RequestedById,
+    string? RequestedByName,
+    bool Reported = false);
 
 public static class BackupErrorCodes
 {
@@ -67,4 +107,8 @@ public static class BackupErrorCodes
     public const string Damaged = "Backup.Damaged";
     public const string InvalidSettings = "Backup.InvalidSettings";
     public const string Failed = "Backup.Failed";
+    public const string NewerVersion = "Backup.NewerVersion";
+    public const string NotABackup = "Backup.NotABackup";
+    public const string RestorePending = "Backup.RestorePending";
+    public const string NothingPrepared = "Backup.NothingPrepared";
 }

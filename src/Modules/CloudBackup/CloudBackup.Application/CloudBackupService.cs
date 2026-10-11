@@ -31,7 +31,8 @@ public sealed class CloudBackupService(
     TimeProvider clock,
     ILogger<CloudBackupService> logger,
     IBusinessEventSink? events = null,
-    IUploadSignal? signal = null) : IBackupReplica
+    IUploadSignal? signal = null,
+    CloudDownloadArea? downloads = null) : IBackupReplica
 {
     public const string AuditModule = CloudBackupCapabilities.Module;
     public const int MaxWaiting = 10;
@@ -256,6 +257,116 @@ public sealed class CloudBackupService(
         {
             _gate.Release();
         }
+    }
+
+    // ------------------------------------------------------------------ restore from the cloud (MISS-04e3)
+
+    /// <summary>The backups the cloud keeps for this shop, newest first. Works in every license state (rule 10).</summary>
+    public async Task<Result<IReadOnlyList<CloudBackupItem>>> ListCloudAsync(CancellationToken cancellationToken = default)
+    {
+        var secret = await access.ReadAsync(cancellationToken);
+        if (string.IsNullOrEmpty(secret))
+            return Error.Validation(CloudBackupErrorCodes.NotSetUp, "Enter the backup access key first; the vendor gives it with the license.");
+
+        var listed = await client.ListAsync(secret, cancellationToken);
+        return listed.IsFailure ? listed : Result.Success<IReadOnlyList<CloudBackupItem>>(listed.Value.OrderByDescending(b => b.CreatedAt).ToList());
+    }
+
+    /// <summary>
+    /// Downloads a cloud backup and decrypts it into a plain database file for the restore (the caller hands the file to the local restore
+    /// and then discards it). The key comes from this PC's key ring; on another PC, or for a backup made with an older code, the recovery
+    /// code is typed. The file's time is set to when the backup was made, so the restore question names the right moment.
+    /// </summary>
+    public async Task<Result<DownloadedBackup>> DownloadForRestoreAsync(Guid backupId, string? recoveryCode, string? label = null, CancellationToken cancellationToken = default)
+    {
+        if (downloads is null) return Error.Failure(CloudBackupErrorCodes.Failed, "Restoring from the cloud is not available here.");
+        var secret = await access.ReadAsync(cancellationToken);
+        if (string.IsNullOrEmpty(secret))
+            return Error.Validation(CloudBackupErrorCodes.NotSetUp, "Enter the backup access key first; the vendor gives it with the license.");
+
+        BackupKey? typed = null;
+        if (!string.IsNullOrWhiteSpace(recoveryCode))
+        {
+            if (!RecoveryCode.TryParse(recoveryCode, out var codeSecret))
+                return Error.Validation(CloudBackupErrorCodes.WrongRecoveryCode, "That is not a recovery code, or a character is mistyped. Check it against what was written down.");
+            typed = BackupKey.FromRecoveryCode(codeSecret);
+        }
+
+        System.IO.Directory.CreateDirectory(downloads.Directory);
+        var encrypted = Path.Combine(downloads.Directory, backupId.ToString("N") + BackupEnvelope.Extension);
+        // named after the backup (its label), so the restore question and the outcome name the backup the person chose
+        var plain = Path.Combine(downloads.Directory, PlainName(label, backupId));
+        TryDelete(plain);
+        var keep = false;
+        try
+        {
+            var downloaded = await client.DownloadAsync(secret, backupId, cancellationToken);
+            if (downloaded.IsFailure) return Result.Failure<DownloadedBackup>(downloaded.Error);
+            await using (var source = downloaded.Value)
+            await using (var target = new FileStream(encrypted, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+                await source.CopyToAsync(target, cancellationToken);
+
+            EnvelopeHeader header;
+            await using (var input = File.OpenRead(encrypted))
+                header = BackupEnvelope.ReadHeader(input);
+
+            var key = typed ?? await keys.FindAsync(header.KeyId, cancellationToken);
+            if (key is null)
+                return Error.Validation(CloudBackupErrorCodes.NeedsRecoveryCode, "Type the recovery code this backup was made with.");
+            if (key.KeyId != header.KeyId)
+                return Error.Validation(CloudBackupErrorCodes.WrongRecoveryCode, "This backup was made with another recovery code.");
+
+            await using (var input = File.OpenRead(encrypted))
+            await using (var output = new FileStream(plain, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+                await BackupEnvelope.DecryptAsync(input, output, BackupEnvelope.UnwrapDataKey(header, key), cancellationToken);
+
+            File.SetLastWriteTimeUtc(plain, header.CreatedAt.UtcDateTime);
+            keep = true;
+            logger.LogInformation("Cloud backup {Id} downloaded and opened for a restore.", backupId);
+            return new DownloadedBackup(plain, header.CreatedAt, label, header.KeyId);
+        }
+        catch (BackupEnvelopeException ex)
+        {
+            logger.LogWarning(ex, "Cloud backup {Id} could not be opened ({Problem}).", backupId, ex.Problem);
+            return ex.Problem == EnvelopeProblem.WrongKey
+                ? Error.Validation(CloudBackupErrorCodes.WrongRecoveryCode, "This backup was made with another recovery code.")
+                : Error.Failure(CloudBackupErrorCodes.Damaged, "The cloud backup is damaged or is not a backup of this application, so it cannot be restored.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogError(ex, "Cloud backup {Id} could not be stored for the restore.", backupId);
+            return Error.Failure(CloudBackupErrorCodes.Failed, "The cloud backup could not be prepared on this computer. Your data was not changed.");
+        }
+        finally
+        {
+            TryDelete(encrypted);
+            if (!keep) TryDelete(plain);
+        }
+    }
+
+    /// <summary>A safe file name from the cloud backup's label ("genericpos-20261011-200108.db"); the id when there is none.</summary>
+    private static string PlainName(string? label, Guid backupId)
+    {
+        var name = Path.GetFileName(label ?? string.Empty);
+        name = new string(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c).ToArray()).Trim();
+        if (name.Length is 0 or > 100 || name.StartsWith('.')) name = backupId.ToString("N");
+        return name.EndsWith(".db", StringComparison.OrdinalIgnoreCase) ? name : name + ".db";
+    }
+
+    /// <summary>Removes a downloaded plain copy (only files in the download folder).</summary>
+    public void DiscardDownload(string plainPath)
+    {
+        if (downloads is null) return;
+        var full = Path.GetFullPath(plainPath);
+        if (full.StartsWith(Path.GetFullPath(downloads.Directory) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            TryDelete(full);
+    }
+
+    /// <summary>At start: whatever a crash left in the download folder (plain copies included) is removed.</summary>
+    public void SweepDownloads()
+    {
+        if (downloads is null || !System.IO.Directory.Exists(downloads.Directory)) return;
+        foreach (var file in System.IO.Directory.EnumerateFiles(downloads.Directory)) TryDelete(file);
     }
 
     // ------------------------------------------------------------------ status

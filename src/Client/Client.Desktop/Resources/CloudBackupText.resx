@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ScreenTitle" xml:space="preserve">
+    <value>Cloud backup</value>
+  </data>
+  <data name="State" xml:space="preserve">
+    <value>Cloud backup</value>
+  </data>
+  <data name="StateReady" xml:space="preserve">
+    <value>On: every backup is also encrypted and sent to the vendor's cloud.</value>
+  </data>
+  <data name="StateNotLicensed" xml:space="preserve">
+    <value>Off: the license does not include cloud backup.</value>
+  </data>
+  <data name="StateNoCode" xml:space="preserve">
+    <value>Off: make the recovery code first.</value>
+  </data>
+  <data name="StateNoAccess" xml:space="preserve">
+    <value>Off: enter the backup access key the vendor gave you.</value>
+  </data>
+  <data name="StateNoEscrow" xml:space="preserve">
+    <value>Off: this installation has no vendor key for cloud backups. Contact the vendor.</value>
+  </data>
+  <data name="RecoveryCode" xml:space="preserve">
+    <value>Recovery code</value>
+  </data>
+  <data name="CodeNone" xml:space="preserve">
+    <value>Not made yet</value>
+  </data>
+  <data name="CodeMade" xml:space="preserve">
+    <value>Made on {0}</value>
+  </data>
+  <data name="AccessKey" xml:space="preserve">
+    <value>Backup access key</value>
+  </data>
+  <data name="AccessEntered" xml:space="preserve">
+    <value>Entered</value>
+  </data>
+  <data name="AccessNone" xml:space="preserve">
+    <value>Not entered</value>
+  </data>
+  <data name="Uploads" xml:space="preserve">
+    <value>Uploads</value>
+  </data>
+  <data name="Waiting" xml:space="preserve">
+    <value>{0} encrypted copies waiting to be sent</value>
+  </data>
+  <data name="WaitingNone" xml:space="preserve">
+    <value>Nothing is waiting to be sent.</value>
+  </data>
+  <data name="WaitingOne" xml:space="preserve">
+    <value>1 encrypted copy waiting to be sent</value>
+  </data>
+  <data name="NoUploadYet" xml:space="preserve">
+    <value>Nothing has been sent yet.</value>
+  </data>
+  <data name="LastUpload" xml:space="preserve">
+    <value>Last sent {0}: {1}</value>
+  </data>
+  <data name="LastFailure" xml:space="preserve">
+    <value>Last problem {0}: {1}</value>
+  </data>
+  <data name="MakeCode" xml:space="preserve">
+    <value>Make the recovery code</value>
+  </data>
+  <data name="MakeNewCode" xml:space="preserve">
+    <value>Make a new recovery code</value>
+  </data>
+  <data name="CodeExplanation" xml:space="preserve">
+    <value>Write this recovery code down and keep it somewhere safe, away from this computer. It is shown only now. It opens the cloud backups on any computer; without it, only the vendor can help.</value>
+  </data>
+  <data name="TypeGroup" xml:space="preserve">
+    <value>Type group {0}</value>
+  </data>
+  <data name="ConfirmCode" xml:space="preserve">
+    <value>I wrote it down</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="CodeConfirmed" xml:space="preserve">
+    <value>The recovery code is in use. Keep the written copy safe.</value>
+  </data>
+  <data name="AccessKeyHint" xml:space="preserve">
+    <value>Paste the key exactly as the vendor gave it. It is kept protected on this computer and never shown again.</value>
+  </data>
+  <data name="SaveAccess" xml:space="preserve">
+    <value>Save the key</value>
+  </data>
+  <data name="RemoveAccess" xml:space="preserve">
+    <value>Remove the key</value>
+  </data>
+  <data name="AccessSaved" xml:space="preserve">
+    <value>The backup access key is saved.</value>
+  </data>
+  <data name="AccessRemoved" xml:space="preserve">
+    <value>The backup access key was removed. Nothing more is sent to the cloud.</value>
+  </data>
+  <data name="CloudBackups" xml:space="preserve">
+    <value>Backups in the cloud</value>
+  </data>
+  <data name="Made" xml:space="preserve">
+    <value>Made</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>Backup</value>
+  </data>
+  <data name="Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Restore" xml:space="preserve">
+    <value>Restore...</value>
+  </data>
+  <data name="CodeNeeded" xml:space="preserve">
+    <value>Type the recovery code this backup was made with:</value>
+  </data>
+</root>

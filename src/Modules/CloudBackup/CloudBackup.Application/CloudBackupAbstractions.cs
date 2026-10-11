@@ -80,6 +80,9 @@ public interface IEscrowKeySource
     EscrowPublicKey? Current { get; }
 }
 
+/// <summary>Where a cloud backup is downloaded and decrypted for a restore (emptied at every start: a plain copy never lingers).</summary>
+public sealed record CloudDownloadArea(string Directory);
+
 /// <summary>Tells the background uploader there is something new to send (so it does not wait for its next round).</summary>
 public interface IUploadSignal
 {

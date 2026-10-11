@@ -15,6 +15,7 @@ namespace CloudBackup.Infrastructure;
 ///   access.bin     the vendor's backup access key, protected the same way
 ///   outbox\        encrypted copies waiting for upload (*.gpbak) and outbox.json (what each one is, retries)
 ///   status.json    the last upload, failure or reason for not copying
+///   downloads\     a cloud backup being restored (decrypted only for that moment; emptied at every start)
 /// </summary>
 public sealed class CloudBackupWorkspace(string root)
 {
@@ -24,6 +25,7 @@ public sealed class CloudBackupWorkspace(string root)
     public string OutboxDirectory => Path.Combine(Root, "outbox");
     public string OutboxIndexPath => Path.Combine(OutboxDirectory, "outbox.json");
     public string StatusPath => Path.Combine(Root, "status.json");
+    public string DownloadDirectory => Path.Combine(Root, "downloads");
 }
 
 internal static class CloudJson

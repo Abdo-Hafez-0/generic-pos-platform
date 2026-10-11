@@ -67,4 +67,10 @@ public static class CloudBackupErrorCodes
     public const string ConfirmationMismatch = "CloudBackup.ConfirmationMismatch";
     public const string InvalidToken = "CloudBackup.InvalidToken";
     public const string Failed = "CloudBackup.Failed";
+    public const string NeedsRecoveryCode = "CloudBackup.NeedsRecoveryCode";
+    public const string WrongRecoveryCode = "CloudBackup.WrongRecoveryCode";
+    public const string Damaged = "CloudBackup.Damaged";
 }
+
+/// <summary>A cloud backup downloaded and decrypted for a restore: a plain database file in the module's temporary folder (always discarded afterwards).</summary>
+public sealed record DownloadedBackup(string PlainPath, DateTimeOffset CreatedAt, string? Label, string KeyId);

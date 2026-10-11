@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ScreenTitle" xml:space="preserve">
+    <value>النسخ الاحتياطي السحابي</value>
+  </data>
+  <data name="State" xml:space="preserve">
+    <value>النسخ السحابي</value>
+  </data>
+  <data name="StateReady" xml:space="preserve">
+    <value>مفعّل: كل نسخة احتياطية تُشفَّر أيضًا وتُرسل إلى سحابة المورّد.</value>
+  </data>
+  <data name="StateNotLicensed" xml:space="preserve">
+    <value>متوقف: الترخيص لا يشمل النسخ الاحتياطي السحابي.</value>
+  </data>
+  <data name="StateNoCode" xml:space="preserve">
+    <value>متوقف: أنشئ رمز الاسترداد أولًا.</value>
+  </data>
+  <data name="StateNoAccess" xml:space="preserve">
+    <value>متوقف: أدخل مفتاح الوصول للنسخ الاحتياطي الذي أعطاك إياه المورّد.</value>
+  </data>
+  <data name="StateNoEscrow" xml:space="preserve">
+    <value>متوقف: لا يوجد في هذا التثبيت مفتاح المورّد للنسخ السحابي. تواصل مع المورّد.</value>
+  </data>
+  <data name="RecoveryCode" xml:space="preserve">
+    <value>رمز الاسترداد</value>
+  </data>
+  <data name="CodeNone" xml:space="preserve">
+    <value>لم يُنشأ بعد</value>
+  </data>
+  <data name="CodeMade" xml:space="preserve">
+    <value>أُنشئ في {0}</value>
+  </data>
+  <data name="AccessKey" xml:space="preserve">
+    <value>مفتاح الوصول للنسخ الاحتياطي</value>
+  </data>
+  <data name="AccessEntered" xml:space="preserve">
+    <value>تم إدخاله</value>
+  </data>
+  <data name="AccessNone" xml:space="preserve">
+    <value>لم يُدخل</value>
+  </data>
+  <data name="Uploads" xml:space="preserve">
+    <value>الرفع</value>
+  </data>
+  <data name="Waiting" xml:space="preserve">
+    <value>{0} نسخ مشفرة بانتظار الإرسال</value>
+  </data>
+  <data name="WaitingNone" xml:space="preserve">
+    <value>لا شيء بانتظار الإرسال.</value>
+  </data>
+  <data name="WaitingOne" xml:space="preserve">
+    <value>نسخة مشفرة واحدة بانتظار الإرسال</value>
+  </data>
+  <data name="NoUploadYet" xml:space="preserve">
+    <value>لم يُرسل شيء بعد.</value>
+  </data>
+  <data name="LastUpload" xml:space="preserve">
+    <value>آخر إرسال {0}: {1}</value>
+  </data>
+  <data name="LastFailure" xml:space="preserve">
+    <value>آخر مشكلة {0}: {1}</value>
+  </data>
+  <data name="MakeCode" xml:space="preserve">
+    <value>إنشاء رمز الاسترداد</value>
+  </data>
+  <data name="MakeNewCode" xml:space="preserve">
+    <value>إنشاء رمز استرداد جديد</value>
+  </data>
+  <data name="CodeExplanation" xml:space="preserve">
+    <value>اكتب رمز الاسترداد هذا واحفظه في مكان آمن بعيدًا عن هذا الحاسوب. لن يظهر إلا الآن. يفتح النسخ السحابية على أي حاسوب؛ وبدونه لا يستطيع المساعدة إلا المورّد.</value>
+  </data>
+  <data name="TypeGroup" xml:space="preserve">
+    <value>اكتب المجموعة {0}</value>
+  </data>
+  <data name="ConfirmCode" xml:space="preserve">
+    <value>لقد كتبته</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="CodeConfirmed" xml:space="preserve">
+    <value>رمز الاسترداد قيد الاستخدام. احفظ النسخة المكتوبة في مكان آمن.</value>
+  </data>
+  <data name="AccessKeyHint" xml:space="preserve">
+    <value>الصق المفتاح كما أعطاك إياه المورّد تمامًا. يُحفظ محميًا على هذا الحاسوب ولن يُعرض مرة أخرى.</value>
+  </data>
+  <data name="SaveAccess" xml:space="preserve">
+    <value>حفظ المفتاح</value>
+  </data>
+  <data name="RemoveAccess" xml:space="preserve">
+    <value>إزالة المفتاح</value>
+  </data>
+  <data name="AccessSaved" xml:space="preserve">
+    <value>تم حفظ مفتاح الوصول.</value>
+  </data>
+  <data name="AccessRemoved" xml:space="preserve">
+    <value>تمت إزالة مفتاح الوصول. لن يُرسل شيء آخر إلى السحابة.</value>
+  </data>
+  <data name="CloudBackups" xml:space="preserve">
+    <value>النسخ الاحتياطية في السحابة</value>
+  </data>
+  <data name="Made" xml:space="preserve">
+    <value>تاريخ الإنشاء</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>النسخة</value>
+  </data>
+  <data name="Size" xml:space="preserve">
+    <value>الحجم</value>
+  </data>
+  <data name="Refresh" xml:space="preserve">
+    <value>تحديث</value>
+  </data>
+  <data name="Restore" xml:space="preserve">
+    <value>استعادة...</value>
+  </data>
+  <data name="CodeNeeded" xml:space="preserve">
+    <value>اكتب رمز الاسترداد الذي أُنشئت به هذه النسخة:</value>
+  </data>
+</root>

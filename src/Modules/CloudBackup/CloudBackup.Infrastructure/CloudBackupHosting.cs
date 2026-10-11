@@ -76,6 +76,7 @@ public sealed class CloudUploadWorker(CloudBackupService cloud, UploadSignal sig
     {
         try
         {
+            cloud.SweepDownloads();   // a crash during a restore can leave a plain copy behind
             await Task.Delay(options.StartDelay, stoppingToken);
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -112,7 +113,9 @@ public static class CloudBackupServicesExtensions
             ? Path.Combine(Path.GetDirectoryName(database.ResolveDatabasePath())!, "CloudBackup")
             : config.Root!;
 
-        services.AddSingleton(new CloudBackupWorkspace(root));
+        var workspace = new CloudBackupWorkspace(root);
+        services.AddSingleton(workspace);
+        services.AddSingleton(new CloudDownloadArea(workspace.DownloadDirectory));
         services.AddSingleton<IEscrowKeySource>(new ConfiguredEscrowKeys(config.EscrowKeys));
         services.AddSingleton(new CloudUploadOptions(
             TimeSpan.FromSeconds(Math.Clamp(config.UploadStartDelaySeconds ?? 30, 0, 3600)), TimeSpan.FromMinutes(5), ApplicationVersion()));
@@ -142,6 +145,9 @@ public static class CloudBackupServicesExtensions
         services.AddTransient<ConfirmRecoveryCodeCommandHandler>();
         services.AddTransient<SetBackupAccessCommandHandler>();
         services.AddTransient<GetCloudBackupOverviewQueryHandler>();
+        services.AddTransient<ListCloudBackupsQueryHandler>();
+        services.AddTransient<DownloadForRestoreCommandHandler>();
+        services.AddTransient<DiscardDownloadCommandHandler>();
         return services;
     }
 

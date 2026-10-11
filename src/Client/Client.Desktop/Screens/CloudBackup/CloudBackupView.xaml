@@ -1,0 +1,171 @@
+<UserControl x:Class="Client.Desktop.Screens.CloudBackup.CloudBackupView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:res="clr-namespace:Client.Desktop.Resources"
+             xmlns:vm="clr-namespace:Client.Desktop.Screens.CloudBackup"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:CloudBackupViewModel}">
+
+    <!-- CLOUD BACKUP SCREEN (MISS-04e3). DataContext: CloudBackupViewModel. Texts: Resources/CloudBackupText.resx (+ BackupText for the restore). -->
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="Label" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Margin" Value="0,4,16,4"/>
+        </Style>
+        <Style x:Key="Heading" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,20,0,8"/>
+        </Style>
+        <Style x:Key="Cell" TargetType="TextBlock">
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,4"/>
+            <Setter Property="MinWidth" Value="90"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style x:Key="Question" TargetType="Border">
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="BorderBrush" Value="#F9E2AF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="0,12,0,0"/>
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="980" HorizontalAlignment="Left">
+            <!-- setting up (backup.cloud.manage) -->
+            <StackPanel Visibility="{Binding CanManage, Converter={StaticResource VisibleWhenTrue}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="{x:Static res:CloudBackupText.State}"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="CloudStateText" Text="{Binding StateText}" FontWeight="SemiBold"/>
+                    <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="{x:Static res:CloudBackupText.RecoveryCode}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="CodeStateText" Text="{Binding CodeStateText}"/>
+                    <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="{x:Static res:CloudBackupText.AccessKey}"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="AccessStateText" Text="{Binding AccessStateText}"/>
+                    <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="{x:Static res:CloudBackupText.Uploads}"/>
+                    <StackPanel Grid.Row="3" Grid.Column="1">
+                        <TextBlock x:Name="WaitingText" Text="{Binding WaitingText}"/>
+                        <TextBlock x:Name="LastUploadText" Text="{Binding LastUploadText}"/>
+                    </StackPanel>
+                    <TextBlock Grid.Row="4" Grid.Column="1" x:Name="LastFailureText" Text="{Binding LastFailureText}" Foreground="#F9E2AF"/>
+                </Grid>
+
+                <!-- recovery code: shown once, two groups typed back -->
+                <Button x:Name="MakeCodeButton" Content="{Binding MakeCodeText}" Command="{Binding MakeCodeCommand}" HorizontalAlignment="Left" Margin="0,16,0,0"/>
+                <Border Style="{StaticResource Question}" Visibility="{Binding IsCodeShown, Converter={StaticResource VisibleWhenTrue}}">
+                    <StackPanel>
+                        <TextBlock Text="{x:Static res:CloudBackupText.CodeExplanation}"/>
+                        <TextBox x:Name="RecoveryCodeShown" Text="{Binding CodeText, Mode=OneWay}" IsReadOnly="True" FlowDirection="LeftToRight" HorizontalAlignment="Left"
+                                 FontFamily="Consolas" FontSize="22" Margin="0,12,0,12" Background="Transparent" Foreground="#F9E2AF" BorderThickness="0"
+                                 AutomationProperties.Name="{x:Static res:CloudBackupText.RecoveryCode}"/>
+                        <WrapPanel>
+                            <TextBlock Style="{StaticResource Label}" Text="{Binding FirstGroupLabel}"/>
+                            <TextBox x:Name="FirstGroupBox" Width="80" Margin="0,0,16,0" FlowDirection="LeftToRight" FontFamily="Consolas"
+                                     Text="{Binding FirstGroup, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding FirstGroupLabel}"/>
+                            <TextBlock Style="{StaticResource Label}" Text="{Binding SecondGroupLabel}"/>
+                            <TextBox x:Name="SecondGroupBox" Width="80" FlowDirection="LeftToRight" FontFamily="Consolas"
+                                     Text="{Binding SecondGroup, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding SecondGroupLabel}"/>
+                        </WrapPanel>
+                        <WrapPanel Margin="0,12,0,0">
+                            <Button x:Name="ConfirmCodeButton" Content="{x:Static res:CloudBackupText.ConfirmCode}" Command="{Binding ConfirmCodeCommand}"/>
+                            <Button x:Name="CancelCodeButton" Content="{x:Static res:CloudBackupText.Cancel}" Command="{Binding CancelCodeCommand}"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- the vendor's access key -->
+                <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:CloudBackupText.AccessKey}"/>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" x:Name="RemoveAccessButton" Content="{x:Static res:CloudBackupText.RemoveAccess}" Command="{Binding RemoveAccessCommand}" Margin="8,0,0,0"/>
+                    <Button DockPanel.Dock="Right" x:Name="SaveAccessButton" Content="{x:Static res:CloudBackupText.SaveAccess}" Command="{Binding SaveAccessCommand}" Margin="8,0,0,0"/>
+                    <TextBox x:Name="AccessKeyBox" Text="{Binding AccessKeyInput, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight" FontFamily="Consolas"
+                             AutomationProperties.Name="{x:Static res:CloudBackupText.AccessKey}"/>
+                </DockPanel>
+                <TextBlock Text="{x:Static res:CloudBackupText.AccessKeyHint}" Foreground="#6C7086" FontSize="11" Margin="0,6,0,0"/>
+            </StackPanel>
+
+            <!-- restoring (backup.cloud.restore + backup.restore) -->
+            <StackPanel Visibility="{Binding CanRestore, Converter={StaticResource VisibleWhenTrue}}">
+                <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:CloudBackupText.CloudBackups}"/>
+                <DataGrid x:Name="CloudGrid" ItemsSource="{Binding CloudBackups}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True"
+                          CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column" Height="200"
+                          Background="#181825" RowBackground="#1E1E2E" AlternatingRowBackground="#232336" Foreground="#CDD6F4"
+                          BorderBrush="#313244" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#313244" RowHeight="26"
+                          AutomationProperties.Name="{x:Static res:CloudBackupText.CloudBackups}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{x:Static res:CloudBackupText.Made}" Binding="{Binding MadeText}" Width="160" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:CloudBackupText.Name}" Binding="{Binding NameText}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:CloudBackupText.Size}" Binding="{Binding SizeText}" Width="90" ElementStyle="{StaticResource Cell}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <StackPanel Margin="0,8,0,0" Visibility="{Binding IsCodeNeeded, Converter={StaticResource VisibleWhenTrue}}">
+                    <TextBlock Style="{StaticResource Label}" Text="{x:Static res:CloudBackupText.CodeNeeded}"/>
+                    <TextBox x:Name="RestoreCodeBox" Width="420" HorizontalAlignment="Left" FlowDirection="LeftToRight" FontFamily="Consolas"
+                             Text="{Binding RecoveryCodeInput, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CloudBackupText.RecoveryCode}"/>
+                </StackPanel>
+                <WrapPanel Margin="0,8,0,0">
+                    <Button x:Name="RefreshCloudButton" Content="{x:Static res:CloudBackupText.Refresh}" Command="{Binding RefreshCloudCommand}"/>
+                    <Button x:Name="RestoreCloudButton" Content="{x:Static res:CloudBackupText.Restore}" Command="{Binding RestoreCommand}"/>
+                </WrapPanel>
+
+                <!-- the same question, confirmation and restart as on the Backup screen -->
+                <Border Style="{StaticResource Question}" Visibility="{Binding IsRestorePrepared, Converter={StaticResource VisibleWhenTrue}}">
+                    <StackPanel>
+                        <TextBlock x:Name="CloudRestoreQuestionText" Text="{Binding RestoreQuestion}"/>
+                        <WrapPanel Margin="0,8,0,0">
+                            <Button x:Name="CloudConfirmRestoreButton" Content="{x:Static res:BackupText.ConfirmRestore}" Command="{Binding ConfirmRestoreCommand}"/>
+                            <Button x:Name="CloudCancelRestoreButton" Content="{x:Static res:BackupText.Cancel}" Command="{Binding CancelRestoreCommand}"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Question}" Visibility="{Binding IsRestorePending, Converter={StaticResource VisibleWhenTrue}}">
+                    <StackPanel>
+                        <TextBlock x:Name="CloudPendingText" Text="{Binding PendingText}"/>
+                        <WrapPanel Margin="0,8,0,0">
+                            <Button x:Name="CloudRestartNowButton" Content="{x:Static res:BackupText.RestartNow}" Command="{Binding RestartNowCommand}"/>
+                            <Button x:Name="CloudCancelPendingButton" Content="{x:Static res:BackupText.CancelPending}" Command="{Binding CancelRestoreCommand}"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- what happened -->
+            <TextBlock x:Name="CloudStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" Margin="0,16,0,0"/>
+            <TextBlock x:Name="CloudErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" Margin="0,4,0,0"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -29,6 +29,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Platform\Platform.Presentation\Platform.Presentation.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.Desktop\Client.Desktop.csproj" />
+    <!-- MISS-04f: the vendor's side of a recovery, to drive the screen end to end (never referenced by the desktop) -->
+    <ProjectReference Include="..\..\src\Security\Security.BackupEnvelope.Recovery\Security.BackupEnvelope.Recovery.csproj" />
     <!-- the production-like offline desktop (real SQLite, signed license, signed-in user) for screens on the real composition -->
     <ProjectReference Include="..\Integration.Tests\Integration.Tests.csproj" />
   </ItemGroup>

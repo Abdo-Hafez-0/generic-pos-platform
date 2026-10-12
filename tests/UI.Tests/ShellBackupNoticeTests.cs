@@ -16,6 +16,7 @@ public sealed class ShellBackupNoticeTests
 {
     private readonly FakePermissions _permissions = new();
     private readonly FakeNoticeSource _notices = new();
+    private readonly FakeCloudNotice _cloud = new();
     private readonly ShellViewModel _shell;
 
     public ShellBackupNoticeTests()
@@ -25,7 +26,7 @@ public sealed class ShellBackupNoticeTests
         var runner = new UiActionRunner(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), NullLogger<UiActionRunner>.Instance);
         var catalog = new CapabilityCatalog([new CapabilityProvider(new CapabilityDescriptor("pos.sale.create", "pos", "Sell", "Sell"))]);
         var navigation = new NavigationBuilder([new ScreenProvider(Screens.Of("pos.sell", "pos", ScreenGroups.Sales, "pos.sale.create"))], catalog, new FakeLicensing("pos"));
-        _shell = new ShellViewModel(runner, navigation, new FakeCurrentUser(), new FakeScreenFactory(), backups: _notices);
+        _shell = new ShellViewModel(runner, navigation, new FakeCurrentUser(), new FakeScreenFactory(), backups: _notices, cloud: _cloud);
     }
 
     [Fact]
@@ -89,6 +90,35 @@ public sealed class ShellBackupNoticeTests
         Assert.Equal(string.Empty, _shell.BackupNoticeText);
         await _shell.UpdateBackupNoticeAsync();   // signed out: nobody to tell
         Assert.Equal(string.Empty, _shell.BackupNoticeText);
+    }
+
+    [Fact]
+    public async Task After_a_restore_with_the_vendors_key_those_who_manage_cloud_backup_are_asked_for_a_new_recovery_code_first()
+    {
+        _notices.Notice = new BackupNotice(BackupNoticeKind.LastBackupFailed, DateTimeOffset.Now, "failed");
+        _cloud.Needed = true;
+        _permissions.Held.Add("backup.create");
+        await _shell.RefreshAsync();
+        Assert.StartsWith(ShellText.BackupFailed[..10], _shell.BackupNoticeText);   // no backup.cloud.manage: not asked
+
+        _permissions.Held.Add(CloudBackup.Application.CloudBackupCapabilities.Manage);
+        await _shell.RefreshAsync();
+        Assert.Equal(ShellText.NewRecoveryCodeNeeded, _shell.BackupNoticeText);
+
+        _cloud.Needed = false;   // the new code was made
+        _cloud.RaiseChanged();
+        await WaitUntil(() => _shell.BackupNoticeText != ShellText.NewRecoveryCodeNeeded);
+    }
+
+    private sealed class FakeCloudNotice : CloudBackup.Application.ICloudBackupNotice
+    {
+        public bool Needed { get; set; }
+
+        public event EventHandler? Changed;
+
+        public void RaiseChanged() => Changed?.Invoke(this, EventArgs.Empty);
+
+        public Task<bool> NeedsNewRecoveryCodeAsync(CancellationToken cancellationToken = default) => Task.FromResult(Needed);
     }
 
     private static async Task WaitUntil(Func<bool> condition)

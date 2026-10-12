@@ -48,4 +48,7 @@
   <data name="Language" xml:space="preserve">
     <value>Language</value>
   </data>
+  <data name="NewRecoveryCodeNeeded" xml:space="preserve">
+    <value>Make a new recovery code under Administration &gt; Cloud backup: the data was restored with a key from the vendor.</value>
+  </data>
 </root>

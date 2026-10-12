@@ -163,6 +163,10 @@ admin.MapPost("/packages/{id:guid}/restore", async (HttpContext http, Guid id, S
 admin.MapGet("/backups", async (AdminOperationsService ops, Guid? licenseId, int? page, int? pageSize, CancellationToken ct)
     => Results.Ok(await ops.ListBackupsAsync(licenseId, page, pageSize, ct)));
 
+// MISS-04f: approve an owner's escrow recovery request after the written identity check; returns the text for the OFFLINE escrow tool
+admin.MapPost("/backups/{id:guid}/escrow-recovery", async (HttpContext http, Guid id, EscrowRecoveryApprovalRequest request, EscrowRecoveryAdminService svc, CancellationToken ct)
+    => (await svc.ApproveAsync(http.Admin(), id, request, ct)).ToResult());
+
 admin.MapDelete("/backups/{id:guid}", async (HttpContext http, Guid id, AdminOperationsService ops, CancellationToken ct)
     => (await ops.DeleteBackupAsync(http.Admin(), id, ct)).ToNoContent());
 

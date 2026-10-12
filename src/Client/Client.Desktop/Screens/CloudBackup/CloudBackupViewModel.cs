@@ -5,6 +5,7 @@ using Client.Backup.Application;
 using Client.Backup.Domain;
 using Client.Desktop.Resources;
 using Client.Desktop.Shell;
+using Client.Licensing.Application;
 using CloudBackup.Application;
 using CloudBackup.Contracts;
 using CloudBackup.Domain;
@@ -24,13 +25,17 @@ public sealed record CloudBackupRow(CloudBackupItem Item, string MadeText, strin
 ///     of its groups typed back - and the vendor's backup access key;
 ///   - restoring (backup.cloud.restore, no license needed): the backups the cloud keeps; the chosen one is downloaded and opened with this
 ///     PC's key or the typed recovery code, then handed to the LOCAL restore (backup.restore): the same question, confirmation and restart
-///     as on the Backup screen. The plain copy is discarded as soon as the local restore has taken its own.
+///     as on the Backup screen. The plain copy is discarded as soon as the local restore has taken its own;
+///   - without the recovery code (MISS-04f, design 5B): "Ask the vendor to recover this backup" makes the recovery request to send; the
+///     vendor's restore key, pasted here, opens that one backup on this PC and goes through the same local restore; afterwards the screen
+///     (and the shell) ask for a new recovery code.
 /// Every action goes through its handler in its own scope; parts the person may not use are hidden.
 /// </summary>
 public sealed class CloudBackupViewModel : ViewModelBase, INavigationAware
 {
     private readonly IUiActionRunner _runner;
     private readonly IApplicationRestarter _restarter;
+    private readonly ILicenseService? _licenses;
 
     private bool _canManage, _canRestore;
     private string _stateText = string.Empty, _codeStateText = string.Empty, _accessStateText = string.Empty, _waitingText = string.Empty;
@@ -44,11 +49,15 @@ public sealed class CloudBackupViewModel : ViewModelBase, INavigationAware
     private RestorePreparation? _prepared;
     private string _restoreQuestion = string.Empty;
     private PendingRestore? _pending;
+    private string _recoveryRequestText = string.Empty, _restoreKeyInput = string.Empty;
+    private bool _needsNewCode;
+    private Guid? _preparedFromVendor, _pendingFromVendor;
 
-    public CloudBackupViewModel(IUiActionRunner runner, IApplicationRestarter restarter)
+    public CloudBackupViewModel(IUiActionRunner runner, IApplicationRestarter restarter, ILicenseService? licenses = null)
     {
         _runner = runner;
         _restarter = restarter;
+        _licenses = licenses;
         MakeCodeCommand = Command(MakeCodeAsync, () => CanManage && !IsCodeShown);
         ConfirmCodeCommand = Command(ConfirmCodeAsync, () => IsCodeShown && !string.IsNullOrWhiteSpace(FirstGroup) && !string.IsNullOrWhiteSpace(SecondGroup));
         CancelCodeCommand = Command(() => { ShowSetup(null); return Task.CompletedTask; }, () => IsCodeShown);
@@ -56,6 +65,8 @@ public sealed class CloudBackupViewModel : ViewModelBase, INavigationAware
         RemoveAccessCommand = Command(RemoveAccessAsync, () => CanManage);
         RefreshCloudCommand = Command(LoadCloudAsync, () => CanRestore);
         RestoreCommand = Command(RestoreAsync, () => CanRestore && Selected is not null && Pending is null && !IsRestorePrepared);
+        AskVendorCommand = Command(AskVendorAsync, () => CanRestore && Selected is not null && IsCodeNeeded);
+        UseRestoreKeyCommand = Command(UseRestoreKeyAsync, () => CanRestore && !string.IsNullOrWhiteSpace(RestoreKeyInput) && Pending is null && !IsRestorePrepared);
         ConfirmRestoreCommand = Command(ConfirmRestoreAsync, () => IsRestorePrepared);
         CancelRestoreCommand = Command(CancelRestoreAsync, () => IsRestorePrepared || IsRestorePending);
         RestartNowCommand = Command(() => { _restarter.Restart(); return Task.CompletedTask; }, () => IsRestorePending);
@@ -68,6 +79,8 @@ public sealed class CloudBackupViewModel : ViewModelBase, INavigationAware
     public ICommand RemoveAccessCommand { get; }
     public ICommand RefreshCloudCommand { get; }
     public ICommand RestoreCommand { get; }
+    public ICommand AskVendorCommand { get; }
+    public ICommand UseRestoreKeyCommand { get; }
     public ICommand ConfirmRestoreCommand { get; }
     public ICommand CancelRestoreCommand { get; }
     public ICommand RestartNowCommand { get; }
@@ -124,6 +137,26 @@ public sealed class CloudBackupViewModel : ViewModelBase, INavigationAware
 
     public string RecoveryCodeInput { get => _recoveryCodeInput; set => Set(ref _recoveryCodeInput, value); }
 
+    // ------------------------------------------------------------------ recovery through the vendor (MISS-04f)
+
+    /// <summary>The recovery request to send to the vendor (no business data in it); empty until one is made.</summary>
+    public string RecoveryRequestText
+    {
+        get => _recoveryRequestText;
+        private set
+        {
+            if (Set(ref _recoveryRequestText, value)) Raise(nameof(IsRecoveryRequestShown));
+        }
+    }
+
+    public bool IsRecoveryRequestShown => RecoveryRequestText.Length > 0;
+
+    /// <summary>The restore key text as pasted from the vendor.</summary>
+    public string RestoreKeyInput { get => _restoreKeyInput; set => Set(ref _restoreKeyInput, value); }
+
+    /// <summary>A backup was restored with the vendor's restore key: a new recovery code must be made now (design 5B step 4).</summary>
+    public bool NeedsNewCode { get => _needsNewCode; private set => Set(ref _needsNewCode, value); }
+
     public bool IsRestorePrepared => _prepared is not null;
 
     public string RestoreQuestion { get => _restoreQuestion; private set => Set(ref _restoreQuestion, value); }
@@ -161,6 +194,7 @@ public sealed class CloudBackupViewModel : ViewModelBase, INavigationAware
         (CanManage, CanRestore) = allowed.Value;
 
         if (CanManage) await LoadOverviewAsync(cancellationToken);
+        else NeedsNewCode = false;
         if (CanRestore) await LoadCloudAsync();
     }
 
@@ -178,6 +212,7 @@ public sealed class CloudBackupViewModel : ViewModelBase, INavigationAware
             CloudSkipReason.NoToken => CloudBackupText.StateNoAccess,
             _ => CloudBackupText.StateNoEscrow,
         };
+        NeedsNewCode = o.NeedsNewRecoveryCode;
         var active = o.Keys.FirstOrDefault(k => k.Active);
         HasCode = active is not null;
         CodeStateText = active is null ? CloudBackupText.CodeNone : string.Format(CultureInfo.CurrentCulture, CloudBackupText.CodeMade, Ltr(active.CreatedAt.ToLocalTime().ToString("d", CultureInfo.CurrentCulture)));
@@ -274,16 +309,22 @@ public sealed class CloudBackupViewModel : ViewModelBase, INavigationAware
         if (downloaded.IsFailure && downloaded.Error.Code is CloudBackupErrorCodes.NeedsRecoveryCode or CloudBackupErrorCodes.WrongRecoveryCode)
             IsCodeNeeded = true;
         if (!Accept(downloaded)) return;
+        await PrepareDownloadedAsync(downloaded.Value, Selected?.Item.Label, fromVendor: null);
+    }
 
+    /// <summary>Hands a downloaded plain copy to the LOCAL restore (question, confirmation, restart) and discards it afterwards.</summary>
+    private async Task PrepareDownloadedAsync(DownloadedBackup downloaded, string? name, Guid? fromVendor)
+    {
         try
         {
-            var path = downloaded.Value.PlainPath;
+            var path = downloaded.PlainPath;
             var prepared = await _runner.RunAsync((scope, ct) => scope.Get<PrepareRestoreFromFileCommandHandler>().HandleAsync(new PrepareRestoreFromFileCommand(path), ct));
             if (!Accept(prepared)) return;
 
             _prepared = prepared.Value;
+            _preparedFromVendor = fromVendor;
             RestoreQuestion = string.Format(CultureInfo.CurrentCulture, BackupText.RestoreQuestion,
-                Ltr(downloaded.Value.CreatedAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)), Ltr(Selected?.Item.Label ?? prepared.Value.FileName));
+                Ltr(downloaded.CreatedAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)), Ltr(name ?? prepared.Value.FileName));
             Raise(nameof(IsRestorePrepared));
             IsCodeNeeded = false;
             RecoveryCodeInput = string.Empty;
@@ -292,7 +333,7 @@ public sealed class CloudBackupViewModel : ViewModelBase, INavigationAware
         finally
         {
             // the local restore has its own copy now (or nothing happened): the plain download goes
-            var path = downloaded.Value.PlainPath;
+            var path = downloaded.PlainPath;
             await _runner.RunAsync((scope, ct) => scope.Get<DiscardDownloadCommandHandler>().HandleAsync(new DiscardDownloadCommand(path), ct));
         }
     }
@@ -300,24 +341,69 @@ public sealed class CloudBackupViewModel : ViewModelBase, INavigationAware
     private async Task ConfirmRestoreAsync()
     {
         var id = _prepared!.Id;
+        var fromVendor = _preparedFromVendor;
         var confirmed = await _runner.RunAsync((scope, ct) => scope.Get<ConfirmRestoreCommandHandler>().HandleAsync(new ConfirmRestoreCommand(id), ct));
         ClearPrepared();
         if (!Accept(confirmed)) return;
         Pending = confirmed.Value;
+
+        if (fromVendor is { } backupId)
+        {
+            // the vendor's restore key has done its work: it cannot be used again, and a new recovery code is asked for after the restart
+            _pendingFromVendor = backupId;
+            RestoreKeyInput = string.Empty;
+            RecoveryRequestText = string.Empty;
+            await _runner.RunAsync((scope, ct) => scope.Get<VendorRestoreDecidedCommandHandler>().HandleAsync(new VendorRestoreDecidedCommand(backupId, true), ct));
+        }
     }
 
     private async Task CancelRestoreAsync()
     {
+        var wasPending = IsRestorePending;
         var cancelled = await _runner.RunAsync((scope, ct) => scope.Get<CancelRestoreCommandHandler>().HandleAsync(new CancelRestoreCommand(), ct));
         ClearPrepared();
         if (!Accept(cancelled)) return;
         Pending = null;
         StatusMessage = BackupText.RestoreCancelled;
+
+        if (wasPending && _pendingFromVendor is { } backupId)
+        {
+            _pendingFromVendor = null;
+            await _runner.RunAsync((scope, ct) => scope.Get<VendorRestoreDecidedCommandHandler>().HandleAsync(new VendorRestoreDecidedCommand(backupId, false), ct));
+        }
+    }
+
+    // ------------------------------------------------------------------ recovery through the vendor (MISS-04f)
+
+    private async Task AskVendorAsync()
+    {
+        var id = Selected!.Item.Id;
+        var label = Selected.Item.Label;
+        var licenseId = _licenses?.Current.Payload?.LicenseId.ToString();
+        var made = await _runner.RunAsync((scope, ct) => scope.Get<CreateRecoveryRequestCommandHandler>().HandleAsync(new CreateRecoveryRequestCommand(id, label, licenseId), ct));
+        if (!Accept(made)) return;
+        RecoveryRequestText = made.Value.Text;
+        StatusMessage = CloudBackupText.RequestMade;
+    }
+
+    /// <summary>The view put the request on the clipboard.</summary>
+    public void RequestCopied() => StatusMessage = CloudBackupText.RequestCopied;
+
+    /// <summary>The view saved the request into a file the person chose.</summary>
+    public void RequestSaved(string path) => StatusMessage = string.Format(CultureInfo.CurrentCulture, CloudBackupText.RequestSaved, Ltr(path));
+
+    private async Task UseRestoreKeyAsync()
+    {
+        var text = RestoreKeyInput;
+        var downloaded = await _runner.RunAsync((scope, ct) => scope.Get<DownloadWithRestoreKeyCommandHandler>().HandleAsync(new DownloadWithRestoreKeyCommand(text), ct));
+        if (!Accept(downloaded)) return;
+        await PrepareDownloadedAsync(downloaded.Value, downloaded.Value.Label, fromVendor: downloaded.Value.BackupId);
     }
 
     private void ClearPrepared()
     {
         _prepared = null;
+        _preparedFromVendor = null;
         RestoreQuestion = string.Empty;
         Raise(nameof(IsRestorePrepared));
     }

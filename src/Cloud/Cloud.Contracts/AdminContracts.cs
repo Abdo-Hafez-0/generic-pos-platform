@@ -33,6 +33,16 @@ public sealed record StatusChangeRequest(string? Reason);
 /// <summary>The backup access token is returned ONCE, when issued. The server keeps only its hash.</summary>
 public sealed record BackupTokenResponse(Guid LicenseId, string Token);
 
+/// <summary>
+/// MISS-04f: the vendor approves an owner's recovery request after the written identity check (design 5B step 2).
+/// <paramref name="Request"/> is the owner's text as received; <paramref name="CheckMethod"/> how the identity was checked (for example
+/// "callback to the phone number on the customer record"); <paramref name="Contact"/> who was spoken to; <paramref name="Notes"/> anything else.
+/// </summary>
+public sealed record EscrowRecoveryApprovalRequest(string? Request, string? CheckMethod, string? Contact, string? Notes);
+
+/// <summary>The approved recovery text for the offline escrow tool (never a key: the server holds no escrow key).</summary>
+public sealed record EscrowRecoveryApprovalResponse(Guid BackupId, Guid LicenseId, string CustomerId, string ApprovedRecovery);
+
 public sealed record InstallationDto(
     Guid InstallationId, Guid LicenseId, string CustomerId, string ProductId, string LicenseStatus,
     DateTimeOffset? ActivatedAt, DateTimeOffset? LastIssuedAt);

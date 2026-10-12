@@ -129,4 +129,46 @@
   <data name="CodeNeeded" xml:space="preserve">
     <value>اكتب رمز الاسترداد الذي أُنشئت به هذه النسخة:</value>
   </data>
+  <data name="AskVendor" xml:space="preserve">
+    <value>اطلب من المورّد استعادة هذه النسخة</value>
+  </data>
+  <data name="RequestExplanation" xml:space="preserve">
+    <value>أرسل هذا النص كاملًا إلى المورّد (بالبريد الإلكتروني أو المحادثة). لا يحتوي على أي بيانات تجارية. يتحقق المورّد من هويتك ثم يرسل إليك مفتاح استعادة يعمل على هذا الحاسوب فقط.</value>
+  </data>
+  <data name="RequestHeading" xml:space="preserve">
+    <value>طلب الاسترداد</value>
+  </data>
+  <data name="CopyRequest" xml:space="preserve">
+    <value>نسخ</value>
+  </data>
+  <data name="SaveRequest" xml:space="preserve">
+    <value>حفظ كملف...</value>
+  </data>
+  <data name="SaveRequestTitle" xml:space="preserve">
+    <value>حفظ طلب الاسترداد</value>
+  </data>
+  <data name="TextFiles" xml:space="preserve">
+    <value>ملفات نصية</value>
+  </data>
+  <data name="RequestCopied" xml:space="preserve">
+    <value>تم نسخ طلب الاسترداد.</value>
+  </data>
+  <data name="RequestSaved" xml:space="preserve">
+    <value>تم حفظ طلب الاسترداد باسم {0}.</value>
+  </data>
+  <data name="RequestMade" xml:space="preserve">
+    <value>طلب الاسترداد جاهز. أرسله إلى المورّد، واستمر في استخدام هذا الحاسوب ومستخدم Windows نفسه حتى يصل مفتاح الاستعادة.</value>
+  </data>
+  <data name="RestoreKeyHeading" xml:space="preserve">
+    <value>الاستعادة بمفتاح من المورّد</value>
+  </data>
+  <data name="RestoreKeyHint" xml:space="preserve">
+    <value>الصق مفتاح الاستعادة الذي أرسله المورّد كاملًا، بما في ذلك سطرا BEGIN وEND.</value>
+  </data>
+  <data name="UseRestoreKey" xml:space="preserve">
+    <value>استخدام مفتاح الاستعادة...</value>
+  </data>
+  <data name="NewCodeNeeded" xml:space="preserve">
+    <value>تمت استعادة بيانات هذا الحاسوب بمفتاح من المورّد. أنشئ رمز استرداد جديدًا الآن واكتبه: يبقى النسخ الاحتياطي السحابي متوقفًا حتى تفعل ذلك.</value>
+  </data>
 </root>

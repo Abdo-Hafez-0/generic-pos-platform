@@ -3,6 +3,7 @@ using Client.Backup.Application;
 using Client.Backup.Domain;
 using Client.Desktop.Resources;
 using Client.Licensing.Application;
+using CloudBackup.Application;
 using Platform.Application.Abstractions.Authorization;
 using Platform.Presentation.Actions;
 using Platform.Presentation.Mvvm;
@@ -27,6 +28,7 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
     private readonly IScreenFactory _factory;
     private readonly ILicenseService? _licenses;
     private readonly IBackupNoticeSource? _backups;
+    private readonly ICloudBackupNotice? _cloud;
     private readonly SynchronizationContext? _uiContext;
     private readonly Dictionary<string, ScreenInstance> _open = new(StringComparer.OrdinalIgnoreCase);
 
@@ -41,6 +43,7 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
     private string _backupNoticeText = string.Empty;
     private bool _mayConfigureBackups;
     private bool _mayMakeBackups;
+    private bool _mayManageCloud;
 
     public ShellViewModel(
         IUiActionRunner runner,
@@ -48,7 +51,8 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
         ICurrentUser currentUser,
         IScreenFactory factory,
         ILicenseService? licenses = null,
-        IBackupNoticeSource? backups = null)
+        IBackupNoticeSource? backups = null,
+        ICloudBackupNotice? cloud = null)
     {
         _runner = runner;
         _navigation = navigation;
@@ -59,6 +63,8 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
         // MISS-04c: a scheduled backup finishes on a background thread; the notice is updated on the thread that created the shell (the UI)
         _uiContext = SynchronizationContext.Current;
         if (_backups is not null) _backups.Changed += (_, _) => OnBackupsChanged();
+        _cloud = cloud;
+        if (_cloud is not null) _cloud.Changed += (_, _) => OnBackupsChanged();
         OpenCommand = Command<NavigationEntry>(entry => entry is null ? Task.CompletedTask : OpenAsync(entry));
     }
 
@@ -120,7 +126,8 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
 
     /// <summary>
     /// MISS-04c: a backup problem in plain words, for the people who can act on it (backup.create / backup.configure); empty when all is well.
-    /// Updated when a backup attempt ends or the settings change, without reopening anything.
+    /// Updated when a backup attempt ends or the settings change, without reopening anything. MISS-04f: after a restore with the vendor's
+    /// restore key it asks those who manage cloud backup (backup.cloud.manage) for a new recovery code, before any other backup notice.
     /// </summary>
     public string BackupNoticeText { get => _backupNoticeText; private set => Set(ref _backupNoticeText, value); }
 
@@ -145,6 +152,7 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
             Groups = Accept(permissions) ? _navigation.Build(permissions.Value) : [];
             _mayConfigureBackups = permissions.IsSuccess && permissions.Value.Contains("backup.configure", StringComparer.OrdinalIgnoreCase);
             _mayMakeBackups = permissions.IsSuccess && permissions.Value.Contains("backup.create", StringComparer.OrdinalIgnoreCase);
+            _mayManageCloud = permissions.IsSuccess && permissions.Value.Contains(CloudBackupCapabilities.Manage, StringComparer.OrdinalIgnoreCase);
         });
 
         await UpdateBackupNoticeAsync(cancellationToken);
@@ -153,6 +161,25 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
     /// <summary>Reads the backup notice and shows it if the signed-in person can act on it. Never fails the shell.</summary>
     public async Task UpdateBackupNoticeAsync(CancellationToken cancellationToken = default)
     {
+        if (_cloud is not null && _mayManageCloud)
+        {
+            bool needsCode;
+            try
+            {
+                needsCode = await _cloud.NeedsNewRecoveryCodeAsync(cancellationToken);
+            }
+            catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+            {
+                needsCode = false;   // the cloud backup files cannot be read now; the next change tries again
+            }
+
+            if (needsCode)
+            {
+                BackupNoticeText = ShellText.NewRecoveryCodeNeeded;
+                return;
+            }
+        }
+
         if (_backups is null || (!_mayConfigureBackups && !_mayMakeBackups))
         {
             BackupNoticeText = string.Empty;
@@ -229,6 +256,7 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
         BackupNoticeText = string.Empty;
         _mayConfigureBackups = false;
         _mayMakeBackups = false;
+        _mayManageCloud = false;
         ErrorMessage = null;
         StatusMessage = null;
     }

@@ -175,6 +175,60 @@ public sealed class BackupBoundaryTests
         }
 
         Assert.True(typeof(Platform.Application.Abstractions.Security.ISecretProtector).Assembly == Assemblies.PlatformApplication);
+
+        // MISS-04f: the module makes recovery requests (a one-time key pair of its own, protected through ISecretProtector) but never
+        // touches the vendor's escrow private key
+        foreach (var assembly in Assemblies.AllCloudBackupAssemblies.Append(Assemblies.ClientCloudBackupHttp))
+            Assert.DoesNotContain(Refs(assembly), r => r == "Security.BackupEnvelope.Recovery");
+    }
+
+    [Fact(DisplayName = "ARCH-BAK-015: The escrow private key lives only in the vendor-only Security.BackupEnvelope.Recovery, used only by the offline tool, which makes no network call")]
+    public void EscrowPrivateKeyIsVendorOnlyAndOffline()
+    {
+        Assert.Equal(["Security.BackupEnvelope"], Refs(Assemblies.SecurityBackupEnvelopeRecovery).Where(r => !r.StartsWith("System", StringComparison.Ordinal) && r != "netstandard"));
+
+        foreach (var assembly in Assemblies.AllProjectAssemblies)
+        {
+            var name = assembly.GetName().Name!;
+            if (name is "BackupEscrowRecovery" or "Security.BackupEnvelope.Recovery") continue;
+            Assert.DoesNotContain(Refs(assembly), r => r is "Security.BackupEnvelope.Recovery" or "BackupEscrowRecovery");
+        }
+
+        // no project under src (desktop, modules, servers) references the vendor side, not even the API hosts this test cannot load
+        foreach (var project in Directory.EnumerateFiles(Path.Combine(RepoRoot(), "src"), "*.csproj", SearchOption.AllDirectories)
+                     .Where(p => !p.EndsWith("Security.BackupEnvelope.Recovery.csproj", StringComparison.Ordinal)))
+        {
+            var text = File.ReadAllText(project);
+            Assert.DoesNotContain("Security.BackupEnvelope.Recovery", text);
+            Assert.DoesNotContain("BackupEscrowRecovery", text);
+        }
+
+        // offline: the tool and the vendor library have no HTTP and no socket
+        foreach (var assembly in new[] { Assemblies.SecurityBackupEnvelopeRecovery, Assemblies.BackupEscrowRecoveryTool })
+        {
+            Assert.DoesNotContain(Refs(assembly), r => r.StartsWith("System.Net", StringComparison.Ordinal));
+            var result = Types.InAssembly(assembly).Should().NotHaveDependencyOn("System.Net").GetResult();
+            Assert.True(result.IsSuccessful, $"{assembly.GetName().Name} must stay offline: " + string.Join(", ", result.FailingTypeNames ?? []));
+        }
+
+        Assert.Equal(["BackupEscrowRecovery", "Security.BackupEnvelope", "Security.BackupEnvelope.Recovery"],
+            Refs(Assemblies.BackupEscrowRecoveryTool).Where(r => !r.StartsWith("System", StringComparison.Ordinal) && r != "netstandard").Append("BackupEscrowRecovery").Order(StringComparer.Ordinal));
+    }
+
+    [Fact(DisplayName = "ARCH-BAK-016: AdminPortal approves an escrow recovery only against the stored backup's header, records the identity check, and holds no escrow key")]
+    public void AdminPortalApprovesAgainstTheStoredHeader()
+    {
+        var refs = Refs(typeof(AdminPortal.Application.EscrowRecoveryAdminService).Assembly).ToList();
+        Assert.Contains("Security.BackupEnvelope", refs);
+        Assert.DoesNotContain("Security.BackupEnvelope.Recovery", refs);
+
+        var service = File.ReadAllText(Path.Combine(RepoRoot(), "src", "Cloud", "AdminPortal", "AdminPortal.Application", "EscrowRecoveryAdminService.cs"));
+        Assert.Contains("BackupEnvelope.ReadHeader(content)", service);
+        Assert.Contains("EscrowRecovery.Matches(request, header)", service);
+        Assert.Contains("audit.RecordAsync(actor, ApprovedAction", service);
+        Assert.Contains("audit.RecordAsync(actor, RefusedAction", service);
+        foreach (var privateKeyApi in new[] { "ImportPkcs8PrivateKey", "ImportECPrivateKey", "ImportFromPem", "OpenSealed", "EscrowKek" })
+            Assert.DoesNotContain(privateKeyApi, service);
     }
 
     [Fact(DisplayName = "ARCH-BAK-014: The desktop registers the CloudBackup module and its HTTP transport")]

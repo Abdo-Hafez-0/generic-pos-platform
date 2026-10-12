@@ -30,6 +30,8 @@
     <ProjectReference Include="..\..\src\Client\Client.Updater\Client.Updater.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.Backup\Client.Backup.csproj" />
     <ProjectReference Include="..\..\src\Security\Security.BackupEnvelope\Security.BackupEnvelope.csproj" />
+    <ProjectReference Include="..\..\src\Security\Security.BackupEnvelope.Recovery\Security.BackupEnvelope.Recovery.csproj" />
+    <ProjectReference Include="..\..\tools\BackupEscrowRecovery\BackupEscrowRecovery.csproj" />
     <ProjectReference Include="..\..\src\Modules\CloudBackup\CloudBackup.Infrastructure\CloudBackup.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Client\Client.CloudBackup.Http\Client.CloudBackup.Http.csproj" />
     <!-- Catalog module assemblies (Stage 5A) — Catalog.UI excluded (net10.0-windows) -->

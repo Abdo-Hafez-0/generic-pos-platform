@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    VENDOR ONLY (MISS-04f): the escrow PRIVATE key side of cloud backups - make an escrow key pair, open an escrow slot, issue a restore key.
+    Referenced ONLY by tools/BackupEscrowRecovery (the offline tool) and its tests; never by the desktop, a module or a server.
+    Like Security.Es256.Signing: only what .NET has built in.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Security.BackupEnvelope\Security.BackupEnvelope.csproj" />
+  </ItemGroup>
+</Project>

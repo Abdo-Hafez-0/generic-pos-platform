@@ -48,4 +48,7 @@
   <data name="Language" xml:space="preserve">
     <value>اللغة</value>
   </data>
+  <data name="NewRecoveryCodeNeeded" xml:space="preserve">
+    <value>أنشئ رمز استرداد جديدًا من الإدارة &gt; النسخ الاحتياطي السحابي: تمت استعادة البيانات بمفتاح من المورّد.</value>
+  </data>
 </root>

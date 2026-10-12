@@ -129,4 +129,46 @@
   <data name="CodeNeeded" xml:space="preserve">
     <value>Type the recovery code this backup was made with:</value>
   </data>
+  <data name="AskVendor" xml:space="preserve">
+    <value>Ask the vendor to recover this backup</value>
+  </data>
+  <data name="RequestExplanation" xml:space="preserve">
+    <value>Send this whole text to your vendor (by e-mail or chat). It contains no business data. The vendor checks who you are and then sends back a restore key that works on this computer only.</value>
+  </data>
+  <data name="RequestHeading" xml:space="preserve">
+    <value>Recovery request</value>
+  </data>
+  <data name="CopyRequest" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="SaveRequest" xml:space="preserve">
+    <value>Save as file...</value>
+  </data>
+  <data name="SaveRequestTitle" xml:space="preserve">
+    <value>Save the recovery request</value>
+  </data>
+  <data name="TextFiles" xml:space="preserve">
+    <value>Text files</value>
+  </data>
+  <data name="RequestCopied" xml:space="preserve">
+    <value>The recovery request was copied.</value>
+  </data>
+  <data name="RequestSaved" xml:space="preserve">
+    <value>The recovery request was saved as {0}.</value>
+  </data>
+  <data name="RequestMade" xml:space="preserve">
+    <value>The recovery request is ready. Send it to your vendor, and keep using this computer and this Windows user until the restore key arrives.</value>
+  </data>
+  <data name="RestoreKeyHeading" xml:space="preserve">
+    <value>Restore with a key from the vendor</value>
+  </data>
+  <data name="RestoreKeyHint" xml:space="preserve">
+    <value>Paste the whole restore key the vendor sent, including the BEGIN and END lines.</value>
+  </data>
+  <data name="UseRestoreKey" xml:space="preserve">
+    <value>Use the restore key...</value>
+  </data>
+  <data name="NewCodeNeeded" xml:space="preserve">
+    <value>This computer's data was restored with a key from the vendor. Make a new recovery code now and write it down: cloud backups stay off until you do.</value>
+  </data>
 </root>

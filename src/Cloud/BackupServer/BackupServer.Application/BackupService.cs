@@ -149,6 +149,12 @@ public sealed class BackupService(
     public Task<BackupPage> ListAllAsync(Guid? licenseId, int page, int pageSize, CancellationToken cancellationToken = default)
         => catalog.ListAsync(licenseId, page, pageSize, cancellationToken);
 
+    public Task<BackupRecord?> FindAnyAsync(Guid backupId, CancellationToken cancellationToken = default)
+        => catalog.FindAsync(backupId, cancellationToken);
+
+    /// <summary>The stored bytes of any backup (the vendor reads only the readable header of an encrypted backup; null when gone).</summary>
+    public Stream? OpenAnyContent(Guid backupId) => blobs.OpenRead(backupId);
+
     public async Task<bool> DeleteAnyAsync(Guid backupId, CancellationToken cancellationToken = default)
     {
         if (await catalog.FindAsync(backupId, cancellationToken) is null)

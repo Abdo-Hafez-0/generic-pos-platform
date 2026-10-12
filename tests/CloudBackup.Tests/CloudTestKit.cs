@@ -99,12 +99,16 @@ public sealed class CountingSignal : IUploadSignal
 /// <summary>The module on real files in a temporary folder, with a fake protector, a fake server and a vendor escrow key pair.</summary>
 public sealed class CloudWorld : IDisposable
 {
-    public CloudWorld(bool canProtect = true, bool withEscrow = true)
+    /// <param name="user">The Windows user the protector stands for (another user cannot open what this one protected).</param>
+    /// <param name="server">Share another world's cloud (a second PC of the same shop).</param>
+    /// <param name="root">Share another world's folders (another Windows user on the same PC).</param>
+    public CloudWorld(bool canProtect = true, bool withEscrow = true, string user = "owner", FakeBackupClient? server = null, string? root = null)
     {
-        Root = Path.Combine(Path.GetTempPath(), "genericpos-cloud-" + Guid.NewGuid().ToString("N"));
+        Root = root ?? Path.Combine(Path.GetTempPath(), "genericpos-cloud-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Root);
         Workspace = new CloudBackupWorkspace(Path.Combine(Root, "CloudBackup"));
-        Protector = canProtect ? new FakeProtector() : null;
+        Protector = canProtect ? new FakeProtector(user) : null;
+        Server = server ?? new FakeBackupClient();
         Escrow = withEscrow ? new EscrowPublicKey("escrow-2026", Convert.ToBase64String(Vendor.ExportSubjectPublicKeyInfo())) : null;
         Service = NewService();
     }
@@ -116,7 +120,7 @@ public sealed class CloudWorld : IDisposable
     public EscrowPublicKey? Escrow { get; }
     public TestClock Clock { get; } = new(new DateTimeOffset(2026, 10, 10, 21, 0, 0, TimeSpan.Zero));
     public FakeGate Gate { get; } = new();
-    public FakeBackupClient Server { get; } = new();
+    public FakeBackupClient Server { get; }
     public RecordingEvents Events { get; } = new();
     public CountingSignal Signal { get; } = new();
     public CloudBackupService Service { get; private set; }

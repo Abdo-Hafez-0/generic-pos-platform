@@ -74,6 +74,7 @@ Sources: `Generic Offline-First Inventory & POS Platform.md` sections 23 (local 
   2. The vendor **checks who is asking**, following a written procedure (a contact on the customer record, a callback). The check and its outcome are recorded in the AdminPortal audit log.
   3. On an offline machine that holds the escrow private key, a vendor CLI tool (`tools/BackupEscrowRecovery`) opens the escrow slot. It re-seals the data key under a **one-time restore code** made for this request and gives back a **restore key**: a short text or file, valid for that one backup only.
   4. The owner pastes the restore key, the backup is restored (section 8), and the PC asks for a **new recovery code** at once (5A setup). The old shop key is gone with the old PC.
+- **As built (MISS-04f, user decisions 9-11 of 2026-10-12):** the request also carries the public half of a **one-time key pair made by the asking PC** (private half DPAPI-protected on that PC). The tool seals the data key to that key instead of to a restore code, so the restore key works only on the PC that asked, only for that backup, and only once; nothing is read out on the phone. Step 2 is an AdminPortal endpoint (`POST /api/admin/backups/{id}/escrow-recovery`): it records the identity check (how, with whom, notes) in the admin audit log and compares the request's key id and escrow slot with the **stored** backup's header and its license, so a slot copied from another shop's backup is refused (and that refusal is audited too); it answers an "approved recovery" text, the only input the offline tool accepts. The texts are readable lines plus an armored, checksummed block.
 - **Escrow key rotation:** a new escrow key id is used for new backups when the client ships with a new public key. Old private keys are kept offline for as long as backups under them can exist; downloaded copies have no expiry, so this means indefinitely. They are listed in the vendor's key register.
 - **What escrow does not change:** the shop still has its own code and normally never needs the vendor. Local backups are plain (user decision 2), so escrow plays no part in them.
 - **Vendor duties before selling the cloud module:** escrow key custody (offline machine, at least two people know where it is), the identity-check procedure, and the terms and privacy notice (section 3).
@@ -148,3 +149,11 @@ Made by the user on 2026-10-10:
 5. **Escrow mechanism** of section 5B approved as written.
 6. **Cloud token:** typed in by the owner.
 7. **No backup trigger** on closing the last shift of the day.
+
+Made by the user on 2026-10-10 (implementation): 8. CloudBackup is a real module; its HTTP transport lives in `Client.CloudBackup.Http` (section 6).
+
+Made by the user on 2026-10-12 (MISS-04f, section 5B "As built"):
+
+9. **Restore key** sealed to a one-time key pair of the PC that asked (no separate restore code).
+10. **Approval in AdminPortal**: the identity check is recorded and the slot is compared with the stored backup; the offline tool accepts only the approved text.
+11. **Text formats**: a few readable lines plus an armored block (BEGIN/END lines, base64 JSON, a check line), with Copy and Save as file on the screen.

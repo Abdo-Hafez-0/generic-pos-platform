@@ -83,6 +83,34 @@ public interface IEscrowKeySource
 /// <summary>Where a cloud backup is downloaded and decrypted for a restore (emptied at every start: a plain copy never lingers).</summary>
 public sealed record CloudDownloadArea(string Directory);
 
+/// <summary>
+/// A recovery request this PC made (MISS-04f) with the PKCS#8 private half of its one-time key pair. <paramref name="UsedAt"/>: a restore
+/// with its restore key was confirmed (the request is removed at the next start, when that restore has run).
+/// </summary>
+public sealed record StoredRecoveryRequest(RecoveryRequest Request, byte[] PrivateKey, DateTimeOffset? UsedAt = null);
+
+/// <summary>The recovery requests this PC made, one per backup, kept protected for this Windows user (ISecretProtector) until used.</summary>
+public interface IRecoveryRequestStore
+{
+    Task<IReadOnlyList<StoredRecoveryRequest>> ListAsync(CancellationToken cancellationToken = default);
+
+    Task<StoredRecoveryRequest?> FindAsync(Guid backupId, CancellationToken cancellationToken = default);
+
+    /// <summary>Stores it, replacing an earlier request for the same backup (whose restore key then no longer opens anything).</summary>
+    Task SaveAsync(StoredRecoveryRequest request, CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(Guid backupId, CancellationToken cancellationToken = default);
+}
+
+/// <summary>What the shell needs to ask for a new recovery code after a restore with the vendor's restore key (MISS-04f).</summary>
+public interface ICloudBackupNotice
+{
+    /// <summary>Raised (on any thread) when the answer may have changed.</summary>
+    event EventHandler? Changed;
+
+    Task<bool> NeedsNewRecoveryCodeAsync(CancellationToken cancellationToken = default);
+}
+
 /// <summary>Tells the background uploader there is something new to send (so it does not wait for its next round).</summary>
 public interface IUploadSignal
 {

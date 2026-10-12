@@ -53,6 +53,13 @@ internal static class Assemblies
     internal static readonly Assembly SecurityBackupEnvelope =
         typeof(Security.BackupEnvelope.BackupEnvelope).Assembly;
 
+    // MISS-04f: VENDOR ONLY - the escrow private key side, and the offline tool that uses it
+    internal static readonly Assembly SecurityBackupEnvelopeRecovery =
+        typeof(Security.BackupEnvelope.Recovery.EscrowPrivateKey).Assembly;
+
+    internal static readonly Assembly BackupEscrowRecoveryTool =
+        typeof(Tools.BackupEscrowRecovery.EscrowRecoveryTool).Assembly;
+
     // Note: Client.Desktop (net10.0-windows) cannot be referenced here.
     // See ClientLayerTests for documentation of how Desktop boundaries are verified.
 
@@ -509,6 +516,8 @@ internal static class Assemblies
         ClientHardware,
         ClientSecurity,
         SecurityBackupEnvelope,
+        SecurityBackupEnvelopeRecovery,
+        BackupEscrowRecoveryTool,
         ClientCloudBackupHttp
     ];
 

@@ -44,14 +44,18 @@ public enum CloudSkipReason
     NoEscrowKey = 4,
 }
 
-/// <summary>What the cloud side did last (kept next to the database, for the screen and the shell notice in MISS-04e3).</summary>
+/// <summary>
+/// What the cloud side did last (kept next to the database, for the screen and the shell notice in MISS-04e3). <c>VendorRestoreAt</c>
+/// (MISS-04f): a restore with the vendor's restore key was confirmed then; until a recovery code is made after it, the PC asks for one.
+/// </summary>
 public sealed record CloudBackupStatus(
     DateTimeOffset? LastUploadAt = null,
     string? LastUploadedFile = null,
     DateTimeOffset? LastFailureAt = null,
     string? LastFailure = null,
     CloudSkipReason? LastSkip = null,
-    DateTimeOffset? LastSkipAt = null);
+    DateTimeOffset? LastSkipAt = null,
+    DateTimeOffset? VendorRestoreAt = null);
 
 /// <summary>One shop key in the key ring: its public id, when it was made, and whether new backups use it.</summary>
 public sealed record CloudKeyInfo(string KeyId, DateTimeOffset CreatedAt, bool Active);
@@ -70,7 +74,13 @@ public static class CloudBackupErrorCodes
     public const string NeedsRecoveryCode = "CloudBackup.NeedsRecoveryCode";
     public const string WrongRecoveryCode = "CloudBackup.WrongRecoveryCode";
     public const string Damaged = "CloudBackup.Damaged";
+    public const string NotARestoreKey = "CloudBackup.NotARestoreKey";
+    public const string NoRecoveryRequest = "CloudBackup.NoRecoveryRequest";
+    public const string WrongRestoreKey = "CloudBackup.WrongRestoreKey";
 }
 
+/// <summary>A recovery request made on this PC (MISS-04f): the text to send to the vendor. The one-time private key stays here, protected.</summary>
+public sealed record RecoveryRequestMade(Guid BackupId, Guid RequestId, string Text);
+
 /// <summary>A cloud backup downloaded and decrypted for a restore: a plain database file in the module's temporary folder (always discarded afterwards).</summary>
-public sealed record DownloadedBackup(string PlainPath, DateTimeOffset CreatedAt, string? Label, string KeyId);
+public sealed record DownloadedBackup(string PlainPath, DateTimeOffset CreatedAt, string? Label, string KeyId, Guid BackupId = default);

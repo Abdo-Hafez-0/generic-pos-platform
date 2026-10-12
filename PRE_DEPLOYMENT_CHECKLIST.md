@@ -172,7 +172,7 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 - [ ] **MISS-01 Usable UI layer** - covered by FIX-01, FIX-02, FIX-06, FIX-07, plus an update notification in the shell
 - [ ] **MISS-02 Module wiring** - covered by FIX-04, FIX-05, FIX-11
 - [ ] **MISS-03 Tax and discounts** - covered by FIX-08
-- [ ] **MISS-04 Client backup module** (Stages 9/11)
+- [x] **MISS-04 Client backup module** (Stages 9/11) - complete 2026-10-12 (MISS-04a..04f)
   - [x] Design first: encryption and key management (who holds the key, recovery, rotation) - approve before building. Draft: `MISS-04_BACKUP_DESIGN.md`
     Decisions (2026-10-10, user): 1. recovery code held by the shop PLUS vendor escrow; 2. only cloud backups are encrypted, local backups are plain SQLite files (lost-USB risk accepted, shown on screen);
     3. local backup and restore in `Client.Backup` for every shop, cloud in a paid optional `CloudBackup` module (license module `cloud-backup`); 4. a separate sensitive `backup.configure` permission.
@@ -182,7 +182,7 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
     - [x] **MISS-04e1** encrypted format library `Security.BackupEnvelope` (2026-10-10): recovery code, shop key, `.gpbak`, escrow slot
     - [x] **MISS-04e2** CloudBackup module (2026-10-10): key ring, access key, encrypted copy of each backup into an outbox, HTTP client, background upload with retry
     - [x] **MISS-04e3** Cloud backup screen (2026-10-11): recovery code, access key, cloud list, restore from the cloud; end to end against the real AdminPortal/License/Backup servers
-    - [ ] **MISS-04f** vendor escrow tool and restore with a one-time restore key
+    - [x] **MISS-04f** vendor escrow tool and restore with a one-time restore key (2026-10-12): "Ask the vendor to recover this backup" makes a recovery request; AdminPortal approves it after the written identity check (slot compared with the stored backup, audited); the offline `tools/BackupEscrowRecovery` (escrow private key in the vendor-only `Security.BackupEnvelope.Recovery`) issues a restore key sealed to the PC that asked; pasted on that PC it goes through the local restore; afterwards a new recovery code is asked for. Decisions 9-11 in `MISS-04_BACKUP_DESIGN.md` section 12
   - [x] Capabilities `backup.create` / `backup.restore` / `backup.delete` (+ `backup.configure`) declared and enforced (MISS-04a; restore is enforced when it is built in 04b)
   - [x] Local backup (to a folder / USB) for shops without internet (MISS-04a; the screen is 04d)
   - [x] **MISS-04b** Restore flow (database not in use during restore) (2026-10-10): prepare/confirm while running, swap at the next start before the database opens, before-restore copy kept and listed
@@ -268,4 +268,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-10 | MISS-04d | 449c94e | Backup screen with restart after a confirmed restore; 2739 tests, 0 warnings; real exe: settings, backup, check, restore, restart, Arabic |
 | 2026-10-10 | MISS-04e1 | d01ad63 | Encrypted cloud backup format library (recovery code, .gpbak, escrow slot); 2753 tests, 0 warnings |
 | 2026-10-10 | MISS-04e2 | 05c6b1c | Decision 8 (real module, HTTP outside); CloudBackup module + Client.CloudBackup.Http; 2779 tests, 0 warnings; real exe start-up with the module |
-| 2026-10-11 | MISS-04e3 | (this commit) | Cloud backup screen and restore from the cloud; 2791 tests, 0 warnings; real exe end to end against the real vendor servers |
+| 2026-10-11 | MISS-04e3 | 72ad7be | Cloud backup screen and restore from the cloud; 2791 tests, 0 warnings; real exe end to end against the real vendor servers |
+| 2026-10-12 | MISS-04f | (this commit) | Decisions 9-11; vendor escrow recovery (request, AdminPortal approval, offline tool, restore key bound to the PC, new code asked for); MISS-04 complete; 2814 tests, 0 warnings; real exe end to end: PC A backs up, PC B recovers through the vendor |

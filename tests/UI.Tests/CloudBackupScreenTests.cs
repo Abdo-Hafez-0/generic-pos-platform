@@ -198,6 +198,85 @@ public sealed class CloudBackupScreenTests : IDisposable
         Assert.Equal(string.Empty, newPc.RecoveryCodeInput);
     }
 
+    /// <summary>What AdminPortal (approval after the identity check) and the vendor's offline tool do with the owner's request.</summary>
+    private string VendorRestoreKey(string requestText)
+    {
+        Assert.True(Security.BackupEnvelope.EscrowRecovery.TryReadRequest(requestText, out var request, out _));
+        var approved = new Security.BackupEnvelope.ApprovedRecovery(1, request!, Guid.NewGuid(), "C-1", DateTimeOffset.UtcNow, "vendor-admin", "callback");
+        using var escrow = Security.BackupEnvelope.Recovery.EscrowPrivateKey.FromPem("escrow-2026", new string(PemEncoding.Write("PRIVATE KEY", _vendor.ExportPkcs8PrivateKey())));
+        return Security.BackupEnvelope.EscrowRecovery.WriteRestoreKey(Security.BackupEnvelope.Recovery.RestoreKeyIssuer.Issue(approved, [escrow], DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public async Task Without_the_code_a_new_pc_asks_the_vendor_restores_with_the_restore_key_and_is_then_asked_for_a_new_code()
+    {
+        var (owner, ownerServices) = Pc(Everything);
+        await owner.OnNavigatedToAsync();
+        await SetUpCodeAsync(owner);
+        owner.AccessKeyInput = "gpb_ui-test-access-key-0123456789";
+        await Run(owner, owner.SaveAccessCommand);
+        await BackUpAndUploadAsync(ownerServices);
+
+        // the PC died and the code is lost: a new PC, the access key typed in again, no recovery code
+        var (newPc, services) = Pc(Everything);
+        await newPc.OnNavigatedToAsync();
+        newPc.AccessKeyInput = "gpb_ui-test-access-key-0123456789";
+        await Run(newPc, newPc.SaveAccessCommand);
+        newPc.Selected = Assert.Single(newPc.CloudBackups);
+        Assert.False(newPc.AskVendorCommand.CanExecute(null));   // offered only once the code turns out to be needed
+        await Run(newPc, newPc.RestoreCommand);
+        Assert.True(newPc.IsCodeNeeded);
+
+        await Run(newPc, newPc.AskVendorCommand);
+        Assert.True(newPc.IsRecoveryRequestShown, newPc.ErrorMessage);
+        Assert.Contains("-----BEGIN GENERICPOS RECOVERY REQUEST-----", newPc.RecoveryRequestText);
+        Assert.Equal(CloudBackupText.RequestMade, newPc.StatusMessage);
+        newPc.RequestSaved(@"C:\Users\owner\Desktop\recovery-request.txt");
+        Assert.Contains("recovery-request.txt", newPc.StatusMessage);
+
+        var restoreKey = VendorRestoreKey(newPc.RecoveryRequestText);
+        Assert.False(newPc.UseRestoreKeyCommand.CanExecute(null));
+        newPc.RestoreKeyInput = "> " + restoreKey.Replace("\r\n", "\n> ");   // as quoted in a mail reply
+        await Run(newPc, newPc.UseRestoreKeyCommand);
+        Assert.True(newPc.IsRestorePrepared, newPc.ErrorMessage);
+        Assert.Contains(newPc.Selected!.Item.Label!, newPc.RestoreQuestion);
+        Assert.Empty(Directory.GetFiles(services.GetRequiredService<CloudBackupWorkspace>().DownloadDirectory));
+
+        // called off before the restart: nothing is asked for, the key still works
+        await Run(newPc, newPc.ConfirmRestoreCommand);
+        Assert.True(newPc.IsRestorePending);
+        Assert.Equal(string.Empty, newPc.RestoreKeyInput);
+        Assert.True(await services.GetRequiredService<CloudBackupService>().NeedsNewRecoveryCodeAsync());
+        await Run(newPc, newPc.CancelRestoreCommand);
+        Assert.False(await services.GetRequiredService<CloudBackupService>().NeedsNewRecoveryCodeAsync());
+
+        newPc.RestoreKeyInput = restoreKey;
+        await Run(newPc, newPc.UseRestoreKeyCommand);
+        await Run(newPc, newPc.ConfirmRestoreCommand);
+        await Run(newPc, newPc.RestartNowCommand);
+        Assert.NotNull(await services.GetRequiredService<RestoreService>().GetPendingAsync());
+
+        // after the restart the screen asks for a new recovery code until one is made
+        await newPc.OnNavigatedToAsync();
+        Assert.True(newPc.NeedsNewCode);
+        await SetUpCodeAsync(newPc);
+        Assert.False(newPc.NeedsNewCode);
+    }
+
+    [Fact]
+    public async Task A_restore_key_that_is_not_one_or_was_not_asked_for_here_is_refused_in_plain_words()
+    {
+        var (vm, _) = Pc(Everything);
+        await vm.OnNavigatedToAsync();
+        vm.AccessKeyInput = "gpb_ui-test-access-key-0123456789";
+        await Run(vm, vm.SaveAccessCommand);
+
+        vm.RestoreKeyInput = "thanks, here it is";
+        await Run(vm, vm.UseRestoreKeyCommand);
+        Assert.False(vm.IsRestorePrepared);
+        Assert.Contains("No restore key was found", vm.ErrorMessage);
+    }
+
     [Fact]
     public async Task Who_sees_what()
     {

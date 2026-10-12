@@ -32,7 +32,8 @@ public sealed class CloudBackupService(
     ILogger<CloudBackupService> logger,
     IBusinessEventSink? events = null,
     IUploadSignal? signal = null,
-    CloudDownloadArea? downloads = null) : IBackupReplica
+    CloudDownloadArea? downloads = null,
+    IRecoveryRequestStore? requests = null) : IBackupReplica, ICloudBackupNotice
 {
     public const string AuditModule = CloudBackupCapabilities.Module;
     public const int MaxWaiting = 10;
@@ -90,6 +91,7 @@ public sealed class CloudBackupService(
                 "cloud-backup-key", key.KeyId, replacing
                     ? "A new recovery code was made; new cloud backups use it, older ones still need the previous code on another PC."
                     : "The recovery code for cloud backups was made and confirmed."));
+            Changed?.Invoke(this, EventArgs.Empty);   // a restore with the vendor's key asked for this code (MISS-04f)
             return new CloudKeyInfo(key.KeyId, now, true);
         }
         finally
@@ -279,11 +281,6 @@ public sealed class CloudBackupService(
     /// </summary>
     public async Task<Result<DownloadedBackup>> DownloadForRestoreAsync(Guid backupId, string? recoveryCode, string? label = null, CancellationToken cancellationToken = default)
     {
-        if (downloads is null) return Error.Failure(CloudBackupErrorCodes.Failed, "Restoring from the cloud is not available here.");
-        var secret = await access.ReadAsync(cancellationToken);
-        if (string.IsNullOrEmpty(secret))
-            return Error.Validation(CloudBackupErrorCodes.NotSetUp, "Enter the backup access key first; the vendor gives it with the license.");
-
         BackupKey? typed = null;
         if (!string.IsNullOrWhiteSpace(recoveryCode))
         {
@@ -292,12 +289,36 @@ public sealed class CloudBackupService(
             typed = BackupKey.FromRecoveryCode(codeSecret);
         }
 
+        return await DownloadAndOpenAsync(backupId, label, async (header, ct) =>
+        {
+            var key = typed ?? await keys.FindAsync(header.KeyId, ct);
+            if (key is null)
+                return Error.Validation(CloudBackupErrorCodes.NeedsRecoveryCode, "Type the recovery code this backup was made with.");
+            if (key.KeyId != header.KeyId)
+                return Error.Validation(CloudBackupErrorCodes.WrongRecoveryCode, "This backup was made with another recovery code.");
+            return BackupEnvelope.UnwrapDataKey(header, key);
+        }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Downloads a cloud backup and decrypts it with the data key <paramref name="dataKeyFor"/> gives for its header, into a plain database
+    /// file named after the backup. Nothing is left behind on any refusal; the encrypted download is always removed.
+    /// </summary>
+    private async Task<Result<DownloadedBackup>> DownloadAndOpenAsync(Guid backupId, string? label,
+        Func<EnvelopeHeader, CancellationToken, Task<Result<byte[]>>> dataKeyFor, CancellationToken cancellationToken)
+    {
+        if (downloads is null) return Error.Failure(CloudBackupErrorCodes.Failed, "Restoring from the cloud is not available here.");
+        var secret = await access.ReadAsync(cancellationToken);
+        if (string.IsNullOrEmpty(secret))
+            return Error.Validation(CloudBackupErrorCodes.NotSetUp, "Enter the backup access key first; the vendor gives it with the license.");
+
         System.IO.Directory.CreateDirectory(downloads.Directory);
         var encrypted = Path.Combine(downloads.Directory, backupId.ToString("N") + BackupEnvelope.Extension);
         // named after the backup (its label), so the restore question and the outcome name the backup the person chose
         var plain = Path.Combine(downloads.Directory, PlainName(label, backupId));
         TryDelete(plain);
         var keep = false;
+        byte[]? dataKey = null;
         try
         {
             var downloaded = await client.DownloadAsync(secret, backupId, cancellationToken);
@@ -310,20 +331,18 @@ public sealed class CloudBackupService(
             await using (var input = File.OpenRead(encrypted))
                 header = BackupEnvelope.ReadHeader(input);
 
-            var key = typed ?? await keys.FindAsync(header.KeyId, cancellationToken);
-            if (key is null)
-                return Error.Validation(CloudBackupErrorCodes.NeedsRecoveryCode, "Type the recovery code this backup was made with.");
-            if (key.KeyId != header.KeyId)
-                return Error.Validation(CloudBackupErrorCodes.WrongRecoveryCode, "This backup was made with another recovery code.");
+            var opened = await dataKeyFor(header, cancellationToken);
+            if (opened.IsFailure) return Result.Failure<DownloadedBackup>(opened.Error);
+            dataKey = opened.Value;
 
             await using (var input = File.OpenRead(encrypted))
             await using (var output = new FileStream(plain, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
-                await BackupEnvelope.DecryptAsync(input, output, BackupEnvelope.UnwrapDataKey(header, key), cancellationToken);
+                await BackupEnvelope.DecryptAsync(input, output, dataKey, cancellationToken);
 
             File.SetLastWriteTimeUtc(plain, header.CreatedAt.UtcDateTime);
             keep = true;
             logger.LogInformation("Cloud backup {Id} downloaded and opened for a restore.", backupId);
-            return new DownloadedBackup(plain, header.CreatedAt, label, header.KeyId);
+            return new DownloadedBackup(plain, header.CreatedAt, label, header.KeyId, backupId);
         }
         catch (BackupEnvelopeException ex)
         {
@@ -339,9 +358,131 @@ public sealed class CloudBackupService(
         }
         finally
         {
+            if (dataKey is not null) CryptographicOperations.ZeroMemory(dataKey);
             TryDelete(encrypted);
             if (!keep) TryDelete(plain);
         }
+    }
+
+    // ------------------------------------------------------------------ recovery through the vendor (MISS-04f, design 5B)
+
+    /// <summary>
+    /// Makes the recovery request for a cloud backup that cannot be opened here (no recovery code): reads the backup's authenticated header
+    /// (key id, escrow slot), makes a one-time key pair whose private half is kept protected on this PC, and returns the text the owner
+    /// sends to the vendor. It holds no business data. A new request for the same backup replaces the earlier one.
+    /// </summary>
+    public async Task<Result<RecoveryRequestMade>> CreateRecoveryRequestAsync(Guid backupId, string? label, string? licenseId, CancellationToken cancellationToken = default)
+    {
+        if (requests is null || !keys.CanProtect)
+            return Error.Failure(CloudBackupErrorCodes.CannotProtectKeys, "This computer cannot protect the key a recovery needs, so the vendor cannot recover a backup for it.");
+        var secret = await access.ReadAsync(cancellationToken);
+        if (string.IsNullOrEmpty(secret))
+            return Error.Validation(CloudBackupErrorCodes.NotSetUp, "Enter the backup access key first; the vendor gives it with the license.");
+
+        EnvelopeHeader header;
+        try
+        {
+            var downloaded = await client.DownloadAsync(secret, backupId, cancellationToken);
+            if (downloaded.IsFailure) return Result.Failure<RecoveryRequestMade>(downloaded.Error);
+            await using (var source = downloaded.Value)
+                header = BackupEnvelope.ReadHeader(source);   // the header only; the rest is never read
+        }
+        catch (BackupEnvelopeException ex)
+        {
+            logger.LogWarning(ex, "Cloud backup {Id} has no readable header ({Problem}).", backupId, ex.Problem);
+            return Error.Failure(CloudBackupErrorCodes.Damaged, "The cloud backup is damaged or is not a backup of this application, so it cannot be recovered.");
+        }
+
+        using var oneTime = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256);
+        var request = EscrowRecovery.CreateRequest(header, backupId, label, licenseId, oneTime.ExportSubjectPublicKeyInfo(), clock.GetUtcNow());
+        var privateKey = oneTime.ExportPkcs8PrivateKey();
+        try
+        {
+            await requests.SaveAsync(new StoredRecoveryRequest(request, privateKey), cancellationToken);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(privateKey);
+        }
+
+        await events.TryRecordAsync(BusinessEvent.Create(AuditModule, "cloud-backup.recovery-requested", "backup", backupId.ToString(),
+            $"A recovery request for the cloud backup {label ?? backupId.ToString("N")} was made for the vendor (request {request.RequestId:N}, shop key {header.KeyId})."));
+        logger.LogInformation("Recovery request {Request} made for cloud backup {Id}.", request.RequestId, backupId);
+        return new RecoveryRequestMade(backupId, request.RequestId, EscrowRecovery.WriteRequest(request));
+    }
+
+    /// <summary>
+    /// Opens the backup named in the vendor's restore key: only with the request this PC made for it (its one-time private key), and only if
+    /// the downloaded backup's header is the one the request named. The plain copy goes to the LOCAL restore, as with a recovery code.
+    /// </summary>
+    public async Task<Result<DownloadedBackup>> DownloadWithRestoreKeyAsync(string? restoreKeyText, CancellationToken cancellationToken = default)
+    {
+        if (!EscrowRecovery.TryReadRestoreKey(restoreKeyText, out var restoreKey, out var problem))
+            return Error.Validation(CloudBackupErrorCodes.NotARestoreKey, problem == RecoveryTextProblem.Damaged
+                ? "The restore key is damaged (a character changed or lost). Paste the whole text exactly as the vendor sent it."
+                : "No restore key was found in the text. Paste the whole text the vendor sent, including the BEGIN and END lines.");
+
+        var stored = requests is null ? null : await requests.FindAsync(restoreKey!.BackupId, cancellationToken);
+        if (stored is null || stored.UsedAt is not null || stored.Request.RequestId != restoreKey!.RequestId)
+            return Error.Validation(CloudBackupErrorCodes.NoRecoveryRequest,
+                "This restore key belongs to a request this computer did not make, a newer request replaced it, or it was used already. Ask the vendor again from this computer.");
+
+        return await DownloadAndOpenAsync(restoreKey.BackupId, stored.Request.BackupLabel, (header, ct) =>
+        {
+            if (!EscrowRecovery.Matches(stored.Request, header))
+                return Task.FromResult<Result<byte[]>>(Error.Validation(CloudBackupErrorCodes.WrongRestoreKey, "The cloud backup is not the one the recovery request was made for."));
+            try
+            {
+                using var oneTime = ECDiffieHellman.Create();
+                oneTime.ImportPkcs8PrivateKey(stored.PrivateKey, out _);
+                return Task.FromResult<Result<byte[]>>(EscrowRecovery.OpenRestoreKey(restoreKey, stored.Request, oneTime));
+            }
+            catch (BackupEnvelopeException)
+            {
+                return Task.FromResult<Result<byte[]>>(Error.Validation(CloudBackupErrorCodes.WrongRestoreKey, "The restore key does not open this backup on this computer. Ask the vendor again from this computer."));
+            }
+        }, cancellationToken);
+    }
+
+    /// <summary>
+    /// The restore with the vendor's restore key was confirmed (it runs at the next start): the request can no longer be used, it is removed
+    /// at the next start, and the PC asks for a new recovery code. Undone by <see cref="VendorRestoreCancelledAsync"/>.
+    /// </summary>
+    public async Task VendorRestoreConfirmedAsync(Guid backupId, CancellationToken cancellationToken = default)
+    {
+        var now = clock.GetUtcNow();
+        if (requests is not null && await requests.FindAsync(backupId, cancellationToken) is { } stored)
+            await requests.SaveAsync(stored with { UsedAt = now }, cancellationToken);
+        await UpdateStatusAsync(s => s with { VendorRestoreAt = now });
+        await events.TryRecordAsync(BusinessEvent.Create(AuditModule, "cloud-backup.restore-key-used", "backup", backupId.ToString(),
+            "A restore with the vendor's restore key was confirmed; a new recovery code is needed afterwards."));
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>The confirmed restore with the vendor's restore key was called off before the restart: the request can be used again.</summary>
+    public async Task VendorRestoreCancelledAsync(Guid backupId, CancellationToken cancellationToken = default)
+    {
+        if (requests is not null && await requests.FindAsync(backupId, cancellationToken) is { UsedAt: not null } stored)
+            await requests.SaveAsync(stored with { UsedAt = null }, cancellationToken);
+        await UpdateStatusAsync(s => s with { VendorRestoreAt = null });
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>At start: requests whose restore was confirmed before the restart have done their work and are removed (one time only).</summary>
+    public async Task SweepUsedRequestsAsync(CancellationToken cancellationToken = default)
+    {
+        if (requests is null) return;
+        foreach (var used in (await requests.ListAsync(cancellationToken)).Where(r => r.UsedAt is not null))
+            await requests.DeleteAsync(used.Request.BackupId, cancellationToken);
+    }
+
+    public event EventHandler? Changed;
+
+    /// <summary>True after a restore with the vendor's restore key until a recovery code is made on this PC (design 5B step 4).</summary>
+    public async Task<bool> NeedsNewRecoveryCodeAsync(CancellationToken cancellationToken = default)
+    {
+        if ((await status.ReadAsync(cancellationToken)).VendorRestoreAt is not { } restoredAt) return false;
+        return !(await keys.ListAsync(cancellationToken)).Any(k => k.Active && k.CreatedAt >= restoredAt);
     }
 
     /// <summary>A safe file name from the cloud backup's label ("genericpos-20261011-200108.db"); the id when there is none.</summary>
@@ -373,7 +514,8 @@ public sealed class CloudBackupService(
 
     public async Task<CloudBackupOverview> GetOverviewAsync(CancellationToken cancellationToken = default)
         => new(await WhyNotReadyAsync(cancellationToken), await keys.ListAsync(cancellationToken), !string.IsNullOrEmpty(await access.ReadAsync(cancellationToken)),
-            escrow.Current is not null, (await outbox.ListAsync(cancellationToken)).OrderBy(e => e.CreatedAt).ToList(), await status.ReadAsync(cancellationToken));
+            escrow.Current is not null, (await outbox.ListAsync(cancellationToken)).OrderBy(e => e.CreatedAt).ToList(), await status.ReadAsync(cancellationToken),
+            await NeedsNewRecoveryCodeAsync(cancellationToken));
 
     private async Task UpdateStatusAsync(Func<CloudBackupStatus, CloudBackupStatus> change)
     {
@@ -402,4 +544,5 @@ public sealed class CloudBackupService(
 
 /// <summary>Everything the cloud backup screen shows (MISS-04e3): readiness, keys, whether an access key is entered, the waiting copies, the last results.</summary>
 public sealed record CloudBackupOverview(
-    CloudSkipReason? NotReadyBecause, IReadOnlyList<CloudKeyInfo> Keys, bool HasAccessKey, bool HasEscrowKey, IReadOnlyList<OutboxEntry> Waiting, CloudBackupStatus Status);
+    CloudSkipReason? NotReadyBecause, IReadOnlyList<CloudKeyInfo> Keys, bool HasAccessKey, bool HasEscrowKey, IReadOnlyList<OutboxEntry> Waiting, CloudBackupStatus Status,
+    bool NeedsNewRecoveryCode = false);

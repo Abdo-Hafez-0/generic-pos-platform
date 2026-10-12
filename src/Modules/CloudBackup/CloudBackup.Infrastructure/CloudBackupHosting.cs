@@ -77,6 +77,15 @@ public sealed class CloudUploadWorker(CloudBackupService cloud, UploadSignal sig
         try
         {
             cloud.SweepDownloads();   // a crash during a restore can leave a plain copy behind
+            try
+            {
+                await cloud.SweepUsedRequestsAsync(stoppingToken);   // MISS-04f: a vendor restore key works once
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Used recovery requests could not be removed; they are tried again at the next start.");
+            }
+
             await Task.Delay(options.StartDelay, stoppingToken);
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -135,10 +144,12 @@ public static class CloudBackupServicesExtensions
         services.AddSingleton(sp => new JsonCloudOutbox(sp.GetRequiredService<CloudBackupWorkspace>(), sp.GetRequiredService<ILogger<JsonCloudOutbox>>()));
         services.AddSingleton<ICloudOutbox>(sp => sp.GetRequiredService<JsonCloudOutbox>());
         services.AddSingleton<ICloudStatusStore, JsonCloudStatusStore>();
+        services.AddSingleton<IRecoveryRequestStore, ProtectedRecoveryRequestStore>();
         services.AddSingleton<UploadSignal>();
         services.AddSingleton<IUploadSignal>(sp => sp.GetRequiredService<UploadSignal>());
         services.AddSingleton<CloudBackupService>();
         services.AddSingleton<IBackupReplica>(sp => sp.GetRequiredService<CloudBackupService>());
+        services.AddSingleton<ICloudBackupNotice>(sp => sp.GetRequiredService<CloudBackupService>());
 
         services.AddSingleton<ICapabilityProvider, CloudBackupCapabilityProvider>();
         services.AddTransient<BeginRecoveryCodeCommandHandler>();
@@ -148,6 +159,9 @@ public static class CloudBackupServicesExtensions
         services.AddTransient<ListCloudBackupsQueryHandler>();
         services.AddTransient<DownloadForRestoreCommandHandler>();
         services.AddTransient<DiscardDownloadCommandHandler>();
+        services.AddTransient<CreateRecoveryRequestCommandHandler>();
+        services.AddTransient<DownloadWithRestoreKeyCommandHandler>();
+        services.AddTransient<VendorRestoreDecidedCommandHandler>();
         return services;
     }
 

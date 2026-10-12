@@ -99,3 +99,47 @@ public sealed class DiscardDownloadCommandHandler(CloudBackupService cloud, IAut
         return Result.Success();
     }
 }
+
+// ---- recovery through the vendor (MISS-04f): part of restoring, so backup.cloud.restore (no license needed, rule 10)
+
+public sealed record CreateRecoveryRequestCommand(Guid BackupId, string? Label, string? LicenseId);
+
+public sealed class CreateRecoveryRequestCommandHandler(CloudBackupService cloud, IAuthorizationService authorization)
+{
+    public async Task<Result<RecoveryRequestMade>> HandleAsync(CreateRecoveryRequestCommand command, CancellationToken cancellationToken = default)
+    {
+        var allowed = await authorization.AuthorizeAsync(CloudBackupCapabilities.Restore, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<RecoveryRequestMade>(allowed.Error);
+
+        return await cloud.CreateRecoveryRequestAsync(command.BackupId, command.Label, command.LicenseId, cancellationToken);
+    }
+}
+
+public sealed record DownloadWithRestoreKeyCommand(string? RestoreKey);
+
+public sealed class DownloadWithRestoreKeyCommandHandler(CloudBackupService cloud, IAuthorizationService authorization)
+{
+    public async Task<Result<DownloadedBackup>> HandleAsync(DownloadWithRestoreKeyCommand command, CancellationToken cancellationToken = default)
+    {
+        var allowed = await authorization.AuthorizeAsync(CloudBackupCapabilities.Restore, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<DownloadedBackup>(allowed.Error);
+
+        return await cloud.DownloadWithRestoreKeyAsync(command.RestoreKey, cancellationToken);
+    }
+}
+
+/// <summary>The restore opened with the vendor's restore key was confirmed (Confirmed = true) or called off before the restart (false).</summary>
+public sealed record VendorRestoreDecidedCommand(Guid BackupId, bool Confirmed);
+
+public sealed class VendorRestoreDecidedCommandHandler(CloudBackupService cloud, IAuthorizationService authorization)
+{
+    public async Task<Result> HandleAsync(VendorRestoreDecidedCommand command, CancellationToken cancellationToken = default)
+    {
+        var allowed = await authorization.AuthorizeAsync(CloudBackupCapabilities.Restore, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+
+        if (command.Confirmed) await cloud.VendorRestoreConfirmedAsync(command.BackupId, cancellationToken);
+        else await cloud.VendorRestoreCancelledAsync(command.BackupId, cancellationToken);
+        return Result.Success();
+    }
+}

@@ -8,7 +8,7 @@
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:CloudBackupViewModel}">
 
-    <!-- CLOUD BACKUP SCREEN (MISS-04e3). DataContext: CloudBackupViewModel. Texts: Resources/CloudBackupText.resx (+ BackupText for the restore). -->
+    <!-- CLOUD BACKUP SCREEN (MISS-04e3; vendor recovery MISS-04f). DataContext: CloudBackupViewModel. Texts: Resources/CloudBackupText.resx (+ BackupText for the restore). -->
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
         <Style TargetType="TextBlock">
@@ -58,6 +58,10 @@
         <StackPanel MaxWidth="980" HorizontalAlignment="Left">
             <!-- setting up (backup.cloud.manage) -->
             <StackPanel Visibility="{Binding CanManage, Converter={StaticResource VisibleWhenTrue}}">
+                <!-- MISS-04f: after a restore with the vendor's restore key, a new recovery code is asked for -->
+                <Border Style="{StaticResource Question}" Margin="0,0,0,12" Visibility="{Binding NeedsNewCode, Converter={StaticResource VisibleWhenTrue}}">
+                    <TextBlock x:Name="NewCodeNeededText" Text="{x:Static res:CloudBackupText.NewCodeNeeded}" Foreground="#F9E2AF" FontWeight="SemiBold"/>
+                </Border>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -140,6 +144,34 @@
                 <WrapPanel Margin="0,8,0,0">
                     <Button x:Name="RefreshCloudButton" Content="{x:Static res:CloudBackupText.Refresh}" Command="{Binding RefreshCloudCommand}"/>
                     <Button x:Name="RestoreCloudButton" Content="{x:Static res:CloudBackupText.Restore}" Command="{Binding RestoreCommand}"/>
+                    <Button x:Name="AskVendorButton" Content="{x:Static res:CloudBackupText.AskVendor}" Command="{Binding AskVendorCommand}"
+                            Visibility="{Binding IsCodeNeeded, Converter={StaticResource VisibleWhenTrue}}"/>
+                </WrapPanel>
+
+                <!-- MISS-04f: the recovery request to send to the vendor (no business data) -->
+                <Border Style="{StaticResource Question}" Visibility="{Binding IsRecoveryRequestShown, Converter={StaticResource VisibleWhenTrue}}">
+                    <StackPanel>
+                        <TextBlock Text="{x:Static res:CloudBackupText.RequestExplanation}"/>
+                        <TextBox x:Name="RecoveryRequestBox" Text="{Binding RecoveryRequestText, Mode=OneWay}" IsReadOnly="True" FlowDirection="LeftToRight"
+                                 FontFamily="Consolas" Height="220" Margin="0,8,0,8" TextWrapping="NoWrap" VerticalContentAlignment="Top"
+                                 HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                 AutomationProperties.Name="{x:Static res:CloudBackupText.RequestHeading}"/>
+                        <WrapPanel>
+                            <Button x:Name="CopyRequestButton" Content="{x:Static res:CloudBackupText.CopyRequest}" Click="OnCopyRequest"/>
+                            <Button x:Name="SaveRequestButton" Content="{x:Static res:CloudBackupText.SaveRequest}" Click="OnSaveRequest"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- MISS-04f: the vendor's restore key, pasted here, opens that one backup on this computer -->
+                <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:CloudBackupText.RestoreKeyHeading}"/>
+                <TextBlock Text="{x:Static res:CloudBackupText.RestoreKeyHint}" Foreground="#6C7086" FontSize="11" Margin="0,0,0,6"/>
+                <TextBox x:Name="RestoreKeyBox" Text="{Binding RestoreKeyInput, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight" FontFamily="Consolas"
+                         AcceptsReturn="True" Height="120" TextWrapping="NoWrap" VerticalContentAlignment="Top"
+                         HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                         AutomationProperties.Name="{x:Static res:CloudBackupText.RestoreKeyHeading}"/>
+                <WrapPanel Margin="0,8,0,0">
+                    <Button x:Name="UseRestoreKeyButton" Content="{x:Static res:CloudBackupText.UseRestoreKey}" Command="{Binding UseRestoreKeyCommand}"/>
                 </WrapPanel>
 
                 <!-- the same question, confirmation and restart as on the Backup screen -->

@@ -142,6 +142,7 @@ public static class CloudInfrastructureExtensions
         services.AddSingleton<ModuleRegistryService>();
         services.AddSingleton<PackageAdminService>();
         services.AddSingleton<AdminOperationsService>();
+        services.AddSingleton<EscrowRecoveryAdminService>();
         return services;
     }
 

@@ -16,6 +16,7 @@ namespace CloudBackup.Infrastructure;
 ///   outbox\        encrypted copies waiting for upload (*.gpbak) and outbox.json (what each one is, retries)
 ///   status.json    the last upload, failure or reason for not copying
 ///   downloads\     a cloud backup being restored (decrypted only for that moment; emptied at every start)
+///   requests\      recovery requests made for the vendor (MISS-04f): each with its one-time private key, protected; removed once used
 /// </summary>
 public sealed class CloudBackupWorkspace(string root)
 {
@@ -26,6 +27,7 @@ public sealed class CloudBackupWorkspace(string root)
     public string OutboxIndexPath => Path.Combine(OutboxDirectory, "outbox.json");
     public string StatusPath => Path.Combine(Root, "status.json");
     public string DownloadDirectory => Path.Combine(Root, "downloads");
+    public string RequestDirectory => Path.Combine(Root, "requests");
 }
 
 internal static class CloudJson
@@ -167,6 +169,78 @@ public sealed class JsonCloudStatusStore(CloudBackupWorkspace workspace, ILogger
     {
         CloudJson.WriteAtomically(workspace.StatusPath, JsonSerializer.SerializeToUtf8Bytes(status, CloudJson.Options));
         return Task.CompletedTask;
+    }
+}
+
+/// <summary>
+/// Recovery requests (MISS-04f), one file per backup (requests\&lt;backup id&gt;.bin), protected for this Windows user like the key ring. The
+/// private half of the one-time key never exists in plain text on disk; without a protector nothing is stored (no request can be made).
+/// </summary>
+public sealed class ProtectedRecoveryRequestStore(CloudBackupWorkspace workspace, ILogger<ProtectedRecoveryRequestStore> logger, ISecretProtector? protector = null)
+    : IRecoveryRequestStore
+{
+    private const string Purpose = "GenericPOS.CloudBackup.RecoveryRequest.v1";
+
+    private sealed record Stored(RecoveryRequest Request, string PrivateKey, DateTimeOffset? UsedAt);
+
+    public Task<IReadOnlyList<StoredRecoveryRequest>> ListAsync(CancellationToken cancellationToken = default)
+    {
+        if (protector is null || !Directory.Exists(workspace.RequestDirectory))
+            return Task.FromResult<IReadOnlyList<StoredRecoveryRequest>>([]);
+        return Task.FromResult<IReadOnlyList<StoredRecoveryRequest>>(Directory.EnumerateFiles(workspace.RequestDirectory, "*.bin").Select(Read).OfType<StoredRecoveryRequest>().ToList());
+    }
+
+    public Task<StoredRecoveryRequest?> FindAsync(Guid backupId, CancellationToken cancellationToken = default)
+        => Task.FromResult(protector is null ? null : Read(PathOf(backupId)));
+
+    public Task SaveAsync(StoredRecoveryRequest request, CancellationToken cancellationToken = default)
+    {
+        if (protector is null) throw new InvalidOperationException("No secret protector: a recovery request cannot be stored.");
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(new Stored(request.Request, Convert.ToBase64String(request.PrivateKey), request.UsedAt), CloudJson.Options);
+        try
+        {
+            CloudJson.WriteAtomically(PathOf(request.Request.BackupId), protector.Protect(bytes, Purpose));
+        }
+        finally
+        {
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(bytes);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(Guid backupId, CancellationToken cancellationToken = default)
+    {
+        var path = PathOf(backupId);
+        if (File.Exists(path)) File.Delete(path);
+        return Task.CompletedTask;
+    }
+
+    private string PathOf(Guid backupId) => Path.Combine(workspace.RequestDirectory, backupId.ToString("N") + ".bin");
+
+    private StoredRecoveryRequest? Read(string path)
+    {
+        if (!File.Exists(path)) return null;
+        if (!protector!.TryUnprotect(File.ReadAllBytes(path), Purpose, out var plain))
+        {
+            logger.LogError("The recovery request {Path} cannot be opened on this computer or by this Windows user; ask the vendor again from this computer.", path);
+            return null;
+        }
+
+        try
+        {
+            var stored = JsonSerializer.Deserialize<Stored>(plain, CloudJson.Options);
+            return stored?.Request is null ? null : new StoredRecoveryRequest(stored.Request, Convert.FromBase64String(stored.PrivateKey), stored.UsedAt);
+        }
+        catch (Exception ex) when (ex is JsonException or FormatException)
+        {
+            logger.LogError(ex, "The recovery request {Path} cannot be read.", path);
+            return null;
+        }
+        finally
+        {
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(plain);
+        }
     }
 }
 

@@ -98,6 +98,11 @@ public static class POSServicesExtensions
 
         services.AddTransient<PrintReceiptCommandHandler>();
         services.AddTransient<OpenCashDrawerCommandHandler>();
+        // MISS-07b: the Devices screen (the platform's IDeviceSetup is optional: without it the handlers say so plainly)
+        services.AddTransient<GetDeviceSetupQueryHandler>();
+        services.AddTransient<CheckDevicesCommandHandler>();
+        services.AddTransient<TestDeviceCommandHandler>();
+        services.AddTransient<SaveDeviceSettingsCommandHandler>();
         services.AddTransient<PrintProductLabelCommandHandler>();
         services.AddTransient<ReadWeightQueryHandler>();
         services.AddTransient<GetDeviceStatusQueryHandler>();

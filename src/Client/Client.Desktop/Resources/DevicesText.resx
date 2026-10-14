@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ScreenTitle" xml:space="preserve">
+    <value>Devices</value>
+  </data>
+  <data name="Explanation" xml:space="preserve">
+    <value>Choose how this computer reaches its receipt printer, cash drawer, barcode scanner and label printer. The test buttons use the settings as entered here; saved settings are used after the application restarts.</value>
+  </data>
+  <data name="NoWindowsPrinters" xml:space="preserve">
+    <value>No printer is installed in Windows. To use a USB printer, install its driver first (Settings &gt; Printers &amp; scanners).</value>
+  </data>
+  <data name="ReceiptPrinter" xml:space="preserve">
+    <value>Receipt printer</value>
+  </data>
+  <data name="CashDrawer" xml:space="preserve">
+    <value>Cash drawer</value>
+  </data>
+  <data name="Scanner" xml:space="preserve">
+    <value>Barcode scanner</value>
+  </data>
+  <data name="LabelPrinter" xml:space="preserve">
+    <value>Label printer</value>
+  </data>
+  <data name="Connection" xml:space="preserve">
+    <value>Connection</value>
+  </data>
+  <data name="KindNone" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="KindWindows" xml:space="preserve">
+    <value>Printer installed in Windows (USB)</value>
+  </data>
+  <data name="KindNetwork" xml:space="preserve">
+    <value>Network printer</value>
+  </data>
+  <data name="DrawerViaPrinter" xml:space="preserve">
+    <value>Connected to the receipt printer</value>
+  </data>
+  <data name="ScannerKeyboard" xml:space="preserve">
+    <value>USB scanner in keyboard mode</value>
+  </data>
+  <data name="PrinterName" xml:space="preserve">
+    <value>Windows printer</value>
+  </data>
+  <data name="Host" xml:space="preserve">
+    <value>Network address</value>
+  </data>
+  <data name="Port" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="CharactersPerLine" xml:space="preserve">
+    <value>Characters per line</value>
+  </data>
+  <data name="CutPaper" xml:space="preserve">
+    <value>Cut the paper after each receipt</value>
+  </data>
+  <data name="DrawerPin" xml:space="preserve">
+    <value>Drawer connector</value>
+  </data>
+  <data name="PinTwo" xml:space="preserve">
+    <value>Pin 2 (most drawers)</value>
+  </data>
+  <data name="PinFive" xml:space="preserve">
+    <value>Pin 5</value>
+  </data>
+  <data name="Check" xml:space="preserve">
+    <value>Check the devices</value>
+  </data>
+  <data name="TestReceipt" xml:space="preserve">
+    <value>Print a test receipt</value>
+  </data>
+  <data name="OpenDrawer" xml:space="preserve">
+    <value>Open the drawer</value>
+  </data>
+  <data name="TestLabel" xml:space="preserve">
+    <value>Print a test label</value>
+  </data>
+  <data name="Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="RestartNow" xml:space="preserve">
+    <value>Restart now</value>
+  </data>
+  <data name="StateReady" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="StateNotUsed" xml:space="preserve">
+    <value>Not used</value>
+  </data>
+  <data name="StateNotReady" xml:space="preserve">
+    <value>Not ready: {0}</value>
+  </data>
+  <data name="ScanHint" xml:space="preserve">
+    <value>Scanner test: click outside the text boxes and scan any barcode. This uses the scanner settings in use now.</value>
+  </data>
+  <data name="ScanNone" xml:space="preserve">
+    <value>Nothing scanned yet.</value>
+  </data>
+  <data name="ScanRead" xml:space="preserve">
+    <value>Read {0} ({1} characters) at {2}.</value>
+  </data>
+  <data name="TestReceiptDone" xml:space="preserve">
+    <value>The test receipt was sent to the printer.</value>
+  </data>
+  <data name="DrawerOpened" xml:space="preserve">
+    <value>The drawer was told to open.</value>
+  </data>
+  <data name="TestLabelDone" xml:space="preserve">
+    <value>The test label was sent to the printer.</value>
+  </data>
+  <data name="Saved" xml:space="preserve">
+    <value>Saved. The new settings are used after the application restarts.</value>
+  </data>
+  <data name="SavedNoChange" xml:space="preserve">
+    <value>Saved. The devices in use are already set up this way.</value>
+  </data>
+  <data name="KindConfigured" xml:space="preserve">
+    <value>Set in the configuration (kept as it is)</value>
+  </data>
+</root>

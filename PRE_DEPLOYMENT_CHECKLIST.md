@@ -198,7 +198,8 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Choose the supported printer, scanner, cash drawer (and scale if needed): ESC/POS receipt printers by USB (Windows driver) or network, the drawer through the printer, keyboard-mode scanners, ZPL label printers; no scale for now
   - [x] Windows spooler / driver printing adapter if the chosen printer needs it: **MISS-07a** (2026-10-14) `EscPosWindows` / `ZplWindows` - RAW jobs through the Windows print queue, refused in plain words when the queue is offline, out of paper, jammed, open or paused
   - [x] Serial/USB transports if needed: USB through the Windows driver (07a); serial not needed (user decision)
-  - [ ] **MISS-07b** Devices screen (choose the printer, test receipt, open the drawer, scanner test)
+  - [x] **MISS-07b** Devices screen (2026-10-14): Administration > Devices - choose the printer from the Windows list or a network address, test receipt, open the drawer, test label, scanner test; settings kept in `local-settings.json` next to the database, applied after "Restart now"
+  - [ ] **MISS-07c** Device check for the user (with the failure campaign below)
   - [ ] Device failure campaign (unplug during a sale, paper out, etc.)
 
 ---
@@ -273,4 +274,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-12 | MISS-04f | 22d3c4e | Decisions 9-11; vendor escrow recovery (request, AdminPortal approval, offline tool, restore key bound to the PC, new code asked for); MISS-04 complete; 2814 tests, 0 warnings; real exe end to end: PC A backs up, PC B recovers through the vendor |
 | 2026-10-14 | MISS-05 | b178622 | Decisions recorded; log file next to the database (masked), crash reports, Administration > Support with the support file; 2845 tests, 0 warnings; real exe: failed start reported, notice, Support screen, support file saved |
 | 2026-10-14 | MISS-06 | 732dcb4 | Decisions recorded; soak test (2,100 sales reconciled, p95 89 ms after the drawer fix) and UI-automated workflow on the real executable; defects fixed: drawer shift read in full per cash sale, receipts in UTC; 2853 tests + 2 opt-in, 0 warnings |
-| 2026-10-14 | MISS-07a | (this commit) | Decisions recorded; printers installed in Windows (RAW print queue, queue state in plain words); 2875 tests + 3 opt-in, 0 warnings |
+| 2026-10-14 | MISS-07a | 8c416b5 | Decisions recorded; printers installed in Windows (RAW print queue, queue state in plain words); 2875 tests + 3 opt-in, 0 warnings |
+| 2026-10-14 | MISS-07b | (this commit) | Devices screen (POS-owned, device-neutral platform setup, installation-local settings); 2893 tests + 3 opt-in, 0 warnings; real exe: Windows list, network refusal, scanner test, save + restart |

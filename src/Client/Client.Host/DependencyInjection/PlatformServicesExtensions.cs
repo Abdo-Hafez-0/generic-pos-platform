@@ -41,6 +41,9 @@ public static class PlatformServicesExtensions
         // Stage 11: session, capability catalog, authorization and security events (module-neutral).
         services.AddPlatformSecurity();
 
+        // MISS-07b: the installation-local settings file (next to the database), for choices made on this installation's screens.
+        services.AddSingleton(Configuration.LocalSettingsFile.For(configuration));
+
         // Register the database initialization hosted service.
         // This runs during IHost.StartAsync() before the WPF window is shown.
         services.AddHostedService<DatabaseInitializerService>();

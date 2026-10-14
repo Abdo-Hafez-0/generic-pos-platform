@@ -106,6 +106,12 @@
                       StronglyTypedNamespace="Client.Desktop.Resources"
                       StronglyTypedFileName="$(IntermediateOutputPath)CloudBackupText.Designer.cs"
                       PublicClass="true" />
+    <EmbeddedResource Update="Resources\DevicesText.resx"
+                      StronglyTypedLanguage="CSharp"
+                      StronglyTypedClassName="DevicesText"
+                      StronglyTypedNamespace="Client.Desktop.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)DevicesText.Designer.cs"
+                      PublicClass="true" />
     <EmbeddedResource Update="Resources\SupportText.resx"
                       StronglyTypedLanguage="CSharp"
                       StronglyTypedClassName="SupportText"

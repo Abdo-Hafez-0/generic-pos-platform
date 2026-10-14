@@ -18,8 +18,10 @@ public sealed class AbstractionTests
             .ToList();
 
         Assert.Equivalent(Devices, interfaces.Where(t => typeof(IHardwareDevice).IsAssignableFrom(t)).ToList());
-        // FIX-13a: the only other interface is the receipt picture renderer, a helper of the receipt printer (not a device)
-        Assert.Equal([typeof(IReceiptImageRenderer)], interfaces.Where(t => !typeof(IHardwareDevice).IsAssignableFrom(t)).ToArray());
+        // FIX-13a: the receipt picture renderer, a helper of the receipt printer (not a device);
+        // MISS-07b: device setup (choose and test the devices; implemented by the adapters, authorized by POS) - not a device either
+        Assert.Equal([nameof(IDeviceSetup), nameof(IReceiptImageRenderer)],
+            interfaces.Where(t => !typeof(IHardwareDevice).IsAssignableFrom(t)).Select(t => t.Name).Order(StringComparer.Ordinal));
     }
 
     [Fact]

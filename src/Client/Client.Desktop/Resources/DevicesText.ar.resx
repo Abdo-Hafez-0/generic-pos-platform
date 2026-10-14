@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ScreenTitle" xml:space="preserve">
+    <value>الأجهزة</value>
+  </data>
+  <data name="Explanation" xml:space="preserve">
+    <value>اختر كيف يصل هذا الحاسوب إلى طابعة الإيصالات ودرج النقود وقارئ الباركود وطابعة الملصقات. تستخدم أزرار الاختبار الإعدادات كما أُدخلت هنا؛ وتُستخدم الإعدادات المحفوظة بعد إعادة تشغيل التطبيق.</value>
+  </data>
+  <data name="NoWindowsPrinters" xml:space="preserve">
+    <value>لا توجد طابعة مثبتة في Windows. لاستخدام طابعة USB، ثبّت برنامج تشغيلها أولًا (الإعدادات &gt; الطابعات والماسحات الضوئية).</value>
+  </data>
+  <data name="ReceiptPrinter" xml:space="preserve">
+    <value>طابعة الإيصالات</value>
+  </data>
+  <data name="CashDrawer" xml:space="preserve">
+    <value>درج النقود</value>
+  </data>
+  <data name="Scanner" xml:space="preserve">
+    <value>قارئ الباركود</value>
+  </data>
+  <data name="LabelPrinter" xml:space="preserve">
+    <value>طابعة الملصقات</value>
+  </data>
+  <data name="Connection" xml:space="preserve">
+    <value>الاتصال</value>
+  </data>
+  <data name="KindNone" xml:space="preserve">
+    <value>لا يوجد</value>
+  </data>
+  <data name="KindWindows" xml:space="preserve">
+    <value>طابعة مثبتة في Windows ‏(USB)</value>
+  </data>
+  <data name="KindNetwork" xml:space="preserve">
+    <value>طابعة شبكة</value>
+  </data>
+  <data name="DrawerViaPrinter" xml:space="preserve">
+    <value>متصل بطابعة الإيصالات</value>
+  </data>
+  <data name="ScannerKeyboard" xml:space="preserve">
+    <value>قارئ USB في وضع لوحة المفاتيح</value>
+  </data>
+  <data name="PrinterName" xml:space="preserve">
+    <value>طابعة Windows</value>
+  </data>
+  <data name="Host" xml:space="preserve">
+    <value>عنوان الشبكة</value>
+  </data>
+  <data name="Port" xml:space="preserve">
+    <value>المنفذ</value>
+  </data>
+  <data name="CharactersPerLine" xml:space="preserve">
+    <value>عدد الأحرف في السطر</value>
+  </data>
+  <data name="CutPaper" xml:space="preserve">
+    <value>قص الورق بعد كل إيصال</value>
+  </data>
+  <data name="DrawerPin" xml:space="preserve">
+    <value>موصل الدرج</value>
+  </data>
+  <data name="PinTwo" xml:space="preserve">
+    <value>السن 2 (معظم الأدراج)</value>
+  </data>
+  <data name="PinFive" xml:space="preserve">
+    <value>السن 5</value>
+  </data>
+  <data name="Check" xml:space="preserve">
+    <value>فحص الأجهزة</value>
+  </data>
+  <data name="TestReceipt" xml:space="preserve">
+    <value>طباعة إيصال تجريبي</value>
+  </data>
+  <data name="OpenDrawer" xml:space="preserve">
+    <value>فتح الدرج</value>
+  </data>
+  <data name="TestLabel" xml:space="preserve">
+    <value>طباعة ملصق تجريبي</value>
+  </data>
+  <data name="Save" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
+  <data name="RestartNow" xml:space="preserve">
+    <value>إعادة التشغيل الآن</value>
+  </data>
+  <data name="StateReady" xml:space="preserve">
+    <value>جاهز</value>
+  </data>
+  <data name="StateNotUsed" xml:space="preserve">
+    <value>غير مستخدم</value>
+  </data>
+  <data name="StateNotReady" xml:space="preserve">
+    <value>غير جاهز: {0}</value>
+  </data>
+  <data name="ScanHint" xml:space="preserve">
+    <value>اختبار القارئ: انقر خارج مربعات النص وامسح أي باركود. يستخدم هذا إعدادات القارئ المستخدمة حاليًا.</value>
+  </data>
+  <data name="ScanNone" xml:space="preserve">
+    <value>لم يُمسح شيء بعد.</value>
+  </data>
+  <data name="ScanRead" xml:space="preserve">
+    <value>تمت قراءة {0} ‏({1} حرفًا) في {2}.</value>
+  </data>
+  <data name="TestReceiptDone" xml:space="preserve">
+    <value>أُرسل الإيصال التجريبي إلى الطابعة.</value>
+  </data>
+  <data name="DrawerOpened" xml:space="preserve">
+    <value>أُرسل أمر فتح الدرج.</value>
+  </data>
+  <data name="TestLabelDone" xml:space="preserve">
+    <value>أُرسل الملصق التجريبي إلى الطابعة.</value>
+  </data>
+  <data name="Saved" xml:space="preserve">
+    <value>تم الحفظ. تُستخدم الإعدادات الجديدة بعد إعادة تشغيل التطبيق.</value>
+  </data>
+  <data name="SavedNoChange" xml:space="preserve">
+    <value>تم الحفظ. الأجهزة المستخدمة معدّة بهذا الشكل بالفعل.</value>
+  </data>
+  <data name="KindConfigured" xml:space="preserve">
+    <value>محدد في الإعدادات (يبقى كما هو)</value>
+  </data>
+</root>

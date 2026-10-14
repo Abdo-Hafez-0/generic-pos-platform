@@ -4,6 +4,7 @@ using Client.Desktop.Screens.Backup;
 using Client.Desktop.Screens.CloudBackup;
 using CloudBackup.Application;
 using Client.Desktop.Screens.Licensing;
+using Client.Desktop.Screens.Devices;
 using Client.Desktop.Screens.Support;
 using Client.Diagnostics.Support;
 using Client.Licensing.Application;
@@ -17,6 +18,7 @@ namespace Client.Desktop.Screens;
 /// (MISS-04d) needs backup.create and no license either: a shop can always back up and restore its own data (rule 10). The cloud backup
 /// screen (MISS-04e3) opens with backup.cloud.restore, which needs no license either; setting cloud backup up inside it needs the license.
 /// The support screen (MISS-05) needs support.export and no license: a shop with a problem can always send its logs.
+/// The devices screen (MISS-07b) needs devices.manage and no license: a shop can always set up and test its printer and drawer.
 /// </summary>
 public sealed class DesktopScreens : IScreenProvider
 {
@@ -49,6 +51,15 @@ public sealed class DesktopScreens : IScreenProvider
             ViewModelType: typeof(CloudBackupViewModel),
             RequiredCapability: CloudBackupCapabilities.Restore,
             Order: 81),
+        new ScreenDescriptor(
+            Id: "devices.devices",
+            Module: POS.Application.Security.POSCapabilities.Module,
+            Group: ScreenGroups.Administration,
+            Title: () => DevicesText.ScreenTitle,
+            ViewType: typeof(DevicesView),
+            ViewModelType: typeof(DevicesViewModel),
+            RequiredCapability: POS.Application.Security.POSCapabilities.ManageDevices,
+            Order: 85),
         new ScreenDescriptor(
             Id: "support.support",
             Module: SupportCapabilities.Module,

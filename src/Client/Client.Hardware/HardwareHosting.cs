@@ -1,11 +1,14 @@
 using Client.Hardware.Configuration;
 using Client.Hardware.Scanner;
+using Client.Hardware.Setup;
+using Client.Hardware.Transport;
 using Client.Host.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Client.Host.Configuration;
 using Platform.Application.Abstractions.Hardware;
 
 namespace Client.Hardware;
@@ -32,6 +35,11 @@ public static class HardwareServiceCollectionExtensions
         configuration.GetSection(HardwareOptions.SectionName).Bind(options);
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton(options);
+
+        // MISS-07b: choosing and testing devices (the choices go to the installation's local settings file, read at the next start;
+        // the "Hardware" section of the configuration already includes them)
+        services.AddSingleton<IDeviceSetup>(sp => new DeviceSetupAdapter(options, sp.GetService<LocalSettingsFile>(), WindowsPrinters.Installed, Logger(sp),
+            sp.GetService<IReceiptImageRenderer>()));
 
         services.AddSingleton<IBarcodeScanner>(sp => HardwareFactory.CreateScanner(options.Scanner, sp.GetRequiredService<TimeProvider>(), Logger(sp)));
         // FIX-13a: the desktop registers an IReceiptImageRenderer (fonts); without one, receipts are ASCII text as before

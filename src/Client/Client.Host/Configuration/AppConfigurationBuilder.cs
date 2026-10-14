@@ -8,8 +8,9 @@ namespace Client.Host.Configuration;
 ///
 /// Configuration priority (highest to lowest):
 ///   1. Environment variables (for dev/CI overrides)
-///   2. appsettings.{Environment}.json  (e.g., appsettings.Development.json)
-///   3. appsettings.json  (base configuration, committed to source control)
+///   2. local-settings.json next to the database (MISS-07b: choices made on this installation's screens, e.g. the devices)
+///   3. appsettings.{Environment}.json  (e.g., appsettings.Development.json)
+///   4. appsettings.json  (base configuration, committed to source control)
 ///
 /// Design notes:
 /// - Business module configuration is NOT set up here.
@@ -29,5 +30,13 @@ internal static class AppConfigurationBuilder
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
             .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true, reloadOnChange: false)
             .AddEnvironmentVariables(prefix: "GENERICPOS_");
+
+        // The local settings file sits next to the database, which the configuration so far locates; it goes BEFORE the environment
+        // variables so that an override set by a technician still wins.
+        var local = LocalSettingsFile.For(config.Build());
+        var environment = config.Sources[^1];
+        config.Sources.RemoveAt(config.Sources.Count - 1);
+        config.AddJsonFile(local.Path, optional: true, reloadOnChange: false);
+        config.Sources.Add(environment);
     }
 }

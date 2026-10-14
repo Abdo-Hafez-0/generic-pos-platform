@@ -15,12 +15,21 @@ internal sealed class POSDevices(
     PrintProductLabelCommandHandler printLabelHandler,
     ReadWeightQueryHandler readWeightHandler,
     GetDeviceStatusQueryHandler statusHandler,
+    GetRecentReceiptsQueryHandler recentReceiptsHandler,
     ILogger<POSDevices>? logger = null) : IPOSDevices
 {
     private readonly ILogger _logger = logger ?? NullLogger<POSDevices>.Instance;
 
     public async Task<POSOperationResult> PrintReceiptAsync(Guid cartId, CancellationToken cancellationToken = default)
         => ToOperation("print receipt", await printReceiptHandler.HandleAsync(new PrintReceiptCommand(cartId), cancellationToken));
+
+    public async Task<POSRecentReceiptsResult> GetRecentReceiptsAsync(DateTime sinceUtc, CancellationToken cancellationToken = default)
+    {
+        var recent = await recentReceiptsHandler.HandleAsync(new GetRecentReceiptsQuery(sinceUtc), cancellationToken);
+        return recent.IsSuccess
+            ? new POSRecentReceiptsResult(true, recent.Value, null, null)
+            : new POSRecentReceiptsResult(false, [], recent.Error.Code, recent.Error.Description);
+    }
 
     public async Task<POSOperationResult> OpenCashDrawerAsync(CancellationToken cancellationToken = default)
         => ToOperation("open cash drawer", await openDrawerHandler.HandleAsync(cancellationToken));

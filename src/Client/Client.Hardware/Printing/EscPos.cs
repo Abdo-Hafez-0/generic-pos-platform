@@ -71,6 +71,7 @@ public static class EscPosReceiptFormatter
             foreach (var l in Wrap(header, width)) lines.Add(new ReceiptImageLine(l, Center: true));
 
         Rule();
+        if (receipt.IsCopy) lines.Add(new ReceiptImageLine("*** COPY ***", Bold: true, Center: true));   // MISS-07c: a reprint
         lines.Add(new ReceiptImageLine("Receipt", receipt.Reference));
         lines.Add(new ReceiptImageLine(receipt.IssuedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)));
         if (!string.IsNullOrWhiteSpace(receipt.Cashier)) lines.Add(new ReceiptImageLine("Cashier " + receipt.Cashier));

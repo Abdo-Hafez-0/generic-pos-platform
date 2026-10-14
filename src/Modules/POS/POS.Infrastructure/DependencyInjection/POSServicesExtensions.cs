@@ -97,6 +97,7 @@ public static class POSServicesExtensions
         services.AddTransient<GetSaleWarehousesQueryHandler>();
 
         services.AddTransient<PrintReceiptCommandHandler>();
+        services.AddTransient<GetRecentReceiptsQueryHandler>();   // MISS-07c
         services.AddTransient<OpenCashDrawerCommandHandler>();
         // MISS-07b: the Devices screen (the platform's IDeviceSetup is optional: without it the handlers say so plainly)
         services.AddTransient<GetDeviceSetupQueryHandler>();

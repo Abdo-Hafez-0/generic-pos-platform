@@ -464,6 +464,21 @@ public sealed class PosViewModelTests
         Assert.False(_vm.CartDiscountCommand.CanExecute(null));
     }
 
+    [Fact]
+    public async Task Without_the_permission_receipts_cannot_be_printed_again()
+    {
+        _till.Products["COLA-1"] = (Guid.NewGuid(), "Cola", 2.5m);
+        await OpenTillAsync();                    // no IAuthorizationService composed: nobody may reprint
+        _vm.ProductCode = "COLA-1";
+        await Run(_vm.AddCommand);
+        await Run(_vm.CheckoutCommand);
+
+        Assert.False(_vm.CanReprint);
+        Assert.True(_vm.HasLastSale);
+        Assert.False(_vm.ReprintLastCommand.CanExecute(null));
+        Assert.False(_vm.ShowRecentCommand.CanExecute(null));
+    }
+
 
 
     private async Task Eventually(Func<bool> condition)

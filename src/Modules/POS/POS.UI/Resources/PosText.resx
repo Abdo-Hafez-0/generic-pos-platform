@@ -216,4 +216,37 @@
   <data name="CustomerRemoved" xml:space="preserve">
     <value>The sale has no customer now.</value>
   </data>
+  <data name="ReprintLast" xml:space="preserve">
+    <value>Print the receipt again</value>
+  </data>
+  <data name="RecentSales" xml:space="preserve">
+    <value>Recent sales...</value>
+  </data>
+  <data name="RecentTitle" xml:space="preserve">
+    <value>Sales of today and yesterday at this till</value>
+  </data>
+  <data name="RecentNone" xml:space="preserve">
+    <value>No sale today or yesterday.</value>
+  </data>
+  <data name="RecentWhen" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="RecentReceipt" xml:space="preserve">
+    <value>Receipt</value>
+  </data>
+  <data name="RecentLines" xml:space="preserve">
+    <value>Lines</value>
+  </data>
+  <data name="RecentCashier" xml:space="preserve">
+    <value>Cashier</value>
+  </data>
+  <data name="ReprintSelected" xml:space="preserve">
+    <value>Print this receipt again</value>
+  </data>
+  <data name="CloseRecent" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="ReceiptReprinted" xml:space="preserve">
+    <value>A copy of the receipt was sent to the printer.</value>
+  </data>
 </root>

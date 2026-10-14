@@ -44,6 +44,17 @@ internal sealed class EfPosCartRepository(POSDbContext dbContext) : IPosCartRepo
         return carts.OrderByDescending(c => c.CreatedAt).FirstOrDefault();
     }
 
+    public async Task<IReadOnlyList<PosCart>> GetCheckedOutSinceAsync(DateTime sinceUtc, int max, CancellationToken cancellationToken = default)
+    {
+        // read-only (no tracking); ordered in memory like the lookups above
+        var carts = await dbContext.Carts.AsNoTracking()
+            .Include(c => c.Items)
+            .Where(c => c.Status == PosCartStatus.CheckedOut && c.CheckedOutAt >= sinceUtc)
+            .ToListAsync(cancellationToken);
+
+        return carts.OrderByDescending(c => c.CheckedOutAt).Take(max).ToList();
+    }
+
     public async Task AddAsync(PosCart cart, CancellationToken cancellationToken = default)
         => await dbContext.Carts.AddAsync(cart, cancellationToken);
 }

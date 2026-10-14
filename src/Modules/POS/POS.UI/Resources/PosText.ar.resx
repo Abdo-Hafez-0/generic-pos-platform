@@ -216,4 +216,37 @@
   <data name="CustomerRemoved" xml:space="preserve">
     <value>لم يعد للبيع عميل.</value>
   </data>
+  <data name="ReprintLast" xml:space="preserve">
+    <value>طباعة الإيصال مرة أخرى</value>
+  </data>
+  <data name="RecentSales" xml:space="preserve">
+    <value>المبيعات الأخيرة...</value>
+  </data>
+  <data name="RecentTitle" xml:space="preserve">
+    <value>مبيعات اليوم وأمس على نقطة البيع هذه</value>
+  </data>
+  <data name="RecentNone" xml:space="preserve">
+    <value>لا توجد مبيعات اليوم أو أمس.</value>
+  </data>
+  <data name="RecentWhen" xml:space="preserve">
+    <value>الوقت</value>
+  </data>
+  <data name="RecentReceipt" xml:space="preserve">
+    <value>الإيصال</value>
+  </data>
+  <data name="RecentLines" xml:space="preserve">
+    <value>البنود</value>
+  </data>
+  <data name="RecentCashier" xml:space="preserve">
+    <value>الكاشير</value>
+  </data>
+  <data name="ReprintSelected" xml:space="preserve">
+    <value>طباعة هذا الإيصال مرة أخرى</value>
+  </data>
+  <data name="CloseRecent" xml:space="preserve">
+    <value>إغلاق</value>
+  </data>
+  <data name="ReceiptReprinted" xml:space="preserve">
+    <value>أُرسلت نسخة من الإيصال إلى الطابعة.</value>
+  </data>
 </root>

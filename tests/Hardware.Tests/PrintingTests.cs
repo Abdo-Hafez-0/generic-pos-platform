@@ -130,6 +130,17 @@ public sealed class EscPosReceiptTests
     }
 
     [Fact]
+    public void AReprint_SaysItIsACopy_AndTheOriginalDoesNot()
+    {
+        // MISS-07c: the copy line comes right after the heading, before the items
+        var copy = Render(Receipt() with { IsCopy = true }, width: 32).Split('\n');
+
+        var line = Assert.Single(copy, l => l.Contains("*** COPY ***"));
+        Assert.True(Array.IndexOf(copy, line) < Array.FindIndex(copy, l => l.Contains("TOTAL")));
+        Assert.DoesNotContain("COPY", Render(Receipt(), width: 32));
+    }
+
+    [Fact]
     public void NoPaymentLines_WhenThePaymentIsUnknown()
     {
         var text = Render(Receipt());

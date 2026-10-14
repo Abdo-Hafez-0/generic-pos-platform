@@ -153,6 +153,31 @@ public sealed class NewShopWorkflowTests(ITestOutputHelper output) : IDisposable
             // the time on the shop's clock (not UTC: found by this test)
             var printed = DateTime.ParseExact(lines.Single(l => System.Text.RegularExpressions.Regex.IsMatch(l, @"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$")), "yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
             Assert.True(Math.Abs((DateTime.Now - printed).TotalMinutes) < 3, $"The receipt says {printed:HH:mm}; the PC's clock says {DateTime.Now:HH:mm}.");
+            Assert.DoesNotContain(lines, l => l.Contains("COPY"));
+
+            // ---- the receipt printed again (MISS-07c): the last sale, then the sale chosen from the recent sales; each a copy with its payment
+            IReadOnlyList<string> Reprinted(string button)
+            {
+                File.WriteAllBytes(receipt, []);   // the file printer writes from the start: empty it to read only the copy
+                Click(main, button);
+                Step("Reprint: " + WaitText(main, "PosStatusText", t => t.Contains("copy", StringComparison.OrdinalIgnoreCase), "the copy sent"));
+                var (copy, _) = EscPosReader.Read(Until(() => File.ReadAllBytes(receipt) is { Length: > 0 } b ? b : null, "the copy", TimeSpan.FromSeconds(15)));
+                Assert.Contains(copy, l => l.Trim() == "*** COPY ***");
+                Assert.Contains(copy, l => l.StartsWith("TOTAL", StringComparison.Ordinal) && l.TrimEnd().EndsWith("5.00", StringComparison.Ordinal));
+                Assert.Contains(copy, l => l.StartsWith("Tendered", StringComparison.Ordinal) && l.TrimEnd().EndsWith("10.00", StringComparison.Ordinal));
+                Assert.Contains(copy, l => l.StartsWith("Change", StringComparison.Ordinal) && l.TrimEnd().EndsWith("5.00", StringComparison.Ordinal));
+                return copy;
+            }
+
+            Reprinted("ReprintLastButton");
+            Click(main, "RecentSalesButton");
+            var recent = Until(() => Rows(main, "RecentGrid") is { Count: > 0 } r ? r : null, "the recent sales", TimeSpan.FromSeconds(15));
+            Step("Recent sales: " + string.Join(" | ", recent[0]));
+            Assert.Single(recent);
+            Assert.Contains(recent[0], c => c == Money(5m));
+            var chosen = Reprinted("ReprintSelectedButton");
+            Assert.Contains(chosen, l => l.Contains(recent[0][1]));   // the receipt reference shown in the list
+            Click(main, "HideRecentButton");
 
             // ---- the sale in Sales history, the stock reduced
             Open(main, "Sales history");

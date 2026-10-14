@@ -14,6 +14,9 @@ public interface IPOSDevices
     /// <summary>(Re)prints the receipt of a cart that has been checked out.</summary>
     Task<POSOperationResult> PrintReceiptAsync(Guid cartId, CancellationToken cancellationToken = default);
 
+    /// <summary>MISS-07c: the till's completed sales since a moment, newest first, to print a receipt again (pos.receipt.reprint).</summary>
+    Task<POSRecentReceiptsResult> GetRecentReceiptsAsync(DateTime sinceUtc, CancellationToken cancellationToken = default);
+
     /// <summary>Opens the cash drawer ("no sale").</summary>
     Task<POSOperationResult> OpenCashDrawerAsync(CancellationToken cancellationToken = default);
 

@@ -14,6 +14,9 @@ namespace POS.UI.ViewModels;
 /// <summary>A way of giving a discount, as the screen offers it (FIX-08c).</summary>
 public sealed record DiscountChoice(POSDiscountKind Kind, string Text);
 
+/// <summary>MISS-07c: one of the till's recent sales, with its texts for the list.</summary>
+public sealed record RecentReceiptRow(POSRecentReceipt Receipt, string WhenText, string TotalText);
+
 /// <summary>
 /// The cashier screen (FIX-01b): open or resume the signed-in user's till, add products by barcode/SKU, remove lines, check out, close the till.
 ///
@@ -54,6 +57,9 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     private string _customerSearch = string.Empty;
     private POSCustomerResult? _foundCustomer;
     private string? _customerText;
+    private Guid? _lastCartId;
+    private bool _canReprint, _isRecentShown;
+    private RecentReceiptRow? _selectedRecent;
 
     public PosViewModel(IUiActionRunner runner, ICurrentUser currentUser, IPOSBarcodeInput? scanner = null)
     {
@@ -77,7 +83,39 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
         RemoveCustomerCommand = Command(() => SetCustomerAsync(null), () => _cartId.HasValue && HasCustomer);
         CheckoutCommand = Command(CheckoutAsync, () => CanCheckout);
         CloseSessionCommand = Command(CloseSessionAsync, () => HasOpenSession && Items.Count == 0);
+        // MISS-07c: a receipt printed again - the last sale, or one of today's and yesterday's (pos.receipt.reprint; the handler checks again)
+        ReprintLastCommand = Command(() => ReprintAsync(_lastCartId!.Value), () => CanReprint && _lastCartId.HasValue);
+        ShowRecentCommand = Command(ShowRecentAsync, () => CanReprint);
+        ReprintSelectedCommand = Command(() => ReprintAsync(SelectedRecent!.Receipt.CartId), () => CanReprint && SelectedRecent is not null);
+        HideRecentCommand = Command(() => { IsRecentShown = false; return Task.CompletedTask; }, () => IsRecentShown);
     }
+
+    public ICommand ReprintLastCommand { get; }
+    public ICommand ShowRecentCommand { get; }
+    public ICommand ReprintSelectedCommand { get; }
+    public ICommand HideRecentCommand { get; }
+
+    /// <summary>The signed-in person may print receipts again (pos.receipt.reprint).</summary>
+    public bool CanReprint { get => _canReprint; private set => Set(ref _canReprint, value); }
+
+    /// <summary>A sale was completed on this screen: its receipt can be printed again.</summary>
+    public bool HasLastSale => _lastCartId.HasValue;
+
+    /// <summary>This till's sales of today and yesterday, newest first (shown on request).</summary>
+    public ObservableCollection<RecentReceiptRow> RecentReceipts { get; } = [];
+
+    public RecentReceiptRow? SelectedRecent { get => _selectedRecent; set => Set(ref _selectedRecent, value); }
+
+    public bool IsRecentShown
+    {
+        get => _isRecentShown;
+        private set
+        {
+            if (Set(ref _isRecentShown, value)) Raise(nameof(HasNoRecent));
+        }
+    }
+
+    public bool HasNoRecent => IsRecentShown && RecentReceipts.Count == 0;
 
     public ObservableCollection<POSWarehouseResult> Warehouses { get; } = [];
 
@@ -256,6 +294,9 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
         var mayDiscount = await _runner.QueryAsync(async (scope, ct) =>
             scope.Find<IAuthorizationService>() is { } authorization && await authorization.IsAllowedAsync(POS.Application.Security.POSCapabilities.GiveDiscounts, ct), cancellationToken);
         CanGiveDiscounts = mayDiscount.IsSuccess && mayDiscount.Value;
+        var mayReprint = await _runner.QueryAsync(async (scope, ct) =>
+            scope.Find<IAuthorizationService>() is { } authorization && await authorization.IsAllowedAsync(POS.Application.Security.POSCapabilities.ReprintReceipt, ct), cancellationToken);
+        CanReprint = mayReprint.IsSuccess && mayReprint.Value;
 
         if (HasOpenSession)
         {
@@ -467,12 +508,51 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
 
         // The sale is complete whatever the peripherals did; tell the cashier what must be done by hand.
         HardwareMessage = sale.HardwareNotices is { Count: > 0 } notices ? string.Join(" ", notices.Select(n => n.Message)) : null;
+        _lastCartId = cartId;
+        Raise(nameof(HasLastSale));
         _cartId = nextCart?.CartId;
         ClearPayments();
         ShowCart(nextCart);
         StatusMessage = sale.ChangeDue > 0m
             ? string.Format(CultureInfo.CurrentCulture, PosText.SaleCompletedWithChange, total, sale.ChangeDue)
             : string.Format(CultureInfo.CurrentCulture, PosText.SaleCompleted, total);
+    }
+
+    // ---- receipts printed again (MISS-07c)
+
+    private async Task ReprintAsync(Guid cartId)
+    {
+        var printed = await _runner.QueryAsync((scope, ct) => scope.Get<IPOSDevices>().PrintReceiptAsync(cartId, ct));
+        if (!Accept(printed)) return;
+        if (!printed.Value.IsSuccess)
+        {
+            Fail(printed.Value.ErrorMessage);
+            return;
+        }
+
+        HardwareMessage = null;
+        StatusMessage = PosText.ReceiptReprinted;
+    }
+
+    private async Task ShowRecentAsync()
+    {
+        var since = DateTime.Today.AddDays(-1).ToUniversalTime();   // the start of yesterday on the shop's clock
+        var recent = await _runner.QueryAsync((scope, ct) => scope.Get<IPOSDevices>().GetRecentReceiptsAsync(since, ct));
+        if (!Accept(recent)) return;
+        if (!recent.Value.IsSuccess)
+        {
+            Fail(recent.Value.ErrorMessage);
+            return;
+        }
+
+        RecentReceipts.Clear();
+        foreach (var receipt in recent.Value.Receipts)
+            RecentReceipts.Add(new RecentReceiptRow(receipt,
+                DateTime.SpecifyKind(receipt.CheckedOutAtUtc, DateTimeKind.Utc).ToLocalTime().ToString("g", CultureInfo.CurrentCulture),
+                receipt.Total.ToString("N2", CultureInfo.CurrentCulture)));
+        SelectedRecent = RecentReceipts.FirstOrDefault();
+        IsRecentShown = true;
+        Raise(nameof(HasNoRecent));
     }
 
     private async Task CloseSessionAsync()

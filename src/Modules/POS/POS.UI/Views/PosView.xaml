@@ -170,6 +170,11 @@
                         Command="{Binding RemoveCommand}" CommandParameter="{Binding SelectedItem, ElementName=CartGrid}"/>
                 <Button x:Name="CheckoutButton" DockPanel.Dock="Right" Content="{x:Static res:PosText.Checkout}" MinWidth="120" Margin="16,0,0,0"
                         Command="{Binding CheckoutCommand}"/>
+                <!-- MISS-07c: receipts printed again -->
+                <Button x:Name="RecentSalesButton" DockPanel.Dock="Left" Content="{x:Static res:PosText.RecentSales}" Margin="8,0,0,0"
+                        Command="{Binding ShowRecentCommand}" Visibility="{Binding CanReprint, Converter={StaticResource VisibleWhenTrue}}"/>
+                <Button x:Name="ReprintLastButton" DockPanel.Dock="Left" Content="{x:Static res:PosText.ReprintLast}" Margin="8,0,0,0"
+                        Command="{Binding ReprintLastCommand}" Visibility="{Binding CanReprint, Converter={StaticResource VisibleWhenTrue}}"/>
                 <!-- FIX-08b: prices include tax; the tax contained in the total -->
                 <TextBlock x:Name="TaxIncludedText" DockPanel.Dock="Right" Text="{Binding TaxTotal, StringFormat=N2}" Foreground="#A6ADC8" Margin="6,0,0,0"/>
                 <TextBlock DockPanel.Dock="Right" Text="{x:Static res:PosText.TaxIncluded}" Foreground="#A6ADC8" Margin="12,0,0,0"/>
@@ -222,6 +227,38 @@
 
         <!-- What happened -->
         <StackPanel Grid.Row="3" Margin="0,8,0,0">
+            <!-- MISS-07c: today's and yesterday's sales of this till, to print a receipt again -->
+            <Border x:Name="RecentPanel" Background="#313244" Padding="10" Margin="0,0,0,8" Visibility="{Binding IsRecentShown, Converter={StaticResource VisibleWhenTrue}}">
+                <StackPanel>
+                    <TextBlock Text="{x:Static res:PosText.RecentTitle}" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="NoRecentText" Text="{x:Static res:PosText.RecentNone}" Visibility="{Binding HasNoRecent, Converter={StaticResource VisibleWhenTrue}}"/>
+                    <DataGrid x:Name="RecentGrid" ItemsSource="{Binding RecentReceipts}" SelectedItem="{Binding SelectedRecent}" AutoGenerateColumns="False" IsReadOnly="True"
+                              CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column" MaxHeight="180"
+                              Background="#181825" RowBackground="#1E1E2E" AlternatingRowBackground="#232336" Foreground="#CDD6F4"
+                              BorderBrush="#313244" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#313244" RowHeight="28"
+                              AutomationProperties.Name="{x:Static res:PosText.RecentTitle}">
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#313244"/>
+                                <Setter Property="Foreground" Value="#A6ADC8"/>
+                                <Setter Property="Padding" Value="8,4"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="{x:Static res:PosText.RecentWhen}" Binding="{Binding WhenText}" Width="170" ElementStyle="{StaticResource Cell}"/>
+                            <DataGridTextColumn Header="{x:Static res:PosText.RecentReceipt}" Binding="{Binding Receipt.Reference}" Width="120" ElementStyle="{StaticResource Cell}"/>
+                            <DataGridTextColumn Header="{x:Static res:PosText.RecentLines}" Binding="{Binding Receipt.Lines}" Width="70" ElementStyle="{StaticResource Number}"/>
+                            <DataGridTextColumn Header="{x:Static res:PosText.Total}" Binding="{Binding TotalText}" Width="100" ElementStyle="{StaticResource Number}"/>
+                            <DataGridTextColumn Header="{x:Static res:PosText.RecentCashier}" Binding="{Binding Receipt.Cashier}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <WrapPanel Margin="0,6,0,0">
+                        <Button x:Name="ReprintSelectedButton" Content="{x:Static res:PosText.ReprintSelected}" Command="{Binding ReprintSelectedCommand}"/>
+                        <Button x:Name="HideRecentButton" Content="{x:Static res:PosText.CloseRecent}" Margin="8,0,0,0" Command="{Binding HideRecentCommand}"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
             <TextBlock x:Name="PosStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" TextWrapping="Wrap"/>
             <TextBlock x:Name="PosErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap"/>
             <TextBlock x:Name="HardwareText" Text="{Binding HardwareMessage}" Foreground="#F9E2AF" TextWrapping="Wrap"/>

@@ -1,3 +1,6 @@
+using Payments.Contracts.Interfaces;
+using Payments.Contracts.Models;
+using Platform.Application.Abstractions.Auditing;
 using Platform.Application.Abstractions.Authorization;
 using Catalog.Contracts.Interfaces;
 using Platform.Application.Abstractions.Hardware;
@@ -100,13 +103,19 @@ public static class PosReceiptFactory
 
 public sealed record PrintReceiptCommand(Guid CartId, ReceiptPayment? Payment = null);
 
+/// <summary>
+/// Prints a completed sale's receipt AGAIN (MISS-07c: after a printer problem, or when asked): marked "COPY", with the payments as recorded
+/// (read back from Payments - cash tendered and change, split parts), and audited whether or not the printer took it.
+/// </summary>
 public sealed class PrintReceiptCommandHandler(
     IPosCartRepository cartRepository,
     IPosSessionRepository sessionRepository,
     PosReceiptOptions options,
     TimeProvider timeProvider,
     IAuthorizationService authorization,
-    IReceiptPrinter? printer = null)
+    IReceiptPrinter? printer = null,
+    IPaymentReader? payments = null,
+    IBusinessEventSink? events = null)
 {
     public async Task<Result> HandleAsync(PrintReceiptCommand command, CancellationToken cancellationToken = default)
     {
@@ -127,8 +136,52 @@ public sealed class PrintReceiptCommandHandler(
         if (printer is null)
             return HardwareErrors.NotConfigured("receipt printer");
 
-        var receipt = PosReceiptFactory.Create(cart, session, saleId, command.Payment, options, timeProvider.GetUtcNow(), timeProvider.LocalTimeZone);
-        return await HardwareGuard.RunAsync("receipt printer", () => printer.PrintAsync(receipt, cancellationToken));
+        var parts = await RecordedPaymentsAsync(saleId, cancellationToken);
+        var receipt = (parts.Count > 0
+                ? PosReceiptFactory.CreateWithPayments(cart, session, saleId, parts, options, timeProvider.GetUtcNow(), timeProvider.LocalTimeZone)
+                : PosReceiptFactory.Create(cart, session, saleId, command.Payment, options, timeProvider.GetUtcNow(), timeProvider.LocalTimeZone))
+            with { IsCopy = true };
+        var printed = await HardwareGuard.RunAsync("receipt printer", () => printer.PrintAsync(receipt, cancellationToken));
+
+        await events.TryRecordAsync(BusinessEvent.Create(POS.Application.Security.POSCapabilities.Module, "receipt.reprinted", "sale", saleId.ToString(),
+            printed.IsSuccess
+                ? $"A copy of receipt {receipt.Reference} ({cart.Total.Amount:0.00}) was printed."
+                : $"A copy of receipt {receipt.Reference} could not be printed: {printed.Error.Description}"));
+        return printed;
+    }
+
+    /// <summary>The sale's payments as recorded (voided ones left out), in the receipt's form; empty without the Payments module.</summary>
+    private async Task<IReadOnlyList<ReceiptPayment>> RecordedPaymentsAsync(Guid saleId, CancellationToken cancellationToken)
+    {
+        if (payments is null) return [];
+        var recorded = await payments.GetPaymentsForReferenceAsync("sale", saleId, cancellationToken);
+        return recorded.Where(p => p.Status == PaymentStatusContract.Recorded)
+            .OrderBy(p => p.RecordedAt)
+            .Select(p => PosReceiptFactory.ToReceiptPayment(new POSPaymentRequest((POSPaymentMethod)(int)p.Method, p.TenderedAmount, p.MethodDetail, p.Amount)))
+            .ToList();
+    }
+}
+
+/// <summary>MISS-07c: the till's completed sales since a moment, for "Print the receipt again" (needs pos.receipt.reprint).</summary>
+public sealed record GetRecentReceiptsQuery(DateTime SinceUtc);
+
+public sealed class GetRecentReceiptsQueryHandler(IPosCartRepository cartRepository, IPosSessionRepository sessionRepository, IAuthorizationService authorization)
+{
+    public const int MaxReceipts = 200;
+
+    public async Task<Result<IReadOnlyList<POSRecentReceipt>>> HandleAsync(GetRecentReceiptsQuery query, CancellationToken cancellationToken = default)
+    {
+        var allowed = await authorization.AuthorizeAsync(POS.Application.Security.POSCapabilities.ReprintReceipt, cancellationToken);
+        if (allowed.IsFailure) return Result.Failure<IReadOnlyList<POSRecentReceipt>>(allowed.Error);
+
+        var carts = await cartRepository.GetCheckedOutSinceAsync(query.SinceUtc, MaxReceipts, cancellationToken);
+        var cashiers = new Dictionary<PosSessionId, string>();
+        foreach (var sessionId in carts.Select(c => c.SessionId).Distinct())
+            cashiers[sessionId] = (await sessionRepository.GetByIdAsync(sessionId, cancellationToken))?.CashierReference ?? string.Empty;
+
+        return carts.Select(c => new POSRecentReceipt(c.Id.Value, c.SaleId!.Value, c.CheckedOutAt!.Value,
+                "S-" + c.SaleId.Value.ToString("N")[..8].ToUpperInvariant(), c.Total.Amount, c.Items.Count, cashiers[c.SessionId]))
+            .ToList();
     }
 }
 

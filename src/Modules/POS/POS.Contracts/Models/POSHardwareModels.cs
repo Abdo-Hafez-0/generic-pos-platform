@@ -12,6 +12,11 @@ public sealed record POSHardwareNotice(string Device, string ErrorCode, string M
 /// <summary>What happened to one scanned barcode when it was added to the bound cart.</summary>
 public sealed record POSScanOutcome(string Barcode, bool IsSuccess, Guid? ItemId, string? ErrorCode, string? ErrorMessage);
 
+/// <summary>MISS-07c: a completed sale of this till whose receipt can be printed again.</summary>
+public sealed record POSRecentReceipt(Guid CartId, Guid SaleId, DateTime CheckedOutAtUtc, string Reference, decimal Total, int Lines, string Cashier);
+
+public sealed record POSRecentReceiptsResult(bool IsSuccess, IReadOnlyList<POSRecentReceipt> Receipts, string? ErrorCode, string? ErrorMessage);
+
 /// <summary>A weight read from the scale, ready for the cashier.</summary>
 public sealed record POSWeightResult(
     bool IsSuccess, decimal Value, string Unit, bool IsStable, decimal Kilograms, string? ErrorCode, string? ErrorMessage)

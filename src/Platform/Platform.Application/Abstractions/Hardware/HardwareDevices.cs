@@ -52,7 +52,8 @@ public sealed record ReceiptDocument(
     ReceiptPayment? Payment,
     IReadOnlyList<string> FooterLines,
     IReadOnlyList<ReceiptTax>? Taxes = null,
-    IReadOnlyList<ReceiptPayment>? Payments = null)
+    IReadOnlyList<ReceiptPayment>? Payments = null,
+    bool IsCopy = false)   // MISS-07c: a reprint says so on the paper
 {
     /// <summary>Every payment to print (FIX-10: a split payment has several; a single one may come as <see cref="Payment"/>).</summary>
     public IReadOnlyList<ReceiptPayment> AllPayments => Payments is { Count: > 0 } several ? several : Payment is { } one ? [one] : [];

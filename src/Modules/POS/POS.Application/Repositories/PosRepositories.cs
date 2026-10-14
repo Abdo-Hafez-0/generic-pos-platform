@@ -20,5 +20,8 @@ public interface IPosCartRepository
     /// <summary>Returns the session's open cart (including items), or null.</summary>
     Task<PosCart?> GetOpenCartForSessionAsync(PosSessionId sessionId, CancellationToken cancellationToken = default);
 
+    /// <summary>MISS-07c: carts checked out since a moment (including items), newest first, at most <paramref name="max"/>.</summary>
+    Task<IReadOnlyList<PosCart>> GetCheckedOutSinceAsync(DateTime sinceUtc, int max, CancellationToken cancellationToken = default);
+
     Task AddAsync(PosCart cart, CancellationToken cancellationToken = default);
 }

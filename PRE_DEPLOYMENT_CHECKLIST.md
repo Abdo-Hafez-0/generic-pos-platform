@@ -208,7 +208,9 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 
 ## Part C - Stage 14: Packaging & Deployment
 
-- [ ] **PKG-01 Launcher**: starts the ACTIVE core version; ModuleHost loads modules from the updater's deployment directories (runtime adoption of updates, deferred since Stage 7)
+- [ ] **PKG-01 Launcher**: starts the ACTIVE core version; ModuleHost loads modules from the updater's deployment directories (runtime adoption of updates, deferred since Stage 7). Decisions (user 2026-10-14): an assembled folder (core + active modules laid over it), a small GenericPOS.exe replaced only by the installer, "Restart now" offered once an update is activated
+  - [x] **PKG-01a** The launcher GenericPOS.exe (2026-10-14): starts the installed application, an activated core, or an assembled folder; a module may replace only its own files; an update that never starts is held back after the application's chances
+  - [ ] **PKG-01b** The application side: restart through the launcher, "Restart now" for an activated update, a real module update end to end
 - [ ] **PKG-02 `IModuleMigrator`** implemented in the business modules (pre-activation migration really runs)
 - [ ] **PKG-03 Installer** (MSIX or WiX/Inno): install, upgrade, uninstall (uninstall never deletes business data - rule 10)
 - [ ] **PKG-04 Code signing**: Authenticode-signed binaries and installer
@@ -279,4 +281,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-14 | MISS-07a | 8c416b5 | Decisions recorded; printers installed in Windows (RAW print queue, queue state in plain words); 2875 tests + 3 opt-in, 0 warnings |
 | 2026-10-14 | MISS-07b | 8758d21 | Devices screen (POS-owned, device-neutral platform setup, installation-local settings); 2893 tests + 3 opt-in, 0 warnings; real exe: Windows list, network refusal, scanner test, save + restart |
 | 2026-10-14 | MISS-07c | a5c81d8 | Receipts printed again from the till (last sale + today's and yesterday's), a copy with the recorded payments, audited; 2900 tests + 3 opt-in, 0 warnings; real exe: end-to-end test decodes both copies |
-| 2026-10-14 | MISS-07d | (this commit) | Device check for the user (MISS-07_DEVICE_CHECK.md); receipt pictures follow the paper width (58 mm fix); 2901 tests + 3 opt-in, 0 warnings; real exe: paper choices and saved widths. MISS-07 open until the check is run on real devices |
+| 2026-10-14 | MISS-07d | ee7e849 | Device check for the user (MISS-07_DEVICE_CHECK.md); receipt pictures follow the paper width (58 mm fix); 2901 tests + 3 opt-in, 0 warnings; real exe: paper choices and saved widths. MISS-07 open until the check is run on real devices |
+| 2026-10-14 | PKG-01a | (this commit) | The launcher GenericPOS.exe (assembled folder, module file ownership, hold-back of updates that never start); 2923 tests + 3 opt-in, 0 warnings; real exe: installed and assembled starts |

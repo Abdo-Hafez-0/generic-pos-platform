@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    PKG-01: GenericPOS.exe - the small program the shortcut starts. It reads the updater's active versions and starts the right copy of
+    the application (the installed one, an activated core, or a folder assembled from the core and the activated modules). It is
+    replaced only by the installer, never by an update, so a bad update can never break the way back.
+    Deliberately stand-alone: no project of the solution and no package (ARCH-PKG-001); the on-disk update layout it reads is a contract
+    checked by tests against Client.Updater.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>GenericPOS</AssemblyName>
+    <RootNamespace>Client.Launcher</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Launcher.Tests" />
+  </ItemGroup>
+</Project>

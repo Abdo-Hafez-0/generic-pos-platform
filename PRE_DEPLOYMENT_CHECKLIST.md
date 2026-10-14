@@ -194,10 +194,11 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 - [x] **MISS-06 Testing** - done 2026-10-14. Decisions (user): opt-in C# end-to-end project on the real executable, shop set up through the screens, receipt decoded from an ESC/POS file; in-process soak (opt-in full run + smoke in the suite); fix the drawer slowdown now; no WAL for now; speed hard on trends, p50/p95 reported
   - [x] UI-automated business workflow (sign in -> scan -> sell -> receipt -> close shift) on the real executable: `tests/EndToEnd.Tests` (GENERICPOS_E2E=1) - first run, activation, catalog, stock, shift, two scans, cash with change, receipt checked, Sales history, stock, shift closed with no difference, clean exit; found receipts printed in UTC (fixed)
   - [x] Load / soak test (e.g. a full day of sales; many sales per minute): `SoakTests` - 1,500 sales + a 5-minute burst at 120 per minute (GENERICPOS_SOAK=1), 200-sale smoke in the suite; found cash sales slowing down as the drawer shift grows (fixed: the shift keeps its movement total, migration + unique index)
-- [ ] **MISS-07 Physical device verification** (Stage 10)
-  - [ ] Choose the supported printer, scanner, cash drawer (and scale if needed)
-  - [ ] Windows spooler / driver printing adapter if the chosen printer needs it
-  - [ ] Serial/USB transports if needed
+- [ ] **MISS-07 Physical device verification** (Stage 10). Decisions (user 2026-10-14): USB printers with the Windows driver + network printers; no scale now; no device available yet (device check written for the user); a Devices screen. Plan 07a/07b/07c
+  - [x] Choose the supported printer, scanner, cash drawer (and scale if needed): ESC/POS receipt printers by USB (Windows driver) or network, the drawer through the printer, keyboard-mode scanners, ZPL label printers; no scale for now
+  - [x] Windows spooler / driver printing adapter if the chosen printer needs it: **MISS-07a** (2026-10-14) `EscPosWindows` / `ZplWindows` - RAW jobs through the Windows print queue, refused in plain words when the queue is offline, out of paper, jammed, open or paused
+  - [x] Serial/USB transports if needed: USB through the Windows driver (07a); serial not needed (user decision)
+  - [ ] **MISS-07b** Devices screen (choose the printer, test receipt, open the drawer, scanner test)
   - [ ] Device failure campaign (unplug during a sale, paper out, etc.)
 
 ---
@@ -271,4 +272,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-11 | MISS-04e3 | 72ad7be | Cloud backup screen and restore from the cloud; 2791 tests, 0 warnings; real exe end to end against the real vendor servers |
 | 2026-10-12 | MISS-04f | 22d3c4e | Decisions 9-11; vendor escrow recovery (request, AdminPortal approval, offline tool, restore key bound to the PC, new code asked for); MISS-04 complete; 2814 tests, 0 warnings; real exe end to end: PC A backs up, PC B recovers through the vendor |
 | 2026-10-14 | MISS-05 | b178622 | Decisions recorded; log file next to the database (masked), crash reports, Administration > Support with the support file; 2845 tests, 0 warnings; real exe: failed start reported, notice, Support screen, support file saved |
-| 2026-10-14 | MISS-06 | (this commit) | Decisions recorded; soak test (2,100 sales reconciled, p95 89 ms after the drawer fix) and UI-automated workflow on the real executable; defects fixed: drawer shift read in full per cash sale, receipts in UTC; 2853 tests + 2 opt-in, 0 warnings |
+| 2026-10-14 | MISS-06 | 732dcb4 | Decisions recorded; soak test (2,100 sales reconciled, p95 89 ms after the drawer fix) and UI-automated workflow on the real executable; defects fixed: drawer shift read in full per cash sale, receipts in UTC; 2853 tests + 2 opt-in, 0 warnings |
+| 2026-10-14 | MISS-07a | (this commit) | Decisions recorded; printers installed in Windows (RAW print queue, queue state in plain words); 2875 tests + 3 opt-in, 0 warnings |

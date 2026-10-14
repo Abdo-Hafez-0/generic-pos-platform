@@ -21,12 +21,31 @@ public static class HardwareFactory
 
     private static DeviceStatus Unknown(string device, string? type) => DeviceStatus.Unavailable($"Unknown {device} type '{type}'.");
 
+    /// <summary>How a byte-oriented device is reached: the network, a device path, or (MISS-07a) a printer installed in Windows.</summary>
+    internal enum Link
+    {
+        Tcp,
+        File,
+        Windows,
+    }
+
+    /// <summary>The link a type names by its ending: ...Tcp, ...File or ...Windows (null when it names none).</summary>
+    internal static Link? LinkOf(string? type, string protocol)
+        => Is(type, protocol + "Tcp") ? Link.Tcp : Is(type, protocol + "File") ? Link.File : Is(type, protocol + "Windows") ? Link.Windows : null;
+
     /// <summary>Creates a transport for a connection, or explains why the configuration is unusable.</summary>
-    internal static (IDeviceTransport? Transport, DeviceStatus? Problem) Transport(bool tcp, DeviceConnectionOptions options, ILogger? logger)
+    internal static (IDeviceTransport? Transport, DeviceStatus? Problem) Transport(Link link, DeviceConnectionOptions options, ILogger? logger)
     {
         var timeout = TimeSpan.FromMilliseconds(Math.Clamp(options.TimeoutMilliseconds, 100, 60_000));
 
-        if (tcp)
+        if (link == Link.Windows)
+        {
+            return string.IsNullOrWhiteSpace(options.PrinterName)
+                ? (null, DeviceStatus.Unavailable("A Windows printer needs the PrinterName it has under Settings > Printers & scanners."))
+                : (new WindowsPrinterTransport(options.PrinterName.Trim(), timeout, logger), null);
+        }
+
+        if (link == Link.Tcp)
         {
             if (string.IsNullOrWhiteSpace(options.Host) || options.Port is < 1 or > 65535)
                 return (null, DeviceStatus.Unavailable("A network device needs a Host and a Port between 1 and 65535."));
@@ -51,10 +70,10 @@ public static class HardwareFactory
     public static IReceiptPrinter CreateReceiptPrinter(ReceiptPrinterOptions options, ILogger? logger = null, IReceiptImageRenderer? imageRenderer = null)
     {
         if (IsNone(options.Type)) return new NullReceiptPrinter(DeviceStatus.NotConfigured());
-        if (!Is(options.Type, "EscPosTcp") && !Is(options.Type, "EscPosFile"))
+        if (LinkOf(options.Type, "EscPos") is not { } link)
             return new NullReceiptPrinter(Unknown("receipt printer", options.Type));
 
-        var (transport, problem) = Transport(Is(options.Type, "EscPosTcp"), options, logger);
+        var (transport, problem) = Transport(link, options, logger);
         return transport is null
             ? new NullReceiptPrinter(problem!)
             : new EscPosReceiptPrinter(transport, options.CharactersPerLine, options.CutPaper, logger, imageRenderer,
@@ -64,10 +83,10 @@ public static class HardwareFactory
     public static ILabelPrinter CreateLabelPrinter(LabelPrinterOptions options, ILogger? logger = null)
     {
         if (IsNone(options.Type)) return new NullLabelPrinter(DeviceStatus.NotConfigured());
-        if (!Is(options.Type, "ZplTcp") && !Is(options.Type, "ZplFile"))
+        if (LinkOf(options.Type, "Zpl") is not { } link)
             return new NullLabelPrinter(Unknown("label printer", options.Type));
 
-        var (transport, problem) = Transport(Is(options.Type, "ZplTcp"), options, logger);
+        var (transport, problem) = Transport(link, options, logger);
         return transport is null
             ? new NullLabelPrinter(problem!)
             : new ZplLabelPrinter(transport, options.WidthDots, options.HeightDots, logger);
@@ -78,27 +97,27 @@ public static class HardwareFactory
         if (IsNone(options.Type)) return new NullCashDrawer(DeviceStatus.NotConfigured());
 
         DeviceConnectionOptions connection;
-        bool tcp;
+        Link link;
 
         if (Is(options.Type, "ViaReceiptPrinter"))
         {
-            if (!Is(receiptPrinter.Type, "EscPosTcp") && !Is(receiptPrinter.Type, "EscPosFile"))
+            if (LinkOf(receiptPrinter.Type, "EscPos") is not { } printerLink)
                 return new NullCashDrawer(DeviceStatus.Unavailable("ViaReceiptPrinter needs an ESC/POS receipt printer to be configured."));
 
             connection = receiptPrinter;
-            tcp = Is(receiptPrinter.Type, "EscPosTcp");
+            link = printerLink;
         }
-        else if (Is(options.Type, "EscPosTcp") || Is(options.Type, "EscPosFile"))
+        else if (LinkOf(options.Type, "EscPos") is { } drawerLink)
         {
             connection = options;
-            tcp = Is(options.Type, "EscPosTcp");
+            link = drawerLink;
         }
         else
         {
             return new NullCashDrawer(Unknown("cash drawer", options.Type));
         }
 
-        var (transport, problem) = Transport(tcp, connection, logger);
+        var (transport, problem) = Transport(link, connection, logger);
         return transport is null
             ? new NullCashDrawer(problem!)
             : new EscPosCashDrawer(transport, options.Pin, options.OnTimeMilliseconds, options.OffTimeMilliseconds, logger);

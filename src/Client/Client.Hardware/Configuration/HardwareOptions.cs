@@ -29,6 +29,9 @@ public class DeviceConnectionOptions
     /// <summary>Device path (for the File transports): a printer share (UNC) or a device node.</summary>
     public string? Path { get; set; }
 
+    /// <summary>MISS-07a: the name of a printer installed in Windows (for the Windows transports: EscPosWindows, ZplWindows).</summary>
+    public string? PrinterName { get; set; }
+
     /// <summary>How long a connect/write may take before it is reported as a timeout.</summary>
     public int TimeoutMilliseconds { get; set; } = 3000;
 }
@@ -45,7 +48,7 @@ public sealed class ScannerOptions
     public int MaxInterCharacterMilliseconds { get; set; } = 80;
 }
 
-/// <summary>Type: None | EscPosTcp | EscPosFile.</summary>
+/// <summary>Type: None | EscPosTcp | EscPosFile | EscPosWindows (a printer installed in Windows, by PrinterName - MISS-07a).</summary>
 public sealed class ReceiptPrinterOptions : DeviceConnectionOptions
 {
     public string Type { get; set; } = "None";
@@ -61,7 +64,7 @@ public sealed class ReceiptPrinterOptions : DeviceConnectionOptions
     public int DotsPerLine { get; set; } = 576;
 }
 
-/// <summary>Type: None | ZplTcp | ZplFile.</summary>
+/// <summary>Type: None | ZplTcp | ZplFile | ZplWindows (a printer installed in Windows, by PrinterName - MISS-07a).</summary>
 public sealed class LabelPrinterOptions : DeviceConnectionOptions
 {
     public string Type { get; set; } = "None";
@@ -73,7 +76,7 @@ public sealed class LabelPrinterOptions : DeviceConnectionOptions
     public int HeightDots { get; set; } = 203;
 }
 
-/// <summary>Type: None | ViaReceiptPrinter (kick pulse through the receipt printer) | EscPosTcp | EscPosFile.</summary>
+/// <summary>Type: None | ViaReceiptPrinter (kick pulse through the receipt printer) | EscPosTcp | EscPosFile | EscPosWindows.</summary>
 public sealed class CashDrawerOptions : DeviceConnectionOptions
 {
     public string Type { get; set; } = "None";

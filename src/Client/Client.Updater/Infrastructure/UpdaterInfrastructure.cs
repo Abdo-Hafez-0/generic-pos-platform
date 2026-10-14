@@ -295,6 +295,12 @@ public static class UpdaterServicesExtensions
         var runningHost = ModuleVersion.Parse(string.IsNullOrWhiteSpace(config.RunningHostVersion) ? config.BaselineHostVersion : config.RunningHostVersion);
         services.AddSingleton<IRunningVersions>(sp => new RunningVersions(sp.GetRequiredService<IModuleRegistry>(), runningHost));
         services.AddSingleton<StartupHealthConfirmation>();
+        // PKG-01b: what the launcher handed over, the versions in use against the active ones, and the Updates screen's entry points
+        services.AddSingleton(LauncherHandOff.FromEnvironment(Environment.GetEnvironmentVariable));
+        services.AddSingleton<IUpdateAdoption>(sp => new UpdateAdoption(sp.GetRequiredService<IUpdateStore>(), sp.GetRequiredService<IRunningVersions>(),
+            sp.GetRequiredService<IModuleRegistry>(), sp.GetRequiredService<LauncherHandOff>(), ModuleVersion.Parse(config.BaselineHostVersion)));
+        services.AddTransient<GetUpdateOverviewQueryHandler>();
+        services.AddTransient<CheckForUpdatesQueryHandler>();
         // Stage 11: the capability that guards installing/rolling back, and the user-facing handlers that check it.
         services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, UpdatesCapabilityProvider>();
         services.AddTransient<DownloadUpdateCommandHandler>();

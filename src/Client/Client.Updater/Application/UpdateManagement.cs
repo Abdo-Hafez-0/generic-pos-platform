@@ -46,26 +46,30 @@ public sealed class DownloadUpdateCommandHandler(IUpdateService updates, IAuthor
 
 public sealed record InstallUpdateCommand(string PackagePath);
 
-public sealed class InstallUpdateCommandHandler(IUpdateService updates, IAuthorizationService authorization)
+public sealed class InstallUpdateCommandHandler(IUpdateService updates, IAuthorizationService authorization, IUpdateAdoption? adoption = null)
 {
     public async Task<Result<UpdateJournal>> HandleAsync(InstallUpdateCommand command, CancellationToken cancellationToken = default)
     {
         var allowed = await authorization.AuthorizeAsync(UpdatesCapabilities.Manage, cancellationToken);
         if (allowed.IsFailure) return Result.Failure<UpdateJournal>(allowed.Error);
 
-        return await updates.InstallAsync(command.PackagePath, cancellationToken);
+        var installed = await updates.InstallAsync(command.PackagePath, cancellationToken);
+        if (installed.IsSuccess) adoption?.NotifyChanged();   // PKG-01b: the shell offers "Restart now"
+        return installed;
     }
 }
 
 public sealed record RollbackUpdateCommand(string TargetId, bool RestoreData = false);
 
-public sealed class RollbackUpdateCommandHandler(IUpdateService updates, IAuthorizationService authorization)
+public sealed class RollbackUpdateCommandHandler(IUpdateService updates, IAuthorizationService authorization, IUpdateAdoption? adoption = null)
 {
     public async Task<Result> HandleAsync(RollbackUpdateCommand command, CancellationToken cancellationToken = default)
     {
         var allowed = await authorization.AuthorizeAsync(UpdatesCapabilities.Manage, cancellationToken);
         if (allowed.IsFailure) return allowed;
 
-        return await updates.RollbackAsync(command.TargetId, command.RestoreData, cancellationToken);
+        var rolledBack = await updates.RollbackAsync(command.TargetId, command.RestoreData, cancellationToken);
+        if (rolledBack.IsSuccess) adoption?.NotifyChanged();
+        return rolledBack;
     }
 }

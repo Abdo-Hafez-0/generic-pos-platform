@@ -5,6 +5,7 @@ using Client.Desktop.Resources;
 using Client.Licensing.Application;
 using CloudBackup.Application;
 using Client.Diagnostics.Support;
+using Client.Updater.Application;
 using Platform.Application.Abstractions.Authorization;
 using Platform.Presentation.Actions;
 using Platform.Presentation.Mvvm;
@@ -31,6 +32,8 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
     private readonly IBackupNoticeSource? _backups;
     private readonly ICloudBackupNotice? _cloud;
     private readonly ICrashNoticeSource? _crashes;
+    private readonly IUpdateAdoption? _updates;
+    private readonly IApplicationRestarter? _restarter;
     private readonly SynchronizationContext? _uiContext;
     private readonly Dictionary<string, ScreenInstance> _open = new(StringComparer.OrdinalIgnoreCase);
 
@@ -48,6 +51,9 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
     private bool _mayManageCloud;
     private bool _maySeeCrashes;
     private string _supportNoticeText = string.Empty;
+    private string _updateNoticeText = string.Empty;
+    private bool _canRestartForUpdate;
+    private bool _mayManageUpdates;
 
     public ShellViewModel(
         IUiActionRunner runner,
@@ -57,7 +63,9 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
         ILicenseService? licenses = null,
         IBackupNoticeSource? backups = null,
         ICloudBackupNotice? cloud = null,
-        ICrashNoticeSource? crashes = null)
+        ICrashNoticeSource? crashes = null,
+        IUpdateAdoption? updates = null,
+        IApplicationRestarter? restarter = null)
     {
         _runner = runner;
         _navigation = navigation;
@@ -72,8 +80,23 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
         if (_cloud is not null) _cloud.Changed += (_, _) => OnBackupsChanged();
         _crashes = crashes;
         if (_crashes is not null) _crashes.Changed += (_, _) => OnBackupsChanged();
+        _updates = updates;
+        if (_updates is not null) _updates.Changed += (_, _) => OnBackupsChanged();
+        _restarter = restarter;
         OpenCommand = Command<NavigationEntry>(entry => entry is null ? Task.CompletedTask : OpenAsync(entry));
+        RestartForUpdateCommand = Command(() => { _restarter?.Restart(); return Task.CompletedTask; }, () => CanRestartForUpdate);
     }
+
+    /// <summary>PKG-01b: restarts through GenericPOS.exe so the update made active is used (offered, never forced).</summary>
+    public ICommand RestartForUpdateCommand { get; }
+
+    /// <summary>
+    /// PKG-01b: "an update is ready; it is used after a restart" for everyone (with "Restart now"); an update that could not be used, or
+    /// that waits for the application to be started by GenericPOS.exe, for those who manage updates (updates.manage); empty otherwise.
+    /// </summary>
+    public string UpdateNoticeText { get => _updateNoticeText; private set => Set(ref _updateNoticeText, value); }
+
+    public bool CanRestartForUpdate { get => _canRestartForUpdate; private set => Set(ref _canRestartForUpdate, value); }
 
     /// <summary>Opens the screen of the entry given as the command parameter.</summary>
     public ICommand OpenCommand { get; }
@@ -167,6 +190,7 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
             _mayMakeBackups = permissions.IsSuccess && permissions.Value.Contains("backup.create", StringComparer.OrdinalIgnoreCase);
             _mayManageCloud = permissions.IsSuccess && permissions.Value.Contains(CloudBackupCapabilities.Manage, StringComparer.OrdinalIgnoreCase);
             _maySeeCrashes = permissions.IsSuccess && permissions.Value.Contains(SupportCapabilities.Export, StringComparer.OrdinalIgnoreCase);
+            _mayManageUpdates = permissions.IsSuccess && permissions.Value.Contains(UpdatesCapabilities.Manage, StringComparer.OrdinalIgnoreCase);
         });
 
         await UpdateBackupNoticeAsync(cancellationToken);
@@ -176,6 +200,7 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
     public async Task UpdateBackupNoticeAsync(CancellationToken cancellationToken = default)
     {
         UpdateSupportNotice();
+        UpdateUpdateNotice();
         if (_cloud is not null && _mayManageCloud)
         {
             bool needsCode;
@@ -218,6 +243,26 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
                 notice.At?.ToString("g", CultureInfo.CurrentCulture) ?? string.Empty, notice.Reason ?? string.Empty),
             _ => string.Empty
         };
+    }
+
+    private void UpdateUpdateNotice()
+    {
+        IReadOnlyList<UpdatePart> parts;
+        try
+        {
+            parts = _updates is null || !_currentUser.IsAuthenticated ? [] : _updates.Parts();
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            parts = [];
+        }
+
+        var ready = _updates is { Launcher.StartedByLauncher: true } && parts.Any(p => p.State == UpdatePartState.WaitsForRestart);
+        CanRestartForUpdate = ready && _restarter is not null;
+        UpdateNoticeText = ready ? ShellText.UpdateReady
+            : _mayManageUpdates && parts.Any(p => p.State is UpdatePartState.NotStarted or UpdatePartState.NeedsAttention) ? ShellText.UpdateProblem
+            : _mayManageUpdates && parts.Any(p => p.State == UpdatePartState.WaitsForLauncher) ? ShellText.UpdateNeedsLauncher
+            : string.Empty;
     }
 
     private void UpdateSupportNotice()
@@ -297,6 +342,9 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
         _mayManageCloud = false;
         _maySeeCrashes = false;
         SupportNoticeText = string.Empty;
+        _mayManageUpdates = false;
+        UpdateNoticeText = string.Empty;
+        CanRestartForUpdate = false;
         ErrorMessage = null;
         StatusMessage = null;
     }

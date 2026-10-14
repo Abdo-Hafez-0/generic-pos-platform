@@ -16,6 +16,12 @@ internal static class Program
     /// <summary>Set for the application: the active versions the launcher did not start ("target@version: reason" lines).</summary>
     public const string HeldBackVariable = "GENERICPOS_LAUNCHER_HELD_BACK";
 
+    /// <summary>Set for the application: the module versions laid over the core ("module@version" lines; empty = none).</summary>
+    public const string ModulesVariable = "GENERICPOS_LAUNCHER_MODULES";
+
+    /// <summary>The installed application the launcher used (read back by the launcher when the application restarts through it).</summary>
+    public const string AppDirectoryVariable = "GENERICPOS_LAUNCHER_APPDIR";
+
     [STAThread]
     private static int Main(string[] args)
     {
@@ -53,12 +59,14 @@ internal static class Program
         var folder = settings.AppDirectory;
         var version = settings.BaselineHostVersion;
         var heldBack = new List<HeldBack>();
+        IReadOnlyList<ModuleOverlay> laidOver = [];
         try
         {
             var folders = new UpdateFolders(settings.UpdateRoot);
             var plan = new LaunchPlanner(settings, folders).Plan();
-            folder = new RunFolders(folders).Prepare(plan);
+            folder = new RunFolders(folders).Prepare(plan, settings.AppDirectory);
             version = plan.RunningHostVersion;
+            laidOver = plan.Modules;
             heldBack.AddRange(plan.HeldBack);
             foreach (var held in plan.HeldBack)
                 log.Write($"Not started: {held.Target} {held.Version} - {held.Reason}.");
@@ -68,7 +76,7 @@ internal static class Program
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or NotSupportedException)
         {
             log.Write($"The updates could not be prepared ({ex.Message}); the installed application is started.");
-            (folder, version) = (settings.AppDirectory, settings.BaselineHostVersion);
+            (folder, version, laidOver) = (settings.AppDirectory, settings.BaselineHostVersion, []);
             heldBack.Add(new HeldBack("updates", "-", "the update folder could not be used: " + ex.Message));
         }
 
@@ -81,6 +89,8 @@ internal static class Program
         start.Environment[UpdaterRunningHostVersion] = version;
         start.Environment["GENERICPOS_Updater__UpdateRoot"] = settings.UpdateRoot;
         start.Environment[LauncherPathVariable] = launcherPath;
+        start.Environment[AppDirectoryVariable] = settings.AppDirectory;   // a restart through the launcher finds the same installation
+        start.Environment[ModulesVariable] = string.Join("\n", laidOver.Select(m => $"{m.ModuleId}@{m.Version}"));
         start.Environment[HeldBackVariable] = string.Join("\n", heldBack.Select(h => $"{h.Target}@{h.Version}: {h.Reason}"));
         return start;
     }

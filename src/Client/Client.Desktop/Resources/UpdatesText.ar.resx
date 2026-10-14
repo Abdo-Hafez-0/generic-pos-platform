@@ -1,0 +1,108 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+    <data name="ScreenTitle" xml:space="preserve">
+    <value>التحديثات</value>
+  </data>
+  <data name="Explanation" xml:space="preserve">
+    <value>تجلب التحديثات إصدارات جديدة من التطبيق ووحداته. يتم التحقق من كل تحديث (يجب أن يكون موقّعًا من المورّد) قبل تثبيته، ويُحتفظ بالإصدار السابق حتى تتمكن من الرجوع إليه.</value>
+  </data>
+  <data name="LauncherHint" xml:space="preserve">
+    <value>لم يتم تشغيل هذه النسخة من التطبيق من اختصار GenericPOS: تُستخدم التحديثات المثبتة فقط عند تشغيله منه.</value>
+  </data>
+  <data name="VersionsTitle" xml:space="preserve">
+    <value>الإصدارات</value>
+  </data>
+  <data name="ColumnPart" xml:space="preserve">
+    <value>الجزء</value>
+  </data>
+  <data name="ColumnInUse" xml:space="preserve">
+    <value>قيد الاستخدام</value>
+  </data>
+  <data name="ColumnActive" xml:space="preserve">
+    <value>المثبّت</value>
+  </data>
+  <data name="ColumnState" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
+  <data name="ColumnVersion" xml:space="preserve">
+    <value>الإصدار</value>
+  </data>
+  <data name="ColumnSize" xml:space="preserve">
+    <value>الحجم</value>
+  </data>
+  <data name="Application" xml:space="preserve">
+    <value>التطبيق</value>
+  </data>
+  <data name="StateInUse" xml:space="preserve">
+    <value>قيد الاستخدام</value>
+  </data>
+  <data name="StateAfterRestart" xml:space="preserve">
+    <value>يُستخدم بعد إعادة التشغيل</value>
+  </data>
+  <data name="StateNeedsLauncher" xml:space="preserve">
+    <value>يُستخدم عند تشغيل التطبيق من اختصار GenericPOS</value>
+  </data>
+  <data name="StateNotStarted" xml:space="preserve">
+    <value>لم يُشغَّل: {0}</value>
+  </data>
+  <data name="StateNeedsVendor" xml:space="preserve">
+    <value>يحتاج إلى المورّد: {0}</value>
+  </data>
+  <data name="GoBack" xml:space="preserve">
+    <value>الرجوع إلى الإصدار السابق</value>
+  </data>
+  <data name="Restart" xml:space="preserve">
+    <value>إعادة التشغيل الآن</value>
+  </data>
+  <data name="GetTitle" xml:space="preserve">
+    <value>الحصول على تحديث</value>
+  </data>
+  <data name="Check" xml:space="preserve">
+    <value>البحث عن تحديثات</value>
+  </data>
+  <data name="InstallFromFile" xml:space="preserve">
+    <value>التثبيت من ملف...</value>
+  </data>
+  <data name="OpenTitle" xml:space="preserve">
+    <value>اختر ملف التحديث المرسل من المورّد</value>
+  </data>
+  <data name="UpdateFiles" xml:space="preserve">
+    <value>ملفات التحديث</value>
+  </data>
+  <data name="FoundTitle" xml:space="preserve">
+    <value>التحديثات المتاحة</value>
+  </data>
+  <data name="FoundCount" xml:space="preserve">
+    <value>تم العثور على {0} تحديث.</value>
+  </data>
+  <data name="NoneFound" xml:space="preserve">
+    <value>لم يتم العثور على تحديث جديد.</value>
+  </data>
+  <data name="InstallFound" xml:space="preserve">
+    <value>تثبيت</value>
+  </data>
+  <data name="Installed" xml:space="preserve">
+    <value>تم تثبيت {0} {1}. يُستخدم بعد إعادة التشغيل.</value>
+  </data>
+  <data name="InstalledNeedsLauncher" xml:space="preserve">
+    <value>تم تثبيت {0} {1}. يُستخدم عند تشغيل التطبيق من اختصار GenericPOS.</value>
+  </data>
+  <data name="WentBack" xml:space="preserve">
+    <value>يعود {0} إلى الإصدار السابق بعد إعادة التشغيل.</value>
+  </data>
+  <data name="AsInstalled" xml:space="preserve">
+    <value>كما ثُبّت</value>
+  </data>
+</root>

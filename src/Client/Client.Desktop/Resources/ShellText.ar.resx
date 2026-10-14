@@ -60,4 +60,16 @@
   <data name="CrashNotice" xml:space="preserve">
     <value>أُغلق التطبيق بشكل غير متوقع في {0}. تم حفظ تقرير: الإدارة &gt; الدعم.</value>
   </data>
+  <data name="UpdateReady" xml:space="preserve">
+    <value>يوجد تحديث جاهز. يُستخدم بعد إعادة التشغيل.</value>
+  </data>
+  <data name="RestartNow" xml:space="preserve">
+    <value>إعادة التشغيل الآن</value>
+  </data>
+  <data name="UpdateProblem" xml:space="preserve">
+    <value>تعذّر استخدام أحد التحديثات. راجع الإدارة &gt; التحديثات.</value>
+  </data>
+  <data name="UpdateNeedsLauncher" xml:space="preserve">
+    <value>تم تثبيت تحديث. يُستخدم عند تشغيل التطبيق من اختصار GenericPOS.</value>
+  </data>
 </root>

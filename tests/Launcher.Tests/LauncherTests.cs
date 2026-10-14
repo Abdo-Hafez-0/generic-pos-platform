@@ -77,6 +77,8 @@ public sealed class LauncherTests : IDisposable
         Assert.Equal("1.0.0", start.Environment[Program.UpdaterRunningHostVersion]);
         Assert.Equal(_updates, start.Environment["GENERICPOS_Updater__UpdateRoot"]);
         Assert.Equal(@"C:\GenericPOS\GenericPOS.exe", start.Environment[Program.LauncherPathVariable]);
+        Assert.Equal(_app, start.Environment[Program.AppDirectoryVariable]);
+        Assert.Equal(string.Empty, start.Environment[Program.ModulesVariable]);
         Assert.Equal(string.Empty, Held(start));
         Assert.False(Directory.Exists(Path.Combine(_updates, "runs")));
     }
@@ -88,8 +90,13 @@ public sealed class LauncherTests : IDisposable
 
         var start = Prepare();
 
-        Assert.Equal(Path.Combine(core, "Client.Desktop.exe"), start.FileName);
+        // a copy, never the deployed folder itself: the updater may remove that one at any time (rollback, pruning)
+        Assert.StartsWith(Path.Combine(_updates, "runs"), start.WorkingDirectory);
+        Assert.Equal(Path.Combine(start.WorkingDirectory, "Client.Desktop.exe"), start.FileName);
+        Assert.Equal("core 1.1.0 Client.Desktop.dll", File.ReadAllText(Path.Combine(start.WorkingDirectory, "Client.Desktop.dll")));
+        Assert.False(File.Exists(Path.Combine(start.WorkingDirectory, "POS.UI.dll")));   // nothing of the installed application
         Assert.Equal("1.1.0", start.Environment[Program.UpdaterRunningHostVersion]);
+        Assert.NotEqual(core, start.WorkingDirectory);
     }
 
     [Fact]
@@ -121,6 +128,7 @@ public sealed class LauncherTests : IDisposable
         Assert.True(File.Exists(Path.Combine(run, "POS.UI.pdb")));
         Assert.False(Directory.Exists(Path.Combine(run, ".package")));
         Assert.Equal("1.0.0", start.Environment[Program.UpdaterRunningHostVersion]);
+        Assert.Equal("pos@1.0.1", start.Environment[Program.ModulesVariable]);   // the application knows POS is not the installed one
 
         File.Delete(Path.Combine(run, "POS.UI.pdb"));   // a finished folder is used as it is, not built again
         Assert.Equal(run, Prepare().WorkingDirectory);

@@ -1,0 +1,106 @@
+<UserControl x:Class="Client.Desktop.Screens.Updates.UpdatesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:res="clr-namespace:Client.Desktop.Resources"
+             xmlns:vm="clr-namespace:Client.Desktop.Screens.Updates"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:UpdatesViewModel}">
+
+    <!-- UPDATES SCREEN (PKG-01b). DataContext: UpdatesViewModel. Texts: Resources/UpdatesText.resx. -->
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="Heading" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,20,0,8"/>
+        </Style>
+        <Style x:Key="Cell" TargetType="TextBlock">
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,4"/>
+            <Setter Property="MinWidth" Value="90"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="#181825"/>
+            <Setter Property="RowBackground" Value="#1E1E2E"/>
+            <Setter Property="AlternatingRowBackground" Value="#232336"/>
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="BorderBrush" Value="#313244"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#313244"/>
+            <Setter Property="MinRowHeight" Value="26"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="980" HorizontalAlignment="Left">
+            <TextBlock x:Name="UpdatesExplanation" Text="{x:Static res:UpdatesText.Explanation}"/>
+            <TextBlock x:Name="LauncherHintText" Text="{x:Static res:UpdatesText.LauncherHint}" Foreground="#F9E2AF" Margin="0,8,0,0"
+                       Visibility="{Binding NotStartedByLauncher, Converter={StaticResource VisibleWhenTrue}}"/>
+
+            <!-- the versions -->
+            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:UpdatesText.VersionsTitle}"/>
+            <DataGrid x:Name="PartsGrid" ItemsSource="{Binding Parts}" SelectedItem="{Binding SelectedPart}" MaxHeight="360"
+                      AutomationProperties.Name="{x:Static res:UpdatesText.VersionsTitle}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="{x:Static res:UpdatesText.ColumnPart}" Binding="{Binding NameText}" Width="200" ElementStyle="{StaticResource Cell}"/>
+                    <DataGridTextColumn Header="{x:Static res:UpdatesText.ColumnInUse}" Binding="{Binding InUseText}" Width="90" ElementStyle="{StaticResource Cell}"/>
+                    <DataGridTextColumn Header="{x:Static res:UpdatesText.ColumnActive}" Binding="{Binding ActiveText}" Width="90" ElementStyle="{StaticResource Cell}"/>
+                    <DataGridTextColumn Header="{x:Static res:UpdatesText.ColumnState}" Binding="{Binding StateText}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                </DataGrid.Columns>
+            </DataGrid>
+            <WrapPanel Margin="0,8,0,0">
+                <Button x:Name="GoBackButton" Content="{x:Static res:UpdatesText.GoBack}" Command="{Binding GoBackCommand}"/>
+                <Button x:Name="UpdatesRestartButton" Content="{x:Static res:UpdatesText.Restart}" Command="{Binding RestartCommand}"
+                        Visibility="{Binding RestartWouldHelp, Converter={StaticResource VisibleWhenTrue}}"/>
+            </WrapPanel>
+
+            <!-- getting an update -->
+            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:UpdatesText.GetTitle}"/>
+            <WrapPanel>
+                <Button x:Name="CheckUpdatesButton" Content="{x:Static res:UpdatesText.Check}" Command="{Binding CheckCommand}"/>
+                <Button x:Name="InstallFromFileButton" Content="{x:Static res:UpdatesText.InstallFromFile}" Click="OnInstallFromFile"/>
+            </WrapPanel>
+            <TextBlock x:Name="NoneFoundText" Text="{x:Static res:UpdatesText.NoneFound}" Margin="0,8,0,0"
+                       Visibility="{Binding HasNoneFound, Converter={StaticResource VisibleWhenTrue}}"/>
+            <StackPanel Visibility="{Binding HasFound, Converter={StaticResource VisibleWhenTrue}}" Margin="0,8,0,0">
+                <DataGrid x:Name="FoundGrid" ItemsSource="{Binding Found}" SelectedItem="{Binding SelectedFound}" MaxHeight="220"
+                          AutomationProperties.Name="{x:Static res:UpdatesText.FoundTitle}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{x:Static res:UpdatesText.ColumnPart}" Binding="{Binding NameText}" Width="200" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:UpdatesText.ColumnVersion}" Binding="{Binding VersionText}" Width="90" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:UpdatesText.ColumnSize}" Binding="{Binding SizeText}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <Button x:Name="InstallFoundButton" Content="{x:Static res:UpdatesText.InstallFound}" Command="{Binding InstallFoundCommand}" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+            </StackPanel>
+
+            <!-- what happened -->
+            <TextBlock x:Name="UpdatesStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" Margin="0,16,0,0"/>
+            <TextBlock x:Name="UpdatesErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" Margin="0,4,0,0"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -5,9 +5,10 @@ using System.Text.Json;
 namespace Client.Launcher;
 
 /// <summary>
-/// PKG-01 (user decision 2026-10-14: an assembled folder): when modules are active, the application runs from a folder that holds the
+/// PKG-01 (user decision 2026-10-14: an assembled folder): when an update is active, the application runs from a folder that holds the
 /// core's files with each active module's files laid over them - one folder per combination of versions, under runs/ in the update
-/// folder. It is built next to its final place and moved there in one step, so a half-built folder is never started; the folder in use
+/// folder. Even an updated core alone runs from such a copy: the updater may then remove a deployed version (a rollback, or pruning
+/// after a confirmed update) at any time, because nothing ever runs from installed/. It is built next to its final place and moved there in one step, so a half-built folder is never started; the folder in use
 /// and the one before it are kept (the way back), older ones are removed.
 /// </summary>
 internal sealed class RunFolders(UpdateFolders folders)
@@ -17,10 +18,10 @@ internal sealed class RunFolders(UpdateFolders folders)
 
     public string HistoryPath => Path.Combine(folders.RunsDirectory, "last.json");
 
-    /// <summary>The folder to start the application from: the core itself when no module is laid over it.</summary>
-    public string Prepare(LaunchPlan plan)
+    /// <summary>The folder to start the application from: the installed application itself when no update is active.</summary>
+    public string Prepare(LaunchPlan plan, string installedDirectory)
     {
-        if (plan.Modules.Count == 0) return plan.CoreDirectory;
+        if (plan.Modules.Count == 0 && string.Equals(plan.CoreDirectory, installedDirectory, StringComparison.OrdinalIgnoreCase)) return plan.CoreDirectory;
 
         var folder = Path.Combine(folders.RunsDirectory, Key(plan));
         if (!File.Exists(Path.Combine(folder, CompleteMarker)))

@@ -112,6 +112,12 @@
                       StronglyTypedNamespace="Client.Desktop.Resources"
                       StronglyTypedFileName="$(IntermediateOutputPath)DevicesText.Designer.cs"
                       PublicClass="true" />
+    <EmbeddedResource Update="Resources\UpdatesText.resx"
+                      StronglyTypedLanguage="CSharp"
+                      StronglyTypedClassName="UpdatesText"
+                      StronglyTypedNamespace="Client.Desktop.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)UpdatesText.Designer.cs"
+                      PublicClass="true" />
     <EmbeddedResource Update="Resources\SupportText.resx"
                       StronglyTypedLanguage="CSharp"
                       StronglyTypedClassName="SupportText"

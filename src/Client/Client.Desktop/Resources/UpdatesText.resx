@@ -1,0 +1,108 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+    <data name="ScreenTitle" xml:space="preserve">
+    <value>Updates</value>
+  </data>
+  <data name="Explanation" xml:space="preserve">
+    <value>Updates bring new versions of the application and its modules. Every update is checked (it must be signed by your vendor) before it is installed, and the version before it is kept, so you can go back.</value>
+  </data>
+  <data name="LauncherHint" xml:space="preserve">
+    <value>This copy of the application was not started from the GenericPOS shortcut: installed updates are used only when it is.</value>
+  </data>
+  <data name="VersionsTitle" xml:space="preserve">
+    <value>Versions</value>
+  </data>
+  <data name="ColumnPart" xml:space="preserve">
+    <value>Part</value>
+  </data>
+  <data name="ColumnInUse" xml:space="preserve">
+    <value>In use</value>
+  </data>
+  <data name="ColumnActive" xml:space="preserve">
+    <value>Installed</value>
+  </data>
+  <data name="ColumnState" xml:space="preserve">
+    <value>State</value>
+  </data>
+  <data name="ColumnVersion" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="ColumnSize" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="Application" xml:space="preserve">
+    <value>Application</value>
+  </data>
+  <data name="StateInUse" xml:space="preserve">
+    <value>In use</value>
+  </data>
+  <data name="StateAfterRestart" xml:space="preserve">
+    <value>Used after a restart</value>
+  </data>
+  <data name="StateNeedsLauncher" xml:space="preserve">
+    <value>Used when the application is started from the GenericPOS shortcut</value>
+  </data>
+  <data name="StateNotStarted" xml:space="preserve">
+    <value>Not started: {0}</value>
+  </data>
+  <data name="StateNeedsVendor" xml:space="preserve">
+    <value>Needs your vendor: {0}</value>
+  </data>
+  <data name="GoBack" xml:space="preserve">
+    <value>Go back to the previous version</value>
+  </data>
+  <data name="Restart" xml:space="preserve">
+    <value>Restart now</value>
+  </data>
+  <data name="GetTitle" xml:space="preserve">
+    <value>Get an update</value>
+  </data>
+  <data name="Check" xml:space="preserve">
+    <value>Check for updates</value>
+  </data>
+  <data name="InstallFromFile" xml:space="preserve">
+    <value>Install from a file...</value>
+  </data>
+  <data name="OpenTitle" xml:space="preserve">
+    <value>Choose the update file from your vendor</value>
+  </data>
+  <data name="UpdateFiles" xml:space="preserve">
+    <value>Update files</value>
+  </data>
+  <data name="FoundTitle" xml:space="preserve">
+    <value>Updates found</value>
+  </data>
+  <data name="FoundCount" xml:space="preserve">
+    <value>{0} update(s) found.</value>
+  </data>
+  <data name="NoneFound" xml:space="preserve">
+    <value>No new update was found.</value>
+  </data>
+  <data name="InstallFound" xml:space="preserve">
+    <value>Install</value>
+  </data>
+  <data name="Installed" xml:space="preserve">
+    <value>{0} {1} is installed. It is used after a restart.</value>
+  </data>
+  <data name="InstalledNeedsLauncher" xml:space="preserve">
+    <value>{0} {1} is installed. It is used when the application is started from the GenericPOS shortcut.</value>
+  </data>
+  <data name="WentBack" xml:space="preserve">
+    <value>{0} goes back to the version before it after a restart.</value>
+  </data>
+  <data name="AsInstalled" xml:space="preserve">
+    <value>as installed</value>
+  </data>
+</root>

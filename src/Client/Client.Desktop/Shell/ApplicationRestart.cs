@@ -13,12 +13,16 @@ public interface IApplicationRestarter
 /// Starts a new copy of this executable (same arguments, same environment) and closes this one. The new copy is told this process's id
 /// (<see cref="RestartHandoff"/>) and waits for it to end before anything opens the database: two copies never hold the data at once,
 /// and a pending restore finds the database free.
+/// PKG-01b: when GenericPOS.exe started this copy, the restart goes through it again, so the versions made active since are used.
 /// </summary>
 public sealed class DesktopRestarter : IApplicationRestarter
 {
     public void Restart()
     {
-        var executable = Environment.ProcessPath ?? throw new InvalidOperationException("The application's own path is not known.");
+        var launcher = Environment.GetEnvironmentVariable(Client.Updater.Application.LauncherHandOff.LauncherPathVariable);
+        var executable = launcher is { Length: > 0 } && System.IO.File.Exists(launcher)
+            ? launcher
+            : Environment.ProcessPath ?? throw new InvalidOperationException("The application's own path is not known.");
         var start = new ProcessStartInfo(executable) { UseShellExecute = false };
         foreach (var argument in Environment.GetCommandLineArgs().Skip(1))
             start.ArgumentList.Add(argument);

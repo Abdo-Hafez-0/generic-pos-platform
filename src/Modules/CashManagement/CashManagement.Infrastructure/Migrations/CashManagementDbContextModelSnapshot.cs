@@ -55,6 +55,11 @@ namespace CashManagement.Infrastructure.Migrations
 
                     b.HasIndex("ReferenceType", "ReferenceId");
 
+                    b.HasIndex("SessionId", "Kind", "ReferenceType", "ReferenceId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_cash_Movements_Reference")
+                        .HasFilter("\"ReferenceType\" IS NOT NULL");
+
                     b.ToTable("cash_Movements", (string)null);
                 });
 
@@ -79,6 +84,9 @@ namespace CashManagement.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<decimal?>("ExpectedAmount")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("MovementTotal")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Notes")

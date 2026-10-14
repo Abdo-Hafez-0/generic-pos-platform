@@ -97,10 +97,20 @@ namespace CashManagement.Domain.Entities
         /// <summary>Counted minus expected: negative is a shortage, positive an overage.</summary>
         public decimal? Variance { get; private set; }
 
+        /// <summary>
+        /// The movements of the shift. A session loaded only to record a new movement (MISS-06a) holds none of the earlier ones: its balance
+        /// comes from <see cref="MovementTotal"/>, and "recorded once per reference" is checked by the caller against the stored movements.
+        /// </summary>
         public IReadOnlyCollection<CashMovement> Movements => _movements;
 
+        /// <summary>
+        /// MISS-06a: the sum of all movements (in positive, out negative), kept with every movement, so a busy shift never has to be read in
+        /// full to know its balance or to take one more cash sale.
+        /// </summary>
+        public decimal MovementTotal { get; private set; }
+
         /// <summary>The cash the drawer should hold right now.</summary>
-        public decimal Balance => OpeningFloat.Value + _movements.Sum(m => m.SignedAmount);
+        public decimal Balance => OpeningFloat.Value + MovementTotal;
 
         public static Result<CashSession> Open(string drawerCode, string openedBy, decimal openingFloat, string? notes = null)
         {
@@ -171,6 +181,7 @@ namespace CashManagement.Domain.Entities
                     "CashManagement.Movement.InsufficientCash", $"The drawer only holds {Balance}; {rounded} cannot be taken out."));
 
             _movements.Add(movement);
+            MovementTotal += movement.SignedAmount;
             return Result.Success(movement);
         }
 

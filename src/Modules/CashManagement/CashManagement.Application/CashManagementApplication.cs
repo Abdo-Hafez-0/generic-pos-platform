@@ -17,11 +17,14 @@ namespace CashManagement.Application.Repositories
 {
     public interface ICashSessionRepository
     {
-        /// <summary>Loads the session with its movements.</summary>
-        Task<CashSession?> GetByIdAsync(CashSessionId id, CancellationToken cancellationToken = default);
+        /// <summary>Loads the session; with its movements unless <paramref name="includeMovements"/> is false (MISS-06a: recording one more).</summary>
+        Task<CashSession?> GetByIdAsync(CashSessionId id, CancellationToken cancellationToken = default, bool includeMovements = true);
 
-        /// <summary>The open session of the drawer (code already upper-case), with its movements, or null.</summary>
-        Task<CashSession?> GetOpenByDrawerAsync(string drawerCode, CancellationToken cancellationToken = default);
+        /// <summary>The open session of the drawer (code already upper-case), with its movements unless asked not to, or null.</summary>
+        Task<CashSession?> GetOpenByDrawerAsync(string drawerCode, CancellationToken cancellationToken = default, bool includeMovements = true);
+
+        /// <summary>MISS-06a: whether a movement of this kind with this reference is already stored in the session (an indexed lookup).</summary>
+        Task<bool> HasMovementAsync(CashSessionId sessionId, CashMovementKind kind, string referenceType, Guid referenceId, CancellationToken cancellationToken = default);
 
         Task AddAsync(CashSession session, CancellationToken cancellationToken = default);
 
@@ -87,7 +90,7 @@ namespace CashManagement.Application.Commands
             var created = CashSession.Open(command.DrawerCode, CashActor.Resolve(currentUser, command.OpenedBy)!, command.OpeningFloat, command.Notes);
             if (created.IsFailure) return Result.Failure<Guid>(created.Error);
 
-            if (await sessions.GetOpenByDrawerAsync(created.Value.DrawerCode, cancellationToken) is not null)
+            if (await sessions.GetOpenByDrawerAsync(created.Value.DrawerCode, cancellationToken, includeMovements: false) is not null)
                 return Result.Failure<Guid>(Error.Conflict(
                     "CashManagement.OpenSession.AlreadyOpen", $"Drawer '{created.Value.DrawerCode}' already has an open session."));
 
@@ -135,10 +138,20 @@ namespace CashManagement.Application.Commands
         /// contracts (they run inside an operation the user was already authorized for). Not reachable from UI or other modules.</summary>
         internal async Task<Result<RecordedCashMovement>> ExecuteAsync(RecordCashMovementCommand command, CancellationToken cancellationToken = default)
         {
-            var session = await sessions.GetByIdAsync(new CashSessionId(command.SessionId), cancellationToken);
+            // MISS-06a: the shift is read WITHOUT its earlier movements (its balance is kept with it); "once per reference" is checked
+            // against the stored movements with an indexed lookup, and a unique index in the database guards it as well.
+            var session = await sessions.GetByIdAsync(new CashSessionId(command.SessionId), cancellationToken, includeMovements: false);
             if (session is null)
                 return Result.Failure<RecordedCashMovement>(Error.NotFound(
                     "CashManagement.RecordMovement.SessionNotFound", $"Cash session '{command.SessionId}' was not found."));
+
+            if (!string.IsNullOrWhiteSpace(command.ReferenceType) && command.ReferenceId is { } referenceId && referenceId != Guid.Empty)
+            {
+                var type = command.ReferenceType.Trim().ToLowerInvariant();
+                if (await sessions.HasMovementAsync(session.Id, command.Kind, type, referenceId, cancellationToken))
+                    return Result.Failure<RecordedCashMovement>(Error.Conflict(
+                        "CashManagement.Movement.DuplicateReference", $"A {command.Kind} movement for {type} '{referenceId}' is already recorded in this session."));
+            }
 
             var recorded = session.RecordMovement(
                 command.Kind, command.Amount, command.Reason, command.ReferenceType, command.ReferenceId, CashActor.Resolve(currentUser, command.RecordedBy));
@@ -162,7 +175,7 @@ namespace CashManagement.Application.Commands
             var allowed = await authorization.AuthorizeAsync(CashManagement.Application.Security.CashManagementCapabilities.ManageSessions, cancellationToken);
             if (allowed.IsFailure) return Result.Failure<ClosedCashSession>(allowed.Error);
 
-            var session = await sessions.GetByIdAsync(new CashSessionId(command.SessionId), cancellationToken);
+            var session = await sessions.GetByIdAsync(new CashSessionId(command.SessionId), cancellationToken, includeMovements: false);
             if (session is null)
                 return Result.Failure<ClosedCashSession>(Error.NotFound(
                     "CashManagement.CloseSession.SessionNotFound", $"Cash session '{command.SessionId}' was not found."));
@@ -193,22 +206,23 @@ namespace CashManagement.Application.Queries
                 m.Id.Value, m.Kind, m.Amount, m.SignedAmount, m.Reason, m.ReferenceType, m.ReferenceId, m.RecordedBy, m.RecordedAt)).ToList());
     }
 
-    public sealed record GetCashSessionQuery(Guid SessionId);
+    /// <summary><paramref name="IncludeMovements"/> false (MISS-06a): the shift and its balance only - what another module asks for before a sale.</summary>
+    public sealed record GetCashSessionQuery(Guid SessionId, bool IncludeMovements = true);
 
     public sealed class GetCashSessionQueryHandler(ICashSessionRepository sessions)
     {
         public async Task<CashSessionDto?> HandleAsync(GetCashSessionQuery query, CancellationToken cancellationToken = default)
-            => (await sessions.GetByIdAsync(new CashSessionId(query.SessionId), cancellationToken))?.ToDto();
+            => (await sessions.GetByIdAsync(new CashSessionId(query.SessionId), cancellationToken, query.IncludeMovements))?.ToDto();
     }
 
-    public sealed record GetOpenCashSessionQuery(string DrawerCode);
+    public sealed record GetOpenCashSessionQuery(string DrawerCode, bool IncludeMovements = true);
 
     public sealed class GetOpenCashSessionQueryHandler(ICashSessionRepository sessions)
     {
         public async Task<CashSessionDto?> HandleAsync(GetOpenCashSessionQuery query, CancellationToken cancellationToken = default)
             => string.IsNullOrWhiteSpace(query.DrawerCode)
                 ? null
-                : (await sessions.GetOpenByDrawerAsync(query.DrawerCode.Trim().ToUpperInvariant(), cancellationToken))?.ToDto();
+                : (await sessions.GetOpenByDrawerAsync(query.DrawerCode.Trim().ToUpperInvariant(), cancellationToken, query.IncludeMovements))?.ToDto();
     }
 
     public sealed record ListCashSessionsQuery(string? DrawerCode = null, CashSessionStatus? Status = null, int Page = 1, int PageSize = 50);

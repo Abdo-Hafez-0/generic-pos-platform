@@ -42,10 +42,10 @@ internal sealed class CashMovementRecorder(RecordCashMovementCommandHandler hand
 internal sealed class CashSessionReader(GetCashSessionQueryHandler getHandler, GetOpenCashSessionQueryHandler openHandler) : ICashSessionReader
 {
     public async Task<CashSessionResult?> GetOpenSessionAsync(string drawerCode, CancellationToken cancellationToken = default)
-        => ToResult(await openHandler.HandleAsync(new GetOpenCashSessionQuery(drawerCode), cancellationToken));
+        => ToResult(await openHandler.HandleAsync(new GetOpenCashSessionQuery(drawerCode, IncludeMovements: false), cancellationToken));   // MISS-06a
 
     public async Task<CashSessionResult?> GetSessionAsync(Guid sessionId, CancellationToken cancellationToken = default)
-        => ToResult(await getHandler.HandleAsync(new GetCashSessionQuery(sessionId), cancellationToken));
+        => ToResult(await getHandler.HandleAsync(new GetCashSessionQuery(sessionId, IncludeMovements: false), cancellationToken));
 
     private static CashSessionResult? ToResult(CashSessionDto? s)
         => s is null

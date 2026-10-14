@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    MISS-06b: the business workflow on the REAL executable through Windows UI Automation (opt-in: GENERICPOS_E2E=1).
+    It starts a copy of the real LicenseServer.Api and the real Client.Desktop.exe in isolated folders; it references neither as code.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <!-- WPF projects leave System.IO out of the implicit usings -->
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- build order only: the test runs the executables from their own output folders -->
+    <ProjectReference Include="..\..\src\Client\Client.Desktop\Client.Desktop.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\Cloud\LicenseServer\LicenseServer.Api\LicenseServer.Api.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

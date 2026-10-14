@@ -164,4 +164,21 @@ public sealed class PosTaxTests
         var tax = Assert.Single(receipt.Taxes!);                        // the zero-rate bread prints no tax line
         Assert.Equal((0.14m, 0.75m), (tax.Rate, tax.Amount));           // 0.61 + 0.14, the sum of the rounded lines
     }
+
+    [Fact]
+    public void The_receipt_shows_the_time_on_the_shops_clock_not_UTC()
+    {
+        // found by the end-to-end run (MISS-06b): a sale at 13:24 UTC in a shop at UTC+3 printed 13:24 instead of 16:24
+        var session = PosSession.Open("cashier", Guid.NewGuid()).Value;
+        var cart = PosCart.Start(session.Id).Value;
+        cart.AddItem(Guid.NewGuid(), "COLA-1", "Cola", new CartQuantity(1m), new Money(2.5m), 0m);
+        var shop = TimeZoneInfo.CreateCustomTimeZone("Shop", TimeSpan.FromHours(3), "Shop", "Shop");
+        var soldAt = new DateTimeOffset(2026, 10, 14, 13, 24, 0, TimeSpan.Zero);
+
+        var receipt = PosReceiptFactory.Create(cart, session, Guid.NewGuid(), null, new PosReceiptOptions(), soldAt, shop);
+
+        Assert.Equal(new DateTime(2026, 10, 14, 16, 24, 0), receipt.IssuedAt.DateTime);
+        Assert.Equal(TimeSpan.FromHours(3), receipt.IssuedAt.Offset);
+        Assert.Equal(soldAt, receipt.IssuedAt);   // the same instant
+    }
 }

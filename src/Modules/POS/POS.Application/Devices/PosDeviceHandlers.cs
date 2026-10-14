@@ -44,15 +44,20 @@ public sealed class PosReceiptOptions
 /// <summary>Builds the printer-independent receipt of a checked-out cart. Pure: no I/O, no hardware.</summary>
 public static class PosReceiptFactory
 {
-    public static ReceiptDocument Create(PosCart cart, PosSession session, Guid saleId, ReceiptPayment? payment, PosReceiptOptions options, DateTimeOffset fallbackTime)
-        => CreateWithPayments(cart, session, saleId, payment is null ? [] : [payment], options, fallbackTime);
+    public static ReceiptDocument Create(PosCart cart, PosSession session, Guid saleId, ReceiptPayment? payment, PosReceiptOptions options, DateTimeOffset fallbackTime,
+        TimeZoneInfo? shopTimeZone = null)
+        => CreateWithPayments(cart, session, saleId, payment is null ? [] : [payment], options, fallbackTime, shopTimeZone);
 
     /// <summary>FIX-10: one receipt payment per part (a single payment is printed as before).</summary>
-    public static ReceiptDocument CreateWithPayments(PosCart cart, PosSession session, Guid saleId, IReadOnlyList<ReceiptPayment> payments, PosReceiptOptions options, DateTimeOffset fallbackTime)
+    /// <param name="shopTimeZone">MISS-06b: the receipt shows the time on the shop's clock (the computer's time zone, from TimeProvider) - not
+    /// UTC, which is how the sale is stored. Null keeps the stored instant as it is.</param>
+    public static ReceiptDocument CreateWithPayments(PosCart cart, PosSession session, Guid saleId, IReadOnlyList<ReceiptPayment> payments, PosReceiptOptions options, DateTimeOffset fallbackTime,
+        TimeZoneInfo? shopTimeZone = null)
     {
         var issuedAt = cart.CheckedOutAt is { } at
             ? new DateTimeOffset(DateTime.SpecifyKind(at, DateTimeKind.Utc))
             : fallbackTime;
+        if (shopTimeZone is not null) issuedAt = TimeZoneInfo.ConvertTime(issuedAt, shopTimeZone);
 
         var priced = cart.PricedLines;
         var lines = priced
@@ -122,7 +127,7 @@ public sealed class PrintReceiptCommandHandler(
         if (printer is null)
             return HardwareErrors.NotConfigured("receipt printer");
 
-        var receipt = PosReceiptFactory.Create(cart, session, saleId, command.Payment, options, timeProvider.GetUtcNow());
+        var receipt = PosReceiptFactory.Create(cart, session, saleId, command.Payment, options, timeProvider.GetUtcNow(), timeProvider.LocalTimeZone);
         return await HardwareGuard.RunAsync("receipt printer", () => printer.PrintAsync(receipt, cancellationToken));
     }
 }

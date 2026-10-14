@@ -19,6 +19,7 @@ internal sealed class CashSessionConfiguration : IEntityTypeConfiguration<CashSe
         builder.Property(s => s.DrawerCode).HasMaxLength(CashSession.MaxDrawerCodeLength).IsRequired();
         builder.Property(s => s.OpenedBy).HasMaxLength(CashSession.MaxPersonLength).IsRequired();
         builder.Property(s => s.OpeningFloat).HasConversion(a => a.Value, v => new CashAmount(v)).HasColumnType("TEXT").IsRequired();
+        builder.Property(s => s.MovementTotal).HasColumnType("TEXT").IsRequired();   // MISS-06a: the balance without reading every movement
         builder.Property(s => s.Status).HasConversion<int>().IsRequired();
         builder.Property(s => s.OpenedAt).IsRequired();
         builder.Property(s => s.Notes).HasMaxLength(CashSession.MaxNotesLength * 2 + 1);
@@ -62,6 +63,9 @@ internal sealed class CashMovementConfiguration : IEntityTypeConfiguration<CashM
 
         builder.HasIndex(m => m.SessionId);
         builder.HasIndex(m => new { m.ReferenceType, m.ReferenceId });
+        // MISS-06a: "a referenced movement is recorded once per kind in a shift" is now also guarded by the database (the shift is no longer read in full)
+        builder.HasIndex(m => new { m.SessionId, m.Kind, m.ReferenceType, m.ReferenceId }).IsUnique()
+            .HasFilter("\"ReferenceType\" IS NOT NULL").HasDatabaseName("UX_cash_Movements_Reference");
 
         builder.Ignore(m => m.SignedAmount);
     }

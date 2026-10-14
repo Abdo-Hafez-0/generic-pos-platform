@@ -371,7 +371,8 @@ public sealed class CheckoutCartCommandHandler(
         if (options.AutoPrintReceipt && receiptPrinter is not null)
         {
             var payments = done.Parts.Select(PosReceiptFactory.ToReceiptPayment).ToList();
-            var receipt = PosReceiptFactory.CreateWithPayments(done.Cart, done.Session, done.SaleId, payments, options, (timeProvider ?? TimeProvider.System).GetUtcNow());
+            var clock = timeProvider ?? TimeProvider.System;
+            var receipt = PosReceiptFactory.CreateWithPayments(done.Cart, done.Session, done.SaleId, payments, options, clock.GetUtcNow(), clock.LocalTimeZone);
             await NoticeIfFailedAsync(notices, "receipt printer", "the receipt could not be printed",
                 () => receiptPrinter.PrintAsync(receipt, CancellationToken.None));
         }

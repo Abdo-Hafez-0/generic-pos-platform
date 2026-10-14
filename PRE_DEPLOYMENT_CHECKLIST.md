@@ -200,8 +200,9 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Serial/USB transports if needed: USB through the Windows driver (07a); serial not needed (user decision)
   - [x] **MISS-07b** Devices screen (2026-10-14): Administration > Devices - choose the printer from the Windows list or a network address, test receipt, open the drawer, test label, scanner test; settings kept in `local-settings.json` next to the database, applied after "Restart now"
   - [x] **MISS-07c** Receipts printed again (2026-10-14): on the till, "Print the receipt again" for the last sale and "Recent sales..." (today and yesterday) - marked as a copy, with the recorded payments, audited; needs `pos.receipt.reprint`
-  - [ ] **MISS-07d** Device check for the user (with the failure campaign below)
-  - [ ] Device failure campaign (unplug during a sale, paper out, etc.)
+  - [x] **MISS-07d** Device check for the user (2026-10-14): `MISS-07_DEVICE_CHECK.md` - setup, the check per device with expected results, the failure campaign F1-F12, what to send back; found and fixed: receipt pictures too wide for 58 mm paper; found, not built: no screen prints product labels
+  - [ ] Device check run by the user on the real devices (results sent back)
+  - [ ] Device failure campaign (unplug during a sale, paper out, etc.): written as F1-F12 in `MISS-07_DEVICE_CHECK.md`, to be run with the devices
 
 ---
 
@@ -277,4 +278,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-14 | MISS-06 | 732dcb4 | Decisions recorded; soak test (2,100 sales reconciled, p95 89 ms after the drawer fix) and UI-automated workflow on the real executable; defects fixed: drawer shift read in full per cash sale, receipts in UTC; 2853 tests + 2 opt-in, 0 warnings |
 | 2026-10-14 | MISS-07a | 8c416b5 | Decisions recorded; printers installed in Windows (RAW print queue, queue state in plain words); 2875 tests + 3 opt-in, 0 warnings |
 | 2026-10-14 | MISS-07b | 8758d21 | Devices screen (POS-owned, device-neutral platform setup, installation-local settings); 2893 tests + 3 opt-in, 0 warnings; real exe: Windows list, network refusal, scanner test, save + restart |
-| 2026-10-14 | MISS-07c | (this commit) | Receipts printed again from the till (last sale + today's and yesterday's), a copy with the recorded payments, audited; 2900 tests + 3 opt-in, 0 warnings; real exe: end-to-end test decodes both copies |
+| 2026-10-14 | MISS-07c | a5c81d8 | Receipts printed again from the till (last sale + today's and yesterday's), a copy with the recorded payments, audited; 2900 tests + 3 opt-in, 0 warnings; real exe: end-to-end test decodes both copies |
+| 2026-10-14 | MISS-07d | (this commit) | Device check for the user (MISS-07_DEVICE_CHECK.md); receipt pictures follow the paper width (58 mm fix); 2901 tests + 3 opt-in, 0 warnings; real exe: paper choices and saved widths. MISS-07 open until the check is run on real devices |

@@ -129,4 +129,13 @@
   <data name="KindConfigured" xml:space="preserve">
     <value>محدد في الإعدادات (يبقى كما هو)</value>
   </data>
+  <data name="Width32" xml:space="preserve">
+    <value>32 - ورق 58 مم</value>
+  </data>
+  <data name="Width42" xml:space="preserve">
+    <value>42 - ورق 80 مم</value>
+  </data>
+  <data name="Width48" xml:space="preserve">
+    <value>48 - ورق 80 مم، حروف صغيرة</value>
+  </data>
 </root>

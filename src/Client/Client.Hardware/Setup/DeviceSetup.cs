@@ -99,6 +99,9 @@ public sealed class DeviceSetupAdapter(
 
     // ------------------------------------------------------------------ the shop's words <-> the adapters' settings
 
+    /// <summary>Dots across the paper at 203 dpi: 58 mm and 80 mm receipt paper.</summary>
+    public const int Paper58MmDots = 384, Paper80MmDots = 576;
+
     public static DeviceSetupSettings ToSetup(HardwareOptions options)
         => new(
             Printer(options.ReceiptPrinter.Type, "EscPos", options.ReceiptPrinter),
@@ -116,6 +119,10 @@ public sealed class DeviceSetupAdapter(
         Apply(settings.ReceiptPrinter, "EscPos", options.ReceiptPrinter);
         options.ReceiptPrinter.CharactersPerLine = settings.CharactersPerLine;
         options.ReceiptPrinter.CutPaper = settings.CutPaper;
+        // MISS-07d: the width of the receipt pictures (Arabic text) follows the paper - 32 characters is 58 mm paper (384 dots), more is
+        // 80 mm (576); a width set by hand in the configuration (any other value) is kept
+        if (options.ReceiptPrinter.DotsPerLine is Paper58MmDots or Paper80MmDots)
+            options.ReceiptPrinter.DotsPerLine = settings.CharactersPerLine <= 32 ? Paper58MmDots : Paper80MmDots;
 
         if (settings.DrawerThroughReceiptPrinter)
         {

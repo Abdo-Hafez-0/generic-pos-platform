@@ -129,4 +129,13 @@
   <data name="KindConfigured" xml:space="preserve">
     <value>Set in the configuration (kept as it is)</value>
   </data>
+  <data name="Width32" xml:space="preserve">
+    <value>32 - 58 mm paper</value>
+  </data>
+  <data name="Width42" xml:space="preserve">
+    <value>42 - 80 mm paper</value>
+  </data>
+  <data name="Width48" xml:space="preserve">
+    <value>48 - 80 mm paper, small letters</value>
+  </data>
 </root>

@@ -126,6 +126,22 @@ public sealed class DeviceSetupTests : IDisposable
     }
 
     [Fact]
+    public void The_width_of_receipt_pictures_follows_the_paper_unless_it_was_set_by_hand()
+    {
+        // MISS-07d: Arabic text is printed as a picture; a 576-dot picture does not fit 58 mm paper
+        var adapter = Adapter(DeviceFile("receipt.bin"));
+
+        Assert.Equal(DeviceSetupAdapter.Paper58MmDots, adapter.ToOptions(adapter.Saved with { CharactersPerLine = 32 }).ReceiptPrinter.DotsPerLine);
+        Assert.Equal(DeviceSetupAdapter.Paper80MmDots, adapter.ToOptions(adapter.Saved with { CharactersPerLine = 48 }).ReceiptPrinter.DotsPerLine);
+        Assert.True(adapter.Save(adapter.Saved with { CharactersPerLine = 32 }).IsSuccess);
+        Assert.Equal(DeviceSetupAdapter.Paper58MmDots, Local.ReadSection<HardwareOptions>(HardwareOptions.SectionName)!.ReceiptPrinter.DotsPerLine);
+
+        var byHand = new HardwareOptions();
+        byHand.ReceiptPrinter.DotsPerLine = 512;   // a 72 mm printer
+        Assert.Equal(512, new DeviceSetupAdapter(byHand, null, () => []).ToOptions(DeviceSetupAdapter.ToSetup(byHand) with { CharactersPerLine = 32 }).ReceiptPrinter.DotsPerLine);
+    }
+
+    [Fact]
     public void At_the_next_start_the_saved_settings_are_the_hardware_configuration_and_an_environment_override_still_wins()
     {
         var adapter = Adapter(DeviceFile("receipt.bin"));

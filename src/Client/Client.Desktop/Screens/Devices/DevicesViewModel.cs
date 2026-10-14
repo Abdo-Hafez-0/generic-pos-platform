@@ -73,7 +73,7 @@ public sealed class DevicesViewModel : ViewModelBase, INavigationAware
     public List<DeviceChoice<POSPrinterLink>> PrinterKinds { get; }
     public List<DeviceChoice<POSPrinterLink>> LabelKinds { get; }
     public IReadOnlyList<DeviceChoice<int>> DrawerPins { get; }
-    public IReadOnlyList<DeviceChoice<int>> LineWidths { get; } = [new(32, "32"), new(42, "42"), new(48, "48")];
+    public IReadOnlyList<DeviceChoice<int>> LineWidths { get; } = [new(32, DevicesText.Width32), new(42, DevicesText.Width42), new(48, DevicesText.Width48)];
     public ObservableCollection<string> WindowsPrinters { get; } = [];
     public bool HasNoWindowsPrinters => WindowsPrinters.Count == 0;
 

@@ -79,7 +79,7 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Screens: every action already goes through IUiActionRunner (FIX-01); proven per module with failures injected inside SQLite (no SQL/table/exception text, nothing written)
   - [x] Module boundaries: the write contracts (stock issue/receipt, payment record/void, cash recorder) return plain failed results instead of throwing
   - [x] Real exe: category and drawer shift with the database refusing -> plain sentence; works once it accepts again
-  - Carried forward: screen message is generic (does not name the action); log file to look in (MISS-05)
+  - Carried forward: screen message is generic (does not name the action); log file to look in (MISS-05 - done 2026-10-14: `<data folder>\Logs`)
 - [x] **FIX-07 One DI scope per user action in the hosted UI** (Stage 13): enforce it in the shell, or switch cross-module readers to `AsNoTracking`; add a test - done 2026-10-08
   - [x] Enforced in the shell (FIX-01 runner); a kept action scope now refuses to hand out services; readers keep tracking
   - [x] Every screen view model and the shell built from the root with scope validation on (catches indirect captures)
@@ -188,9 +188,9 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] **MISS-04b** Restore flow (database not in use during restore) (2026-10-10): prepare/confirm while running, swap at the next start before the database opens, before-restore copy kept and listed
   - [x] **MISS-04d** Backup screen (2026-10-10): status, back up now, check, list, restore with a confirming sentence and "Restart now", restore from a file, delete asked first, settings; English + Arabic
   - [x] **MISS-04c** Scheduling (2026-10-10): daily at a set time while the application runs, catch-up after a missed time, 30-minute retry pause, shell notice when a backup fails or no folder is chosen
-- [ ] **MISS-05 Log file and crash reports** (Stage 12)
-  - [ ] Rolling log file under LocalAppData (no secrets)
-  - [ ] Unhandled-exception crash report collection
+- [x] **MISS-05 Log file and crash reports** (Stage 12) - done 2026-10-14. Decisions (user): crash reports kept locally + a support file the owner sends (no upload); logs next to the database, 14 days; "never log a secret" rule plus masking in the writer; new sensitive capability `support.export`
+  - [x] Rolling log file under LocalAppData (no secrets): `<data folder>\Logs\genericpos-yyyyMMdd.log` (the default data folder is under LocalAppData), 10 MB parts, 14 days, 100 MB in total, secrets masked (`Client.Diagnostics`)
+  - [x] Unhandled-exception crash report collection: screen thread, background threads, unobserved tasks and startup failures; `Logs\crash\`; status-bar notice; Administration > Support saves a support file (.zip of logs and crash reports, never the database)
 - [ ] **MISS-06 Testing**
   - [ ] UI-automated business workflow (sign in -> scan -> sell -> receipt -> close shift) on the real executable
   - [ ] Load / soak test (e.g. a full day of sales; many sales per minute)
@@ -269,4 +269,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-10 | MISS-04e1 | d01ad63 | Encrypted cloud backup format library (recovery code, .gpbak, escrow slot); 2753 tests, 0 warnings |
 | 2026-10-10 | MISS-04e2 | 05c6b1c | Decision 8 (real module, HTTP outside); CloudBackup module + Client.CloudBackup.Http; 2779 tests, 0 warnings; real exe start-up with the module |
 | 2026-10-11 | MISS-04e3 | 72ad7be | Cloud backup screen and restore from the cloud; 2791 tests, 0 warnings; real exe end to end against the real vendor servers |
-| 2026-10-12 | MISS-04f | (this commit) | Decisions 9-11; vendor escrow recovery (request, AdminPortal approval, offline tool, restore key bound to the PC, new code asked for); MISS-04 complete; 2814 tests, 0 warnings; real exe end to end: PC A backs up, PC B recovers through the vendor |
+| 2026-10-12 | MISS-04f | 22d3c4e | Decisions 9-11; vendor escrow recovery (request, AdminPortal approval, offline tool, restore key bound to the PC, new code asked for); MISS-04 complete; 2814 tests, 0 warnings; real exe end to end: PC A backs up, PC B recovers through the vendor |
+| 2026-10-14 | MISS-05 | (this commit) | Decisions recorded; log file next to the database (masked), crash reports, Administration > Support with the support file; 2845 tests, 0 warnings; real exe: failed start reported, notice, Support screen, support file saved |

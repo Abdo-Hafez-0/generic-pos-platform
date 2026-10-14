@@ -32,10 +32,17 @@ namespace Client.Desktop;
 public partial class App : Application
 {
     private IApplicationHost? _applicationHost;
+    private Shell.CrashHandling? _crashes;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // MISS-05: from the very start, a failure nobody handles is written as a crash report (and the person told plainly)
+        _crashes = new Shell.CrashHandling(
+            message => MessageBox.Show(message, Client.Desktop.Resources.ShellText.CrashTitle, MessageBoxButton.OK, MessageBoxImage.Error),
+            Shutdown);
+        _crashes.Attach(Dispatcher);
 
         try
         {
@@ -50,6 +57,7 @@ public partial class App : Application
 
             // Start all hosted services (logging, configuration, module discovery, etc.)
             await _applicationHost.StartAsync();
+            _crashes.Use(_applicationHost.Services);   // reports now go to the Logs folder next to the data, with the modules
 
             // Log successful startup.
             var logger = _applicationHost.Services.GetRequiredService<ILogger<App>>();
@@ -76,15 +84,18 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            // If host startup fails, show a plain statement and exit cleanly. The exception itself (database text, paths) goes to the log only.
+            // If host startup fails, show a plain statement and exit cleanly. The exception itself (database text, paths) goes to the log
+            // and a crash report only (MISS-05: the reporter never throws).
             try
             {
-                _applicationHost?.Services.GetService<ILogger<App>>()?.LogCritical(ex, "The application failed to start.");
+                if (_applicationHost is not null) _crashes.Use(_applicationHost.Services);   // built but not started: still next to the data
             }
-            catch (Exception)
+            catch (InvalidOperationException)
             {
-                // logging is best effort here: the host may be half started
+                // the host was never built: the report goes to %LOCALAPPDATA%\GenericPOS\Logs
             }
+
+            _crashes.OnStartupFailure(ex);
 
             System.Diagnostics.Debug.WriteLine(ex);
             MessageBox.Show(

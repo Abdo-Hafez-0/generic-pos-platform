@@ -51,4 +51,13 @@
   <data name="NewRecoveryCodeNeeded" xml:space="preserve">
     <value>Make a new recovery code under Administration &gt; Cloud backup: the data was restored with a key from the vendor.</value>
   </data>
+  <data name="CrashTitle" xml:space="preserve">
+    <value>GenericPOS</value>
+  </data>
+  <data name="CrashMessage" xml:space="preserve">
+    <value>The application met an unexpected problem and must close. A report was kept; an administrator can send it to the vendor from Administration &gt; Support. Open the application again to continue.</value>
+  </data>
+  <data name="CrashNotice" xml:space="preserve">
+    <value>The application closed unexpectedly on {0}. A report was kept: Administration &gt; Support.</value>
+  </data>
 </root>

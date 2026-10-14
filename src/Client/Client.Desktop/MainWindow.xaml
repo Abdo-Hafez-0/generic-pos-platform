@@ -147,6 +147,9 @@
         <!-- Status bar -->
         <Border Grid.Row="2" Background="#181825" Padding="16,6">
             <DockPanel LastChildFill="True">
+                <!-- MISS-05: the application closed unexpectedly (for those who may save a support file) -->
+                <TextBlock x:Name="SupportNoticeText" DockPanel.Dock="Right" Text="{Binding SupportNoticeText}" Foreground="#F38BA8" FontSize="11"
+                           TextWrapping="Wrap" MaxWidth="500" Margin="16,0,0,0"/>
                 <!-- MISS-04c: a backup problem, for the people who can act on it -->
                 <TextBlock x:Name="BackupNoticeText" DockPanel.Dock="Right" Text="{Binding BackupNoticeText}" Foreground="#F9E2AF" FontSize="11"
                            TextWrapping="Wrap" MaxWidth="700" Margin="16,0,0,0"/>

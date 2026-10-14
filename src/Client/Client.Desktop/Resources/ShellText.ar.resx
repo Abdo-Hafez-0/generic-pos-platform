@@ -51,4 +51,13 @@
   <data name="NewRecoveryCodeNeeded" xml:space="preserve">
     <value>أنشئ رمز استرداد جديدًا من الإدارة &gt; النسخ الاحتياطي السحابي: تمت استعادة البيانات بمفتاح من المورّد.</value>
   </data>
+  <data name="CrashTitle" xml:space="preserve">
+    <value>GenericPOS</value>
+  </data>
+  <data name="CrashMessage" xml:space="preserve">
+    <value>واجه التطبيق مشكلة غير متوقعة ويجب إغلاقه. تم حفظ تقرير؛ يمكن للمسؤول إرساله إلى المورّد من الإدارة &gt; الدعم. افتح التطبيق مرة أخرى للمتابعة.</value>
+  </data>
+  <data name="CrashNotice" xml:space="preserve">
+    <value>أُغلق التطبيق بشكل غير متوقع في {0}. تم حفظ تقرير: الإدارة &gt; الدعم.</value>
+  </data>
 </root>

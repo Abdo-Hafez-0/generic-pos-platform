@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ScreenTitle" xml:space="preserve">
+    <value>Support</value>
+  </data>
+  <data name="Explanation" xml:space="preserve">
+    <value>If the application misbehaves or closed unexpectedly, save a support file and send it to your vendor. It holds the application's logs and crash reports, which can name users and products. It never holds the shop's data file, passwords or keys.</value>
+  </data>
+  <data name="LogFolder" xml:space="preserve">
+    <value>Log folder</value>
+  </data>
+  <data name="LogFiles" xml:space="preserve">
+    <value>Log files</value>
+  </data>
+  <data name="LogFilesValue" xml:space="preserve">
+    <value>{0} file(s), {1}</value>
+  </data>
+  <data name="LogFilesNone" xml:space="preserve">
+    <value>None yet</value>
+  </data>
+  <data name="CrashReports" xml:space="preserve">
+    <value>Crash reports</value>
+  </data>
+  <data name="NoCrashes" xml:space="preserve">
+    <value>The application has not closed unexpectedly.</value>
+  </data>
+  <data name="When" xml:space="preserve">
+    <value>When</value>
+  </data>
+  <data name="What" xml:space="preserve">
+    <value>What happened</value>
+  </data>
+  <data name="SaveFile" xml:space="preserve">
+    <value>Save support file...</value>
+  </data>
+  <data name="SaveTitle" xml:space="preserve">
+    <value>Save the support file</value>
+  </data>
+  <data name="ZipFiles" xml:space="preserve">
+    <value>Support files</value>
+  </data>
+  <data name="Saved" xml:space="preserve">
+    <value>The support file was saved as {0} ({1} log file(s), {2} crash report(s)). Send it to your vendor.</value>
+  </data>
+</root>

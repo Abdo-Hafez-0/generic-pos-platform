@@ -49,6 +49,10 @@ internal static class Assemblies
     internal static readonly Assembly ClientBackup =
         typeof(Client.Backup.ClientBackupAssemblyMarker).Assembly;
 
+    // MISS-05: the log file, crash reports and the support file
+    internal static readonly Assembly ClientDiagnostics =
+        typeof(Client.Diagnostics.ClientDiagnosticsAssemblyMarker).Assembly;
+
     // MISS-04e: the encrypted cloud backup format, shared by the CloudBackup module and the vendor's escrow tool
     internal static readonly Assembly SecurityBackupEnvelope =
         typeof(Security.BackupEnvelope.BackupEnvelope).Assembly;
@@ -100,7 +104,8 @@ internal static class Assemblies
         ClientModuleHost,
         ClientLicensing,
         ClientUpdater,
-        ClientBackup
+        ClientBackup,
+        ClientDiagnostics
         // Client.Desktop excluded — see note above
     ];
 

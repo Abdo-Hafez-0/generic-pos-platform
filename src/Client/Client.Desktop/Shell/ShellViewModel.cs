@@ -4,6 +4,7 @@ using Client.Backup.Domain;
 using Client.Desktop.Resources;
 using Client.Licensing.Application;
 using CloudBackup.Application;
+using Client.Diagnostics.Support;
 using Platform.Application.Abstractions.Authorization;
 using Platform.Presentation.Actions;
 using Platform.Presentation.Mvvm;
@@ -29,6 +30,7 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
     private readonly ILicenseService? _licenses;
     private readonly IBackupNoticeSource? _backups;
     private readonly ICloudBackupNotice? _cloud;
+    private readonly ICrashNoticeSource? _crashes;
     private readonly SynchronizationContext? _uiContext;
     private readonly Dictionary<string, ScreenInstance> _open = new(StringComparer.OrdinalIgnoreCase);
 
@@ -44,6 +46,8 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
     private bool _mayConfigureBackups;
     private bool _mayMakeBackups;
     private bool _mayManageCloud;
+    private bool _maySeeCrashes;
+    private string _supportNoticeText = string.Empty;
 
     public ShellViewModel(
         IUiActionRunner runner,
@@ -52,7 +56,8 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
         IScreenFactory factory,
         ILicenseService? licenses = null,
         IBackupNoticeSource? backups = null,
-        ICloudBackupNotice? cloud = null)
+        ICloudBackupNotice? cloud = null,
+        ICrashNoticeSource? crashes = null)
     {
         _runner = runner;
         _navigation = navigation;
@@ -65,6 +70,8 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
         if (_backups is not null) _backups.Changed += (_, _) => OnBackupsChanged();
         _cloud = cloud;
         if (_cloud is not null) _cloud.Changed += (_, _) => OnBackupsChanged();
+        _crashes = crashes;
+        if (_crashes is not null) _crashes.Changed += (_, _) => OnBackupsChanged();
         OpenCommand = Command<NavigationEntry>(entry => entry is null ? Task.CompletedTask : OpenAsync(entry));
     }
 
@@ -131,6 +138,12 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
     /// </summary>
     public string BackupNoticeText { get => _backupNoticeText; private set => Set(ref _backupNoticeText, value); }
 
+    /// <summary>
+    /// MISS-05: "the application closed unexpectedly on ..." for those who may save a support file (support.export), until someone opens
+    /// the Support screen; empty otherwise.
+    /// </summary>
+    public string SupportNoticeText { get => _supportNoticeText; private set => Set(ref _supportNoticeText, value); }
+
     /// <summary>Rebuilds everything for the user signed in now (after sign-in, and after sign-out + sign-in as someone else).</summary>
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
@@ -153,6 +166,7 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
             _mayConfigureBackups = permissions.IsSuccess && permissions.Value.Contains("backup.configure", StringComparer.OrdinalIgnoreCase);
             _mayMakeBackups = permissions.IsSuccess && permissions.Value.Contains("backup.create", StringComparer.OrdinalIgnoreCase);
             _mayManageCloud = permissions.IsSuccess && permissions.Value.Contains(CloudBackupCapabilities.Manage, StringComparer.OrdinalIgnoreCase);
+            _maySeeCrashes = permissions.IsSuccess && permissions.Value.Contains(SupportCapabilities.Export, StringComparer.OrdinalIgnoreCase);
         });
 
         await UpdateBackupNoticeAsync(cancellationToken);
@@ -161,6 +175,7 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
     /// <summary>Reads the backup notice and shows it if the signed-in person can act on it. Never fails the shell.</summary>
     public async Task UpdateBackupNoticeAsync(CancellationToken cancellationToken = default)
     {
+        UpdateSupportNotice();
         if (_cloud is not null && _mayManageCloud)
         {
             bool needsCode;
@@ -203,6 +218,29 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
                 notice.At?.ToString("g", CultureInfo.CurrentCulture) ?? string.Empty, notice.Reason ?? string.Empty),
             _ => string.Empty
         };
+    }
+
+    private void UpdateSupportNotice()
+    {
+        if (_crashes is null || !_maySeeCrashes)
+        {
+            SupportNoticeText = string.Empty;
+            return;
+        }
+
+        IReadOnlyList<Client.Diagnostics.Crash.CrashReportInfo> unseen;
+        try
+        {
+            unseen = _crashes.UnseenCrashes();
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            unseen = [];
+        }
+
+        SupportNoticeText = unseen.Count == 0
+            ? string.Empty
+            : string.Format(CultureInfo.CurrentCulture, ShellText.CrashNotice, unseen.Max(r => r.At).ToString("g", CultureInfo.CurrentCulture));
     }
 
     private void OnBackupsChanged()
@@ -257,6 +295,8 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
         _mayConfigureBackups = false;
         _mayMakeBackups = false;
         _mayManageCloud = false;
+        _maySeeCrashes = false;
+        SupportNoticeText = string.Empty;
         ErrorMessage = null;
         StatusMessage = null;
     }

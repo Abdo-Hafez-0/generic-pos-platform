@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ScreenTitle" xml:space="preserve">
+    <value>الدعم</value>
+  </data>
+  <data name="Explanation" xml:space="preserve">
+    <value>إذا لم يعمل التطبيق كما يجب أو أُغلق فجأة، احفظ ملف دعم وأرسله إلى المورّد. يحتوي على سجلات التطبيق وتقارير الأعطال، وقد تذكر أسماء مستخدمين ومنتجات. لا يحتوي أبدًا على ملف بيانات المتجر ولا على كلمات المرور أو المفاتيح.</value>
+  </data>
+  <data name="LogFolder" xml:space="preserve">
+    <value>مجلد السجلات</value>
+  </data>
+  <data name="LogFiles" xml:space="preserve">
+    <value>ملفات السجل</value>
+  </data>
+  <data name="LogFilesValue" xml:space="preserve">
+    <value>{0} ملف، {1}</value>
+  </data>
+  <data name="LogFilesNone" xml:space="preserve">
+    <value>لا يوجد بعد</value>
+  </data>
+  <data name="CrashReports" xml:space="preserve">
+    <value>تقارير الأعطال</value>
+  </data>
+  <data name="NoCrashes" xml:space="preserve">
+    <value>لم يُغلق التطبيق بشكل غير متوقع.</value>
+  </data>
+  <data name="When" xml:space="preserve">
+    <value>الوقت</value>
+  </data>
+  <data name="What" xml:space="preserve">
+    <value>ما حدث</value>
+  </data>
+  <data name="SaveFile" xml:space="preserve">
+    <value>حفظ ملف الدعم...</value>
+  </data>
+  <data name="SaveTitle" xml:space="preserve">
+    <value>حفظ ملف الدعم</value>
+  </data>
+  <data name="ZipFiles" xml:space="preserve">
+    <value>ملفات الدعم</value>
+  </data>
+  <data name="Saved" xml:space="preserve">
+    <value>تم حفظ ملف الدعم باسم {0} ({1} ملف سجل، {2} تقرير عطل). أرسله إلى المورّد.</value>
+  </data>
+</root>

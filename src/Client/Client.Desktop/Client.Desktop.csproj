@@ -24,6 +24,7 @@
     <ProjectReference Include="..\Client.Updater.Http\Client.Updater.Http.csproj" />
     <!-- Backup (MISS-04a): local backups of the business database -->
     <ProjectReference Include="..\Client.Backup\Client.Backup.csproj" />
+    <ProjectReference Include="..\Client.Diagnostics\Client.Diagnostics.csproj" />
     <!-- CloudBackup module (MISS-04e2): encrypted copies of the backups in the vendor's cloud + its HTTP transport -->
     <ProjectReference Include="..\..\Modules\CloudBackup\CloudBackup.Infrastructure\CloudBackup.Infrastructure.csproj" />
     <ProjectReference Include="..\Client.CloudBackup.Http\Client.CloudBackup.Http.csproj" />
@@ -104,6 +105,12 @@
                       StronglyTypedClassName="CloudBackupText"
                       StronglyTypedNamespace="Client.Desktop.Resources"
                       StronglyTypedFileName="$(IntermediateOutputPath)CloudBackupText.Designer.cs"
+                      PublicClass="true" />
+    <EmbeddedResource Update="Resources\SupportText.resx"
+                      StronglyTypedLanguage="CSharp"
+                      StronglyTypedClassName="SupportText"
+                      StronglyTypedNamespace="Client.Desktop.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)SupportText.Designer.cs"
                       PublicClass="true" />
   </ItemGroup>
   <!-- The XAML temporary-assembly compile also needs the generated resource classes: src/Directory.Build.targets. -->

@@ -3,6 +3,7 @@ using CashManagement.Infrastructure.Module;
 using Catalog.Infrastructure.Module;
 using Client.Desktop.Shell;
 using Client.Backup.Infrastructure;
+using Client.Diagnostics;
 using Client.CloudBackup.Http;
 using CloudBackup.Infrastructure;
 using Client.Hardware;
@@ -37,6 +38,7 @@ public static class DesktopComposition
 {
     public static IReadOnlyList<IHostingModule> HostingModules() =>
     [
+        new DiagnosticsHostingModule(),     // MISS-05: the log file next to the database, crash reports, the support file
         new DesktopServicesRegistrar(),
         new ModuleHostRegistrar(),
         new ClientSecurityHostingModule(),  // Stage 11: operating-system data protection (DPAPI) for local security state

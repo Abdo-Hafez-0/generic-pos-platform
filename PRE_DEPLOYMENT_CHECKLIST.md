@@ -213,7 +213,9 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Colours only through theme names (DynamicResource), never written in a view (ARCH-UI-001/002)
   - [ ] The dark theme: a second colour set on the same names, checked for readable contrast; the Light / Dark / Windows choice next to the language
   - [x] The shell redesigned (MISS-08a): white header with the Matjar logo, light side menu with the open screen marked, light status bar; sign-in as a white card with the logo
-  - [ ] **MISS-08b** The till for touch: large barcode box, rows, quantity and payment buttons, the total and Checkout fixed on the right
+  - [x] **MISS-08b** The till for touch (2026-10-15): large scan box, rows and buttons, the totals, payment, change and Checkout fixed on the end side; drop-down lists rounded like the text boxes (owner's request); text-box hints
+  - [ ] **MISS-08c** The other screens to the drawn patterns (title and main action, search, plain table; settings in white boxes) and the whole application checked in Arabic, the till included
+  - [ ] **MISS-08d** The dark theme and the Light / Dark / Windows choice per user
   - [ ] Every screen moved to the new look, in English and Arabic (right-to-left), at the usual screen sizes
   - [ ] Kept working: AutomationIds stay stable (UI tests and the end-to-end test drive them), all texts stay in .resx, the generic XAML / Arabic-twin checks pass
   - [ ] Checked on the real executable with screenshots of every screen (English and Arabic) for the user's review
@@ -315,4 +317,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-15 | MISS-09 | 419ff0b | Name chosen: Matjar / متجر |
 | 2026-10-15 | MISS-09 | 8bc51c1 | Logo concept chosen: mix A (framed م with a gold dot, name in both scripts) |
 | 2026-10-15 | MISS-09 | 61329c7, dec59d1 | Palette 2 (Emerald and sand) chosen; final logo SVGs, the icon (.ico 16-256) and the brand sheet `branding/BRAND.md`; applying the brand in the application goes with MISS-08 |
-| 2026-10-15 | MISS-08a, MISS-09 | (this commit) | The Matjar theme (light + dark colour sets, shared control styles), all 25 views on theme names, the shell and sign-in redesigned with the logo, the Matjar icon; 2946 tests + 3 opt-in, 0 warnings; real exe: first run and nine screens shot; the end-to-end test passes |
+| 2026-10-15 | MISS-08a, MISS-09 | 5b5beb3 | The Matjar theme (light + dark colour sets, shared control styles), all 25 views on theme names, the shell and sign-in redesigned with the logo, the Matjar icon; 2946 tests + 3 opt-in, 0 warnings; real exe: first run and nine screens shot; the end-to-end test passes |
+| 2026-10-15 | MISS-08b | (this commit) | The till for touch, rounded drop-down lists, text-box hints; 2946 tests + 3 opt-in, 0 warnings; real exe: end-to-end sale on the new till |

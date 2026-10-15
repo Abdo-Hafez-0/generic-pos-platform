@@ -2715,6 +2715,18 @@ FIX-13 decisions (user, 2026-10-09): every screen text in Arabic with right-to-l
 
 ---
 
+## MISS-08b Summary - The till for touch; rounded drop-down lists (2026-10-15)
+
+- **Owner's request (2026-10-15)**: drop-down lists should look smooth and rounded like the text boxes.
+- **Drop-down lists** (Controls.xaml, all 25 of them, none is typed into): the text-box frame (rounded, emerald when in use), a thin arrow that turns when open, a rounded list with soft hover and the chosen item in the selection colour - theme colours only, so the dark theme gets them too.
+- **Text boxes show a hint while empty** (`Tag`), e.g. "Scan or type a barcode", "Amount", "Note", "Code or name".
+- **The till** (`PosView`, every automation name and binding kept): touch sizes on the till only (buttons, fields and lists 44 px and more, the scan bar 52 px, cart rows 50 px at 16 pt); the sale on the start side - a large scan box with quantity and Add, the customer and discount line, the cart, the till actions; a fixed panel on the end side - subtotal, discount, tax included, a large total, the payment parts (method, amount, note, Add payment; the hint as a tooltip), the amount still due and the change kept in sight above a large Checkout (64 px); opening the till in a white card; the recent sales in a white card with touch-sized rows. 2 texts (English + Arabic drafts).
+- **Found by the real run and fixed before commit**: on a 720 px high window the payment panel ran under Checkout, hiding the change - the amount due and the change are now pinned above Checkout and the payment entry scrolls when space runs out; the two-line payment hint moved into a tooltip.
+- **Tests**: no count change (2946 + 3 opt-in, 0 warnings); the views are composed against the real theme; the opt-in end-to-end test (a whole sale on the real executable) passes on the new till (33 s); screenshots of the till with a sale and with the payment covered were taken from that run.
+- **Next**: MISS-08c the other screens to the drawn patterns and the whole application checked in Arabic (including the till); MISS-08d the dark theme and the per-user choice.
+
+---
+
 ## Known Issues / Blockers
 
 None blocking. Stage 13 and Part A (FIX-01..FIX-15) are complete; MISS-04 (client backup, 04a..04f) is complete.
@@ -2792,4 +2804,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-15 - MISS-09 brand (Matjar) and MISS-08a (theme, shell). 2946 tests + 3 opt-in, 0 warnings, 129 projects; MISS-07 open until the device check is run; next: MISS-08b (touch till).
+Last updated: 2026-10-15 - MISS-08b (touch till, rounded drop-down lists). 2946 tests + 3 opt-in, 0 warnings, 129 projects; MISS-07 open until the device check is run; next: MISS-08c (other screens, Arabic).

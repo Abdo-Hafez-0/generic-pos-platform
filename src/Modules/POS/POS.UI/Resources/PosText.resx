@@ -249,4 +249,10 @@
   <data name="ReceiptReprinted" xml:space="preserve">
     <value>A copy of the receipt was sent to the printer.</value>
   </data>
+  <data name="ScanHint" xml:space="preserve">
+    <value>Scan or type a barcode</value>
+  </data>
+  <data name="CustomerPlaceholder" xml:space="preserve">
+    <value>Code or name</value>
+  </data>
 </root>

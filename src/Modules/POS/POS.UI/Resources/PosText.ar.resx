@@ -249,4 +249,10 @@
   <data name="ReceiptReprinted" xml:space="preserve">
     <value>أُرسلت نسخة من الإيصال إلى الطابعة.</value>
   </data>
+  <data name="ScanHint" xml:space="preserve">
+    <value>امسح الباركود أو اكتبه</value>
+  </data>
+  <data name="CustomerPlaceholder" xml:space="preserve">
+    <value>الكود أو الاسم</value>
+  </data>
 </root>

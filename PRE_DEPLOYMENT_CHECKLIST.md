@@ -221,9 +221,10 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Name chosen (user 2026-10-15): **Matjar / متجر** ("store") - from two rounds of drawn suggestions; a common Arabic word, so a trademark / name check by the user (and possibly a short tag or distinctive spelling) is still advised before the installer
   - [ ] The name shown everywhere (window title, the shell header, the sign-in screen, receipts' footer if wanted, the installer, the shortcut GenericPOS.exe and the Windows "Apps" list)
   - [x] Logo concept chosen (user 2026-10-15): **mix A** - a rounded square frame holding the Arabic م with a gold dot beneath it, followed by the name in both scripts (متجر above, MATJAR in spaced serif capitals below); the app icon is the framed م with the gold dot on the brand colour. Chosen from three concepts and five mixes of concepts 2 (bilingual monogram) and 3 (Arabic word with a gold dot)
-  - [ ] Final logo files: vector (SVG) in light and dark versions, and the application icon (.ico 16-256 px for the executable, the shortcut and the installer)
-  - [ ] The brand colours (primary, accent, neutrals; light and dark), which MISS-08 then uses for its theme (replacing the plain blue chosen before)
-  - [ ] A short brand sheet (name in both scripts, logo use, colours, fonts) kept in the repository
+  - [x] Final logo files (2026-10-15): `branding/matjar-logo.svg` and `matjar-logo-dark.svg`, `matjar-icon.svg`, `matjar.ico` (16-256 px, each size drawn for itself) and PNGs; texts in the SVGs use Windows fonts - outlines by a designer for print
+  - [x] Brand colours chosen (user 2026-10-15): **palette 2, Emerald and sand** - emerald `#0F5132` brand, sand `#C8A96A` rare highlight, action/Checkout `#0F7A4F`; dark theme values set and contrast-checked (sand never as text; dark text on the dark action green; a deeper dark Checkout). MISS-08 uses emerald instead of the blue chosen before
+  - [x] Brand sheet `branding/BRAND.md` (2026-10-15): name in both scripts, logo files and rules, colour roles for light and dark with contrast figures, type
+  - [ ] Apply the brand in the application: window title, shell header and sign-in (name and logo), the executable and GenericPOS.exe icons, the receipts' default store-less footer if wanted - together with MISS-08 (the shell is redesigned there anyway)
   - [ ] Put the name and logo in one place (resources) so a later rename is one change; decide whether the executable / install folder names follow it (before PKG-03, the installer)
 
 ---
@@ -311,4 +312,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-15 | MISS-08 | e06228b | Decisions: blue accent, touch-sized till, dark theme within MISS-08 (per user, following Windows by default) |
 | 2026-10-15 | MISS-08, MISS-09 | 80ad068 | MISS-08 paused; MISS-09 started first (brand brief: bilingual, any small business, premium) and widened to brand colours and a brand sheet |
 | 2026-10-15 | MISS-09 | 419ff0b | Name chosen: Matjar / متجر |
-| 2026-10-15 | MISS-09 | (this commit) | Logo concept chosen: mix A (framed م with a gold dot, name in both scripts) |
+| 2026-10-15 | MISS-09 | 8bc51c1 | Logo concept chosen: mix A (framed م with a gold dot, name in both scripts) |
+| 2026-10-15 | MISS-09 | (this commit) | Palette 2 (Emerald and sand) chosen; final logo SVGs, the icon (.ico 16-256) and the brand sheet `branding/BRAND.md`; applying the brand in the application goes with MISS-08 |

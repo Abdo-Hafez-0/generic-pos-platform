@@ -301,6 +301,105 @@
             </Setter.Value>
         </Setter>
     </Style>
+    <!-- date fields: the text-box frame with a calendar button; the calendar opens in a rounded white panel -->
+    <Style TargetType="DatePickerTextBox">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource Brush.Text}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource Brush.Accent}"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DatePickerTextBox">
+                    <Grid Background="{TemplateBinding Background}">
+                        <ContentControl x:Name="PART_Watermark" Opacity="0" IsHitTestVisible="False" Focusable="False"/>
+                        <ScrollViewer x:Name="PART_ContentHost" Focusable="False" VerticalAlignment="Center"
+                                      HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="DatePicker.Button" TargetType="Button">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Face" Background="Transparent" CornerRadius="4" Width="26" Height="24">
+                        <Canvas Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Rectangle x:Name="Body" Canvas.Top="2" Width="14" Height="12" RadiusX="2" RadiusY="2" StrokeThickness="1.4"
+                                       Stroke="{DynamicResource Brush.TextMuted}"/>
+                            <Line x:Name="Top" X1="0.7" Y1="6" X2="13.3" Y2="6" StrokeThickness="1.4" Stroke="{DynamicResource Brush.TextMuted}"/>
+                            <Line x:Name="RingA" X1="4" Y1="0.5" X2="4" Y2="3.5" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stroke="{DynamicResource Brush.TextMuted}"/>
+                            <Line x:Name="RingB" X1="10" Y1="0.5" X2="10" Y2="3.5" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stroke="{DynamicResource Brush.TextMuted}"/>
+                        </Canvas>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Face" Property="Background" Value="{DynamicResource Brush.Hover}"/>
+                            <Setter TargetName="Body" Property="Stroke" Value="{DynamicResource Brush.Accent}"/>
+                            <Setter TargetName="Top" Property="Stroke" Value="{DynamicResource Brush.Accent}"/>
+                            <Setter TargetName="RingA" Property="Stroke" Value="{DynamicResource Brush.Accent}"/>
+                            <Setter TargetName="RingB" Property="Stroke" Value="{DynamicResource Brush.Accent}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style TargetType="Calendar">
+        <Setter Property="Background" Value="{DynamicResource Brush.Page}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Line}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+    </Style>
+    <Style TargetType="DatePicker">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Ui}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+        <Setter Property="Background" Value="{DynamicResource Brush.Input}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.LineStrong}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8,3,4,3"/>
+        <Setter Property="MinHeight" Value="30"/>
+        <Setter Property="IsTodayHighlighted" Value="True"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DatePicker">
+                    <Border x:Name="Frame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" SnapsToDevicePixels="True">
+                        <Grid x:Name="PART_Root" Margin="{TemplateBinding Padding}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <DatePickerTextBox x:Name="PART_TextBox" Grid.Column="0" Foreground="{TemplateBinding Foreground}" FontSize="{TemplateBinding FontSize}"
+                                               HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                            <Button x:Name="PART_Button" Grid.Column="1" Style="{StaticResource DatePicker.Button}" Margin="4,0,0,0"/>
+                            <Popup x:Name="PART_Popup" AllowsTransparency="True" Placement="Bottom" PlacementTarget="{Binding ElementName=Frame}" StaysOpen="False"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource Brush.TextMuted}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource Brush.Accent}"/>
+                            <Setter TargetName="Frame" Property="BorderThickness" Value="2"/>
+                        </Trigger>
+                        <Trigger Property="IsDropDownOpen" Value="True">
+                            <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource Brush.Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Frame" Property="Background" Value="{DynamicResource Brush.DisabledFace}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.TextDisabled}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
     <Style TargetType="CheckBox">
         <Setter Property="FontFamily" Value="{StaticResource Font.Ui}"/>
         <Setter Property="FontSize" Value="13"/>

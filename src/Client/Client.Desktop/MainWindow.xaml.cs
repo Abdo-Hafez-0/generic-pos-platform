@@ -38,7 +38,8 @@ public partial class MainWindow : Window
         _session = session;
         _scanner = scanner ?? ScannerKeyboard.None;
         InitializeComponent();
-        FlowDirection = UiCulture.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+        WindowDirection.Apply(this);
+        WindowDirection.FitToScreen(this);
         DataContext = shell;
         Loaded += async (_, _) => await _shell.RefreshAsync();
 

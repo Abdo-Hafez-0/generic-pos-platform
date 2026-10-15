@@ -25,7 +25,7 @@ public partial class SignInWindow : Window
     {
         _scopes = scopes;
         InitializeComponent();
-        FlowDirection = Platform.Presentation.Localization.UiCulture.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;   // FIX-13b
+        Shell.WindowDirection.Apply(this);   // FIX-13b; MISS-08: the content mirrors, never the frame
         Loaded += async (_, _) => await ShowCurrentStageAsync();
     }
 

@@ -70,11 +70,24 @@
             <!-- Navigation: groups of screens the user may use; the open screen is marked; locked entries explain themselves when chosen -->
             <Border Grid.Column="0" Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="0,0,1,0">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl x:Name="Navigation" ItemsSource="{Binding Groups}" Margin="0,8,0,12">
+                    <ItemsControl x:Name="Navigation" ItemsSource="{Binding Groups}" Margin="0,6,0,12" AlternationCount="1000">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Margin="0,8,0,0">
-                                    <TextBlock Text="{Binding Title}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="11.5" FontWeight="SemiBold" Margin="19,0,12,4"/>
+                                <StackPanel Margin="0,4,0,0">
+                                    <!-- MISS-08 (owner): a light line between groups, and group titles small and quiet so they read as headings -->
+                                    <Border x:Name="GroupSeparator" Height="1" Background="{DynamicResource Brush.LineStrong}" Margin="16,8,16,10">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <!-- no line above the first group (its item container is the nearest ContentPresenter) -->
+                                                    <DataTrigger Binding="{Binding (ItemsControl.AlternationIndex), RelativeSource={RelativeSource AncestorType=ContentPresenter}}" Value="0">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+                                    <TextBlock x:Name="GroupTitle" Text="{Binding Title}" Foreground="{DynamicResource Brush.Accent}" FontSize="11.5" FontWeight="SemiBold" Margin="19,0,12,3"/>
                                     <ItemsControl ItemsSource="{Binding Entries}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
@@ -119,7 +132,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="{Binding CurrentTitle}" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                <TextBlock Grid.Row="0" x:Name="ScreenTitleText" Text="{Binding CurrentTitle}" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,12"/>
                 <TextBlock Grid.Row="1" x:Name="ErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
                 <!-- TextElement.Foreground: text inside the screens' data templates inherits this (implicit TextBlock styles stop at template boundaries) -->

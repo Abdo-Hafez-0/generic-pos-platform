@@ -43,6 +43,7 @@ public sealed class DesktopSession(IServiceProvider services, IConfiguration con
         await services.GetRequiredService<ShellViewModel>().ResetAsync();
 
         var window = services.GetRequiredService<MainWindow>();
+        if (previous is not null) WindowDirection.TakePlaceOf(window, previous);   // MISS-08: the new language opens where the window was
         app.MainWindow = window;
         window.Show();
         previous?.CloseForReplacement();

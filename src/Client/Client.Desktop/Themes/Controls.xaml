@@ -122,8 +122,10 @@
     <ControlTemplate x:Key="Template.TextEntry" TargetType="Control">
         <Border x:Name="Frame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
                 BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" SnapsToDevicePixels="True">
-            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" Focusable="False"
-                          HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" VerticalAlignment="Center"/>
+            <!-- MISS-08 (owner: clicks on a box did nothing): the typing area fills the whole box, so a click anywhere in it puts the caret
+                 there; the control applies its Padding and VerticalContentAlignment inside the typing area itself -->
+            <ScrollViewer x:Name="PART_ContentHost" Focusable="False" Background="Transparent"
+                          HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
         </Border>
         <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
@@ -163,12 +165,13 @@
                 <ControlTemplate TargetType="TextBox">
                     <Border x:Name="Frame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" SnapsToDevicePixels="True">
-                        <Grid Margin="{TemplateBinding Padding}">
+                        <Grid>
                             <TextBlock x:Name="Hint" Text="{TemplateBinding Tag}" Foreground="{DynamicResource Brush.TextMuted}" IsHitTestVisible="False"
-                                       VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed" TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center" Margin="{TemplateBinding Padding}" Padding="2,0" Visibility="Collapsed" TextTrimming="CharacterEllipsis"
                                        HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
-                            <ScrollViewer x:Name="PART_ContentHost" Focusable="False" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"
-                                          VerticalAlignment="Center"/>
+                            <!-- the typing area fills the whole box (see Template.TextEntry) -->
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="False" Background="Transparent"
+                                          HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
@@ -313,7 +316,7 @@
                 <ControlTemplate TargetType="DatePickerTextBox">
                     <Grid Background="{TemplateBinding Background}">
                         <ContentControl x:Name="PART_Watermark" Opacity="0" IsHitTestVisible="False" Focusable="False"/>
-                        <ScrollViewer x:Name="PART_ContentHost" Focusable="False" VerticalAlignment="Center"
+                        <ScrollViewer x:Name="PART_ContentHost" Focusable="False" Background="Transparent"
                                       HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
                     </Grid>
                 </ControlTemplate>
@@ -369,14 +372,15 @@
                 <ControlTemplate TargetType="DatePicker">
                     <Border x:Name="Frame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" SnapsToDevicePixels="True">
-                        <Grid x:Name="PART_Root" Margin="{TemplateBinding Padding}">
+                        <Grid x:Name="PART_Root">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <DatePickerTextBox x:Name="PART_TextBox" Grid.Column="0" Foreground="{TemplateBinding Foreground}" FontSize="{TemplateBinding FontSize}"
+                                               Padding="{TemplateBinding Padding}"
                                                HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"/>
-                            <Button x:Name="PART_Button" Grid.Column="1" Style="{StaticResource DatePicker.Button}" Margin="4,0,0,0"/>
+                            <Button x:Name="PART_Button" Grid.Column="1" Style="{StaticResource DatePicker.Button}" Margin="2,0,5,0"/>
                             <Popup x:Name="PART_Popup" AllowsTransparency="True" Placement="Bottom" PlacementTarget="{Binding ElementName=Frame}" StaysOpen="False"/>
                         </Grid>
                     </Border>

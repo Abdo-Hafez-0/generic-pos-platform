@@ -20,6 +20,9 @@ public sealed class DesktopCompositionTests
 {
     private static readonly Lazy<IServiceCollection> Services = new(Compose);
 
+    /// <summary>The real desktop composition, for tests that build the screens views (MISS-08 hit tests).</summary>
+    internal static ServiceProvider ServicesForViews() => Services.Value.BuildServiceProvider();
+
     private static IServiceCollection Compose()
     {
         var services = new ServiceCollection();

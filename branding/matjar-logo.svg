@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="260" height="80" viewBox="0 0 260 80">
   <title>Matjar - متجر</title>
   <rect x="6" y="10" width="60" height="60" rx="12" fill="none" stroke="#0F5132" stroke-width="3.5"/>
-  <text x="36" y="42" text-anchor="middle" font-family="Segoe UI, Tahoma, Arial, sans-serif" font-size="34" font-weight="bold" fill="#0F5132">م</text>
-  <circle cx="36" cy="59" r="3.8" fill="#C8A96A"/>
-  <text x="82" y="38" font-family="Segoe UI, Tahoma, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F5132">متجر</text>
+  <text x="36" y="40.2" text-anchor="middle" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="34" font-weight="bold" fill="#0F5132">م</text>
+  <circle cx="36" cy="52.4" r="3.2" fill="#C8A96A"/>
+  <text x="82" y="38" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F5132">متجر</text>
   <text x="82" y="64" font-family="Georgia, 'Times New Roman', serif" font-size="20" letter-spacing="3" fill="#0F5132">MATJAR</text>
 </svg>

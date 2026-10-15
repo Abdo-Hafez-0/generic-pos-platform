@@ -2,6 +2,6 @@
   <title>Matjar</title>
   <rect width="256" height="256" rx="56" fill="#0F5132"/>
   <rect x="44" y="44" width="168" height="168" rx="32" fill="none" stroke="#FFFFFF" stroke-width="7" opacity="0.9"/>
-  <text x="128" y="134" text-anchor="middle" font-family="Segoe UI, Tahoma, Arial, sans-serif" font-size="112" font-weight="bold" fill="#FFFFFF">م</text>
-  <circle cx="128" cy="186" r="12" fill="#C8A96A"/>
+  <text x="128" y="129" text-anchor="middle" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="128" font-weight="bold" fill="#FFFFFF">م</text>
+  <circle cx="128" cy="174.6" r="11.5" fill="#C8A96A"/>
 </svg>

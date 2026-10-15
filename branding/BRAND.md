@@ -29,7 +29,7 @@ Rules:
 - The dot is always sand-gold, the only gold on screen near the logo; never add a second accent to the logo.
 - Keep clear space around the logo of at least the height of the frame's corner radius; never stretch, rotate, outline or shadow it.
 - Minimum size: the full logo 120 px wide; below that use the icon (the framed م).
-- The texts in the SVG files use Windows fonts (Segoe UI for Arabic, Georgia for MATJAR). For print, signage or the website,
+- The texts in the SVG files use Windows fonts (Tahoma Bold for the Arabic م and متجر, Georgia for MATJAR). For print, signage or the website,
   have a designer convert them to outlines (and, ideally, refine the Arabic lettering).
 
 ## Colours
@@ -56,6 +56,7 @@ white on the dark Checkout 5.3; text on selected 13.7 / 12.2. All texts meet AA 
 ## Type
 
 - Screens: Segoe UI (Windows, Latin and Arabic).
+- The logo's Arabic (the framed م and متجر): Tahoma Bold - the م of the chosen drawings (owner, 2026-10-15); the letter, a small gap and the dot are stacked so the tail never touches the dot.
 - The logo's MATJAR: Georgia, spaced capitals.
 
 ## Where it is used

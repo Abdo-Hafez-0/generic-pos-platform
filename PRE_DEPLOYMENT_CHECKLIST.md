@@ -203,7 +203,7 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] **MISS-07d** Device check for the user (2026-10-14): `MISS-07_DEVICE_CHECK.md` - setup, the check per device with expected results, the failure campaign F1-F12, what to send back; found and fixed: receipt pictures too wide for 58 mm paper; found, not built: no screen prints product labels
   - [ ] Device check run by the user on the real devices (results sent back)
   - [ ] Device failure campaign (unplug during a sale, paper out, etc.): written as F1-F12 in `MISS-07_DEVICE_CHECK.md`, to be run with the devices
-- [ ] **MISS-08 UI redesign** (added by the user 2026-10-15): change and redesign the desktop user interface before packaging (the installer, screenshots and the user's guide follow the final look)
+- [ ] **MISS-08 UI redesign** (added by the user 2026-10-15): change and redesign the desktop user interface before packaging (the installer, screenshots and the user's guide follow the final look) - PAUSED 2026-10-15 by the user until MISS-09 (brand) is settled; resumes with the brand colours
   - [ ] Decisions to settle with the user before building: the look (colours, light/dark, fonts), the layout of the shell (navigation, header, status bar), which screens change first (the till first?), touch-screen use at the till, any reference design or examples
     - [x] Direction chosen (user 2026-10-15): **A - clean white with a side menu** (white surfaces, a light-gray side menu with the open screen marked, one accent colour, a light status bar) - chosen from three drawn examples (A side menu, B top menu bar, C soft gray cards with big buttons)
     - [x] Accent colour **blue**; the till is used on a **touch screen** (larger controls on the till only, other screens normal size) (user 2026-10-15)
@@ -217,9 +217,11 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [ ] Kept working: AutomationIds stay stable (UI tests and the end-to-end test drive them), all texts stay in .resx, the generic XAML / Arabic-twin checks pass
   - [ ] Checked on the real executable with screenshots of every screen (English and Arabic) for the user's review
 
-- [ ] **MISS-09 Product name, brand and logo** (added by the user 2026-10-15): the product has no name, brand or logo yet ("GenericPOS" / "Generic POS Platform" is a working name)
+- [ ] **MISS-09 Product name, brand identity, logo and colours** (added by the user 2026-10-15; taken BEFORE MISS-08 at the user's request): the product has no name, brand or logo yet ("GenericPOS" / "Generic POS Platform" is a working name). Brief (user 2026-10-15): Arabic and English markets from the start, any small business, a PREMIUM feeling; name suggestions of every kind shown to choose from
   - [ ] Choose the name (shown in the window title, the shell header, the sign-in screen, receipts' footer if wanted, the installer, the shortcut GenericPOS.exe and the Windows "Apps" list)
   - [ ] A logo and an application icon (.ico for the executable, the shortcut and the installer), in a light style that fits MISS-08 direction A
+  - [ ] The brand colours (primary, accent, neutrals; light and dark), which MISS-08 then uses for its theme (replacing the plain blue chosen before)
+  - [ ] A short brand sheet (name in both scripts, logo use, colours, fonts) kept in the repository
   - [ ] Put the name and logo in one place (resources) so a later rename is one change; decide whether the executable / install folder names follow it (before PKG-03, the installer)
 
 ---
@@ -304,4 +306,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-14 | PKG-01b | 535dc08 | Updates used at run time: restart through the launcher, "Restart now", Administration > Updates; 2944 tests + 3 opt-in, 0 warnings; real exe: POS 1.0.1 installed from a file, confirmed, rolled back. PKG-01 complete |
 | 2026-10-15 | MISS-08 | 0237a3c | Added at the user's request: UI redesign before packaging (decisions to be settled with the user first) |
 | 2026-10-15 | MISS-08, MISS-09 | ba835ef | MISS-08 direction A chosen (clean white with a side menu); MISS-09 added at the user's request: product name, brand and logo |
-| 2026-10-15 | MISS-08 | (this commit) | Decisions: blue accent, touch-sized till, dark theme within MISS-08 (per user, following Windows by default) |
+| 2026-10-15 | MISS-08 | e06228b | Decisions: blue accent, touch-sized till, dark theme within MISS-08 (per user, following Windows by default) |
+| 2026-10-15 | MISS-08, MISS-09 | (this commit) | MISS-08 paused; MISS-09 started first (brand brief: bilingual, any small business, premium) and widened to brand colours and a brand sheet |

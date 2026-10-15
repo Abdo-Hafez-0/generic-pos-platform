@@ -204,13 +204,19 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [ ] Device check run by the user on the real devices (results sent back)
   - [ ] Device failure campaign (unplug during a sale, paper out, etc.): written as F1-F12 in `MISS-07_DEVICE_CHECK.md`, to be run with the devices
 - [ ] **MISS-08 UI redesign** (added by the user 2026-10-15): change and redesign the desktop user interface before packaging (the installer, screenshots and the user's guide follow the final look)
-  - [ ] Decisions to settle with the user before building: the look (colours, light/dark, fonts, a brand/logo), the layout of the shell (navigation, header, status bar), which screens change first (the till first?), touch-screen use at the till, any reference design or examples
+  - [ ] Decisions to settle with the user before building: the look (colours, light/dark, fonts), the layout of the shell (navigation, header, status bar), which screens change first (the till first?), touch-screen use at the till, any reference design or examples
+    - [x] Direction chosen (user 2026-10-15): **A - clean white with a side menu** (white surfaces, a light-gray side menu with the open screen marked, one accent colour, a light status bar) - chosen from three drawn examples (A side menu, B top menu bar, C soft gray cards with big buttons)
+    - [ ] Accent colour, touch screen at the till, and approval of drawn examples of the shell and a few screens before coding
   - [ ] A shared style for every screen (one theme / resource dictionary in `Platform.Presentation` or the shell instead of the colours repeated in each view), so later screens follow it by default
   - [ ] The shell redesigned (navigation, header, status-bar notices)
   - [ ] Every screen moved to the new look, in English and Arabic (right-to-left), at the usual screen sizes
   - [ ] Kept working: AutomationIds stay stable (UI tests and the end-to-end test drive them), all texts stay in .resx, the generic XAML / Arabic-twin checks pass
   - [ ] Checked on the real executable with screenshots of every screen (English and Arabic) for the user's review
 
+- [ ] **MISS-09 Product name, brand and logo** (added by the user 2026-10-15): the product has no name, brand or logo yet ("GenericPOS" / "Generic POS Platform" is a working name)
+  - [ ] Choose the name (shown in the window title, the shell header, the sign-in screen, receipts' footer if wanted, the installer, the shortcut GenericPOS.exe and the Windows "Apps" list)
+  - [ ] A logo and an application icon (.ico for the executable, the shortcut and the installer), in a light style that fits MISS-08 direction A
+  - [ ] Put the name and logo in one place (resources) so a later rename is one change; decide whether the executable / install folder names follow it (before PKG-03, the installer)
 ---
 
 ## Part C - Stage 14: Packaging & Deployment
@@ -291,4 +297,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-14 | MISS-07d | ee7e849 | Device check for the user (MISS-07_DEVICE_CHECK.md); receipt pictures follow the paper width (58 mm fix); 2901 tests + 3 opt-in, 0 warnings; real exe: paper choices and saved widths. MISS-07 open until the check is run on real devices |
 | 2026-10-14 | PKG-01a | c60711a | The launcher GenericPOS.exe (assembled folder, module file ownership, hold-back of updates that never start); 2923 tests + 3 opt-in, 0 warnings; real exe: installed and assembled starts |
 | 2026-10-14 | PKG-01b | 535dc08 | Updates used at run time: restart through the launcher, "Restart now", Administration > Updates; 2944 tests + 3 opt-in, 0 warnings; real exe: POS 1.0.1 installed from a file, confirmed, rolled back. PKG-01 complete |
-| 2026-10-15 | MISS-08 | (this commit) | Added at the user's request: UI redesign before packaging (decisions to be settled with the user first) |
+| 2026-10-15 | MISS-08 | 0237a3c | Added at the user's request: UI redesign before packaging (decisions to be settled with the user first) |
+| 2026-10-15 | MISS-08, MISS-09 | (this commit) | MISS-08 direction A chosen (clean white with a side menu); MISS-09 added at the user's request: product name, brand and logo |

@@ -206,8 +206,12 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 - [ ] **MISS-08 UI redesign** (added by the user 2026-10-15): change and redesign the desktop user interface before packaging (the installer, screenshots and the user's guide follow the final look)
   - [ ] Decisions to settle with the user before building: the look (colours, light/dark, fonts), the layout of the shell (navigation, header, status bar), which screens change first (the till first?), touch-screen use at the till, any reference design or examples
     - [x] Direction chosen (user 2026-10-15): **A - clean white with a side menu** (white surfaces, a light-gray side menu with the open screen marked, one accent colour, a light status bar) - chosen from three drawn examples (A side menu, B top menu bar, C soft gray cards with big buttons)
-    - [ ] Accent colour, touch screen at the till, and approval of drawn examples of the shell and a few screens before coding
+    - [x] Accent colour **blue**; the till is used on a **touch screen** (larger controls on the till only, other screens normal size) (user 2026-10-15)
+    - [x] **Dark theme within MISS-08** (user 2026-10-15): built on the same theme names after the light one; chosen **per user, following the Windows light/dark setting until the user picks Light or Dark** (kept with the user, like the language); printed receipts stay black on white
+    - [ ] Approval of the drawn examples (sign-in, till, a list screen, a settings screen, Arabic) before coding
   - [ ] A shared style for every screen (one theme / resource dictionary in `Platform.Presentation` or the shell instead of the colours repeated in each view), so later screens follow it by default
+  - [ ] Colours only through theme names (DynamicResource), never written in a view, so the theme can switch while the application runs (a test keeps it so)
+  - [ ] The dark theme: a second colour set on the same names, checked for readable contrast; the Light / Dark / Windows choice next to the language
   - [ ] The shell redesigned (navigation, header, status-bar notices)
   - [ ] Every screen moved to the new look, in English and Arabic (right-to-left), at the usual screen sizes
   - [ ] Kept working: AutomationIds stay stable (UI tests and the end-to-end test drive them), all texts stay in .resx, the generic XAML / Arabic-twin checks pass
@@ -217,6 +221,7 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [ ] Choose the name (shown in the window title, the shell header, the sign-in screen, receipts' footer if wanted, the installer, the shortcut GenericPOS.exe and the Windows "Apps" list)
   - [ ] A logo and an application icon (.ico for the executable, the shortcut and the installer), in a light style that fits MISS-08 direction A
   - [ ] Put the name and logo in one place (resources) so a later rename is one change; decide whether the executable / install folder names follow it (before PKG-03, the installer)
+
 ---
 
 ## Part C - Stage 14: Packaging & Deployment
@@ -298,4 +303,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-14 | PKG-01a | c60711a | The launcher GenericPOS.exe (assembled folder, module file ownership, hold-back of updates that never start); 2923 tests + 3 opt-in, 0 warnings; real exe: installed and assembled starts |
 | 2026-10-14 | PKG-01b | 535dc08 | Updates used at run time: restart through the launcher, "Restart now", Administration > Updates; 2944 tests + 3 opt-in, 0 warnings; real exe: POS 1.0.1 installed from a file, confirmed, rolled back. PKG-01 complete |
 | 2026-10-15 | MISS-08 | 0237a3c | Added at the user's request: UI redesign before packaging (decisions to be settled with the user first) |
-| 2026-10-15 | MISS-08, MISS-09 | (this commit) | MISS-08 direction A chosen (clean white with a side menu); MISS-09 added at the user's request: product name, brand and logo |
+| 2026-10-15 | MISS-08, MISS-09 | ba835ef | MISS-08 direction A chosen (clean white with a side menu); MISS-09 added at the user's request: product name, brand and logo |
+| 2026-10-15 | MISS-08 | (this commit) | Decisions: blue accent, touch-sized till, dark theme within MISS-08 (per user, following Windows by default) |

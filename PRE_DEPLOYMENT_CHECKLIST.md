@@ -218,7 +218,8 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [ ] Checked on the real executable with screenshots of every screen (English and Arabic) for the user's review
 
 - [ ] **MISS-09 Product name, brand identity, logo and colours** (added by the user 2026-10-15; taken BEFORE MISS-08 at the user's request): the product has no name, brand or logo yet ("GenericPOS" / "Generic POS Platform" is a working name). Brief (user 2026-10-15): Arabic and English markets from the start, any small business, a PREMIUM feeling; name suggestions of every kind shown to choose from
-  - [ ] Choose the name (shown in the window title, the shell header, the sign-in screen, receipts' footer if wanted, the installer, the shortcut GenericPOS.exe and the Windows "Apps" list)
+  - [x] Name chosen (user 2026-10-15): **Matjar / متجر** ("store") - from two rounds of drawn suggestions; a common Arabic word, so a trademark / name check by the user (and possibly a short tag or distinctive spelling) is still advised before the installer
+  - [ ] The name shown everywhere (window title, the shell header, the sign-in screen, receipts' footer if wanted, the installer, the shortcut GenericPOS.exe and the Windows "Apps" list)
   - [ ] A logo and an application icon (.ico for the executable, the shortcut and the installer), in a light style that fits MISS-08 direction A
   - [ ] The brand colours (primary, accent, neutrals; light and dark), which MISS-08 then uses for its theme (replacing the plain blue chosen before)
   - [ ] A short brand sheet (name in both scripts, logo use, colours, fonts) kept in the repository
@@ -307,4 +308,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-15 | MISS-08 | 0237a3c | Added at the user's request: UI redesign before packaging (decisions to be settled with the user first) |
 | 2026-10-15 | MISS-08, MISS-09 | ba835ef | MISS-08 direction A chosen (clean white with a side menu); MISS-09 added at the user's request: product name, brand and logo |
 | 2026-10-15 | MISS-08 | e06228b | Decisions: blue accent, touch-sized till, dark theme within MISS-08 (per user, following Windows by default) |
-| 2026-10-15 | MISS-08, MISS-09 | (this commit) | MISS-08 paused; MISS-09 started first (brand brief: bilingual, any small business, premium) and widened to brand colours and a brand sheet |
+| 2026-10-15 | MISS-08, MISS-09 | 80ad068 | MISS-08 paused; MISS-09 started first (brand brief: bilingual, any small business, premium) and widened to brand colours and a brand sheet |
+| 2026-10-15 | MISS-09 | (this commit) | Name chosen: Matjar / متجر |

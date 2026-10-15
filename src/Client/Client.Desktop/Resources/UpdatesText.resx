@@ -19,7 +19,7 @@
     <value>Updates bring new versions of the application and its modules. Every update is checked (it must be signed by your vendor) before it is installed, and the version before it is kept, so you can go back.</value>
   </data>
   <data name="LauncherHint" xml:space="preserve">
-    <value>This copy of the application was not started from the GenericPOS shortcut: installed updates are used only when it is.</value>
+    <value>This copy of the application was not started from the Matjar shortcut: installed updates are used only when it is.</value>
   </data>
   <data name="VersionsTitle" xml:space="preserve">
     <value>Versions</value>
@@ -52,7 +52,7 @@
     <value>Used after a restart</value>
   </data>
   <data name="StateNeedsLauncher" xml:space="preserve">
-    <value>Used when the application is started from the GenericPOS shortcut</value>
+    <value>Used when the application is started from the Matjar shortcut</value>
   </data>
   <data name="StateNotStarted" xml:space="preserve">
     <value>Not started: {0}</value>
@@ -97,7 +97,7 @@
     <value>{0} {1} is installed. It is used after a restart.</value>
   </data>
   <data name="InstalledNeedsLauncher" xml:space="preserve">
-    <value>{0} {1} is installed. It is used when the application is started from the GenericPOS shortcut.</value>
+    <value>{0} {1} is installed. It is used when the application is started from the Matjar shortcut.</value>
   </data>
   <data name="WentBack" xml:space="preserve">
     <value>{0} goes back to the version before it after a restart.</value>

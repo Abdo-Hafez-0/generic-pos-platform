@@ -8,34 +8,36 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=shell:ShellViewModel}"
         Title="{x:Static res:ShellText.ApplicationTitle}"
-        Height="700"
-        Width="1200"
-        MinHeight="480"
-        MinWidth="800"
+        Height="720"
+        Width="1240"
+        MinHeight="520"
+        MinWidth="860"
         WindowStartupLocation="CenterScreen"
-        Background="#1E1E2E">
+        Background="{DynamicResource Brush.Page}"
+        Foreground="{DynamicResource Brush.Text}"
+        FontFamily="Segoe UI">
 
     <!--
-        APPLICATION SHELL (FIX-01a)
+        APPLICATION SHELL (FIX-01a; MISS-08 design "A - clean white with a side menu", Matjar brand)
 
         Glue only: the navigation the signed-in user may use (ShellViewModel + Platform.Presentation NavigationBuilder) and the open
         screen. Screens are declared by the module UIs (IScreenProvider) and created by the shell. Every text comes from
-        Resources/ShellText.resx and the layout uses no left/right-specific placement, so FlowDirection can follow the language.
+        Resources/ShellText.resx, every colour from the theme (Themes/*.xaml) and the layout uses no left/right-specific placement, so
+        FlowDirection can follow the language.
     -->
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
+        <shell:SameItemConverter x:Key="SameItem"/>
         <Style TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
         </Style>
-        <Style x:Key="NavigationButton" TargetType="Button">
-            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="Padding" Value="12,4"/>
-            <Setter Property="Margin" Value="0"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
+        <Style x:Key="Notice" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="MaxWidth" Value="560"/>
+            <Setter Property="Margin" Value="16,0,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
     </Window.Resources>
 
@@ -46,50 +48,57 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header bar: application, who is signed in, sign out -->
-        <Border Grid.Row="0" Background="#313244" Padding="16,12">
+        <!-- Header: the brand, who is signed in, the language, sign out -->
+        <Border Grid.Row="0" Background="{DynamicResource Brush.Page}" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="0,0,0,1" Padding="16,10">
             <DockPanel LastChildFill="False">
-                <TextBlock DockPanel.Dock="Left" Text="{x:Static res:ShellText.ApplicationTitle}" FontSize="18" FontWeight="SemiBold"/>
-                <Button x:Name="SignOutButton" DockPanel.Dock="Right" Content="{x:Static res:ShellText.SignOut}" Padding="10,2" Click="OnSignOut"/>
+                <shell:BrandMark x:Name="Brand" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                <Button x:Name="SignOutButton" DockPanel.Dock="Right" Content="{x:Static res:ShellText.SignOut}" Click="OnSignOut" VerticalAlignment="Center"/>
                 <!-- FIX-13b: the signed-in user's screen language -->
-                <ComboBox x:Name="LanguageBox" DockPanel.Dock="Right" Width="110" Margin="12,0,0,0" DisplayMemberPath="NativeName"
+                <ComboBox x:Name="LanguageBox" DockPanel.Dock="Right" Width="120" Margin="0,0,10,0" DisplayMemberPath="NativeName" VerticalAlignment="Center"
                           AutomationProperties.Name="{x:Static res:ShellText.Language}" ToolTip="{x:Static res:ShellText.Language}"/>
-                <TextBlock x:Name="SignedInText" DockPanel.Dock="Right" Margin="12,0" VerticalAlignment="Center"
-                           Foreground="#A6ADC8" Text="{Binding SignedInText}"/>
+                <TextBlock x:Name="SignedInText" DockPanel.Dock="Right" Margin="12,0,14,0" VerticalAlignment="Center"
+                           Foreground="{DynamicResource Brush.TextMuted}" Text="{Binding SignedInText}"/>
             </DockPanel>
         </Border>
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="240"/>
+                <ColumnDefinition Width="236"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Navigation: groups of screens the user may use; locked entries explain themselves when chosen -->
-            <Border Grid.Column="0" Background="#181825">
+            <!-- Navigation: groups of screens the user may use; the open screen is marked; locked entries explain themselves when chosen -->
+            <Border Grid.Column="0" Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="0,0,1,0">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl x:Name="Navigation" ItemsSource="{Binding Groups}" Margin="8">
+                    <ItemsControl x:Name="Navigation" ItemsSource="{Binding Groups}" Margin="0,8,0,12">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Margin="0,6,0,0">
-                                    <TextBlock Text="{Binding Title}" Foreground="#6C7086" FontSize="11" FontWeight="SemiBold" Margin="12,0,12,2"/>
+                                <StackPanel Margin="0,8,0,0">
+                                    <TextBlock Text="{Binding Title}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="11.5" FontWeight="SemiBold" Margin="19,0,12,4"/>
                                     <ItemsControl ItemsSource="{Binding Entries}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Button Style="{StaticResource NavigationButton}"
+                                                <Button Style="{StaticResource Button.Navigation}"
                                                         AutomationProperties.Name="{Binding Title}"
                                                         Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                         CommandParameter="{Binding}"
                                                         ToolTip="{Binding Reason}">
+                                                    <Button.Tag>
+                                                        <MultiBinding Converter="{StaticResource SameItem}">
+                                                            <Binding/>
+                                                            <Binding Path="DataContext.Current" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                        </MultiBinding>
+                                                    </Button.Tag>
                                                     <DockPanel>
                                                         <TextBlock x:Name="LockMark" DockPanel.Dock="Right" Text="{x:Static res:ShellText.Locked}"
-                                                                   Foreground="#F9E2AF" FontSize="10" VerticalAlignment="Center" Visibility="Collapsed"/>
-                                                        <TextBlock Text="{Binding Title}"/>
+                                                                   Foreground="{DynamicResource Brush.Warning}" FontSize="11" VerticalAlignment="Center" Visibility="Collapsed"/>
+                                                        <TextBlock x:Name="EntryTitle" Text="{Binding Title}"/>
                                                     </DockPanel>
                                                 </Button>
                                                 <DataTemplate.Triggers>
                                                     <DataTrigger Binding="{Binding IsAvailable}" Value="False">
                                                         <Setter TargetName="LockMark" Property="Visibility" Value="Visible"/>
+                                                        <Setter TargetName="EntryTitle" Property="Foreground" Value="{DynamicResource Brush.TextMuted}"/>
                                                     </DataTrigger>
                                                 </DataTemplate.Triggers>
                                             </DataTemplate>
@@ -103,29 +112,30 @@
             </Border>
 
             <!-- Content: the open screen, a lock explanation, or the welcome text -->
-            <Grid Grid.Column="1" Margin="16">
+            <Grid Grid.Column="1" Margin="24,18,24,16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="{Binding CurrentTitle}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBlock Grid.Row="1" x:Name="ErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <TextBlock Grid.Row="0" Text="{Binding CurrentTitle}" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                <TextBlock Grid.Row="1" x:Name="ErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
                 <!-- TextElement.Foreground: text inside the screens' data templates inherits this (implicit TextBlock styles stop at template boundaries) -->
-                <ContentControl Grid.Row="2" x:Name="ScreenHost" Content="{Binding CurrentView}" Focusable="False" TextElement.Foreground="#CDD6F4"/>
+                <ContentControl Grid.Row="2" x:Name="ScreenHost" Content="{Binding CurrentView}" Focusable="False" TextElement.Foreground="{DynamicResource Brush.Text}"/>
 
-                <TextBlock Grid.Row="2" x:Name="LockedText" Text="{Binding LockedReason}" Foreground="#F9E2AF" TextWrapping="Wrap" FontSize="14"/>
+                <TextBlock Grid.Row="2" x:Name="LockedText" Text="{Binding LockedReason}" Foreground="{DynamicResource Brush.Warning}" TextWrapping="Wrap" FontSize="14"/>
 
                 <StackPanel Grid.Row="2" x:Name="Home" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="700"
                             Visibility="{Binding IsHome, Converter={StaticResource VisibleWhenTrue}}">
-                    <TextBlock Text="{x:Static res:ShellText.Welcome}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                    <shell:BrandMark ShowName="False" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                    <TextBlock Text="{x:Static res:ShellText.Welcome}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center"/>
                     <TextBlock x:Name="HomeHint" Text="{x:Static res:ShellText.ChooseScreen}" Margin="0,8,0,0"
                                HorizontalAlignment="Center" TextWrapping="Wrap">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                                <Setter Property="Foreground" Value="#A6ADC8"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding HasNoScreens}" Value="True">
                                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -134,31 +144,29 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
-                    <TextBlock x:Name="NoScreensText" Text="{x:Static res:ShellText.NoScreens}" Foreground="#A6ADC8" Margin="0,8,0,0"
+                    <TextBlock x:Name="NoScreensText" Text="{x:Static res:ShellText.NoScreens}" Foreground="{DynamicResource Brush.TextMuted}" Margin="0,8,0,0"
                                HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
                                Visibility="{Binding HasNoScreens, Converter={StaticResource VisibleWhenTrue}}"/>
                     <!-- Stage 11: the license state in plain words (restrictions never touch data) -->
-                    <TextBlock x:Name="LicenseText" Text="{Binding LicenseText}" Foreground="#F9E2AF" Margin="0,16,0,0"
+                    <TextBlock x:Name="LicenseText" Text="{Binding LicenseText}" Foreground="{DynamicResource Brush.Warning}" Margin="0,16,0,0"
                                HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
                 </StackPanel>
             </Grid>
         </Grid>
 
         <!-- Status bar -->
-        <Border Grid.Row="2" Background="#181825" Padding="16,6">
+        <Border Grid.Row="2" Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="0,1,0,0" Padding="16,5">
             <DockPanel LastChildFill="True">
                 <!-- PKG-01b: an update waits for a restart (everyone, with "Restart now"), or could not be used (those who manage updates) -->
                 <Button x:Name="RestartForUpdateButton" DockPanel.Dock="Right" Content="{x:Static res:ShellText.RestartNow}" Command="{Binding RestartForUpdateCommand}"
-                        Visibility="{Binding CanRestartForUpdate, Converter={StaticResource VisibleWhenTrue}}" Padding="10,1" Margin="8,0,0,0" FontSize="11"/>
-                <TextBlock x:Name="UpdateNoticeText" DockPanel.Dock="Right" Text="{Binding UpdateNoticeText}" Foreground="#89B4FA" FontSize="11"
-                           TextWrapping="Wrap" MaxWidth="500" Margin="16,0,0,0" VerticalAlignment="Center"/>
+                        Style="{StaticResource Button.Primary}" Visibility="{Binding CanRestartForUpdate, Converter={StaticResource VisibleWhenTrue}}"
+                        Padding="10,2" MinHeight="24" Margin="8,0,0,0" FontSize="12"/>
+                <TextBlock x:Name="UpdateNoticeText" DockPanel.Dock="Right" Text="{Binding UpdateNoticeText}" Foreground="{DynamicResource Brush.Info}" Style="{StaticResource Notice}"/>
                 <!-- MISS-05: the application closed unexpectedly (for those who may save a support file) -->
-                <TextBlock x:Name="SupportNoticeText" DockPanel.Dock="Right" Text="{Binding SupportNoticeText}" Foreground="#F38BA8" FontSize="11"
-                           TextWrapping="Wrap" MaxWidth="500" Margin="16,0,0,0"/>
+                <TextBlock x:Name="SupportNoticeText" DockPanel.Dock="Right" Text="{Binding SupportNoticeText}" Foreground="{DynamicResource Brush.Danger}" Style="{StaticResource Notice}"/>
                 <!-- MISS-04c: a backup problem, for the people who can act on it -->
-                <TextBlock x:Name="BackupNoticeText" DockPanel.Dock="Right" Text="{Binding BackupNoticeText}" Foreground="#F9E2AF" FontSize="11"
-                           TextWrapping="Wrap" MaxWidth="700" Margin="16,0,0,0"/>
-                <TextBlock x:Name="StatusText" Text="{Binding StatusText}" Foreground="#6C7086" FontSize="11"/>
+                <TextBlock x:Name="BackupNoticeText" DockPanel.Dock="Right" Text="{Binding BackupNoticeText}" Foreground="{DynamicResource Brush.Warning}" Style="{StaticResource Notice}" MaxWidth="700"/>
+                <TextBlock x:Name="StatusText" Text="{Binding StatusText}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="12" VerticalAlignment="Center"/>
             </DockPanel>
         </Border>
     </Grid>

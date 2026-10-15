@@ -12,13 +12,13 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
         <Style x:Key="Label" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}"/>
             <Setter Property="Margin" Value="0,4,16,4"/>
         </Style>
         <Style x:Key="Heading" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
@@ -30,24 +30,15 @@
             <Setter Property="Padding" Value="8,0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="12,4"/>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="MinWidth" Value="90"/>
             <Setter Property="Margin" Value="0,0,8,0"/>
         </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#313244"/>
-            <Setter Property="Foreground" Value="#A6ADC8"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"/>
+        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"/>
         <Style x:Key="Question" TargetType="Border">
-            <Setter Property="Background" Value="#313244"/>
-            <Setter Property="BorderBrush" Value="#F9E2AF"/>
+            <Setter Property="Background" Value="{DynamicResource Brush.Surface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Warning}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="12"/>
             <Setter Property="Margin" Value="0,12,0,0"/>
@@ -60,7 +51,7 @@
             <StackPanel Visibility="{Binding CanManage, Converter={StaticResource VisibleWhenTrue}}">
                 <!-- MISS-04f: after a restore with the vendor's restore key, a new recovery code is asked for -->
                 <Border Style="{StaticResource Question}" Margin="0,0,0,12" Visibility="{Binding NeedsNewCode, Converter={StaticResource VisibleWhenTrue}}">
-                    <TextBlock x:Name="NewCodeNeededText" Text="{x:Static res:CloudBackupText.NewCodeNeeded}" Foreground="#F9E2AF" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="NewCodeNeededText" Text="{x:Static res:CloudBackupText.NewCodeNeeded}" Foreground="{DynamicResource Brush.Warning}" FontWeight="SemiBold"/>
                 </Border>
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -85,7 +76,7 @@
                         <TextBlock x:Name="WaitingText" Text="{Binding WaitingText}"/>
                         <TextBlock x:Name="LastUploadText" Text="{Binding LastUploadText}"/>
                     </StackPanel>
-                    <TextBlock Grid.Row="4" Grid.Column="1" x:Name="LastFailureText" Text="{Binding LastFailureText}" Foreground="#F9E2AF"/>
+                    <TextBlock Grid.Row="4" Grid.Column="1" x:Name="LastFailureText" Text="{Binding LastFailureText}" Foreground="{DynamicResource Brush.Warning}"/>
                 </Grid>
 
                 <!-- recovery code: shown once, two groups typed back -->
@@ -94,7 +85,7 @@
                     <StackPanel>
                         <TextBlock Text="{x:Static res:CloudBackupText.CodeExplanation}"/>
                         <TextBox x:Name="RecoveryCodeShown" Text="{Binding CodeText, Mode=OneWay}" IsReadOnly="True" FlowDirection="LeftToRight" HorizontalAlignment="Left"
-                                 FontFamily="Consolas" FontSize="22" Margin="0,12,0,12" Background="Transparent" Foreground="#F9E2AF" BorderThickness="0"
+                                 FontFamily="Consolas" FontSize="22" Margin="0,12,0,12" Background="Transparent" Foreground="{DynamicResource Brush.Warning}" BorderThickness="0"
                                  AutomationProperties.Name="{x:Static res:CloudBackupText.RecoveryCode}"/>
                         <WrapPanel>
                             <TextBlock Style="{StaticResource Label}" Text="{Binding FirstGroupLabel}"/>
@@ -119,16 +110,13 @@
                     <TextBox x:Name="AccessKeyBox" Text="{Binding AccessKeyInput, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight" FontFamily="Consolas"
                              AutomationProperties.Name="{x:Static res:CloudBackupText.AccessKey}"/>
                 </DockPanel>
-                <TextBlock Text="{x:Static res:CloudBackupText.AccessKeyHint}" Foreground="#6C7086" FontSize="11" Margin="0,6,0,0"/>
+                <TextBlock Text="{x:Static res:CloudBackupText.AccessKeyHint}" Foreground="{DynamicResource Brush.TextSubtle}" FontSize="11" Margin="0,6,0,0"/>
             </StackPanel>
 
             <!-- restoring (backup.cloud.restore + backup.restore) -->
             <StackPanel Visibility="{Binding CanRestore, Converter={StaticResource VisibleWhenTrue}}">
                 <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:CloudBackupText.CloudBackups}"/>
-                <DataGrid x:Name="CloudGrid" ItemsSource="{Binding CloudBackups}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True"
-                          CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column" Height="200"
-                          Background="#181825" RowBackground="#1E1E2E" AlternatingRowBackground="#232336" Foreground="#CDD6F4"
-                          BorderBrush="#313244" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#313244" RowHeight="26"
+                <DataGrid x:Name="CloudGrid" ItemsSource="{Binding CloudBackups}" SelectedItem="{Binding Selected}" IsReadOnly="True" Height="200"
                           AutomationProperties.Name="{x:Static res:CloudBackupText.CloudBackups}">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="{x:Static res:CloudBackupText.Made}" Binding="{Binding MadeText}" Width="160" ElementStyle="{StaticResource Cell}"/>
@@ -165,7 +153,7 @@
 
                 <!-- MISS-04f: the vendor's restore key, pasted here, opens that one backup on this computer -->
                 <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:CloudBackupText.RestoreKeyHeading}"/>
-                <TextBlock Text="{x:Static res:CloudBackupText.RestoreKeyHint}" Foreground="#6C7086" FontSize="11" Margin="0,0,0,6"/>
+                <TextBlock Text="{x:Static res:CloudBackupText.RestoreKeyHint}" Foreground="{DynamicResource Brush.TextSubtle}" FontSize="11" Margin="0,0,0,6"/>
                 <TextBox x:Name="RestoreKeyBox" Text="{Binding RestoreKeyInput, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight" FontFamily="Consolas"
                          AcceptsReturn="True" Height="120" TextWrapping="NoWrap" VerticalContentAlignment="Top"
                          HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
@@ -196,8 +184,8 @@
             </StackPanel>
 
             <!-- what happened -->
-            <TextBlock x:Name="CloudStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" Margin="0,16,0,0"/>
-            <TextBlock x:Name="CloudErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" Margin="0,4,0,0"/>
+            <TextBlock x:Name="CloudStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" Margin="0,16,0,0"/>
+            <TextBlock x:Name="CloudErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" Margin="0,4,0,0"/>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

@@ -1,0 +1,46 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--
+        MATJAR DARK THEME (MISS-08, colours from branding/BRAND.md). The same names as Light.xaml.
+        On the light action green the text is dark (white would be unreadable, 2.2); the dark Checkout is a deeper green with white text (5.3).
+    -->
+
+    <!-- surfaces -->
+    <SolidColorBrush x:Key="Brush.Page" Color="#0F1612"/>
+    <SolidColorBrush x:Key="Brush.Surface" Color="#141D18"/>
+    <SolidColorBrush x:Key="Brush.RowAlt" Color="#121A15"/>
+    <SolidColorBrush x:Key="Brush.Input" Color="#0B110E"/>
+    <SolidColorBrush x:Key="Brush.Hover" Color="#1A241E"/>
+    <SolidColorBrush x:Key="Brush.Pressed" Color="#213027"/>
+    <SolidColorBrush x:Key="Brush.Selected" Color="#1B2E24"/>
+
+    <!-- lines -->
+    <SolidColorBrush x:Key="Brush.Line" Color="#283229"/>
+    <SolidColorBrush x:Key="Brush.LineStrong" Color="#3A463D"/>
+
+    <!-- text -->
+    <SolidColorBrush x:Key="Brush.Text" Color="#E9EEEA"/>
+    <SolidColorBrush x:Key="Brush.TextMuted" Color="#9AA49D"/>
+    <SolidColorBrush x:Key="Brush.TextSubtle" Color="#9AA49D"/>
+    <SolidColorBrush x:Key="Brush.TextDisabled" Color="#5E675F"/>
+
+    <!-- brand -->
+    <SolidColorBrush x:Key="Brush.Brand" Color="#E9EEEA"/>
+    <SolidColorBrush x:Key="Brush.Highlight" Color="#D6B97E"/>
+
+    <!-- actions -->
+    <SolidColorBrush x:Key="Brush.Accent" Color="#4CC38A"/>
+    <SolidColorBrush x:Key="Brush.AccentHover" Color="#5ED39A"/>
+    <SolidColorBrush x:Key="Brush.OnAccent" Color="#0F1612"/>
+    <SolidColorBrush x:Key="Brush.Checkout" Color="#1E7B4F"/>
+    <SolidColorBrush x:Key="Brush.CheckoutHover" Color="#238A59"/>
+    <SolidColorBrush x:Key="Brush.OnCheckout" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Brush.ButtonFace" Color="#18211B"/>
+    <SolidColorBrush x:Key="Brush.DisabledFace" Color="#151C17"/>
+
+    <!-- messages -->
+    <SolidColorBrush x:Key="Brush.Success" Color="#4CC38A"/>
+    <SolidColorBrush x:Key="Brush.Danger" Color="#F28B82"/>
+    <SolidColorBrush x:Key="Brush.Warning" Color="#E3B341"/>
+    <SolidColorBrush x:Key="Brush.Info" Color="#4CC38A"/>
+</ResourceDictionary>

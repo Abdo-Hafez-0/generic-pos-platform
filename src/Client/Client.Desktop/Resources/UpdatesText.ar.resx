@@ -19,7 +19,7 @@
     <value>تجلب التحديثات إصدارات جديدة من التطبيق ووحداته. يتم التحقق من كل تحديث (يجب أن يكون موقّعًا من المورّد) قبل تثبيته، ويُحتفظ بالإصدار السابق حتى تتمكن من الرجوع إليه.</value>
   </data>
   <data name="LauncherHint" xml:space="preserve">
-    <value>لم يتم تشغيل هذه النسخة من التطبيق من اختصار GenericPOS: تُستخدم التحديثات المثبتة فقط عند تشغيله منه.</value>
+    <value>لم يتم تشغيل هذه النسخة من التطبيق من اختصار متجر: تُستخدم التحديثات المثبتة فقط عند تشغيله منه.</value>
   </data>
   <data name="VersionsTitle" xml:space="preserve">
     <value>الإصدارات</value>
@@ -52,7 +52,7 @@
     <value>يُستخدم بعد إعادة التشغيل</value>
   </data>
   <data name="StateNeedsLauncher" xml:space="preserve">
-    <value>يُستخدم عند تشغيل التطبيق من اختصار GenericPOS</value>
+    <value>يُستخدم عند تشغيل التطبيق من اختصار متجر</value>
   </data>
   <data name="StateNotStarted" xml:space="preserve">
     <value>لم يُشغَّل: {0}</value>
@@ -97,7 +97,7 @@
     <value>تم تثبيت {0} {1}. يُستخدم بعد إعادة التشغيل.</value>
   </data>
   <data name="InstalledNeedsLauncher" xml:space="preserve">
-    <value>تم تثبيت {0} {1}. يُستخدم عند تشغيل التطبيق من اختصار GenericPOS.</value>
+    <value>تم تثبيت {0} {1}. يُستخدم عند تشغيل التطبيق من اختصار متجر.</value>
   </data>
   <data name="WentBack" xml:space="preserve">
     <value>يعود {0} إلى الإصدار السابق بعد إعادة التشغيل.</value>

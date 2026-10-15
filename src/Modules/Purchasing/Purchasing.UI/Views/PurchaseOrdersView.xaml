@@ -12,12 +12,12 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
         <Style x:Key="Label" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}"/>
             <Setter Property="Margin" Value="0,0,6,0"/>
         </Style>
         <Style x:Key="Heading" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
@@ -32,40 +32,20 @@
         <Style x:Key="Number" TargetType="TextBlock" BasedOn="{StaticResource Cell}">
             <Setter Property="TextAlignment" Value="Right"/>
         </Style>
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="10,4"/>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="MinWidth" Value="80"/>
             <Setter Property="Margin" Value="0,0,8,0"/>
         </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="Margin" Value="0,0,8,0"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <Style TargetType="ComboBox">
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="Margin" Value="0,0,8,0"/>
         </Style>
-        <Style TargetType="DataGrid">
-            <Setter Property="AutoGenerateColumns" Value="False"/>
+        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+        <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
             <Setter Property="IsReadOnly" Value="True"/>
-            <Setter Property="CanUserAddRows" Value="False"/>
-            <Setter Property="SelectionMode" Value="Single"/>
-            <Setter Property="HeadersVisibility" Value="Column"/>
-            <Setter Property="Background" Value="#181825"/>
-            <Setter Property="RowBackground" Value="#1E1E2E"/>
-            <Setter Property="AlternatingRowBackground" Value="#232336"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
-            <Setter Property="BorderBrush" Value="#313244"/>
-            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="#313244"/>
-            <Setter Property="RowHeight" Value="26"/>
         </Style>
-        <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#313244"/>
-            <Setter Property="Foreground" Value="#A6ADC8"/>
-            <Setter Property="Padding" Value="6,4"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
+        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"/>
     </UserControl.Resources>
 
     <Grid>
@@ -127,7 +107,7 @@
         </DockPanel>
 
         <!-- the selected order -->
-        <TextBlock Grid.Column="2" Text="{x:Static res:PurchasingText.SelectOrder}" Foreground="#6C7086" VerticalAlignment="Top"
+        <TextBlock Grid.Column="2" Text="{x:Static res:PurchasingText.SelectOrder}" Foreground="{DynamicResource Brush.TextSubtle}" VerticalAlignment="Top"
                    Visibility="{Binding HasNoOrder, Converter={StaticResource VisibleWhenTrue}}"/>
         <DockPanel Grid.Column="2" Visibility="{Binding HasOrder, Converter={StaticResource VisibleWhenTrue}}">
             <TextBlock DockPanel.Dock="Top" x:Name="OrderHeadingText" Style="{StaticResource Heading}" Text="{Binding OrderHeading}"/>
@@ -205,8 +185,8 @@
         </DockPanel>
 
         <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0">
-            <TextBlock x:Name="PurchasingStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" TextWrapping="Wrap"/>
-            <TextBlock x:Name="PurchasingErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap"/>
+            <TextBlock x:Name="PurchasingStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="PurchasingErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap"/>
         </StackPanel>
     </Grid>
 </UserControl>

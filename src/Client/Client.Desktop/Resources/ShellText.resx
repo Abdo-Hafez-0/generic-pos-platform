@@ -13,7 +13,7 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="ApplicationTitle" xml:space="preserve">
-    <value>Generic POS Platform</value>
+    <value>Matjar</value>
   </data>
   <data name="SignOut" xml:space="preserve">
     <value>Sign out</value>
@@ -52,7 +52,7 @@
     <value>Make a new recovery code under Administration &gt; Cloud backup: the data was restored with a key from the vendor.</value>
   </data>
   <data name="CrashTitle" xml:space="preserve">
-    <value>GenericPOS</value>
+    <value>Matjar</value>
   </data>
   <data name="CrashMessage" xml:space="preserve">
     <value>The application met an unexpected problem and must close. A report was kept; an administrator can send it to the vendor from Administration &gt; Support. Open the application again to continue.</value>
@@ -70,6 +70,6 @@
     <value>An update could not be used. See Administration &gt; Updates.</value>
   </data>
   <data name="UpdateNeedsLauncher" xml:space="preserve">
-    <value>An update is installed. It is used when the application is started from its GenericPOS shortcut.</value>
+    <value>An update is installed. It is used when the application is started from its Matjar shortcut.</value>
   </data>
 </root>

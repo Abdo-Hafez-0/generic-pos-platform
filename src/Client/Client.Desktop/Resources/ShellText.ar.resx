@@ -13,7 +13,7 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
     <data name="ApplicationTitle" xml:space="preserve">
-    <value>منصة نقاط البيع</value>
+    <value>متجر</value>
   </data>
   <data name="SignOut" xml:space="preserve">
     <value>تسجيل الخروج</value>
@@ -52,7 +52,7 @@
     <value>أنشئ رمز استرداد جديدًا من الإدارة &gt; النسخ الاحتياطي السحابي: تمت استعادة البيانات بمفتاح من المورّد.</value>
   </data>
   <data name="CrashTitle" xml:space="preserve">
-    <value>GenericPOS</value>
+    <value>متجر</value>
   </data>
   <data name="CrashMessage" xml:space="preserve">
     <value>واجه التطبيق مشكلة غير متوقعة ويجب إغلاقه. تم حفظ تقرير؛ يمكن للمسؤول إرساله إلى المورّد من الإدارة &gt; الدعم. افتح التطبيق مرة أخرى للمتابعة.</value>
@@ -70,6 +70,6 @@
     <value>تعذّر استخدام أحد التحديثات. راجع الإدارة &gt; التحديثات.</value>
   </data>
   <data name="UpdateNeedsLauncher" xml:space="preserve">
-    <value>تم تثبيت تحديث. يُستخدم عند تشغيل التطبيق من اختصار GenericPOS.</value>
+    <value>تم تثبيت تحديث. يُستخدم عند تشغيل التطبيق من اختصار متجر.</value>
   </data>
 </root>

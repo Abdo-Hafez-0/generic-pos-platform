@@ -11,7 +11,7 @@
     <!-- CATEGORIES AND UNITS (FIX-01c). DataContext: CategoriesViewModel. Texts: Resources/CatalogText.resx. -->
     <UserControl.Resources>
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
@@ -20,18 +20,13 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="0,0,0,8"/>
         </Style>
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="12,4"/>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="MinWidth" Value="90"/>
         </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Padding" Value="4,2"/>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="Margin" Value="0,0,8,0"/>
         </Style>
-        <Style TargetType="ListBox">
-            <Setter Property="Background" Value="#181825"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
-            <Setter Property="BorderBrush" Value="#313244"/>
+        <Style TargetType="ListBox" BasedOn="{StaticResource {x:Type ListBox}}">
             <Setter Property="MinHeight" Value="200"/>
             <Setter Property="Margin" Value="0,8,0,0"/>
         </Style>
@@ -74,7 +69,7 @@
                     <DataTemplate>
                         <TextBlock>
                             <Run Text="{Binding Name, Mode=OneWay}"/>
-                            <Run Text=" (" Foreground="#6C7086"/><Run Text="{Binding Abbreviation, Mode=OneWay}" Foreground="#6C7086"/><Run Text=")" Foreground="#6C7086"/>
+                            <Run Text=" (" Foreground="{DynamicResource Brush.TextSubtle}"/><Run Text="{Binding Abbreviation, Mode=OneWay}" Foreground="{DynamicResource Brush.TextSubtle}"/><Run Text=")" Foreground="{DynamicResource Brush.TextSubtle}"/>
                         </TextBlock>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
@@ -82,8 +77,8 @@
         </DockPanel>
 
         <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0">
-            <TextBlock x:Name="CategoriesStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" TextWrapping="Wrap"/>
-            <TextBlock x:Name="CategoriesErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap"/>
+            <TextBlock x:Name="CategoriesStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="CategoriesErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap"/>
         </StackPanel>
     </Grid>
 </UserControl>

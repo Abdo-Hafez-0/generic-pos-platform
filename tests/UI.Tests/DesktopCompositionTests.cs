@@ -150,29 +150,17 @@ public sealed class DesktopCompositionTests
         var screens = provider.GetServices<IScreenProvider>().SelectMany(p => p.GetScreens()).ToList();
         Assert.NotEmpty(screens);
 
-        // XAML is parsed when the view is constructed (a missing resource or a bad binding path in markup throws there), on an STA thread.
-        Exception? failure = null;
-        var thread = new Thread(() =>
+        // XAML is parsed when the view is constructed (a missing resource or a bad binding path in markup throws there), on the WPF
+        // thread that holds the application's theme (MISS-08: the views build on the shared control styles).
+        WpfThread.Run(() =>
         {
-            try
+            foreach (var screen in screens)
             {
-                foreach (var screen in screens)
-                {
-                    var view = (System.Windows.FrameworkElement)Activator.CreateInstance(screen.ViewType)!;
-                    view.Measure(new System.Windows.Size(1000, 700));
-                    view.Arrange(new System.Windows.Rect(0, 0, 1000, 700));
-                }
-            }
-            catch (Exception ex)
-            {
-                failure = ex;
+                var view = (System.Windows.FrameworkElement)Activator.CreateInstance(screen.ViewType)!;
+                view.Measure(new System.Windows.Size(1000, 700));
+                view.Arrange(new System.Windows.Rect(0, 0, 1000, 700));
             }
         });
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
-
-        Assert.Null(failure);
     }
 
     [Fact]

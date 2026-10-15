@@ -11,7 +11,7 @@
     <!-- WAREHOUSES (FIX-01c). DataContext: WarehousesViewModel. Texts: Resources/InventoryText.resx. -->
     <UserControl.Resources>
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
@@ -19,12 +19,10 @@
             <Setter Property="Padding" Value="8,0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="12,4"/>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="MinWidth" Value="90"/>
         </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Padding" Value="4,2"/>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="Margin" Value="0,0,8,0"/>
         </Style>
     </UserControl.Resources>
@@ -46,19 +44,8 @@
             <Button x:Name="AddWarehouseButton" Content="{x:Static res:InventoryText.AddWarehouse}" Command="{Binding AddCommand}"/>
         </StackPanel>
 
-        <DataGrid Grid.Row="1" x:Name="WarehouseGrid" ItemsSource="{Binding Warehouses}" AutoGenerateColumns="False" IsReadOnly="True"
-                  CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column"
-                  Background="#181825" RowBackground="#1E1E2E" AlternatingRowBackground="#232336" Foreground="#CDD6F4"
-                  BorderBrush="#313244" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#313244" RowHeight="28"
+        <DataGrid Grid.Row="1" x:Name="WarehouseGrid" ItemsSource="{Binding Warehouses}" IsReadOnly="True"
                   AutomationProperties.Name="{x:Static res:InventoryText.WarehousesTitle}">
-            <DataGrid.ColumnHeaderStyle>
-                <Style TargetType="DataGridColumnHeader">
-                    <Setter Property="Background" Value="#313244"/>
-                    <Setter Property="Foreground" Value="#A6ADC8"/>
-                    <Setter Property="Padding" Value="8,4"/>
-                    <Setter Property="BorderThickness" Value="0"/>
-                </Style>
-            </DataGrid.ColumnHeaderStyle>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="{x:Static res:InventoryText.Code}" Binding="{Binding Warehouse.Code}" Width="110" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:InventoryText.Name}" Binding="{Binding Warehouse.Name}" Width="*" ElementStyle="{StaticResource Cell}"/>
@@ -67,8 +54,8 @@
         </DataGrid>
 
         <StackPanel Grid.Row="2" Margin="0,8,0,0">
-            <TextBlock x:Name="WarehousesStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" TextWrapping="Wrap"/>
-            <TextBlock x:Name="WarehousesErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap"/>
+            <TextBlock x:Name="WarehousesStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="WarehousesErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap"/>
         </StackPanel>
     </Grid>
 </UserControl>

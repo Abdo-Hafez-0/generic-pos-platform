@@ -12,13 +12,13 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
         <Style x:Key="Label" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}"/>
             <Setter Property="Margin" Value="0,4,16,4"/>
         </Style>
         <Style x:Key="Heading" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
@@ -30,24 +30,15 @@
             <Setter Property="Padding" Value="8,0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="12,4"/>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="MinWidth" Value="90"/>
             <Setter Property="Margin" Value="0,0,8,0"/>
         </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#313244"/>
-            <Setter Property="Foreground" Value="#A6ADC8"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"/>
+        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"/>
         <Style x:Key="Question" TargetType="Border">
-            <Setter Property="Background" Value="#313244"/>
-            <Setter Property="BorderBrush" Value="#F9E2AF"/>
+            <Setter Property="Background" Value="{DynamicResource Brush.Surface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Warning}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="12"/>
             <Setter Property="Margin" Value="0,12,0,0"/>
@@ -75,8 +66,8 @@
                 <TextBlock Grid.Row="2" Grid.Column="1" x:Name="ScheduleText" Text="{Binding ScheduleText}"/>
             </Grid>
             <!-- design decision 2: local backups are plain files - say so -->
-            <TextBlock x:Name="UnencryptedText" Text="{x:Static res:BackupText.Unencrypted}" Foreground="#F9E2AF" FontSize="12" Margin="0,8,0,0"/>
-            <TextBlock x:Name="LastRestoreText" Text="{Binding LastRestoreText}" Foreground="#A6ADC8" FontSize="12" Margin="0,6,0,0"/>
+            <TextBlock x:Name="UnencryptedText" Text="{x:Static res:BackupText.Unencrypted}" Foreground="{DynamicResource Brush.Warning}" FontSize="12" Margin="0,8,0,0"/>
+            <TextBlock x:Name="LastRestoreText" Text="{Binding LastRestoreText}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="12" Margin="0,6,0,0"/>
 
             <Button x:Name="BackUpNowButton" Content="{x:Static res:BackupText.BackUpNow}" Command="{Binding BackUpNowCommand}" HorizontalAlignment="Left"
                     Margin="0,16,0,0" Visibility="{Binding CanMake, Converter={StaticResource VisibleWhenTrue}}"/>
@@ -84,10 +75,7 @@
             <!-- the backups -->
             <StackPanel Visibility="{Binding CanMake, Converter={StaticResource VisibleWhenTrue}}">
                 <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:BackupText.History}"/>
-                <DataGrid x:Name="BackupGrid" ItemsSource="{Binding Backups}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True"
-                          CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column" Height="220"
-                          Background="#181825" RowBackground="#1E1E2E" AlternatingRowBackground="#232336" Foreground="#CDD6F4"
-                          BorderBrush="#313244" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#313244" RowHeight="26"
+                <DataGrid x:Name="BackupGrid" ItemsSource="{Binding Backups}" SelectedItem="{Binding Selected}" IsReadOnly="True" Height="220"
                           AutomationProperties.Name="{x:Static res:BackupText.History}">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="{x:Static res:BackupText.Made}" Binding="{Binding MadeText}" Width="140" ElementStyle="{StaticResource Cell}"/>
@@ -160,14 +148,14 @@
                     <TextBlock Style="{StaticResource Label}" Text="{x:Static res:BackupText.DailyAt}" Margin="0,4,8,4"/>
                     <TextBox x:Name="DailyAtBox" Width="70" Text="{Binding DailyAtText, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight"
                              AutomationProperties.Name="{x:Static res:BackupText.DailyAt}"/>
-                    <TextBlock Text="{x:Static res:BackupText.TimeHint}" Foreground="#6C7086" FontSize="11" Margin="8,0,0,0"/>
+                    <TextBlock Text="{x:Static res:BackupText.TimeHint}" Foreground="{DynamicResource Brush.TextSubtle}" FontSize="11" Margin="8,0,0,0"/>
                 </WrapPanel>
                 <Button x:Name="SaveSettingsButton" Content="{x:Static res:BackupText.Save}" Command="{Binding SaveSettingsCommand}" HorizontalAlignment="Left" Margin="0,12,0,0"/>
             </StackPanel>
 
             <!-- what happened -->
-            <TextBlock x:Name="BackupStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" Margin="0,16,0,0"/>
-            <TextBlock x:Name="BackupErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" Margin="0,4,0,0"/>
+            <TextBlock x:Name="BackupStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" Margin="0,16,0,0"/>
+            <TextBlock x:Name="BackupErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" Margin="0,4,0,0"/>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

@@ -12,12 +12,12 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
         <Style x:Key="Label" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}"/>
             <Setter Property="Margin" Value="0,0,6,0"/>
         </Style>
         <Style x:Key="Heading" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
@@ -31,16 +31,13 @@
         <Style x:Key="Number" TargetType="TextBlock" BasedOn="{StaticResource Cell}">
             <Setter Property="TextAlignment" Value="Right"/>
         </Style>
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="12,4"/>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="MinWidth" Value="90"/>
         </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Padding" Value="4,2"/>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="Margin" Value="0,0,12,0"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
-        <Style TargetType="ComboBox">
+        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
             <Setter Property="Margin" Value="0,0,12,0"/>
         </Style>
     </UserControl.Resources>
@@ -66,19 +63,8 @@
             <Button x:Name="StockSearchButton" Content="{x:Static res:InventoryText.Search}" Command="{Binding SearchCommand}"/>
         </StackPanel>
 
-        <DataGrid Grid.Row="1" x:Name="StockGrid" ItemsSource="{Binding Stock}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True"
-                  CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column"
-                  Background="#181825" RowBackground="#1E1E2E" AlternatingRowBackground="#232336" Foreground="#CDD6F4"
-                  BorderBrush="#313244" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#313244" RowHeight="28"
+        <DataGrid Grid.Row="1" x:Name="StockGrid" ItemsSource="{Binding Stock}" SelectedItem="{Binding Selected}" IsReadOnly="True"
                   AutomationProperties.Name="{x:Static res:InventoryText.StockTitle}">
-            <DataGrid.ColumnHeaderStyle>
-                <Style TargetType="DataGridColumnHeader">
-                    <Setter Property="Background" Value="#313244"/>
-                    <Setter Property="Foreground" Value="#A6ADC8"/>
-                    <Setter Property="Padding" Value="8,4"/>
-                    <Setter Property="BorderThickness" Value="0"/>
-                </Style>
-            </DataGrid.ColumnHeaderStyle>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="{x:Static res:InventoryText.Sku}" Binding="{Binding Sku}" Width="120" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:InventoryText.Product}" Binding="{Binding ProductName}" Width="*" MinWidth="160" ElementStyle="{StaticResource Cell}"/>
@@ -90,7 +76,7 @@
         <!-- receive and correct -->
         <StackPanel Grid.Row="2">
             <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:InventoryText.ReceiveHeading}"/>
-            <TextBlock x:Name="StockNoWarehousesText" Text="{x:Static res:InventoryText.NoWarehouses}" Foreground="#F9E2AF" Margin="0,0,0,6"
+            <TextBlock x:Name="StockNoWarehousesText" Text="{x:Static res:InventoryText.NoWarehouses}" Foreground="{DynamicResource Brush.Warning}" Margin="0,0,0,6"
                        Visibility="{Binding HasNoWarehouses, Converter={StaticResource VisibleWhenTrue}}"/>
             <WrapPanel>
                 <TextBlock Style="{StaticResource Label}" Text="{x:Static res:InventoryText.ProductCode}"/>
@@ -121,9 +107,9 @@
         </StackPanel>
 
         <StackPanel Grid.Row="3" Margin="0,8,0,0">
-            <TextBlock x:Name="StockInfoText" Text="{Binding ResultInfo}" Foreground="#A6ADC8" TextWrapping="Wrap"/>
-            <TextBlock x:Name="StockStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" TextWrapping="Wrap"/>
-            <TextBlock x:Name="StockErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap"/>
+            <TextBlock x:Name="StockInfoText" Text="{Binding ResultInfo}" Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="StockStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="StockErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap"/>
         </StackPanel>
     </Grid>
 </UserControl>

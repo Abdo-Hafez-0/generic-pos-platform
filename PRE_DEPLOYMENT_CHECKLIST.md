@@ -203,16 +203,17 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] **MISS-07d** Device check for the user (2026-10-14): `MISS-07_DEVICE_CHECK.md` - setup, the check per device with expected results, the failure campaign F1-F12, what to send back; found and fixed: receipt pictures too wide for 58 mm paper; found, not built: no screen prints product labels
   - [ ] Device check run by the user on the real devices (results sent back)
   - [ ] Device failure campaign (unplug during a sale, paper out, etc.): written as F1-F12 in `MISS-07_DEVICE_CHECK.md`, to be run with the devices
-- [ ] **MISS-08 UI redesign** (added by the user 2026-10-15): change and redesign the desktop user interface before packaging (the installer, screenshots and the user's guide follow the final look) - PAUSED 2026-10-15 by the user until MISS-09 (brand) is settled; resumes with the brand colours
+- [ ] **MISS-08 UI redesign** (added by the user 2026-10-15): change and redesign the desktop user interface before packaging (the installer, screenshots and the user's guide follow the final look) - paused 2026-10-15 for MISS-09, resumed the same day with the Matjar brand. Plan 08a theme and shell, 08b touch till, 08c the other screens and Arabic, 08d dark theme
   - [ ] Decisions to settle with the user before building: the look (colours, light/dark, fonts), the layout of the shell (navigation, header, status bar), which screens change first (the till first?), touch-screen use at the till, any reference design or examples
     - [x] Direction chosen (user 2026-10-15): **A - clean white with a side menu** (white surfaces, a light-gray side menu with the open screen marked, one accent colour, a light status bar) - chosen from three drawn examples (A side menu, B top menu bar, C soft gray cards with big buttons)
     - [x] Accent colour **blue**; the till is used on a **touch screen** (larger controls on the till only, other screens normal size) (user 2026-10-15)
     - [x] **Dark theme within MISS-08** (user 2026-10-15): built on the same theme names after the light one; chosen **per user, following the Windows light/dark setting until the user picks Light or Dark** (kept with the user, like the language); printed receipts stay black on white
     - [ ] Approval of the drawn examples (sign-in, till, a list screen, a settings screen, Arabic) before coding
-  - [ ] A shared style for every screen (one theme / resource dictionary in `Platform.Presentation` or the shell instead of the colours repeated in each view), so later screens follow it by default
-  - [ ] Colours only through theme names (DynamicResource), never written in a view, so the theme can switch while the application runs (a test keeps it so)
+  - [x] **MISS-08a** (2026-10-15) A shared style for every screen: `Client.Desktop/Themes` (Light / Dark colour sets with the same names, Controls.xaml for the look of every control), every view moved to it
+  - [x] Colours only through theme names (DynamicResource), never written in a view (ARCH-UI-001/002)
   - [ ] The dark theme: a second colour set on the same names, checked for readable contrast; the Light / Dark / Windows choice next to the language
-  - [ ] The shell redesigned (navigation, header, status-bar notices)
+  - [x] The shell redesigned (MISS-08a): white header with the Matjar logo, light side menu with the open screen marked, light status bar; sign-in as a white card with the logo
+  - [ ] **MISS-08b** The till for touch: large barcode box, rows, quantity and payment buttons, the total and Checkout fixed on the right
   - [ ] Every screen moved to the new look, in English and Arabic (right-to-left), at the usual screen sizes
   - [ ] Kept working: AutomationIds stay stable (UI tests and the end-to-end test drive them), all texts stay in .resx, the generic XAML / Arabic-twin checks pass
   - [ ] Checked on the real executable with screenshots of every screen (English and Arabic) for the user's review
@@ -224,7 +225,7 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Final logo files (2026-10-15): `branding/matjar-logo.svg` and `matjar-logo-dark.svg`, `matjar-icon.svg`, `matjar.ico` (16-256 px, each size drawn for itself) and PNGs; texts in the SVGs use Windows fonts - outlines by a designer for print
   - [x] Brand colours chosen (user 2026-10-15): **palette 2, Emerald and sand** - emerald `#0F5132` brand, sand `#C8A96A` rare highlight, action/Checkout `#0F7A4F`; dark theme values set and contrast-checked (sand never as text; dark text on the dark action green; a deeper dark Checkout). MISS-08 uses emerald instead of the blue chosen before
   - [x] Brand sheet `branding/BRAND.md` (2026-10-15): name in both scripts, logo files and rules, colour roles for light and dark with contrast figures, type
-  - [ ] Apply the brand in the application: window title, shell header and sign-in (name and logo), the executable and GenericPOS.exe icons, the receipts' default store-less footer if wanted - together with MISS-08 (the shell is redesigned there anyway)
+  - [x] Brand applied in the application (MISS-08a, 2026-10-15): window titles Matjar / متجر, the logo in the header, the sign-in and the welcome page, the Matjar icon on Client.Desktop.exe and GenericPOS.exe; renaming the executables waits for the installer (PKG-03)
   - [ ] Put the name and logo in one place (resources) so a later rename is one change; decide whether the executable / install folder names follow it (before PKG-03, the installer)
 
 ---
@@ -313,4 +314,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-15 | MISS-08, MISS-09 | 80ad068 | MISS-08 paused; MISS-09 started first (brand brief: bilingual, any small business, premium) and widened to brand colours and a brand sheet |
 | 2026-10-15 | MISS-09 | 419ff0b | Name chosen: Matjar / متجر |
 | 2026-10-15 | MISS-09 | 8bc51c1 | Logo concept chosen: mix A (framed م with a gold dot, name in both scripts) |
-| 2026-10-15 | MISS-09 | (this commit) | Palette 2 (Emerald and sand) chosen; final logo SVGs, the icon (.ico 16-256) and the brand sheet `branding/BRAND.md`; applying the brand in the application goes with MISS-08 |
+| 2026-10-15 | MISS-09 | 61329c7, dec59d1 | Palette 2 (Emerald and sand) chosen; final logo SVGs, the icon (.ico 16-256) and the brand sheet `branding/BRAND.md`; applying the brand in the application goes with MISS-08 |
+| 2026-10-15 | MISS-08a, MISS-09 | (this commit) | The Matjar theme (light + dark colour sets, shared control styles), all 25 views on theme names, the shell and sign-in redesigned with the logo, the Matjar icon; 2946 tests + 3 opt-in, 0 warnings; real exe: first run and nine screens shot; the end-to-end test passes |

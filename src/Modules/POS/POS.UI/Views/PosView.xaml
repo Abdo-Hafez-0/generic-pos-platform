@@ -15,12 +15,11 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="12,4"/>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="MinWidth" Value="90"/>
         </Style>
         <Style x:Key="Cell" TargetType="TextBlock">
@@ -33,10 +32,7 @@
             <Setter Property="Padding" Value="8,0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"/>
     </UserControl.Resources>
 
     <Grid>
@@ -50,7 +46,7 @@
 
         <!-- Who sells, and (until a till is open) where from -->
         <DockPanel Grid.Row="0" Margin="0,0,0,12" LastChildFill="False">
-            <TextBlock x:Name="CashierText" DockPanel.Dock="Left" Text="{Binding CashierText}" Foreground="#A6ADC8"/>
+            <TextBlock x:Name="CashierText" DockPanel.Dock="Left" Text="{Binding CashierText}" Foreground="{DynamicResource Brush.TextMuted}"/>
             <Button x:Name="CloseSessionButton" DockPanel.Dock="Right" Content="{x:Static res:PosText.CloseSession}"
                     Command="{Binding CloseSessionCommand}"
                     Visibility="{Binding HasOpenSession, Converter={StaticResource VisibleWhenTrue}}"/>
@@ -64,7 +60,7 @@
                           DisplayMemberPath="Name" AutomationProperties.Name="{x:Static res:PosText.Warehouse}"/>
                 <Button x:Name="OpenSessionButton" Content="{x:Static res:PosText.OpenSession}" Margin="12,0,0,0" Command="{Binding OpenSessionCommand}"/>
             </StackPanel>
-            <TextBlock x:Name="NoWarehousesText" Text="{x:Static res:PosText.NoWarehouses}" Foreground="#F9E2AF" Margin="0,8,0,0" TextWrapping="Wrap"
+            <TextBlock x:Name="NoWarehousesText" Text="{x:Static res:PosText.NoWarehouses}" Foreground="{DynamicResource Brush.Warning}" Margin="0,8,0,0" TextWrapping="Wrap"
                        Visibility="{Binding HasNoWarehouses, Converter={StaticResource VisibleWhenTrue}}"/>
         </StackPanel>
 
@@ -106,7 +102,7 @@
                     <Button x:Name="CartDiscountButton" Content="{x:Static res:PosText.DiscountOnCart}" Margin="6,0,0,0" Command="{Binding CartDiscountCommand}"/>
                 </StackPanel>
                 <!-- FIX-02: scans are added wherever the focus is on this screen -->
-                <TextBlock x:Name="ScannerReadyText" Text="{x:Static res:PosText.ScannerReady}" Foreground="#A6E3A1" Margin="16,0,0,0"
+                <TextBlock x:Name="ScannerReadyText" Text="{x:Static res:PosText.ScannerReady}" Foreground="{DynamicResource Brush.Success}" Margin="16,0,0,0"
                            Visibility="{Binding ScannerReady, Converter={StaticResource VisibleWhenTrue}}"/>
             </WrapPanel>
 
@@ -129,7 +125,7 @@
                               AutomationProperties.Name="{x:Static res:PosText.Customer}">
                         <ComboBox.ItemContainerStyle>
                             <!-- screen readers announce the customer, not the record behind it -->
-                            <Style TargetType="ComboBoxItem">
+                            <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
                                 <Setter Property="AutomationProperties.Name" Value="{Binding Name}"/>
                             </Style>
                         </ComboBox.ItemContainerStyle>
@@ -143,19 +139,9 @@
                 </StackPanel>
             </WrapPanel>
 
-            <DataGrid Grid.Row="2" x:Name="CartGrid" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}" AutoGenerateColumns="False"
-                      IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column"
-                      Background="#181825" RowBackground="#1E1E2E" AlternatingRowBackground="#232336" Foreground="#CDD6F4"
-                      BorderBrush="#313244" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#313244" RowHeight="28"
+            <DataGrid Grid.Row="2" x:Name="CartGrid" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}"
+                      IsReadOnly="True"
                       AutomationProperties.Name="{x:Static res:PosText.Product}">
-                <DataGrid.ColumnHeaderStyle>
-                    <Style TargetType="DataGridColumnHeader">
-                        <Setter Property="Background" Value="#313244"/>
-                        <Setter Property="Foreground" Value="#A6ADC8"/>
-                        <Setter Property="Padding" Value="8,4"/>
-                        <Setter Property="BorderThickness" Value="0"/>
-                    </Style>
-                </DataGrid.ColumnHeaderStyle>
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="{x:Static res:PosText.Product}" Binding="{Binding ProductName}" Width="*" MinWidth="160" ElementStyle="{StaticResource Cell}"/>
                     <DataGridTextColumn Header="{x:Static res:PosText.Quantity}" Binding="{Binding Quantity}" Width="90" ElementStyle="{StaticResource Number}"/>
@@ -176,8 +162,8 @@
                 <Button x:Name="ReprintLastButton" DockPanel.Dock="Left" Content="{x:Static res:PosText.ReprintLast}" Margin="8,0,0,0"
                         Command="{Binding ReprintLastCommand}" Visibility="{Binding CanReprint, Converter={StaticResource VisibleWhenTrue}}"/>
                 <!-- FIX-08b: prices include tax; the tax contained in the total -->
-                <TextBlock x:Name="TaxIncludedText" DockPanel.Dock="Right" Text="{Binding TaxTotal, StringFormat=N2}" Foreground="#A6ADC8" Margin="6,0,0,0"/>
-                <TextBlock DockPanel.Dock="Right" Text="{x:Static res:PosText.TaxIncluded}" Foreground="#A6ADC8" Margin="12,0,0,0"/>
+                <TextBlock x:Name="TaxIncludedText" DockPanel.Dock="Right" Text="{Binding TaxTotal, StringFormat=N2}" Foreground="{DynamicResource Brush.TextMuted}" Margin="6,0,0,0"/>
+                <TextBlock DockPanel.Dock="Right" Text="{x:Static res:PosText.TaxIncluded}" Foreground="{DynamicResource Brush.TextMuted}" Margin="12,0,0,0"/>
                 <TextBlock x:Name="TotalText" DockPanel.Dock="Right" Text="{Binding Total, StringFormat=N2}" FontSize="18" FontWeight="Bold"/>
                 <TextBlock DockPanel.Dock="Right" Text="{x:Static res:PosText.Total}" FontWeight="Bold" Margin="16,0,6,0"/>
                 <TextBlock x:Name="DiscountTotalText" DockPanel.Dock="Right" Text="{Binding DiscountTotal, StringFormat=-0.00;-0.00;0.00}" Margin="6,0,0,0"/>
@@ -187,7 +173,7 @@
             </DockPanel>
             <!-- FIX-10: how the customer pays - one or more parts; none = the whole total in cash -->
             <StackPanel Grid.Row="4" Margin="0,10,0,0" x:Name="PaymentPanel">
-                <TextBlock Text="{x:Static res:PosText.PaymentsHint}" Foreground="#A6ADC8" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                <TextBlock Text="{x:Static res:PosText.PaymentsHint}" Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap" Margin="0,0,0,6"/>
                 <WrapPanel>
                     <TextBlock Text="{x:Static res:PosText.PayWith}" Margin="0,0,8,0" VerticalAlignment="Center"/>
                     <ComboBox x:Name="PaymentMethodBox" Width="100" ItemsSource="{Binding PaymentMethods}" SelectedItem="{Binding PaymentMethod}"
@@ -207,7 +193,7 @@
                         <TextBlock Text="{x:Static res:PosText.AmountDue}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                         <TextBlock x:Name="AmountDueText" Text="{Binding AmountDue, StringFormat=N2}" FontWeight="Bold" VerticalAlignment="Center"/>
                         <TextBlock Text="{x:Static res:PosText.ChangeLabel}" Margin="16,0,6,0" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="ChangeDueText" Text="{Binding ChangeDue, StringFormat=N2}" FontWeight="Bold" Foreground="#F9E2AF" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ChangeDueText" Text="{Binding ChangeDue, StringFormat=N2}" FontWeight="Bold" Foreground="{DynamicResource Brush.Warning}" VerticalAlignment="Center"/>
                     </StackPanel>
                 </WrapPanel>
                 <ItemsControl x:Name="PaymentList" ItemsSource="{Binding Payments}" Margin="0,6,0,0" AutomationProperties.Name="{x:Static res:PosText.PayWith}">
@@ -228,23 +214,12 @@
         <!-- What happened -->
         <StackPanel Grid.Row="3" Margin="0,8,0,0">
             <!-- MISS-07c: today's and yesterday's sales of this till, to print a receipt again -->
-            <Border x:Name="RecentPanel" Background="#313244" Padding="10" Margin="0,0,0,8" Visibility="{Binding IsRecentShown, Converter={StaticResource VisibleWhenTrue}}">
+            <Border x:Name="RecentPanel" Background="{DynamicResource Brush.Surface}" Padding="10" Margin="0,0,0,8" Visibility="{Binding IsRecentShown, Converter={StaticResource VisibleWhenTrue}}">
                 <StackPanel>
                     <TextBlock Text="{x:Static res:PosText.RecentTitle}" FontWeight="SemiBold" Margin="0,0,0,6"/>
                     <TextBlock x:Name="NoRecentText" Text="{x:Static res:PosText.RecentNone}" Visibility="{Binding HasNoRecent, Converter={StaticResource VisibleWhenTrue}}"/>
-                    <DataGrid x:Name="RecentGrid" ItemsSource="{Binding RecentReceipts}" SelectedItem="{Binding SelectedRecent}" AutoGenerateColumns="False" IsReadOnly="True"
-                              CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column" MaxHeight="180"
-                              Background="#181825" RowBackground="#1E1E2E" AlternatingRowBackground="#232336" Foreground="#CDD6F4"
-                              BorderBrush="#313244" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#313244" RowHeight="28"
+                    <DataGrid x:Name="RecentGrid" ItemsSource="{Binding RecentReceipts}" SelectedItem="{Binding SelectedRecent}" IsReadOnly="True" MaxHeight="180"
                               AutomationProperties.Name="{x:Static res:PosText.RecentTitle}">
-                        <DataGrid.ColumnHeaderStyle>
-                            <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Background" Value="#313244"/>
-                                <Setter Property="Foreground" Value="#A6ADC8"/>
-                                <Setter Property="Padding" Value="8,4"/>
-                                <Setter Property="BorderThickness" Value="0"/>
-                            </Style>
-                        </DataGrid.ColumnHeaderStyle>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="{x:Static res:PosText.RecentWhen}" Binding="{Binding WhenText}" Width="170" ElementStyle="{StaticResource Cell}"/>
                             <DataGridTextColumn Header="{x:Static res:PosText.RecentReceipt}" Binding="{Binding Receipt.Reference}" Width="120" ElementStyle="{StaticResource Cell}"/>
@@ -259,9 +234,9 @@
                     </WrapPanel>
                 </StackPanel>
             </Border>
-            <TextBlock x:Name="PosStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" TextWrapping="Wrap"/>
-            <TextBlock x:Name="PosErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap"/>
-            <TextBlock x:Name="HardwareText" Text="{Binding HardwareMessage}" Foreground="#F9E2AF" TextWrapping="Wrap"/>
+            <TextBlock x:Name="PosStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="PosErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="HardwareText" Text="{Binding HardwareMessage}" Foreground="{DynamicResource Brush.Warning}" TextWrapping="Wrap"/>
         </StackPanel>
     </Grid>
 </UserControl>

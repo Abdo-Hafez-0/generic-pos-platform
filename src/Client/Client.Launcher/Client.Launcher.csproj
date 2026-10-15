@@ -13,6 +13,8 @@
     <Nullable>enable</Nullable>
     <AssemblyName>GenericPOS</AssemblyName>
     <RootNamespace>Client.Launcher</RootNamespace>
+    <!-- MISS-09: the Matjar icon (branding/matjar.ico) -->
+    <ApplicationIcon>..\..\..\branding\matjar.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

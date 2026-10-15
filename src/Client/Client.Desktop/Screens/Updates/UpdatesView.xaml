@@ -12,7 +12,7 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
@@ -27,38 +27,21 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="12,4"/>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="MinWidth" Value="90"/>
             <Setter Property="Margin" Value="0,0,8,0"/>
         </Style>
-        <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#313244"/>
-            <Setter Property="Foreground" Value="#A6ADC8"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
-        <Style TargetType="DataGrid">
-            <Setter Property="Background" Value="#181825"/>
-            <Setter Property="RowBackground" Value="#1E1E2E"/>
-            <Setter Property="AlternatingRowBackground" Value="#232336"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
-            <Setter Property="BorderBrush" Value="#313244"/>
-            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="#313244"/>
+        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"/>
+        <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
             <Setter Property="MinRowHeight" Value="26"/>
-            <Setter Property="AutoGenerateColumns" Value="False"/>
             <Setter Property="IsReadOnly" Value="True"/>
-            <Setter Property="CanUserAddRows" Value="False"/>
-            <Setter Property="SelectionMode" Value="Single"/>
-            <Setter Property="HeadersVisibility" Value="Column"/>
         </Style>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel MaxWidth="980" HorizontalAlignment="Left">
             <TextBlock x:Name="UpdatesExplanation" Text="{x:Static res:UpdatesText.Explanation}"/>
-            <TextBlock x:Name="LauncherHintText" Text="{x:Static res:UpdatesText.LauncherHint}" Foreground="#F9E2AF" Margin="0,8,0,0"
+            <TextBlock x:Name="LauncherHintText" Text="{x:Static res:UpdatesText.LauncherHint}" Foreground="{DynamicResource Brush.Warning}" Margin="0,8,0,0"
                        Visibility="{Binding NotStartedByLauncher, Converter={StaticResource VisibleWhenTrue}}"/>
 
             <!-- the versions -->
@@ -99,8 +82,8 @@
             </StackPanel>
 
             <!-- what happened -->
-            <TextBlock x:Name="UpdatesStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" Margin="0,16,0,0"/>
-            <TextBlock x:Name="UpdatesErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" Margin="0,4,0,0"/>
+            <TextBlock x:Name="UpdatesStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" Margin="0,16,0,0"/>
+            <TextBlock x:Name="UpdatesErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" Margin="0,4,0,0"/>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

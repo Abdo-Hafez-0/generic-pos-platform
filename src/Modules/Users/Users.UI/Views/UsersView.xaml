@@ -16,12 +16,12 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
         <Style x:Key="Label" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-            <Setter Property="Foreground" Value="#A6ADC8"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}"/>
             <Setter Property="Margin" Value="0,4,10,4"/>
         </Style>
         <Style x:Key="Heading" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
@@ -33,35 +33,21 @@
             <Setter Property="Padding" Value="8,0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="10,4"/>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="MinWidth" Value="80"/>
             <Setter Property="Margin" Value="0,0,8,0"/>
         </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="Margin" Value="0,2"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <Style TargetType="PasswordBox">
-            <Setter Property="Padding" Value="4,2"/>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="Margin" Value="0,2"/>
         </Style>
-        <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+        <Style TargetType="PasswordBox" BasedOn="{StaticResource {x:Type PasswordBox}}">
+            <Setter Property="Margin" Value="0,2"/>
+        </Style>
+        <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
-        <Style TargetType="ListBox">
-            <Setter Property="Background" Value="#181825"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
-            <Setter Property="BorderBrush" Value="#313244"/>
-        </Style>
-        <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#313244"/>
-            <Setter Property="Foreground" Value="#A6ADC8"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
+        <Style TargetType="ListBox" BasedOn="{StaticResource {x:Type ListBox}}"/>
+        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"/>
     </UserControl.Resources>
 
     <Grid>
@@ -114,10 +100,7 @@
                         Content="{x:Static res:UsersText.CreateUser}" IsEnabled="{Binding CanCreate}" Click="OnCreate"/>
             </Grid>
 
-            <DataGrid x:Name="UserGrid" ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedRow}" AutoGenerateColumns="False" IsReadOnly="True"
-                      CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column"
-                      Background="#181825" RowBackground="#1E1E2E" AlternatingRowBackground="#232336" Foreground="#CDD6F4"
-                      BorderBrush="#313244" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#313244" RowHeight="26"
+            <DataGrid x:Name="UserGrid" ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedRow}" IsReadOnly="True"
                       AutomationProperties.Name="{x:Static res:UsersText.UsersTitle}">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="{x:Static res:UsersText.Username}" Binding="{Binding User.Username}" Width="120" ElementStyle="{StaticResource Cell}"/>
@@ -128,7 +111,7 @@
         </DockPanel>
 
         <!-- the selected user -->
-        <TextBlock Grid.Column="2" Text="{x:Static res:UsersText.SelectUser}" Foreground="#6C7086" VerticalAlignment="Top" TextWrapping="Wrap"
+        <TextBlock Grid.Column="2" Text="{x:Static res:UsersText.SelectUser}" Foreground="{DynamicResource Brush.TextSubtle}" VerticalAlignment="Top" TextWrapping="Wrap"
                    Visibility="{Binding HasNoUser, Converter={StaticResource VisibleWhenTrue}}"/>
         <StackPanel Grid.Column="2" Visibility="{Binding HasUser, Converter={StaticResource VisibleWhenTrue}}">
             <TextBlock x:Name="UserHeadingText" Style="{StaticResource Heading}" Text="{Binding UserHeading}"/>
@@ -173,13 +156,13 @@
                 <PasswordBox x:Name="ResetPasswordBox" Width="200" Margin="0,0,8,0" AutomationProperties.Name="{x:Static res:UsersText.TemporaryPassword}"/>
                 <Button x:Name="ResetPasswordButton" Content="{x:Static res:UsersText.ResetPassword}" Click="OnResetPassword"/>
             </StackPanel>
-            <TextBlock Text="{x:Static res:UsersText.TemporaryPasswordHint}" Foreground="#6C7086" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
+            <TextBlock Text="{x:Static res:UsersText.TemporaryPasswordHint}" Foreground="{DynamicResource Brush.TextSubtle}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
         </StackPanel>
 
         <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0">
-            <TextBlock x:Name="UsersInfoText" Text="{Binding ResultInfo}" Foreground="#A6ADC8" TextWrapping="Wrap"/>
-            <TextBlock x:Name="UsersStatusText" Text="{Binding StatusMessage}" Foreground="#A6E3A1" TextWrapping="Wrap"/>
-            <TextBlock x:Name="UsersErrorText" Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap"/>
+            <TextBlock x:Name="UsersInfoText" Text="{Binding ResultInfo}" Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="UsersStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="UsersErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap"/>
         </StackPanel>
     </Grid>
 </UserControl>

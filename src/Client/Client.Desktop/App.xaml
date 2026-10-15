@@ -4,6 +4,12 @@
              xmlns:local="clr-namespace:Client.Desktop"
              ShutdownMode="OnMainWindowClose">
     <Application.Resources>
-         
+        <!-- MISS-08: the Matjar theme. The first dictionary is the colour set (Light or Dark, switched by ThemeManager); the second the look of the controls. -->
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Light.xaml"/>
+                <ResourceDictionary Source="Themes/Controls.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

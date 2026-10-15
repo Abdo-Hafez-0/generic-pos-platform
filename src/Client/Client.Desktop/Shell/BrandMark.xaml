@@ -1,0 +1,24 @@
+<UserControl x:Class="Client.Desktop.Shell.BrandMark"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             AutomationProperties.Name="Matjar"
+             FlowDirection="LeftToRight">
+    <!--
+        THE MATJAR LOGO (MISS-09, branding/BRAND.md): the framed م with the sand dot beneath it, then متجر above MATJAR.
+        Theme colours (Brush.Brand, Brush.Highlight), so it follows the light and dark themes. The logo keeps its own direction (it is not
+        mirrored in Arabic). ShowName=False draws the framed م alone.
+    -->
+    <StackPanel Orientation="Horizontal">
+        <Border Width="36" Height="36" CornerRadius="8" BorderThickness="2" BorderBrush="{DynamicResource Brush.Brand}" VerticalAlignment="Center">
+            <Grid>
+                <TextBlock Text="م" FontFamily="Tahoma" FontWeight="Bold" FontSize="24" Foreground="{DynamicResource Brush.Brand}"
+                           HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-7,0,0"/>
+                <Ellipse Width="4.5" Height="4.5" Fill="{DynamicResource Brush.Highlight}" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+            </Grid>
+        </Border>
+        <StackPanel x:Name="NamePanel" Margin="10,0,0,0" VerticalAlignment="Center">
+            <TextBlock Text="متجر" FontFamily="Tahoma" FontWeight="Bold" FontSize="15" Foreground="{DynamicResource Brush.Brand}" LineHeight="17"/>
+            <TextBlock Text="M A T J A R" FontFamily="Georgia" FontSize="10.5" Foreground="{DynamicResource Brush.Brand}"/>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

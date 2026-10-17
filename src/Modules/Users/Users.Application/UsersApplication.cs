@@ -138,6 +138,34 @@ namespace Users.Application.Commands
         }
     }
 
+    /// <summary>
+    /// MISS-08d: sets a user's theme ("light", "dark"; null = like Windows). Everyone may choose their OWN theme; another user's needs
+    /// users.manage.
+    /// </summary>
+    public sealed record SetUserThemeCommand(Guid UserId, string? Theme);
+
+    public sealed class SetUserThemeCommandHandler(IUserRepository users, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null)
+    {
+        public async Task<Result> HandleAsync(SetUserThemeCommand command, CancellationToken cancellationToken = default)
+        {
+            var self = currentUser is { IsAuthenticated: true } me && me.UserId == command.UserId;
+            if (!self)
+            {
+                var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.Manage, cancellationToken);
+                if (allowed.IsFailure) return allowed;
+            }
+
+            var user = await users.GetByIdAsync(new UserId(command.UserId), cancellationToken);
+            if (user is null) return Result.Failure(UsersErrors.UserNotFound(command.UserId));
+
+            var result = user.SetTheme(command.Theme);
+            if (result.IsFailure) return result;
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success();
+        }
+    }
+
     public sealed record DeactivateUserCommand(Guid UserId);
 
     public sealed class DeactivateUserCommandHandler(IUserRepository users, IRoleRepository roles, IUsersUnitOfWork unitOfWork, IAuthorizationService authorization, ICurrentUser? currentUser = null, ISecurityEventSink? events = null)
@@ -424,6 +452,25 @@ namespace Users.Application.Queries
 
             var user = await users.GetByIdAsync(new UserId(query.UserId), cancellationToken);
             return user is null ? Result.Failure<string?>(Users.Application.Commands.UsersErrors.UserNotFound(query.UserId)) : Result.Success(user.Language);
+        }
+    }
+
+    /// <summary>MISS-08d: a user's theme ("light", "dark"; null = like Windows). Everyone may read their OWN; another user's needs users.view.</summary>
+    public sealed record GetUserThemeQuery(Guid UserId);
+
+    public sealed class GetUserThemeQueryHandler(IUserRepository users, IAuthorizationService authorization, ICurrentUser? currentUser = null)
+    {
+        public async Task<Result<string?>> HandleAsync(GetUserThemeQuery query, CancellationToken cancellationToken = default)
+        {
+            var self = currentUser is { IsAuthenticated: true } me && me.UserId == query.UserId;
+            if (!self)
+            {
+                var allowed = await authorization.AuthorizeAsync(Users.Application.Security.UsersCapabilities.View, cancellationToken);
+                if (allowed.IsFailure) return Result.Failure<string?>(allowed.Error);
+            }
+
+            var user = await users.GetByIdAsync(new UserId(query.UserId), cancellationToken);
+            return user is null ? Result.Failure<string?>(Users.Application.Commands.UsersErrors.UserNotFound(query.UserId)) : Result.Success(user.Theme);
         }
     }
 

@@ -23,11 +23,30 @@ public static class ThemeManager
     /// <summary>The theme now applied to the application, or Light when none is.</summary>
     public static ThemeKind Current { get; private set; } = ThemeKind.Light;
 
+    /// <summary>
+    /// MISS-08d: the colours for a user's choice - "light", "dark", or none (null) to follow Windows.
+    /// </summary>
+    public static ThemeKind Resolve(string? choice, bool windowsIsDark) => choice?.Trim().ToLowerInvariant() switch
+    {
+        "dark" => ThemeKind.Dark,
+        "light" => ThemeKind.Light,
+        _ => windowsIsDark ? ThemeKind.Dark : ThemeKind.Light
+    };
+
+    /// <summary>Applies a user's choice ("light", "dark", or null = like Windows, read now).</summary>
+    public static ThemeKind ApplyChoice(string? choice)
+    {
+        var kind = Resolve(choice, WindowsTheme.AppsUseDark());
+        Apply(kind);
+        return kind;
+    }
+
     /// <summary>Puts the colour set in place (the control styles stay). Does nothing without a running application.</summary>
     public static void Apply(ThemeKind kind)
     {
         if (Application.Current?.Resources is not { } resources) return;
         Apply(resources, kind);
+        foreach (Window window in Application.Current.Windows) TitleBar.Apply(window, kind == ThemeKind.Dark);   // MISS-08d: Windows draws the title bar
     }
 
     /// <summary>Puts the theme into a resource dictionary: [colours, controls], replacing the colour set already there.</summary>

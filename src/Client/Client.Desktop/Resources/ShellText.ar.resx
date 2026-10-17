@@ -72,4 +72,16 @@
   <data name="UpdateNeedsLauncher" xml:space="preserve">
     <value>تم تثبيت تحديث. يُستخدم عند تشغيل التطبيق من اختصار متجر.</value>
   </data>
+  <data name="Theme" xml:space="preserve">
+    <value>المظهر</value>
+  </data>
+  <data name="ThemeWindows" xml:space="preserve">
+    <value>مثل ويندوز</value>
+  </data>
+  <data name="ThemeLight" xml:space="preserve">
+    <value>فاتح</value>
+  </data>
+  <data name="ThemeDark" xml:space="preserve">
+    <value>داكن</value>
+  </data>
 </root>

@@ -19,6 +19,7 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.DisplayName).HasMaxLength(User.MaxDisplayNameLength).IsRequired();
         builder.Property(u => u.Email).HasMaxLength(User.MaxEmailLength);
         builder.Property(u => u.Language).HasMaxLength(User.MaxLanguageLength);   // FIX-13b
+        builder.Property(u => u.Theme).HasMaxLength(User.MaxThemeLength);         // MISS-08d
         builder.Property(u => u.Status).HasConversion<int>().IsRequired();
         builder.Property(u => u.CreatedAt).IsRequired();
         builder.Property(u => u.UpdatedAt);

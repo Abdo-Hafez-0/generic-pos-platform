@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:res="clr-namespace:Client.Desktop.Resources"
         xmlns:shell="clr-namespace:Client.Desktop.Shell"
+        xmlns:themes="clr-namespace:Client.Desktop.Themes"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=shell:ShellViewModel}"
         Title="{x:Static res:ShellText.ApplicationTitle}"
@@ -55,6 +56,18 @@
                 <shell:BrandMark x:Name="Brand" DockPanel.Dock="Left" VerticalAlignment="Center"/>
                 <Button x:Name="SignOutButton" DockPanel.Dock="Right" Content="{x:Static res:ShellText.SignOut}" Click="OnSignOut" VerticalAlignment="Center"/>
                 <!-- FIX-13b: the signed-in user's screen language -->
+                <!-- MISS-08d (owner's choice): a sun / moon button with a small menu - like Windows, light, dark; kept with the user -->
+                <Button x:Name="ThemeButton" DockPanel.Dock="Right" Margin="0,0,10,0" VerticalAlignment="Center" MinWidth="0" Padding="10,4" FontSize="16"
+                        FontFamily="Segoe UI Symbol" themes:MenuButton.OpensMenu="True"
+                        ToolTip="{x:Static res:ShellText.Theme}" AutomationProperties.Name="{x:Static res:ShellText.Theme}">
+                    <Button.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem x:Name="ThemeWindowsItem" Header="{x:Static res:ShellText.ThemeWindows}" Click="OnThemeChosen" Tag=""/>
+                            <MenuItem x:Name="ThemeLightItem" Header="{x:Static res:ShellText.ThemeLight}" Click="OnThemeChosen" Tag="light"/>
+                            <MenuItem x:Name="ThemeDarkItem" Header="{x:Static res:ShellText.ThemeDark}" Click="OnThemeChosen" Tag="dark"/>
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
                 <ComboBox x:Name="LanguageBox" DockPanel.Dock="Right" Width="120" Margin="0,0,10,0" DisplayMemberPath="NativeName" VerticalAlignment="Center"
                           AutomationProperties.Name="{x:Static res:ShellText.Language}" ToolTip="{x:Static res:ShellText.Language}"/>
                 <TextBlock x:Name="SignedInText" DockPanel.Dock="Right" Margin="12,0,14,0" VerticalAlignment="Center"

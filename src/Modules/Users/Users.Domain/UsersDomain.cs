@@ -171,6 +171,10 @@ namespace Users.Domain.Entities
         public const int MaxDisplayNameLength = 100;
         public const int MaxEmailLength = 200;
         public const int MaxLanguageLength = 10;
+        public const int MaxThemeLength = 10;
+
+        /// <summary>The themes a user can choose (MISS-08d); no choice = like the Windows setting.</summary>
+        public static readonly IReadOnlyList<string> Themes = ["light", "dark"];
 
         private readonly List<UserRole> _roles = [];
 
@@ -189,6 +193,12 @@ namespace Users.Domain.Entities
         /// the desktop when the user signs in.
         /// </summary>
         public string? Language { get; private set; }
+
+        /// <summary>
+        /// The colours this user works in (MISS-08d): "light" or "dark"; null = like the Windows setting. Applied by the desktop when the user
+        /// signs in, and at once when the user chooses it.
+        /// </summary>
+        public string? Theme { get; private set; }
 
         public UserStatus Status { get; private set; }
         public DateTime CreatedAt { get; private set; }
@@ -253,6 +263,25 @@ namespace Users.Domain.Entities
                 if (value.Length > MaxLanguageLength || !value.All(c => char.IsAsciiLetter(c) || c == '-') || value.StartsWith('-') || value.EndsWith('-'))
                     return Result.Failure(Error.Validation("Users.User.LanguageInvalid", "The language must be a language code such as \"en\" or \"ar\"."));
                 Language = value.ToLowerInvariant();
+            }
+
+            UpdatedAt = DateTime.UtcNow;
+            return Result.Success();
+        }
+
+        /// <summary>Chooses the user's theme ("light" or "dark"); null or empty = like the Windows setting.</summary>
+        public Result SetTheme(string? theme)
+        {
+            if (string.IsNullOrWhiteSpace(theme))
+            {
+                Theme = null;
+            }
+            else
+            {
+                var value = theme.Trim().ToLowerInvariant();
+                if (!Themes.Contains(value))
+                    return Result.Failure(Error.Validation("Users.User.ThemeInvalid", "The theme must be \"light\" or \"dark\", or none to follow Windows."));
+                Theme = value;
             }
 
             UpdatedAt = DateTime.UtcNow;

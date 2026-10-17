@@ -25,6 +25,7 @@ public partial class SignInWindow : Window
     {
         _scopes = scopes;
         InitializeComponent();
+        Themes.TitleBar.Follow(this);   // MISS-08d: a dark title bar when Windows is dark
         Shell.WindowDirection.Apply(this);   // FIX-13b; MISS-08: the content mirrors, never the frame
         Loaded += async (_, _) => await ShowCurrentStageAsync();
     }

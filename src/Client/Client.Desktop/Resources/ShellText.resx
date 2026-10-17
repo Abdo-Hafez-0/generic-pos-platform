@@ -72,4 +72,16 @@
   <data name="UpdateNeedsLauncher" xml:space="preserve">
     <value>An update is installed. It is used when the application is started from its Matjar shortcut.</value>
   </data>
+  <data name="Theme" xml:space="preserve">
+    <value>Theme</value>
+  </data>
+  <data name="ThemeWindows" xml:space="preserve">
+    <value>Like Windows</value>
+  </data>
+  <data name="ThemeLight" xml:space="preserve">
+    <value>Light</value>
+  </data>
+  <data name="ThemeDark" xml:space="preserve">
+    <value>Dark</value>
+  </data>
 </root>

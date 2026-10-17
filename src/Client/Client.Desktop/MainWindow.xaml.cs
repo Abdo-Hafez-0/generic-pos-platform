@@ -1,4 +1,5 @@
 using Client.Desktop.Shell;
+using Client.Desktop.Themes;
 using Microsoft.Extensions.Logging;
 using Platform.Presentation.Localization;
 using System.Windows;
@@ -39,6 +40,7 @@ public partial class MainWindow : Window
         _scanner = scanner ?? ScannerKeyboard.None;
         InitializeComponent();
         WindowDirection.Apply(this);
+        TitleBar.Follow(this);   // MISS-08d: a dark title bar in the dark theme
         WindowDirection.FitToScreen(this);
         DataContext = shell;
         Loaded += async (_, _) => await _shell.RefreshAsync();
@@ -47,6 +49,9 @@ public partial class MainWindow : Window
         LanguageBox.ItemsSource = UiLanguages.All;
         LanguageBox.SelectedItem = UiLanguages.Find(UiCulture.Current.Name);
         LanguageBox.SelectionChanged += OnLanguageChosen;
+
+        // MISS-08d: the theme the session applied for this user
+        ShowTheme();
 
         // Preview (tunnelling) events: the window sees every key before the focused control does.
         PreviewTextInput += (_, e) => _scanner.OnText(e.Text, FocusIsInTextInput());
@@ -71,6 +76,26 @@ public partial class MainWindow : Window
             _logger.LogWarning("The language could not be saved: {Error}", saved.Error);
             LanguageBox.SelectedItem = UiLanguages.Find(UiCulture.Current.Name);
         }
+    }
+
+    /// <summary>The sun or moon of the colours in use, and the check mark on the user's choice (like Windows, light, dark).</summary>
+    private void ShowTheme()
+    {
+        ThemeButton.Content = ThemeManager.Current == ThemeKind.Dark ? "☾" : "☀";   // a moon in the dark theme, a sun in the light one
+        ThemeWindowsItem.IsChecked = _session.MyTheme is null;
+        ThemeLightItem.IsChecked = _session.MyTheme == "light";
+        ThemeDarkItem.IsChecked = _session.MyTheme == "dark";
+    }
+
+    private async void OnThemeChosen(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: string tag }) return;
+        var choice = tag.Length == 0 ? null : tag;
+        if (choice == _session.MyTheme) return;
+
+        var saved = await _session.ChangeMyThemeAsync(choice);
+        if (saved.IsFailure) _logger.LogWarning("The theme could not be saved: {Error}", saved.Error);
+        ShowTheme();
     }
 
     /// <summary>Closes this window because a new shell window (another user or language) took its place; the application keeps running.</summary>

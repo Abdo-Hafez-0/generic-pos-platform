@@ -2747,7 +2747,18 @@ FIX-13 decisions (user, 2026-10-09): every screen text in Arabic with right-to-l
 - **The till**: who sells and Close till stand by the title, so the sale gets that row; the note and "Add payment" share a line, so the payment fits above Checkout on a 720 px window (half a button showed under the note before); the discount kind is wide enough for "Amount".
 - **Arabic check (the till included)**: every screen and the new panels shot in English and Arabic from the real executable. Found and fixed: dates and times read reversed ("PM 3:46 10/17/2026") - now kept between left-to-right marks in the view models (Sales history, Cash drawer, Audit log, Prices, Purchase orders, License, the till's recent sales) and the overview's day column, guarded by **ARCH-UI-003**; signed amounts ("+6.40", the till's discount) kept their sign in front; the installation ID was cut at its start (now always left to right). The till mirrors correctly: totals, payment and Checkout on the left, the scan box on the right.
 - **Tests**: the shell hit test checks the main action in the real main window (bound to the screen's view model); every screen's main action is hit-tested with its screen in both directions; screen tests use the row and panel commands (the selection-based Edit / Deactivate / Reactivate / SetDefault commands are gone); the end-to-end test and the demo builder press the new buttons. Texts the old buttons used were removed.
-- **Next**: MISS-08d - the dark theme and the Light / Dark / Windows choice per user.
+- **Next**: MISS-08d - the dark theme and the Light / Dark / Windows choice per user (done the same day, see below).
+
+---
+
+## MISS-08d Summary - The dark theme and each user's Light / Dark / Like Windows choice (2026-10-17)
+
+- **Decisions (owner, 2026-10-17, from drawn options)**: a **sun / moon button in the header with a small menu** (Like Windows, Light, Dark); the sign-in and first-run window **follows Windows**; a change of the Windows setting applies **at the next sign-in**; a choice made in the menu applies at once. Earlier decision (2026-10-15): the choice is kept with the user, like the language.
+- **Users module**: `User.Theme` ("light", "dark"; null = like Windows), `SetTheme` (refuses anything else), `SetUserThemeCommand` (one's own theme; another user's needs users.manage) and `GetUserThemeQuery` (one's own; another's needs users.view); migration `AddUserTheme` (one nullable column on usr_Users).
+- **Desktop**: `Themes/WindowsTheme` reads the Windows app mode (HKCU ...\Themes\Personalize AppsUseLightTheme; light when it cannot be read); `ThemeManager.Resolve` / `ApplyChoice` turn a choice into colours; `DesktopSession` applies Windows' colours before the sign-in window and the user's choice when the shell opens (`MyTheme`), and `ChangeMyThemeAsync` saves a choice and applies it at once (the screens name their colours, so open windows restyle without reopening). The header's `ThemeButton` shows a moon in the dark theme and a sun in the light one; its menu ticks the choice (menu items now show a check mark when IsChecked). `Themes/TitleBar`: Windows draws the title bar itself, white over the dark theme - it is now asked for a dark bar (DWM immersive dark mode) whenever the theme is dark, for the shell and the sign-in window.
+- **Real executable**: every screen shot in the dark theme in English and Arabic (the colour set from MISS-09 reads well everywhere: tables, boxes, panels, menus, the till, disabled buttons); the sign-in window dark with Windows dark; the menu, Light at once, back to Like Windows. Note: Windows on the owner's computer is set to dark for apps, so the demo now opens dark ("Like Windows").
+- **Tests**: 2965 + 2 opt-in skipped, 0 warnings; the end-to-end test passes (36 s). Users.Tests +5 (own choice / another's, validation); UI.Tests +7 (choice x Windows setting, switching the colour set restyles named colours and keeps the control styles).
+- **MISS-08 is complete** (08a theme and shell, 08b touch till, 08c screens and Arabic, 08d dark theme).
 
 ---
 
@@ -2828,4 +2839,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-17 - MISS-08c: every screen on the owner's patterns, the application checked in Arabic. 2953 tests + 2 opt-in skipped, 0 warnings, 129 projects; the end-to-end test passes (32 s); MISS-07 open until the device check is run; next: MISS-08d (dark theme, per-user choice). Note: Backup.Tests EscrowRecoveryTests "Any_changed_lost_or_added_character..." failed once and passed on 5 reruns (random input; to be looked at separately).
+Last updated: 2026-10-17 - MISS-08d: the dark theme and each user's Light / Dark / Like Windows choice; MISS-08 complete. 2965 tests + 2 opt-in skipped, 0 warnings, 129 projects; the end-to-end test passes (36 s); MISS-07 open until the device check is run; next: Part C (PKG-02 IModuleMigrator in the business modules). Note: Backup.Tests EscrowRecoveryTests "Any_changed_lost_or_added_character..." failed once and passed on reruns (random input; a separate task).

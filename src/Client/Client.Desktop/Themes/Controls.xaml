@@ -219,10 +219,17 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="MenuItem">
-                    <Border x:Name="Face" Background="Transparent" CornerRadius="5" Padding="10,7">
-                        <ContentPresenter ContentSource="Header" VerticalAlignment="Center"/>
+                    <Border x:Name="Face" Background="Transparent" CornerRadius="5" Padding="8,7,12,7">
+                        <DockPanel>
+                            <!-- the chosen item (IsChecked) shows a check mark; the space stays so the texts line up -->
+                            <TextBlock x:Name="Check" DockPanel.Dock="Left" Text="✓" Width="18" Foreground="{DynamicResource Brush.Accent}" FontWeight="Bold" Visibility="Hidden"/>
+                            <ContentPresenter ContentSource="Header" VerticalAlignment="Center"/>
+                        </DockPanel>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+                        </Trigger>
                         <Trigger Property="IsHighlighted" Value="True">
                             <Setter TargetName="Face" Property="Background" Value="{DynamicResource Brush.Hover}"/>
                         </Trigger>

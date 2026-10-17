@@ -88,6 +88,8 @@ public static class UsersServicesExtensions
         services.AddTransient<Users.Application.Commands.UpdateUserCommandHandler>();
         services.AddTransient<Users.Application.Commands.SetUserLanguageCommandHandler>();   // FIX-13b
         services.AddTransient<Users.Application.Queries.GetUserLanguageQueryHandler>();      // FIX-13b
+        services.AddTransient<Users.Application.Commands.SetUserThemeCommandHandler>();      // MISS-08d
+        services.AddTransient<Users.Application.Queries.GetUserThemeQueryHandler>();         // MISS-08d
         services.AddTransient<Users.Application.Commands.DeactivateUserCommandHandler>();
         services.AddTransient<Users.Application.Commands.ReactivateUserCommandHandler>();
         services.AddTransient<Users.Application.Commands.AssignRoleCommandHandler>();

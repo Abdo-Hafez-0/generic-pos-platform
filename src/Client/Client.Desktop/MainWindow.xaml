@@ -138,7 +138,10 @@
                 <!-- TextElement.Foreground: text inside the screens' data templates inherits this (implicit TextBlock styles stop at template boundaries) -->
                 <ContentControl Grid.Row="2" x:Name="ScreenHost" Content="{Binding CurrentView}" Focusable="False" TextElement.Foreground="{DynamicResource Brush.Text}"/>
 
-                <TextBlock Grid.Row="2" x:Name="LockedText" Text="{Binding LockedReason}" Foreground="{DynamicResource Brush.Warning}" TextWrapping="Wrap" FontSize="14"/>
+                <!-- MISS-08: shares the screen's cell, so it is shown only for a locked screen and never takes the mouse
+                     (a TextBlock takes clicks over its whole rectangle, even with no text - it had covered every open screen) -->
+                <TextBlock Grid.Row="2" x:Name="LockedText" Text="{Binding LockedReason}" Foreground="{DynamicResource Brush.Warning}" TextWrapping="Wrap" FontSize="14"
+                           IsHitTestVisible="False" Visibility="{Binding IsLocked, Converter={StaticResource VisibleWhenTrue}}"/>
 
                 <StackPanel Grid.Row="2" x:Name="Home" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="700"
                             Visibility="{Binding IsHome, Converter={StaticResource VisibleWhenTrue}}">

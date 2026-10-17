@@ -80,7 +80,7 @@ public sealed class HitTestTests
     private static IEnumerable<Point> InsideTheFrame(FrameworkElement c)
         => [new(c.ActualWidth / 2, 5), new(c.ActualWidth / 2, c.ActualHeight - 5), new(9, c.ActualHeight / 2)];
 
-    private static List<string> Problems(FrameworkElement root)
+    internal static List<string> Problems(FrameworkElement root)
     {
         var problems = new List<string>();
         foreach (var control in Descendants(root).OfType<Control>().Where(c => c is TextBox or PasswordBox or ComboBox or ButtonBase or DatePicker))

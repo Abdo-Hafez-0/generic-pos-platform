@@ -2725,6 +2725,12 @@ FIX-13 decisions (user, 2026-10-09): every screen text in Arabic with right-to-l
 - **Tests**: no count change (2946 + 3 opt-in, 0 warnings); the views are composed against the real theme; the opt-in end-to-end test (a whole sale on the real executable) passes on the new till (33 s); screenshots of the till with a sale and with the payment covered were taken from that run.
 - **Next**: MISS-08c the other screens to the drawn patterns and the whole application checked in Arabic (including the till); MISS-08d the dark theme and the per-user choice.
 
+## MISS-08 owner's review fixes (2026-10-15 .. 2026-10-17)
+
+- **7ede0c8**: the Arabic window frame was mirrored (direction now on the content only, Shell/WindowDirection), the window fits the screen, date fields in the theme, menu group separators.
+- **64b80ac**: the typing area of a text box fills the whole box; HitTestTests hit-test every control of every screen in both directions.
+- **Mouse in the open screen (2026-10-17)**: the owner still could not click anything in the open screen (the side menu worked). The cause was in the shell: `LockedText` (why a screen is locked) shared the screen's grid cell, came after it and was always shown - an empty TextBlock still takes the mouse over its whole rectangle, so it covered every screen. It is now visible only when `ShellViewModel.IsLocked` and has `IsHitTestVisible=False`. `ShellHitTestTests` builds the real `MainWindow` with a screen open (both directions) and a locked screen and hit-tests every control - the screen-only HitTestTests could not see an overlay from the shell. Real-exe note: clicks posted as window messages open a WPF drop-down list but do not press buttons or focus text boxes (not even in the side menu, which works by hand), so a by-hand check by the owner is the final word on those.
+
 ---
 
 ## Known Issues / Blockers
@@ -2804,4 +2810,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-15 - MISS-08b (touch till, rounded drop-down lists). 2946 tests + 3 opt-in, 0 warnings, 129 projects; MISS-07 open until the device check is run; next: MISS-08c (other screens, Arabic).
+Last updated: 2026-10-17 - MISS-08 fix: the shell's lock text no longer covers the open screen. 2951 tests + 2 opt-in skipped, 0 warnings, 129 projects; MISS-07 open until the device check is run; next: MISS-08c (other screens, Arabic).

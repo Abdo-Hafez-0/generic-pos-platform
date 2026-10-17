@@ -144,9 +144,14 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
         get => _lockedReason;
         private set
         {
-            if (Set(ref _lockedReason, value)) Raise(nameof(IsHome));
+            if (!Set(ref _lockedReason, value)) return;
+            Raise(nameof(IsHome));
+            Raise(nameof(IsLocked));
         }
     }
+
+    /// <summary>True when the selected screen cannot be opened: only then is the lock explanation shown (it would lie over an open screen).</summary>
+    public bool IsLocked => LockedReason is not null;
 
     public string SignedInText { get => _signedInText; private set => Set(ref _signedInText, value); }
 

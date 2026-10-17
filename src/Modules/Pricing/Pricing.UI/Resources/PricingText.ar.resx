@@ -37,12 +37,6 @@
   <data name="AddList" xml:space="preserve">
     <value>إضافة قائمة أسعار</value>
   </data>
-  <data name="SetDefault" xml:space="preserve">
-    <value>استخدام المحددة للبيع</value>
-  </data>
-  <data name="DeactivateList" xml:space="preserve">
-    <value>إيقاف القائمة المحددة</value>
-  </data>
   <data name="ProductHeading" xml:space="preserve">
     <value>أسعار صنف</value>
   </data>
@@ -81,9 +75,6 @@
   </data>
   <data name="AddPrice" xml:space="preserve">
     <value>إضافة سعر</value>
-  </data>
-  <data name="DeactivatePrice" xml:space="preserve">
-    <value>إيقاف السعر المحدد</value>
   </data>
   <data name="ListAdded" xml:space="preserve">
     <value>تمت إضافة قائمة الأسعار {0}.</value>
@@ -136,14 +127,8 @@
   <data name="EditTaxPercent" xml:space="preserve">
     <value>النسبة % للنسبة المحددة</value>
   </data>
-  <data name="ChangeTaxRate" xml:space="preserve">
-    <value>تغيير المحددة</value>
-  </data>
   <data name="SetDefaultTax" xml:space="preserve">
     <value>استخدامها افتراضيًا</value>
-  </data>
-  <data name="DeactivateTaxRate" xml:space="preserve">
-    <value>إيقاف المحددة</value>
   </data>
   <data name="ProductTaxHeading" xml:space="preserve">
     <value>نسبة ضريبة صنف</value>

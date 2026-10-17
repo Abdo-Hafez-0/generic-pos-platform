@@ -78,6 +78,7 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
 
     private StatusChoice _filter;
     private OrderRow? _selectedRow;
+    private bool _isCreating;
     private PurchaseOrderDto? _order;
     private OrderLineRow? _selectedLine;
     private string _supplierText = string.Empty;
@@ -105,7 +106,10 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
 
         ShowCommand = Command(() => LoadOrdersAsync(CancellationToken.None));
         FindSupplierCommand = Command(FindSuppliersAsync, () => !string.IsNullOrWhiteSpace(SupplierText));
-        CreateCommand = Command(CreateAsync, () => Supplier is not null);
+        CreateCommand = Command(CreateAsync, () => IsCreating && Supplier is not null);
+        // MISS-08c (owner's choices): "New order" by the title opens the form where the selected order shows
+        NewOrderCommand = Command(() => { IsCreating = true; return Task.CompletedTask; }, () => !IsCreating);
+        CancelNewCommand = Command(() => { CloseNewOrder(); return Task.CompletedTask; }, () => IsCreating);
         AddLineCommand = Command(AddLineAsync, () => IsDraft && !string.IsNullOrWhiteSpace(LineCode) && !string.IsNullOrWhiteSpace(LineQuantity));
         RemoveLineCommand = Command(RemoveLineAsync, () => IsDraft && SelectedLine is not null);
         SubmitCommand = Command(() => ChangeAsync(OrderChange.Submit), () => IsDraft && Order!.Lines.Count > 0);
@@ -130,6 +134,24 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
     public ICommand ShowCommand { get; }
     public ICommand FindSupplierCommand { get; }
     public ICommand CreateCommand { get; }
+    public ICommand NewOrderCommand { get; }
+    public ICommand CancelNewCommand { get; }
+
+    /// <summary>The new-order form shows beside the list (instead of the selected order).</summary>
+    public bool IsCreating
+    {
+        get => _isCreating;
+        private set
+        {
+            if (Set(ref _isCreating, value)) { Raise(nameof(ShowsOrder)); Raise(nameof(ShowsHint)); }
+        }
+    }
+
+    /// <summary>The selected order shows beside the list.</summary>
+    public bool ShowsOrder => HasOrder && !IsCreating;
+
+    /// <summary>Nothing is chosen yet: the hint shows beside the list.</summary>
+    public bool ShowsHint => HasNoOrder && !IsCreating;
     public ICommand AddLineCommand { get; }
     public ICommand RemoveLineCommand { get; }
     public ICommand SubmitCommand { get; }
@@ -146,8 +168,9 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
         get => _selectedRow;
         set
         {
-            if (Set(ref _selectedRow, value) && value is not null && value.Order.OrderId != Order?.OrderId)
-                _ = BusyAsync(() => LoadOrderAsync(value.Order.OrderId));
+            if (!Set(ref _selectedRow, value) || value is null) return;
+            if (IsCreating) CloseNewOrder();   // choosing an order leaves the new-order form
+            if (value.Order.OrderId != Order?.OrderId) _ = BusyAsync(() => LoadOrderAsync(value.Order.OrderId));
         }
     }
 
@@ -161,7 +184,7 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
             Lines.Clear();
             if (value is not null) foreach (var line in value.Lines) Lines.Add(new OrderLineRow(line));
             foreach (var name in new[] { nameof(HasOrder), nameof(HasNoOrder), nameof(IsDraft), nameof(IsSubmitted), nameof(IsPartiallyReceived),
-                         nameof(IsAwaitingGoods), nameof(CanEnd), nameof(OrderHeading), nameof(ShowsReturnControls) }) Raise(name);
+                         nameof(IsAwaitingGoods), nameof(CanEnd), nameof(OrderHeading), nameof(ShowsReturnControls), nameof(ShowsOrder), nameof(ShowsHint) }) Raise(name);
         }
     }
 
@@ -228,7 +251,7 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
         var keep = Order?.OrderId;
         Orders.Clear();
         foreach (var o in page.Value.Items)
-            Orders.Add(new OrderRow(o, Describe(o.Status), DateTime.SpecifyKind(o.CreatedAt, DateTimeKind.Utc).ToLocalTime().ToString("d", CultureInfo.CurrentCulture)));
+            Orders.Add(new OrderRow(o, Describe(o.Status), "‎" + DateTime.SpecifyKind(o.CreatedAt, DateTimeKind.Utc).ToLocalTime().ToString("d", CultureInfo.CurrentCulture) + "‎"));
         _selectedRow = Orders.FirstOrDefault(o => o.Order.OrderId == keep);
         Raise(nameof(SelectedRow));
     }
@@ -297,11 +320,17 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
         });
         if (!Accept(created)) return;
 
-        (SupplierText, NewReference, Supplier) = (string.Empty, string.Empty, null);
-        Suppliers.Clear();
+        CloseNewOrder();
         Order = created.Value;
         await LoadOrdersAsync(CancellationToken.None);
         StatusMessage = string.Format(CultureInfo.CurrentCulture, PurchasingText.OrderCreated, created.Value.Number);
+    }
+
+    private void CloseNewOrder()
+    {
+        (SupplierText, NewReference, Supplier) = (string.Empty, string.Empty, null);
+        Suppliers.Clear();
+        IsCreating = false;
     }
 
     private async Task AddLineAsync()
@@ -418,7 +447,7 @@ public sealed class PurchaseOrdersViewModel : ViewModelBase, INavigationAware
 public sealed record ReturnRow(SupplierReturnDto Return, string Text)
 {
     public static ReturnRow From(SupplierReturnDto r) => new(r, string.Format(CultureInfo.CurrentCulture, PurchasingText.ReturnLine,
-        r.Number, DateTime.SpecifyKind(r.CreatedAt, DateTimeKind.Utc).ToLocalTime().ToString("g", CultureInfo.CurrentCulture),
+        r.Number, "‎" + DateTime.SpecifyKind(r.CreatedAt, DateTimeKind.Utc).ToLocalTime().ToString("g", CultureInfo.CurrentCulture) + "‎",
         string.Join(", ", r.Lines.Select(l => $"{l.Quantity.ToString("0.###", CultureInfo.CurrentCulture)} x {l.ProductName}")),
         r.TotalAmount.ToString("N2", CultureInfo.CurrentCulture), r.Reason));
 }

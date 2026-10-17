@@ -143,6 +143,7 @@ public sealed class HostedScreensFailureTests
             Assert.True((await scope.ServiceProvider.GetRequiredService<CreateSupplierCommandHandler>().HandleAsync(new CreateSupplierCommand("S-001", "Fresh Water Co"))).IsSuccess);
 
         var orders = await ShownAsync(new PurchaseOrdersViewModel(Runner(desktop.Services)));
+        orders.NewOrderCommand.Execute(null);
         orders.SupplierText = "fresh";
         await Run(orders, orders.FindSupplierCommand);
         await SavingFailsPlainlyAndWritesNothingAsync(desktop, "pur_PurchaseOrders", "INSERT", orders, orders.CreateCommand);

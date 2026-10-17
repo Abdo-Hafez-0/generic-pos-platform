@@ -86,5 +86,6 @@ public sealed class AuditLogViewModel : ViewModelBase, INavigationAware
 
     private static string? Blank(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private static string LocalTime(DateTime utc) => DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime().ToString("G", CultureInfo.CurrentCulture);
+    /// <summary>The local time between left-to-right marks: in Arabic the date and time keep their order (MISS-08c).</summary>
+    private static string LocalTime(DateTime utc) => "‎" + DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime().ToString("G", CultureInfo.CurrentCulture) + "‎";
 }

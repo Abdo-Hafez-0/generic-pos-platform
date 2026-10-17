@@ -5,6 +5,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:res="clr-namespace:Users.UI.Resources"
              xmlns:vm="clr-namespace:Users.UI.ViewModels"
+             xmlns:screens="clr-namespace:Platform.Presentation.Screens;assembly=Platform.Presentation"
+             xmlns:pres="clr-namespace:Platform.Presentation.Resources;assembly=Platform.Presentation"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:RolesViewModel}">
 
@@ -38,8 +40,14 @@
         </Style>
         <Style TargetType="ListBox" BasedOn="{StaticResource {x:Type ListBox}}"/>
         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"/>
+
+        <!-- MISS-08c: the main action, shown by the shell at the end of the title row -->
+        <Button x:Key="{x:Static screens:ScreenParts.HeaderActions}" x:Name="NewRoleButton" Style="{StaticResource Button.Primary}" Margin="0"
+                Content="{x:Static res:UsersText.NewRoleHeading}" Command="{Binding NewRoleCommand}"/>
     </UserControl.Resources>
 
+    <!-- MISS-08c (owner's choices): the roles in a white box; beside them the chosen role's permissions, or the new-role form opened by
+         "New role" by the title -->
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="3*"/>
@@ -51,47 +59,58 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <DockPanel Grid.Column="0">
-            <Grid DockPanel.Dock="Bottom" Margin="0,12,0,0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="{x:Static res:UsersText.RoleName}"/>
-                <TextBox Grid.Row="1" x:Name="NewRoleNameBox" Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:UsersText.RoleName}"/>
-                <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="{x:Static res:UsersText.Description}"/>
-                <TextBox Grid.Row="3" x:Name="NewRoleDescriptionBox" Text="{Binding NewDescription, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:UsersText.Description}"/>
-                <Button Grid.Row="4" x:Name="CreateRoleButton" HorizontalAlignment="Left" Margin="0,6,0,0" Content="{x:Static res:UsersText.CreateRole}" Command="{Binding CreateCommand}"/>
-            </Grid>
-            <ListBox x:Name="RoleList" ItemsSource="{Binding Roles}" SelectedItem="{Binding SelectedRole}" DisplayMemberPath="Name" AutomationProperties.Name="{x:Static res:UsersText.Roles}"/>
-        </DockPanel>
+        <Border Grid.Column="0" Style="{StaticResource Box}" Margin="0">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Box.Title}" Text="{x:Static res:UsersText.Roles}"/>
+                <ListBox x:Name="RoleList" ItemsSource="{Binding Roles}" SelectedItem="{Binding SelectedRole}" DisplayMemberPath="Name" BorderThickness="0"
+                         AutomationProperties.Name="{x:Static res:UsersText.Roles}"/>
+            </DockPanel>
+        </Border>
 
-        <TextBlock Grid.Column="2" Text="{x:Static res:UsersText.SelectRole}" Foreground="{DynamicResource Brush.TextSubtle}" VerticalAlignment="Top"
-                   Visibility="{Binding HasNoRole, Converter={StaticResource VisibleWhenTrue}}"/>
-        <DockPanel Grid.Column="2" Visibility="{Binding HasRole, Converter={StaticResource VisibleWhenTrue}}">
-            <TextBlock DockPanel.Dock="Top" x:Name="PermissionsHeadingText" Style="{StaticResource Heading}" Text="{Binding PermissionsHeading}"/>
-            <DataGrid x:Name="PermissionGrid" ItemsSource="{Binding Permissions}" IsReadOnly="True" MinRowHeight="26"
-                      AutomationProperties.Name="{x:Static res:UsersText.Permission}">
-                <DataGrid.Columns>
-                    <DataGridTemplateColumn Header="{x:Static res:UsersText.Allowed}" Width="70">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <!-- two-way: a tick by mouse, keyboard or UI Automation asks the handler; the list is rebuilt from what was stored -->
-                                <CheckBox IsChecked="{Binding IsGranted, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          AutomationProperties.Name="{Binding Code}"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="{x:Static res:UsersText.Module}" Binding="{Binding Module}" Width="110" ElementStyle="{StaticResource Cell}"/>
-                    <DataGridTextColumn Header="{x:Static res:UsersText.Permission}" Binding="{Binding Name}" Width="190" ElementStyle="{StaticResource Cell}"/>
-                    <DataGridCheckBoxColumn Header="{x:Static res:UsersText.Sensitive}" Binding="{Binding IsSensitive, Mode=OneWay}" Width="80"/>
-                    <DataGridTextColumn Header="{x:Static res:UsersText.Description}" Binding="{Binding Description}" Width="*" ElementStyle="{StaticResource Cell}"/>
-                </DataGrid.Columns>
-            </DataGrid>
-        </DockPanel>
+        <!-- nothing chosen yet -->
+        <TextBlock Grid.Column="2" Text="{x:Static res:UsersText.SelectRole}" Foreground="{DynamicResource Brush.TextSubtle}" VerticalAlignment="Top" Margin="0,8,0,0"
+                   Visibility="{Binding ShowsHint, Converter={StaticResource VisibleWhenTrue}}"/>
+
+        <!-- a new role -->
+        <Border Grid.Column="2" x:Name="NewRolePanel" Style="{StaticResource Panel.Side}" Margin="0" VerticalAlignment="Top" MaxWidth="460" HorizontalAlignment="Left"
+                Visibility="{Binding IsCreating, Converter={StaticResource VisibleWhenTrue}}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:UsersText.NewRoleHeading}"/>
+                <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:UsersText.RoleName}" Margin="0,0,0,4"/>
+                <TextBox x:Name="NewRoleNameBox" Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:UsersText.RoleName}"/>
+                <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:UsersText.Description}"/>
+                <TextBox x:Name="NewRoleDescriptionBox" Text="{Binding NewDescription, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:UsersText.Description}"/>
+                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                    <Button x:Name="CreateRoleButton" Style="{StaticResource Button.Primary}" Content="{x:Static res:UsersText.CreateRole}" Command="{Binding CreateCommand}" Margin="0,0,8,0"/>
+                    <Button x:Name="CancelNewRoleButton" Content="{x:Static pres:PresentationText.PanelCancel}" Command="{Binding CancelNewCommand}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- the chosen role's permissions -->
+        <Border Grid.Column="2" Style="{StaticResource Box}" Margin="0" Visibility="{Binding ShowsRole, Converter={StaticResource VisibleWhenTrue}}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" x:Name="PermissionsHeadingText" Style="{StaticResource Box.Title}" Text="{Binding PermissionsHeading}"/>
+                <DataGrid x:Name="PermissionGrid" ItemsSource="{Binding Permissions}" IsReadOnly="True" MinRowHeight="26"
+                          AutomationProperties.Name="{x:Static res:UsersText.Permission}">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="{x:Static res:UsersText.Allowed}" Width="70">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <!-- two-way: a tick by mouse, keyboard or UI Automation asks the handler; the list is rebuilt from what was stored -->
+                                    <CheckBox IsChecked="{Binding IsGranted, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              AutomationProperties.Name="{Binding Code}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="{x:Static res:UsersText.Module}" Binding="{Binding Module}" Width="110" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:UsersText.Permission}" Binding="{Binding Name}" Width="190" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridCheckBoxColumn Header="{x:Static res:UsersText.Sensitive}" Binding="{Binding IsSensitive, Mode=OneWay}" Width="80"/>
+                        <DataGridTextColumn Header="{x:Static res:UsersText.Description}" Binding="{Binding Description}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
 
         <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0">
             <TextBlock x:Name="RolesStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap"/>

@@ -52,4 +52,7 @@
   <data name="UnknownPermission" xml:space="preserve"><value>(not offered by an installed module)</value></data>
   <data name="Language" xml:space="preserve"><value>Screen language</value></data>
   <data name="LanguageDefault" xml:space="preserve"><value>The installation's language</value></data>
+  <data name="NewRoleHeading" xml:space="preserve">
+    <value>New role</value>
+  </data>
 </root>

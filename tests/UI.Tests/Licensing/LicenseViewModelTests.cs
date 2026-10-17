@@ -137,7 +137,7 @@ public sealed class LicenseViewModelTests
         Assert.False(_vm.IsRestricted);
         Assert.Equal("Corner Shop Ltd", _vm.CustomerText);
         Assert.Equal("catalog, pos", _vm.ModulesText);
-        Assert.Equal(validUntil.ToLocalTime().ToString("d"), _vm.ValidUntilText);
+        Assert.Equal("‎" + validUntil.ToLocalTime().ToString("d") + "‎", _vm.ValidUntilText);   // left-to-right marks keep the date in order in Arabic
         Assert.Equal(string.Empty, _vm.ActivationKey);
         Assert.Equal(LicenseText.Activated, _vm.StatusMessage);
         Assert.Equal(1, _shell.Refreshes);
@@ -192,7 +192,7 @@ public sealed class LicenseViewModelTests
 
         await Run(_vm.RenewCommand);
 
-        Assert.Equal(renewedLease.ToLocalTime().ToString("d"), _vm.RenewByText);
+        Assert.Equal("‎" + renewedLease.ToLocalTime().ToString("d") + "‎", _vm.RenewByText);
         Assert.Equal(LicenseText.Renewed, _vm.StatusMessage);
         Assert.Equal(1, _shell.Refreshes);
     }

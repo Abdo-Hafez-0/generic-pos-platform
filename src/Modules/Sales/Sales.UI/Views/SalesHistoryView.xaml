@@ -35,16 +35,16 @@
         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"/>
     </UserControl.Resources>
 
+    <!-- MISS-08c: the period and the plain table of sales; the chosen sale's lines in a white box below -->
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="2*"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="False">
+        <DockPanel Grid.Row="0" Margin="0,0,0,10" LastChildFill="False">
             <TextBlock DockPanel.Dock="Left" Style="{StaticResource Label}" Text="{x:Static res:SalesText.From}"/>
             <DatePicker DockPanel.Dock="Left" x:Name="FromDatePicker" Width="170" SelectedDate="{Binding FromDate}" AutomationProperties.Name="{x:Static res:SalesText.From}"/>
             <TextBlock DockPanel.Dock="Left" Style="{StaticResource Label}" Text="{x:Static res:SalesText.To}" Margin="12,0,6,0"/>
@@ -53,7 +53,7 @@
             <TextBlock DockPanel.Dock="Right" x:Name="SummaryText" Text="{Binding SummaryText}" FontWeight="SemiBold"/>
         </DockPanel>
 
-        <DataGrid Grid.Row="1" x:Name="SalesGrid" ItemsSource="{Binding Sales}" SelectedItem="{Binding Selected}" AutomationProperties.Name="{x:Static res:SalesText.ScreenTitle}">
+        <DataGrid Grid.Row="1" x:Name="SalesGrid" ItemsSource="{Binding Sales}" SelectedItem="{Binding Selected}" IsReadOnly="True" AutomationProperties.Name="{x:Static res:SalesText.ScreenTitle}">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="{x:Static res:SalesText.Time}" Binding="{Binding TimeText}" Width="150" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:SalesText.Reference}" Binding="{Binding Sale.Reference}" Width="*" ElementStyle="{StaticResource Cell}"/>
@@ -64,22 +64,25 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,4">
-            <TextBlock Text="{x:Static res:SalesText.SelectSale}" Foreground="{DynamicResource Brush.TextSubtle}"/>
-            <TextBlock x:Name="SaleCustomerText" Text="{Binding SelectedCustomerText}" FontWeight="SemiBold" Margin="16,0,0,0"/>
-        </StackPanel>
+        <Border Grid.Row="2" Style="{StaticResource Box}" Margin="0,12,0,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                    <TextBlock Text="{x:Static res:SalesText.SelectSale}" Foreground="{DynamicResource Brush.TextSubtle}"/>
+                    <TextBlock x:Name="SaleCustomerText" Text="{Binding SelectedCustomerText}" FontWeight="SemiBold" Margin="16,0,0,0"/>
+                </StackPanel>
+                <DataGrid x:Name="LinesGrid" ItemsSource="{Binding Lines}" IsReadOnly="True" AutomationProperties.Name="{x:Static res:SalesText.Items}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{x:Static res:SalesText.Sku}" Binding="{Binding ProductSku}" Width="120" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:SalesText.Product}" Binding="{Binding ProductName}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:SalesText.Quantity}" Binding="{Binding Quantity, StringFormat=0.###}" Width="70" ElementStyle="{StaticResource Number}"/>
+                        <DataGridTextColumn Header="{x:Static res:SalesText.UnitPrice}" Binding="{Binding UnitPrice, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Number}"/>
+                        <DataGridTextColumn Header="{x:Static res:SalesText.LineTotal}" Binding="{Binding LineTotal, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Number}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
 
-        <DataGrid Grid.Row="3" x:Name="LinesGrid" ItemsSource="{Binding Lines}" AutomationProperties.Name="{x:Static res:SalesText.Items}">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="{x:Static res:SalesText.Sku}" Binding="{Binding ProductSku}" Width="120" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:SalesText.Product}" Binding="{Binding ProductName}" Width="*" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:SalesText.Quantity}" Binding="{Binding Quantity, StringFormat=0.###}" Width="70" ElementStyle="{StaticResource Number}"/>
-                <DataGridTextColumn Header="{x:Static res:SalesText.UnitPrice}" Binding="{Binding UnitPrice, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Number}"/>
-                <DataGridTextColumn Header="{x:Static res:SalesText.LineTotal}" Binding="{Binding LineTotal, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Number}"/>
-            </DataGrid.Columns>
-        </DataGrid>
-
-        <StackPanel Grid.Row="4" Margin="0,8,0,0">
+        <StackPanel Grid.Row="3" Margin="0,8,0,0">
             <TextBlock x:Name="SalesInfoText" Text="{Binding ResultInfo}" Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap"/>
             <TextBlock x:Name="SalesErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap"/>
         </StackPanel>

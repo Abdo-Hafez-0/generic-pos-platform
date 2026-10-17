@@ -35,7 +35,6 @@
   <data name="Reference" xml:space="preserve"><value>Reference (delivery note, optional)</value></data>
   <data name="ReferenceLabel" xml:space="preserve"><value>Reference</value></data>
   <data name="Receive" xml:space="preserve"><value>Receive</value></data>
-  <data name="AdjustHeading" xml:space="preserve"><value>Correct the selected line</value></data>
   <data name="AdjustBy" xml:space="preserve"><value>Change by (+ or -)</value></data>
   <data name="Reason" xml:space="preserve"><value>Reason</value></data>
   <data name="Notes" xml:space="preserve"><value>Notes</value></data>

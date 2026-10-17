@@ -548,7 +548,7 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
         RecentReceipts.Clear();
         foreach (var receipt in recent.Value.Receipts)
             RecentReceipts.Add(new RecentReceiptRow(receipt,
-                DateTime.SpecifyKind(receipt.CheckedOutAtUtc, DateTimeKind.Utc).ToLocalTime().ToString("g", CultureInfo.CurrentCulture),
+                "‎" + DateTime.SpecifyKind(receipt.CheckedOutAtUtc, DateTimeKind.Utc).ToLocalTime().ToString("g", CultureInfo.CurrentCulture) + "‎",   // keeps its order in Arabic
                 receipt.Total.ToString("N2", CultureInfo.CurrentCulture)));
         SelectedRecent = RecentReceipts.FirstOrDefault();
         IsRecentShown = true;

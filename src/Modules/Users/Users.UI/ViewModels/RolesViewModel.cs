@@ -57,18 +57,40 @@ public sealed class RolesViewModel : ViewModelBase, INavigationAware
     private RoleDto? _selectedRole;
     private string _newName = string.Empty;
     private string _newDescription = string.Empty;
+    private bool _isCreating;
 
     public RolesViewModel(IUiActionRunner runner, ICapabilityCatalog capabilities)
     {
         _runner = runner;
         _capabilities = capabilities;
-        CreateCommand = Command(CreateAsync, () => !string.IsNullOrWhiteSpace(NewName));
+        CreateCommand = Command(CreateAsync, () => IsCreating && !string.IsNullOrWhiteSpace(NewName));
+        // MISS-08c (owner's choices): "New role" by the title opens the form where the selected role's permissions show
+        NewRoleCommand = Command(() => { IsCreating = true; return Task.CompletedTask; }, () => !IsCreating);
+        CancelNewCommand = Command(() => { CloseNewRole(); return Task.CompletedTask; }, () => IsCreating);
     }
 
     public ObservableCollection<RoleDto> Roles { get; } = [];
     public ObservableCollection<PermissionRow> Permissions { get; } = [];
 
     public ICommand CreateCommand { get; }
+    public ICommand NewRoleCommand { get; }
+    public ICommand CancelNewCommand { get; }
+
+    /// <summary>The new-role form shows beside the list (instead of the selected role's permissions).</summary>
+    public bool IsCreating
+    {
+        get => _isCreating;
+        private set
+        {
+            if (Set(ref _isCreating, value)) { Raise(nameof(ShowsRole)); Raise(nameof(ShowsHint)); }
+        }
+    }
+
+    /// <summary>The selected role's permissions show beside the list.</summary>
+    public bool ShowsRole => HasRole && !IsCreating;
+
+    /// <summary>Nothing is chosen yet: the hint shows beside the list.</summary>
+    public bool ShowsHint => HasNoRole && !IsCreating;
 
     public RoleDto? SelectedRole
     {
@@ -76,9 +98,12 @@ public sealed class RolesViewModel : ViewModelBase, INavigationAware
         set
         {
             if (!Set(ref _selectedRole, value)) return;
+            if (value is not null && IsCreating) CloseNewRole();   // choosing a role leaves the new-role form
             ShowPermissions(value);
             Raise(nameof(HasRole));
             Raise(nameof(HasNoRole));
+            Raise(nameof(ShowsRole));
+            Raise(nameof(ShowsHint));
             Raise(nameof(PermissionsHeading));
         }
     }
@@ -92,13 +117,19 @@ public sealed class RolesViewModel : ViewModelBase, INavigationAware
 
     public Task OnNavigatedToAsync(CancellationToken cancellationToken = default) => BusyAsync(() => ReloadAsync(SelectedRole?.RoleId, cancellationToken));
 
+    private void CloseNewRole()
+    {
+        NewName = NewDescription = string.Empty;
+        IsCreating = false;
+    }
+
     private async Task CreateAsync()
     {
         var (name, description) = (NewName.Trim(), string.IsNullOrWhiteSpace(NewDescription) ? null : NewDescription.Trim());
         var created = await _runner.RunAsync((scope, ct) => scope.Get<CreateRoleCommandHandler>().HandleAsync(new CreateRoleCommand(name, description), ct));
         if (!Accept(created)) return;
 
-        NewName = NewDescription = string.Empty;
+        CloseNewRole();
         await ReloadAsync(created.Value, CancellationToken.None);
         StatusMessage = string.Format(CultureInfo.CurrentCulture, UsersText.RoleCreated, name);
     }

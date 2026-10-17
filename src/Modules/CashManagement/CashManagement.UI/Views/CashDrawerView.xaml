@@ -46,87 +46,121 @@
         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"/>
     </UserControl.Resources>
 
+    <!-- MISS-08c (owner's choices): the drawer, then white boxes - the shift and its movements with the recent shifts on one side, what can be
+         done to the open shift (pay in or out, count and close) on the other -->
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="2*"/>
+            <ColumnDefinition Width="12"/>
+            <ColumnDefinition Width="*" MinWidth="260"/>
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- which drawer -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,0,0,10">
             <TextBlock Style="{StaticResource Label}" Text="{x:Static res:CashText.Drawer}"/>
             <TextBox x:Name="DrawerCodeBox" Width="120" Text="{Binding DrawerCode, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CashText.Drawer}">
                 <TextBox.InputBindings>
                     <KeyBinding Key="Enter" Command="{Binding ShowCommand}"/>
                 </TextBox.InputBindings>
             </TextBox>
-            <Button x:Name="ShowDrawerButton" Content="{x:Static res:CashText.Show}" Command="{Binding ShowCommand}"/>
+            <Button x:Name="ShowDrawerButton" Content="{x:Static res:CashText.Show}" Command="{Binding ShowCommand}" Margin="8,0,0,0"/>
         </StackPanel>
 
         <!-- no open shift: open one -->
-        <StackPanel Grid.Row="1" Visibility="{Binding HasNoOpenShift, Converter={StaticResource VisibleWhenTrue}}">
-            <TextBlock x:Name="NoShiftText" Text="{x:Static res:CashText.NoOpenSession}" Foreground="{DynamicResource Brush.Warning}" Margin="0,0,0,8"/>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:CashText.OpeningFloat}"/>
-                <TextBox x:Name="OpeningFloatBox" Width="100" Text="{Binding OpeningFloat, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CashText.OpeningFloat}"/>
-                <Button x:Name="OpenShiftButton" Content="{x:Static res:CashText.OpenShift}" Command="{Binding OpenCommand}"/>
+        <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource Box}" VerticalAlignment="Top" Visibility="{Binding HasNoOpenShift, Converter={StaticResource VisibleWhenTrue}}">
+            <StackPanel>
+                <TextBlock x:Name="NoShiftText" Text="{x:Static res:CashText.NoOpenSession}" Foreground="{DynamicResource Brush.Warning}" Margin="0,0,0,10" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Label}" Text="{x:Static res:CashText.OpeningFloat}"/>
+                    <TextBox x:Name="OpeningFloatBox" Width="110" Text="{Binding OpeningFloat, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CashText.OpeningFloat}"/>
+                    <Button x:Name="OpenShiftButton" Style="{StaticResource Button.Primary}" Content="{x:Static res:CashText.OpenShift}" Command="{Binding OpenCommand}" Margin="8,0,0,0"/>
+                </StackPanel>
             </StackPanel>
+        </Border>
+
+        <!-- open shift: balance and movements -->
+        <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource Box}" Visibility="{Binding HasOpenShift, Converter={StaticResource VisibleWhenTrue}}">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,10">
+                    <TextBlock DockPanel.Dock="Left" x:Name="OpenedText" Text="{Binding OpenedText}" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center"/>
+                    <TextBlock DockPanel.Dock="Right" x:Name="BalanceText" Text="{Binding Session.Balance, StringFormat=N2}" FontSize="20" FontWeight="Bold"/>
+                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource Label}" Text="{x:Static res:CashText.Balance}" Margin="0,0,8,0"/>
+                </DockPanel>
+                <DataGrid x:Name="MovementGrid" ItemsSource="{Binding Movements}" IsReadOnly="True" MinHeight="100">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{x:Static res:CashText.Time}" Binding="{Binding TimeText}" Width="140" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:CashText.Kind}" Binding="{Binding KindText}" Width="100" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:CashText.Reason}" Binding="{Binding Movement.Reason}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:CashText.By}" Binding="{Binding Movement.RecordedBy}" Width="90" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:CashText.Amount}" Binding="{Binding Movement.SignedAmount, StringFormat=&#x200E;+0.00;&#x200E;-0.00}" Width="90" ElementStyle="{StaticResource Number}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
+
+        <!-- what can be done to the open shift -->
+        <ScrollViewer Grid.Row="1" Grid.Column="2" Grid.RowSpan="2" VerticalScrollBarVisibility="Auto" Visibility="{Binding HasOpenShift, Converter={StaticResource VisibleWhenTrue}}">
+        <StackPanel>
+            <Border Style="{StaticResource Box}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:CashText.MovementHeading}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox x:Name="MovementKindBox" ItemsSource="{Binding Kinds}" SelectedItem="{Binding Kind}" DisplayMemberPath="Name" AutomationProperties.Name="{x:Static res:CashText.Kind}"/>
+                        <TextBox Grid.Column="2" x:Name="MovementAmountBox" Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged}" Tag="{x:Static res:CashText.Amount}"
+                                 AutomationProperties.Name="{x:Static res:CashText.Amount}"/>
+                    </Grid>
+                    <TextBox x:Name="MovementReasonBox" Margin="0,8,0,0" Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" Tag="{x:Static res:CashText.Reason}"
+                             AutomationProperties.Name="{x:Static res:CashText.Reason}"/>
+                    <Button x:Name="RecordMovementButton" Content="{x:Static res:CashText.Record}" Command="{Binding RecordCommand}" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Box}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:CashText.CloseHeading}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="CountedBox" Text="{Binding Counted, UpdateSourceTrigger=PropertyChanged}" Tag="{x:Static res:CashText.Counted}" ToolTip="{x:Static res:CashText.Counted}"
+                                 AutomationProperties.Name="{x:Static res:CashText.Counted}"/>
+                        <TextBox Grid.Column="2" x:Name="CloseNotesBox" Text="{Binding CloseNotes, UpdateSourceTrigger=PropertyChanged}" Tag="{x:Static res:CashText.Notes}"
+                                 AutomationProperties.Name="{x:Static res:CashText.Notes}"/>
+                    </Grid>
+                    <Button x:Name="CloseShiftButton" Style="{StaticResource Button.Primary}" Content="{x:Static res:CashText.CloseShift}" Command="{Binding CloseCommand}" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+                </StackPanel>
+            </Border>
         </StackPanel>
+        </ScrollViewer>
 
-        <!-- open shift: balance, movements, pay in/out, close -->
-        <DockPanel Grid.Row="1" Visibility="{Binding HasOpenShift, Converter={StaticResource VisibleWhenTrue}}" LastChildFill="False" Margin="0,0,0,8">
-            <TextBlock DockPanel.Dock="Left" x:Name="OpenedText" Text="{Binding OpenedText}" Foreground="{DynamicResource Brush.TextMuted}"/>
-            <TextBlock DockPanel.Dock="Right" x:Name="BalanceText" Text="{Binding Session.Balance, StringFormat=N2}" FontSize="18" FontWeight="Bold"/>
-            <TextBlock DockPanel.Dock="Right" Style="{StaticResource Label}" Text="{x:Static res:CashText.Balance}" Margin="0,0,8,0"/>
-        </DockPanel>
+        <!-- recent shifts -->
+        <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource Box}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Box.Title}" Text="{x:Static res:CashText.RecentHeading}"/>
+                <DataGrid x:Name="ShiftGrid" ItemsSource="{Binding RecentShifts}" IsReadOnly="True" MaxHeight="170">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{x:Static res:CashText.Opened}" Binding="{Binding OpenedText}" Width="150" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:CashText.By}" Binding="{Binding Shift.OpenedBy}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:CashText.Closed}" Binding="{Binding ClosedText}" Width="150" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:CashText.Variance}" Binding="{Binding Shift.Variance, StringFormat=&#x200E;+0.00;&#x200E;-0.00;0.00}" Width="90" ElementStyle="{StaticResource Number}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
 
-        <DataGrid Grid.Row="2" x:Name="MovementGrid" ItemsSource="{Binding Movements}" Visibility="{Binding HasOpenShift, Converter={StaticResource VisibleWhenTrue}}">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="{x:Static res:CashText.Time}" Binding="{Binding TimeText}" Width="140" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:CashText.Kind}" Binding="{Binding KindText}" Width="110" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:CashText.Reason}" Binding="{Binding Movement.Reason}" Width="*" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:CashText.By}" Binding="{Binding Movement.RecordedBy}" Width="110" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:CashText.Amount}" Binding="{Binding Movement.SignedAmount, StringFormat=+0.00;-0.00}" Width="100" ElementStyle="{StaticResource Number}"/>
-            </DataGrid.Columns>
-        </DataGrid>
-
-        <StackPanel Grid.Row="3" Visibility="{Binding HasOpenShift, Converter={StaticResource VisibleWhenTrue}}">
-            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:CashText.MovementHeading}"/>
-            <WrapPanel>
-                <ComboBox x:Name="MovementKindBox" Width="110" ItemsSource="{Binding Kinds}" SelectedItem="{Binding Kind}" DisplayMemberPath="Name" AutomationProperties.Name="{x:Static res:CashText.Kind}"/>
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:CashText.Amount}"/>
-                <TextBox x:Name="MovementAmountBox" Width="90" Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CashText.Amount}"/>
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:CashText.Reason}"/>
-                <TextBox x:Name="MovementReasonBox" Width="240" Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CashText.Reason}"/>
-                <Button x:Name="RecordMovementButton" Content="{x:Static res:CashText.Record}" Command="{Binding RecordCommand}"/>
-            </WrapPanel>
-            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:CashText.CloseHeading}"/>
-            <WrapPanel>
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:CashText.Counted}"/>
-                <TextBox x:Name="CountedBox" Width="100" Text="{Binding Counted, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CashText.Counted}"/>
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:CashText.Notes}"/>
-                <TextBox x:Name="CloseNotesBox" Width="240" Text="{Binding CloseNotes, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:CashText.Notes}"/>
-                <Button x:Name="CloseShiftButton" Content="{x:Static res:CashText.CloseShift}" Command="{Binding CloseCommand}"/>
-            </WrapPanel>
-        </StackPanel>
-
-        <DockPanel Grid.Row="4" Margin="0,12,0,0">
-            <TextBlock DockPanel.Dock="Top" Style="{StaticResource Heading}" Text="{x:Static res:CashText.RecentHeading}" Margin="0,0,0,6"/>
-            <DataGrid x:Name="ShiftGrid" ItemsSource="{Binding RecentShifts}">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="{x:Static res:CashText.Opened}" Binding="{Binding OpenedText}" Width="150" ElementStyle="{StaticResource Cell}"/>
-                    <DataGridTextColumn Header="{x:Static res:CashText.By}" Binding="{Binding Shift.OpenedBy}" Width="*" ElementStyle="{StaticResource Cell}"/>
-                    <DataGridTextColumn Header="{x:Static res:CashText.Closed}" Binding="{Binding ClosedText}" Width="150" ElementStyle="{StaticResource Cell}"/>
-                    <DataGridTextColumn Header="{x:Static res:CashText.Variance}" Binding="{Binding Shift.Variance, StringFormat=+0.00;-0.00;0.00}" Width="100" ElementStyle="{StaticResource Number}"/>
-                </DataGrid.Columns>
-            </DataGrid>
-        </DockPanel>
-
-        <StackPanel Grid.Row="5" Margin="0,8,0,0">
+        <StackPanel Grid.Row="3" Grid.ColumnSpan="3" Margin="0,4,0,0">
             <TextBlock x:Name="CashStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap"/>
             <TextBlock x:Name="CashErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap"/>
         </StackPanel>

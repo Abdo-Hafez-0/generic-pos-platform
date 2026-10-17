@@ -18,8 +18,6 @@
   <data name="SearchHint" xml:space="preserve"><value>Name, SKU or barcode</value></data>
   <data name="IncludeInactive" xml:space="preserve"><value>Show inactive products</value></data>
   <data name="NewProduct" xml:space="preserve"><value>New product</value></data>
-  <data name="EditProduct" xml:space="preserve"><value>Edit selected</value></data>
-  <data name="Deactivate" xml:space="preserve"><value>Deactivate selected</value></data>
   <data name="Save" xml:space="preserve"><value>Save</value></data>
   <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
   <data name="Sku" xml:space="preserve"><value>SKU</value></data>

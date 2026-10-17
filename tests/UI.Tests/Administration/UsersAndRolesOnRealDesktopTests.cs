@@ -53,6 +53,7 @@ public sealed class UsersAndRolesOnRealDesktopTests
 
         // a Cashier role that may sell
         var roles = await RolesScreenAsync(services);
+        await Run(roles, roles.NewRoleCommand);   // MISS-08c: the form beside the list
         roles.NewName = "Cashier";
         await Run(roles, roles.CreateCommand);
         Assert.Equal("Cashier", roles.SelectedRole?.Name);
@@ -63,6 +64,7 @@ public sealed class UsersAndRolesOnRealDesktopTests
 
         var vm = new UsersViewModel(Runner(services));
         await vm.OnNavigatedToAsync();
+        await Run(vm, vm.NewUserCommand);   // MISS-08c: the form beside the list
         (vm.NewUsername, vm.NewDisplayName) = ("sara", "Sara Cashier");
 
         // a password the policy refuses: nothing is created
@@ -120,6 +122,7 @@ public sealed class UsersAndRolesOnRealDesktopTests
         await using var desktop = await OfflineDesktop.StartAsync();
         var vm = new UsersViewModel(Runner(desktop.Services));
         await vm.OnNavigatedToAsync();
+        await Run(vm, vm.NewUserCommand);   // MISS-08c: the form beside the list
         (vm.NewUsername, vm.NewDisplayName, vm.NewEmail) = ("omar", "Omar", "omar@example.test");
         await Run(vm, vm.CreateCommand, TemporaryPassword);
 
@@ -146,6 +149,7 @@ public sealed class UsersAndRolesOnRealDesktopTests
         await using var desktop = await OfflineDesktop.StartAsync();
         var vm = new UsersViewModel(Runner(desktop.Services));
         await vm.OnNavigatedToAsync();
+        await Run(vm, vm.NewUserCommand);   // MISS-08c: the form beside the list
         (vm.NewUsername, vm.NewDisplayName) = ("nour", "Nour");
         await Run(vm, vm.CreateCommand, TemporaryPassword);
         Assert.Equal(UsersText.LanguageDefault, vm.EditLanguage.Text);

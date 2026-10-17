@@ -115,7 +115,8 @@ public sealed class LicenseViewModel : ViewModelBase, INavigationAware
             : string.Join(", ", payload.Modules.OrderBy(m => m, StringComparer.OrdinalIgnoreCase));
     }
 
-    private static string FormatDate(DateTimeOffset value) => value.ToLocalTime().ToString("d", CultureInfo.CurrentCulture);
+    /// <summary>The local day between left-to-right marks: in Arabic the date keeps its order (MISS-08c).</summary>
+    private static string FormatDate(DateTimeOffset value) => "‎" + value.ToLocalTime().ToString("d", CultureInfo.CurrentCulture) + "‎";
 
     /// <summary>The license state in words of the display language (also the shell's status bar, FIX-13c).</summary>
     public static string Describe(LicenseState state) => state switch

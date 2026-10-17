@@ -244,7 +244,8 @@ public sealed class PricesViewModel : ViewModelBase, INavigationAware
 
     private static DateTime ToUtc(DateTime localDay) => DateTime.SpecifyKind(localDay, DateTimeKind.Local).ToUniversalTime();
 
-    private static string LocalDay(DateTime utc) => DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime().ToString("d", CultureInfo.CurrentCulture);
+    /// <summary>The local day between left-to-right marks: in Arabic the date keeps its order (MISS-08c).</summary>
+    private static string LocalDay(DateTime utc) => "‎" + DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime().ToString("d", CultureInfo.CurrentCulture) + "‎";
 
     private static Result Drop<T>(Result<T> result) => result.IsSuccess ? Result.Success() : Result.Failure(result.Error);
 

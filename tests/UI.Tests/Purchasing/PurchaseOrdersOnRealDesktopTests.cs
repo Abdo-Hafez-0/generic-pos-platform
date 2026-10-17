@@ -46,6 +46,9 @@ public sealed class PurchaseOrdersOnRealDesktopTests
 
     private static async Task CreateOrderAsync(PurchaseOrdersViewModel vm)
     {
+        await Run(vm, vm.NewOrderCommand);   // MISS-08c: the form shows where the selected order does
+        Assert.True(vm.IsCreating);
+        Assert.False(vm.ShowsOrder);
         vm.SupplierText = "fresh";
         await Run(vm, vm.FindSupplierCommand);
         Assert.Equal("Fresh Water Co", vm.Supplier?.Name);   // the only match is preselected
@@ -53,6 +56,7 @@ public sealed class PurchaseOrdersOnRealDesktopTests
         await Run(vm, vm.CreateCommand);
         Assert.Null(vm.ErrorMessage);
         Assert.True(vm.IsDraft);
+        Assert.True(vm.ShowsOrder);   // the new order shows at once
     }
 
     [Fact]

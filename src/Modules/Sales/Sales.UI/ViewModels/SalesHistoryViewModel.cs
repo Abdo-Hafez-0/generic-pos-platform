@@ -102,7 +102,7 @@ public sealed class SalesHistoryViewModel : ViewModelBase, INavigationAware
     }
 
     private static string LocalTime(DateTime utc)
-        => DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+        => "‎" + DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime().ToString("g", CultureInfo.CurrentCulture) + "‎";   // keeps its order in Arabic (MISS-08c)
 
     private static string Describe(SaleStatus status) => status switch
     {

@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:res="clr-namespace:POS.UI.Resources"
              xmlns:vm="clr-namespace:POS.UI.ViewModels"
+             xmlns:screens="clr-namespace:Platform.Presentation.Screens;assembly=Platform.Presentation"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:PosViewModel}">
 
@@ -67,6 +68,14 @@
             <Setter Property="CornerRadius" Value="10"/>
             <Setter Property="Padding" Value="16"/>
         </Style>
+
+        <!-- MISS-08c: who sells and "Close till" stand by the title (the shell shows them), so the sale gets the height of that row -->
+        <StackPanel x:Key="{x:Static screens:ScreenParts.HeaderActions}" Orientation="Horizontal">
+            <TextBlock x:Name="CashierText" Text="{Binding CashierText}" Style="{StaticResource Muted}" FontSize="14" Margin="0,0,14,0"/>
+            <Button x:Name="CloseSessionButton" Content="{x:Static res:PosText.CloseSession}" Margin="0"
+                    Command="{Binding CloseSessionCommand}"
+                    Visibility="{Binding HasOpenSession, Converter={StaticResource VisibleWhenTrue}}"/>
+        </StackPanel>
     </UserControl.Resources>
 
     <Grid>
@@ -76,14 +85,6 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-
-        <!-- Who sells; close the till -->
-        <DockPanel Grid.Row="0" Margin="0,0,0,12" LastChildFill="False">
-            <TextBlock x:Name="CashierText" DockPanel.Dock="Left" Text="{Binding CashierText}" Style="{StaticResource Muted}" FontSize="14"/>
-            <Button x:Name="CloseSessionButton" DockPanel.Dock="Right" Content="{x:Static res:PosText.CloseSession}"
-                    Command="{Binding CloseSessionCommand}"
-                    Visibility="{Binding HasOpenSession, Converter={StaticResource VisibleWhenTrue}}"/>
-        </DockPanel>
 
         <!-- Until a till is open: where from -->
         <Border Grid.Row="1" x:Name="SessionPanel" Style="{StaticResource Panel}" HorizontalAlignment="Left" Margin="0,0,0,12" Padding="20"
@@ -188,7 +189,7 @@
                         <TextBlock Text="{x:Static res:PosText.Discount}" Style="{StaticResource Muted}" Margin="0,0,8,0"/>
                         <TextBox x:Name="DiscountBox" Width="76" Text="{Binding DiscountText, UpdateSourceTrigger=PropertyChanged}"
                                  AutomationProperties.Name="{x:Static res:PosText.Discount}" ToolTip="{x:Static res:PosText.DiscountHint}"/>
-                        <ComboBox x:Name="DiscountKindBox" Width="84" Margin="6,0,0,0" ItemsSource="{Binding DiscountKinds}" SelectedItem="{Binding DiscountKind}"
+                        <ComboBox x:Name="DiscountKindBox" Width="116" Margin="6,0,0,0" ItemsSource="{Binding DiscountKinds}" SelectedItem="{Binding DiscountKind}"
                                   DisplayMemberPath="Text" AutomationProperties.Name="{x:Static res:PosText.Discount}"/>
                         <Button x:Name="LineDiscountButton" Content="{x:Static res:PosText.DiscountOnLine}" Margin="6,0,0,0" Command="{Binding LineDiscountCommand}"/>
                         <Button x:Name="CartDiscountButton" Content="{x:Static res:PosText.DiscountOnCart}" Margin="6,0,0,0" Command="{Binding CartDiscountCommand}"/>
@@ -256,7 +257,7 @@
                         <TextBlock Grid.Row="0" Text="{x:Static res:PosText.Subtotal}" Style="{StaticResource Muted}" FontSize="14" Margin="0,0,0,4"/>
                         <TextBlock Grid.Row="0" Grid.Column="1" x:Name="SubtotalText" Text="{Binding Subtotal, StringFormat=N2}" FontSize="14"/>
                         <TextBlock Grid.Row="1" Text="{x:Static res:PosText.Discount}" Style="{StaticResource Muted}" FontSize="14" Margin="0,0,0,4"/>
-                        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="DiscountTotalText" Text="{Binding DiscountTotal, StringFormat=-0.00;-0.00;0.00}" FontSize="14"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="DiscountTotalText" Text="{Binding DiscountTotal, StringFormat=&#x200E;-0.00;&#x200E;-0.00;0.00}" FontSize="14"/>
                         <TextBlock Grid.Row="2" Text="{x:Static res:PosText.TaxIncluded}" Style="{StaticResource Muted}" FontSize="14"/>
                         <TextBlock Grid.Row="2" Grid.Column="1" x:Name="TaxIncludedText" Text="{Binding TaxTotal, StringFormat=N2}" Style="{StaticResource Muted}" FontSize="14"/>
                         <Border Grid.Row="3" Grid.ColumnSpan="2" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,10,0,0">
@@ -285,10 +286,13 @@
                                 </TextBox.InputBindings>
                             </TextBox>
                         </Grid>
-                        <TextBox x:Name="PaymentNoteBox" Margin="0,8,0,0" Text="{Binding PaymentNote, UpdateSourceTrigger=PropertyChanged}" ToolTip="{x:Static res:PosText.PaymentNoteHint}" Tag="{x:Static res:PosText.PaymentNoteLabel}"
-                                 AutomationProperties.Name="{x:Static res:PosText.PaymentNoteLabel}"/>
-                        <Button x:Name="AddPaymentButton" Content="{x:Static res:PosText.AddPayment}" Margin="0,8,0,0" HorizontalAlignment="Stretch" Command="{Binding AddPaymentCommand}"
-                                ToolTip="{x:Static res:PosText.PaymentsHint}"/>
+                        <!-- MISS-08c: the note and "Add payment" share a line, so the payment fits above Checkout on a 720 px window -->
+                        <DockPanel Margin="0,8,0,0">
+                            <Button x:Name="AddPaymentButton" DockPanel.Dock="Right" Content="{x:Static res:PosText.AddPayment}" Margin="8,0,0,0" Padding="12,4" MinWidth="0"
+                                    Command="{Binding AddPaymentCommand}" ToolTip="{x:Static res:PosText.PaymentsHint}"/>
+                            <TextBox x:Name="PaymentNoteBox" Text="{Binding PaymentNote, UpdateSourceTrigger=PropertyChanged}" ToolTip="{x:Static res:PosText.PaymentNoteHint}" Tag="{x:Static res:PosText.PaymentNoteLabel}"
+                                     AutomationProperties.Name="{x:Static res:PosText.PaymentNoteLabel}"/>
+                        </DockPanel>
                         <ItemsControl x:Name="PaymentList" ItemsSource="{Binding Payments}" Margin="0,8,0,0" AutomationProperties.Name="{x:Static res:PosText.PayWith}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>

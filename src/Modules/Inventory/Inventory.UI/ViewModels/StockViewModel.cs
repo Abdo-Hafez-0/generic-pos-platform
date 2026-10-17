@@ -186,7 +186,7 @@ public sealed class StockViewModel : ViewModelBase, INavigationAware
         if (!Accept(adjusted)) return;
         Show(adjusted.Value);
         CloseEditor();
-        StatusMessage = string.Format(CultureInfo.CurrentCulture, InventoryText.Adjusted, line.ProductName, line.WarehouseName, change.ToString("+0.###;-0.###", CultureInfo.CurrentCulture));
+        StatusMessage = string.Format(CultureInfo.CurrentCulture, InventoryText.Adjusted, line.ProductName, line.WarehouseName, "‎" + change.ToString("+0.###;-0.###", CultureInfo.CurrentCulture));   // the sign stays in front in Arabic
     }
 
     private void Show(IReadOnlyList<StockOverviewItem> stock)

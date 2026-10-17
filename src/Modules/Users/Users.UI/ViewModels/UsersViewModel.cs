@@ -41,6 +41,7 @@ public sealed class UsersViewModel : ViewModelBase, INavigationAware
     private string _newUsername = string.Empty;
     private string _newDisplayName = string.Empty;
     private string _newEmail = string.Empty;
+    private bool _isCreating;
     private string _editDisplayName = string.Empty;
     private string _editEmail = string.Empty;
     private LanguageChoice _editLanguage = null!;
@@ -52,6 +53,9 @@ public sealed class UsersViewModel : ViewModelBase, INavigationAware
         _runner = runner;
         SearchCommand = Command(() => LoadAsync(CancellationToken.None));
         CreateCommand = Command<string>(CreateAsync, _ => CanCreate);
+        // MISS-08c (owner's choices): "New user" by the title opens the form where the selected user shows
+        NewUserCommand = Command(() => { IsCreating = true; return Task.CompletedTask; }, () => !IsCreating);
+        CancelNewCommand = Command(() => { CloseNewUser(); return Task.CompletedTask; }, () => IsCreating);
         SaveDetailsCommand = Command(SaveDetailsAsync, () => User is not null && !string.IsNullOrWhiteSpace(EditDisplayName));
         Languages = [new(null, UsersText.LanguageDefault), .. Platform.Presentation.Localization.UiLanguages.All.Select(l => new LanguageChoice(l.Code, l.NativeName))];
         _editLanguage = Languages[0];
@@ -70,6 +74,27 @@ public sealed class UsersViewModel : ViewModelBase, INavigationAware
 
     /// <summary>Parameter: the temporary password, read from the password box at the moment of use.</summary>
     public ICommand CreateCommand { get; }
+    public ICommand NewUserCommand { get; }
+    public ICommand CancelNewCommand { get; }
+
+    /// <summary>The new-user form shows beside the list (instead of the selected user).</summary>
+    public bool IsCreating
+    {
+        get => _isCreating;
+        private set
+        {
+            if (!Set(ref _isCreating, value)) return;
+            Raise(nameof(CanCreate));
+            Raise(nameof(ShowsUser));
+            Raise(nameof(ShowsHint));
+        }
+    }
+
+    /// <summary>The selected user shows beside the list.</summary>
+    public bool ShowsUser => HasUser && !IsCreating;
+
+    /// <summary>Nothing is chosen yet: the hint shows beside the list.</summary>
+    public bool ShowsHint => HasNoUser && !IsCreating;
     public ICommand SaveDetailsCommand { get; }
     public ICommand DeactivateCommand { get; }
     public ICommand ReactivateCommand { get; }
@@ -89,8 +114,9 @@ public sealed class UsersViewModel : ViewModelBase, INavigationAware
         get => _selectedRow;
         set
         {
-            if (Set(ref _selectedRow, value) && value is not null && value.User.UserId != User?.UserId)
-                _ = BusyAsync(() => LoadUserAsync(value.User.UserId));
+            if (!Set(ref _selectedRow, value) || value is null) return;
+            if (IsCreating) CloseNewUser();   // choosing a user leaves the new-user form
+            if (value.User.UserId != User?.UserId) _ = BusyAsync(() => LoadUserAsync(value.User.UserId));
         }
     }
 
@@ -109,6 +135,8 @@ public sealed class UsersViewModel : ViewModelBase, INavigationAware
             SelectedRole = null;
             Raise(nameof(HasUser));
             Raise(nameof(HasNoUser));
+            Raise(nameof(ShowsUser));
+            Raise(nameof(ShowsHint));
             Raise(nameof(UserHeading));
         }
     }
@@ -122,7 +150,7 @@ public sealed class UsersViewModel : ViewModelBase, INavigationAware
     public string NewEmail { get => _newEmail; set => Set(ref _newEmail, value); }
 
     /// <summary>True when user name and name are filled in (the password is checked when the button is used).</summary>
-    public bool CanCreate => !string.IsNullOrWhiteSpace(NewUsername) && !string.IsNullOrWhiteSpace(NewDisplayName);
+    public bool CanCreate => IsCreating && !string.IsNullOrWhiteSpace(NewUsername) && !string.IsNullOrWhiteSpace(NewDisplayName);
 
     public string EditDisplayName { get => _editDisplayName; set => Set(ref _editDisplayName, value); }
     public string EditEmail { get => _editEmail; set => Set(ref _editEmail, value); }
@@ -167,6 +195,12 @@ public sealed class UsersViewModel : ViewModelBase, INavigationAware
         if (Accept(user)) User = user.Value;
     }
 
+    private void CloseNewUser()
+    {
+        (NewUsername, NewDisplayName, NewEmail) = (string.Empty, string.Empty, string.Empty);
+        IsCreating = false;
+    }
+
     private async Task CreateAsync(string? password)
     {
         if (string.IsNullOrEmpty(password)) { Fail(UsersText.PasswordRequired); return; }
@@ -187,7 +221,7 @@ public sealed class UsersViewModel : ViewModelBase, INavigationAware
         });
         if (!Accept(created)) return;
 
-        (NewUsername, NewDisplayName, NewEmail) = (string.Empty, string.Empty, string.Empty);
+        CloseNewUser();
         await LoadAsync(CancellationToken.None);
         await LoadUserAsync(created.Value);
         StatusMessage = string.Format(CultureInfo.CurrentCulture, UsersText.UserCreated, username);

@@ -81,9 +81,6 @@
   <data name="Receive" xml:space="preserve">
     <value>استلام</value>
   </data>
-  <data name="AdjustHeading" xml:space="preserve">
-    <value>تصحيح السطر المحدد</value>
-  </data>
   <data name="AdjustBy" xml:space="preserve">
     <value>التغيير بمقدار (+ أو -)</value>
   </data>

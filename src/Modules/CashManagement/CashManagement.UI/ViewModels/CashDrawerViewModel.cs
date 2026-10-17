@@ -178,7 +178,8 @@ public sealed class CashDrawerViewModel : ViewModelBase, INavigationAware
         _ => CashText.CashRefund,
     };
 
-    private static string LocalTime(DateTime utc) => DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+    /// <summary>The local time between left-to-right marks: in Arabic the date and time keep their order (MISS-08c).</summary>
+    private static string LocalTime(DateTime utc) => "‎" + DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime().ToString("g", CultureInfo.CurrentCulture) + "‎";
 
     private void Fail(string message)
     {

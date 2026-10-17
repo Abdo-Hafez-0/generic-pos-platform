@@ -19,15 +19,6 @@
   <data name="New" xml:space="preserve">
     <value>مورد جديد</value>
   </data>
-  <data name="Edit" xml:space="preserve">
-    <value>تعديل المحدد</value>
-  </data>
-  <data name="Deactivate" xml:space="preserve">
-    <value>إيقاف المحدد</value>
-  </data>
-  <data name="Reactivate" xml:space="preserve">
-    <value>إعادة تنشيط المحدد</value>
-  </data>
   <data name="Save" xml:space="preserve">
     <value>حفظ</value>
   </data>

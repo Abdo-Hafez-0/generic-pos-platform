@@ -2733,6 +2733,24 @@ FIX-13 decisions (user, 2026-10-09): every screen text in Arabic with right-to-l
 
 ---
 
+## MISS-08c Summary - Every screen on the chosen patterns; the application checked in Arabic (2026-10-17)
+
+- **Decisions (owner, 2026-10-17, from drawn options)**: list screens with **actions on each row** (Edit, the rest behind "⋯"), the **editor in a panel beside the list**, settings in **two columns of white boxes**. A pilot (Products, Backup) was built and approved on the real application before the rest.
+- **Shared pieces**: a screen's main action stands at the end of the shell's title row - the view keeps it in its resources under `ScreenParts.HeaderActions` (Platform.Presentation, no WPF) and the shell (`HeaderActionsConverter`) shows it bound to the view's own view model. Theme (`Controls.xaml`): `Button.Link` (a row's Edit), `Button.RowMenu` (a row's "⋯"; `Themes/MenuButton` opens its ContextMenu on a click, inward in both reading directions), `Box` + `Box.Title`, `Panel.Side`, `Label.Field`, menus; tables are plain (no alternating shade, 34 px rows). Shared texts in `PresentationText` (row Edit / More actions / Deactivate / Reactivate, panel Save / Cancel). Menu entries carry their screen id as automation id.
+- **Screens**:
+  - Products, Customers, Suppliers: search row; Edit and "⋯" (Deactivate / Reactivate) on each row; double-click edits; the editor beside the list (minor columns give way while it is open).
+  - Warehouses, Tax rates, Prices, Stock: the add forms moved to the panel, opened by the main action ("New warehouse", "New tax rate", "New price list", "Receive stock") or a row ("Edit" a tax rate, "Correct" a stock line, "New price" for the product found); row menus hold Use as default / Use for sales / Deactivate. A panel closes after a successful save and stays open with the message when something is refused.
+  - Purchase orders, Users, Roles: "New order" / "New user" / "New role" open the form where the chosen record shows; choosing a record leaves the form. Users keep Deactivate / Reactivate with the user's details: a row command would have to load the user first, which the busy guard refuses.
+  - Categories and units: two white boxes, each with its add line and a plain table.
+  - Backup, Cloud backup, Devices (one box per device with its own test), License, Updates ("Check for updates" by the title), Support: two columns of white boxes.
+  - Sales history, Audit log, Cash drawer, Business overview: filters and plain tables, details and actions in white boxes (Cash drawer: the shift on one side, pay in / out and count-and-close on the other).
+- **The till**: who sells and Close till stand by the title, so the sale gets that row; the note and "Add payment" share a line, so the payment fits above Checkout on a 720 px window (half a button showed under the note before); the discount kind is wide enough for "Amount".
+- **Arabic check (the till included)**: every screen and the new panels shot in English and Arabic from the real executable. Found and fixed: dates and times read reversed ("PM 3:46 10/17/2026") - now kept between left-to-right marks in the view models (Sales history, Cash drawer, Audit log, Prices, Purchase orders, License, the till's recent sales) and the overview's day column, guarded by **ARCH-UI-003**; signed amounts ("+6.40", the till's discount) kept their sign in front; the installation ID was cut at its start (now always left to right). The till mirrors correctly: totals, payment and Checkout on the left, the scan box on the right.
+- **Tests**: the shell hit test checks the main action in the real main window (bound to the screen's view model); every screen's main action is hit-tested with its screen in both directions; screen tests use the row and panel commands (the selection-based Edit / Deactivate / Reactivate / SetDefault commands are gone); the end-to-end test and the demo builder press the new buttons. Texts the old buttons used were removed.
+- **Next**: MISS-08d - the dark theme and the Light / Dark / Windows choice per user.
+
+---
+
 ## Known Issues / Blockers
 
 None blocking. Stage 13 and Part A (FIX-01..FIX-15) are complete; MISS-04 (client backup, 04a..04f) is complete.
@@ -2810,4 +2828,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-17 - MISS-08 fix: the shell's lock text no longer covers the open screen. 2951 tests + 2 opt-in skipped, 0 warnings, 129 projects; MISS-07 open until the device check is run; next: MISS-08c (other screens, Arabic).
+Last updated: 2026-10-17 - MISS-08c: every screen on the owner's patterns, the application checked in Arabic. 2953 tests + 2 opt-in skipped, 0 warnings, 129 projects; the end-to-end test passes (32 s); MISS-07 open until the device check is run; next: MISS-08d (dark theme, per-user choice). Note: Backup.Tests EscrowRecoveryTests "Any_changed_lost_or_added_character..." failed once and passed on 5 reruns (random input; to be looked at separately).

@@ -148,4 +148,7 @@
   <data name="LanguageDefault" xml:space="preserve">
     <value>لغة التثبيت</value>
   </data>
+  <data name="NewRoleHeading" xml:space="preserve">
+    <value>دور جديد</value>
+  </data>
 </root>

@@ -166,9 +166,6 @@
   <data name="ReturnedColumn" xml:space="preserve">
     <value>المُرتجَع</value>
   </data>
-  <data name="ReturnSelected" xml:space="preserve">
-    <value>إرجاع السطر المحدد:</value>
-  </data>
   <data name="ReturnQuantity" xml:space="preserve">
     <value>الكمية</value>
   </data>
@@ -189,5 +186,8 @@
   </data>
   <data name="ReturnLine" xml:space="preserve">
     <value>{0} ({1}): {2} - {3} - {4}</value>
+  </data>
+  <data name="AddLineHeading" xml:space="preserve">
+    <value>إضافة سطر</value>
   </data>
 </root>

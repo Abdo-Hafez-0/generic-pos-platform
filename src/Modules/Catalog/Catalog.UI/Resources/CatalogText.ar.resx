@@ -30,12 +30,6 @@
   <data name="NewProduct" xml:space="preserve">
     <value>صنف جديد</value>
   </data>
-  <data name="EditProduct" xml:space="preserve">
-    <value>تعديل المحدد</value>
-  </data>
-  <data name="Deactivate" xml:space="preserve">
-    <value>إيقاف المحدد</value>
-  </data>
   <data name="Save" xml:space="preserve">
     <value>حفظ</value>
   </data>

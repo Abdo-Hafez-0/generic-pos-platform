@@ -55,4 +55,32 @@ public sealed class ThemeRules
             .ToHashSet();
         Assert.Empty(used.Except(light));
     }
+
+    /// <summary>The C# behind the screens: module view models and the desktop's own screens.</summary>
+    private static IEnumerable<string> ScreenCode() =>
+        Directory.EnumerateFiles(Path.Combine(RepoRoot(), "src", "Modules"), "*.cs", SearchOption.AllDirectories)
+            .Where(p => p.Contains($".UI{Path.DirectorySeparatorChar}ViewModels{Path.DirectorySeparatorChar}"))
+            .Concat(Directory.EnumerateFiles(Path.Combine(RepoRoot(), "src", "Client", "Client.Desktop", "Screens"), "*.cs", SearchOption.AllDirectories))
+            .Where(p => !p.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"));
+
+    [Fact(DisplayName = "ARCH-UI-003: A date or time a screen shows is kept between left-to-right marks (in Arabic it would read reversed)")]
+    public void ScreenDatesKeepTheirOrderInArabic()
+    {
+        // MISS-08c (found in the Arabic check): "10/17/2026 3:46 PM" showed as "PM 3:46 10/17/2026". A short date/time format on the same line
+        // as a left-to-right mark (‎) or the screens' Ltr(...) helper passes.
+        var dateFormat = new Regex(@"ToString\(""[gGdt]""", RegexOptions.CultureInvariant);
+        var offenders = new List<string>();
+        var checkedFiles = 0;
+        foreach (var file in ScreenCode())
+        {
+            checkedFiles++;
+            var lines = File.ReadAllLines(file);
+            for (var i = 0; i < lines.Length; i++)
+                if (dateFormat.IsMatch(lines[i]) && !lines[i].Contains(@"‎", StringComparison.Ordinal) && !lines[i].Contains("Ltr(", StringComparison.Ordinal))
+                    offenders.Add($"{Path.GetRelativePath(RepoRoot(), file)}:{i + 1}: {lines[i].Trim()}");
+        }
+
+        Assert.True(checkedFiles > 20, $"only {checkedFiles} files were checked");
+        Assert.True(offenders.Count == 0, string.Join(Environment.NewLine, offenders));
+    }
 }

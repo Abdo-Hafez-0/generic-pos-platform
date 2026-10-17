@@ -9,9 +9,6 @@
   <data name="SearchHint" xml:space="preserve"><value>Code, name, e-mail or phone</value></data>
   <data name="ShowInactive" xml:space="preserve"><value>Show inactive suppliers</value></data>
   <data name="New" xml:space="preserve"><value>New supplier</value></data>
-  <data name="Edit" xml:space="preserve"><value>Edit selected</value></data>
-  <data name="Deactivate" xml:space="preserve"><value>Deactivate selected</value></data>
-  <data name="Reactivate" xml:space="preserve"><value>Reactivate selected</value></data>
   <data name="Save" xml:space="preserve"><value>Save</value></data>
   <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
   <data name="Code" xml:space="preserve"><value>Code</value></data>

@@ -28,6 +28,7 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
         <shell:SameItemConverter x:Key="SameItem"/>
+        <shell:HeaderActionsConverter x:Key="HeaderActionsOf"/>
         <Style TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
@@ -93,6 +94,7 @@
                                             <DataTemplate>
                                                 <Button Style="{StaticResource Button.Navigation}"
                                                         AutomationProperties.Name="{Binding Title}"
+                                                        AutomationProperties.AutomationId="{Binding Screen.Id}"
                                                         Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                         CommandParameter="{Binding}"
                                                         ToolTip="{Binding Reason}">
@@ -132,7 +134,13 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" x:Name="ScreenTitleText" Text="{Binding CurrentTitle}" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                <!-- MISS-08c: the title and, at its end, the open screen's main action (the view's ScreenParts.HeaderActions, bound to its own view model) -->
+                <DockPanel Grid.Row="0" Margin="0,0,0,12" LastChildFill="True">
+                    <ContentControl x:Name="HeaderActionsHost" DockPanel.Dock="Right" Focusable="False" VerticalAlignment="Center"
+                                    Content="{Binding DataContext.CurrentView, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource HeaderActionsOf}}"
+                                    DataContext="{Binding CurrentView.DataContext}"/>
+                    <TextBlock x:Name="ScreenTitleText" Text="{Binding CurrentTitle}" FontSize="22" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </DockPanel>
                 <TextBlock Grid.Row="1" x:Name="ErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
                 <!-- TextElement.Foreground: text inside the screens' data templates inherits this (implicit TextBlock styles stop at template boundaries) -->

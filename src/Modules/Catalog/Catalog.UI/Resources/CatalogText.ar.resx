@@ -132,4 +132,7 @@
   <data name="UnitAdded" xml:space="preserve">
     <value>تمت إضافة الوحدة {0}.</value>
   </data>
+  <data name="EditProductTitle" xml:space="preserve">
+    <value>تعديل الصنف</value>
+  </data>
 </root>

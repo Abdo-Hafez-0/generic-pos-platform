@@ -52,4 +52,7 @@
   <data name="AddUnit" xml:space="preserve"><value>Add unit</value></data>
   <data name="CategoryAdded" xml:space="preserve"><value>Category {0} was added.</value></data>
   <data name="UnitAdded" xml:space="preserve"><value>Unit {0} was added.</value></data>
+  <data name="EditProductTitle" xml:space="preserve">
+    <value>Edit product</value>
+  </data>
 </root>

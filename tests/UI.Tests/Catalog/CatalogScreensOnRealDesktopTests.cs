@@ -107,10 +107,11 @@ public sealed class CatalogScreensOnRealDesktopTests
         await Run(vm, vm.SearchCommand);
         Assert.Single(vm.Products);
 
-        // edit the price
-        vm.Selected = vm.Products[0];
-        await Run(vm, vm.EditCommand);
+        // edit the price: the row's own Edit (MISS-08c) selects the row and opens it in the editor; the other rows wait meanwhile
+        await Run(vm, vm.EditRowCommand, vm.Products[0]);
+        Assert.Same(vm.Products[0], vm.Selected);
         Assert.False(vm.IsNewProduct);
+        Assert.False(vm.EditRowCommand.CanExecute(vm.Products[0]));
         vm.EditSalePrice = Money(2.75m);
         await Run(vm, vm.SaveCommand);
         Assert.Equal(2.75m, vm.Products[0].Product.SalePrice);
@@ -119,12 +120,13 @@ public sealed class CatalogScreensOnRealDesktopTests
         // deactivate: gone from the active list, still there with "show inactive"
         vm.SearchText = string.Empty;
         await Run(vm, vm.SearchCommand);
-        vm.Selected = vm.Products[0];
-        await Run(vm, vm.DeactivateCommand);
+        await Run(vm, vm.DeactivateRowCommand, vm.Products[0]);
         Assert.Empty(vm.Products);
         vm.IncludeInactive = true;
         await Run(vm, vm.SearchCommand);
-        Assert.Equal(CatalogText.StatusInactive, Assert.Single(vm.Products).StatusText);
+        var inactive = Assert.Single(vm.Products);
+        Assert.Equal(CatalogText.StatusInactive, inactive.StatusText);
+        Assert.False(vm.DeactivateRowCommand.CanExecute(inactive));   // nothing to deactivate twice
     }
 
     [Fact]

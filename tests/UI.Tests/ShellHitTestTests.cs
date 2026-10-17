@@ -15,21 +15,28 @@ namespace UI.Tests;
 /// <summary>
 /// MISS-08 (found by the owner, a second time: nothing in the open screen took a click - text boxes, drop-downs, buttons - while the side
 /// menu worked). The shell's "locked screen" text lay over the screen even when it was empty: a TextBlock takes the mouse over its whole
-/// rectangle. HitTestTests checks each screen on its own; this checks a screen as the shell shows it, inside the real main window.
+/// rectangle. HitTestTests checks each screen on its own; this checks a screen as the shell shows it, inside the real main window - with its
+/// main action in the title row (MISS-08c), which the screen alone does not show.
 /// </summary>
 public sealed class ShellHitTestTests
 {
     private sealed class ControlsScreenFactory : IScreenFactory
     {
+        public FakeViewModel ViewModel { get; } = new();
+
         public ScreenInstance Create(ScreenDescriptor screen) => new(WpfThread.Run(() =>
         {
-            var panel = new StackPanel();
+            var panel = new StackPanel { DataContext = ViewModel };
             panel.Children.Add(new TextBox { Name = "Scan", MinHeight = 52 });
             panel.Children.Add(new ComboBox { Name = "Choice", Width = 160, HorizontalAlignment = HorizontalAlignment.Left });
             panel.Children.Add(new Button { Name = "Act", Content = "Act", HorizontalAlignment = HorizontalAlignment.Left });
+            // MISS-08c: the screen's main action, kept in its resources for the shell's title row
+            panel.Resources[ScreenParts.HeaderActions] = new Button { Name = "MainAction", Content = "New" };
             return (object)panel;
-        }), new FakeViewModel());
+        }), ViewModel);
     }
+
+    private static ControlsScreenFactory? Factory;
 
     private static async Task<ShellViewModel> ShellWithOpenScreenAsync(bool licensed)
     {
@@ -42,7 +49,7 @@ public sealed class ShellHitTestTests
         var navigation = new NavigationBuilder(
             [new ScreenProvider(Screens.Of("pos.sell", "pos", ScreenGroups.Sales, "pos.sale.create"))], catalog, new FakeLicensing(licensed ? ["pos"] : []));
 
-        var shell = new ShellViewModel(runner, navigation, new FakeCurrentUser(), new ControlsScreenFactory());
+        var shell = new ShellViewModel(runner, navigation, new FakeCurrentUser(), Factory = new ControlsScreenFactory());
         await shell.RefreshAsync();
         await shell.OpenAsync(shell.Groups.SelectMany(g => g.Entries).Single());
         return shell;
@@ -63,6 +70,13 @@ public sealed class ShellHitTestTests
         try
         {
             var problems = HitTestTests.Problems(content);
+            if (shell.CurrentView is not null)
+            {
+                // the main action stands in the title row, bound to the screen's own view model
+                var host = (ContentControl)window.FindName("HeaderActionsHost");
+                if (host.Content is not Button { Name: "MainAction", IsVisible: true } action) problems.Add("the screen's main action is not in the title row");
+                else if (!ReferenceEquals(action.DataContext, Factory!.ViewModel)) problems.Add("the main action is not bound to the screen's view model");
+            }
             foreach (var name in new[] { "Scan", "Choice", "Act" })
                 if (content.FindName(name) is null && !HasDescendantNamed(content, name)) problems.Add($"the screen's control '{name}' is not shown");
             return problems;

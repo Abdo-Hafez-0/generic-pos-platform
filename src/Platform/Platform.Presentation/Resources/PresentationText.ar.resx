@@ -39,4 +39,16 @@
   <data name="GroupAdministration" xml:space="preserve">
     <value>الإدارة</value>
   </data>
+  <data name="RowEdit" xml:space="preserve">
+    <value>تعديل</value>
+  </data>
+  <data name="RowMoreActions" xml:space="preserve">
+    <value>إجراءات أخرى</value>
+  </data>
+  <data name="RowDeactivate" xml:space="preserve">
+    <value>إيقاف</value>
+  </data>
+  <data name="RowReactivate" xml:space="preserve">
+    <value>إعادة تنشيط</value>
+  </data>
 </root>

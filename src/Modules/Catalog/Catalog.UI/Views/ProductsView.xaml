@@ -5,6 +5,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:res="clr-namespace:Catalog.UI.Resources"
              xmlns:vm="clr-namespace:Catalog.UI.ViewModels"
+             xmlns:pres="clr-namespace:Platform.Presentation.Resources;assembly=Platform.Presentation"
+             xmlns:screens="clr-namespace:Platform.Presentation.Screens;assembly=Platform.Presentation"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:ProductsViewModel}">
 
@@ -35,19 +37,27 @@
         <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
+
+        <!-- MISS-08c: the main action, shown by the shell at the end of the title row -->
+        <Button x:Key="{x:Static screens:ScreenParts.HeaderActions}" x:Name="NewProductButton" Style="{StaticResource Button.Primary}"
+                Content="{x:Static res:CatalogText.NewProduct}" Command="{Binding NewCommand}" Margin="0"/>
     </UserControl.Resources>
 
+    <!-- MISS-08c (owner's choices): search, then the plain table with Edit and "⋯" on each row; the editor opens in a panel beside it -->
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- LIST MODE: search, list, actions -->
-        <StackPanel Grid.Row="0" Visibility="{Binding IsListMode, Converter={StaticResource VisibleWhenTrue}}">
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                <TextBox x:Name="SearchBox" Width="280" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+        <StackPanel Grid.Row="0">
+            <DockPanel Margin="0,0,0,10" LastChildFill="False">
+                <TextBox x:Name="SearchBox" Width="320" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Tag="{x:Static res:CatalogText.SearchHint}"
                          AutomationProperties.Name="{x:Static res:CatalogText.SearchHint}" ToolTip="{x:Static res:CatalogText.SearchHint}">
                     <TextBox.InputBindings>
                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}"/>
@@ -55,35 +65,73 @@
                 </TextBox>
                 <Button x:Name="SearchButton" Content="{x:Static res:CatalogText.Search}" Margin="8,0,16,0" Command="{Binding SearchCommand}"/>
                 <CheckBox x:Name="IncludeInactiveBox" Content="{x:Static res:CatalogText.IncludeInactive}" IsChecked="{Binding IncludeInactive}"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                <Button x:Name="NewProductButton" Content="{x:Static res:CatalogText.NewProduct}" Command="{Binding NewCommand}"/>
-                <Button x:Name="EditProductButton" Content="{x:Static res:CatalogText.EditProduct}" Command="{Binding EditCommand}"/>
-                <Button x:Name="DeactivateButton" Content="{x:Static res:CatalogText.Deactivate}" Command="{Binding DeactivateCommand}"/>
-            </StackPanel>
+            </DockPanel>
             <TextBlock x:Name="NeedsCategoriesText" Text="{x:Static res:CatalogText.NeedCategoriesAndUnits}" Foreground="{DynamicResource Brush.Warning}" TextWrapping="Wrap" Margin="0,0,0,8"
                        Visibility="{Binding NeedsCategoriesAndUnits, Converter={StaticResource VisibleWhenTrue}}"/>
         </StackPanel>
 
-        <DataGrid Grid.Row="1" x:Name="ProductGrid" ItemsSource="{Binding Products}" SelectedItem="{Binding Selected}"
-                  Visibility="{Binding IsListMode, Converter={StaticResource VisibleWhenTrue}}" IsReadOnly="True"
+        <!-- columns are not in the element tree: they read the view model through this element (x:Reference) -->
+        <FrameworkElement x:Name="ColumnsSource" Visibility="Collapsed"/>
+        <DataGrid Grid.Row="1" x:Name="ProductGrid" ItemsSource="{Binding Products}" SelectedItem="{Binding Selected}" IsReadOnly="True"
                   AutomationProperties.Name="{x:Static res:CatalogText.ProductsTitle}">
+            <DataGrid.InputBindings>
+                <MouseBinding Gesture="LeftDoubleClick" Command="{Binding EditRowCommand}" CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+            </DataGrid.InputBindings>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="{x:Static res:CatalogText.Sku}" Binding="{Binding Product.Sku}" Width="120" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:CatalogText.Sku}" Binding="{Binding Product.Sku}" Width="110" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:CatalogText.Name}" Binding="{Binding Product.Name}" Width="*" MinWidth="160" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:CatalogText.Category}" Binding="{Binding Product.CategoryName}" Width="130" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:CatalogText.Unit}" Binding="{Binding Product.UnitAbbreviation}" Width="60" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:CatalogText.SalePrice}" Binding="{Binding Product.SalePrice, StringFormat=N2}" Width="100" ElementStyle="{StaticResource Number}"/>
-                <DataGridTextColumn Header="{x:Static res:CatalogText.CostPrice}" Binding="{Binding Product.CostPrice, StringFormat=N2}" Width="100" ElementStyle="{StaticResource Number}"/>
-                <DataGridTextColumn Header="{x:Static res:CatalogText.Barcodes}" Binding="{Binding BarcodesText}" Width="150" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:CatalogText.Status}" Binding="{Binding StatusText}" Width="100" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:CatalogText.Category}" Binding="{Binding Product.CategoryName}" Width="110" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:CatalogText.Unit}" Binding="{Binding Product.UnitAbbreviation}" Visibility="{Binding DataContext.IsListMode, Source={x:Reference ColumnsSource}, Converter={StaticResource VisibleWhenTrue}}" Width="50" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:CatalogText.SalePrice}" Binding="{Binding Product.SalePrice, StringFormat=N2}" Width="90" ElementStyle="{StaticResource Number}"/>
+                <DataGridTextColumn Header="{x:Static res:CatalogText.CostPrice}" Binding="{Binding Product.CostPrice, StringFormat=N2}" Visibility="{Binding DataContext.IsListMode, Source={x:Reference ColumnsSource}, Converter={StaticResource VisibleWhenTrue}}" Width="90" ElementStyle="{StaticResource Number}"/>
+                <DataGridTextColumn Header="{x:Static res:CatalogText.Barcodes}" Binding="{Binding BarcodesText}" Visibility="{Binding DataContext.IsListMode, Source={x:Reference ColumnsSource}, Converter={StaticResource VisibleWhenTrue}}" Width="130" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:CatalogText.Status}" Binding="{Binding StatusText}" Visibility="{Binding DataContext.IsListMode, Source={x:Reference ColumnsSource}, Converter={StaticResource VisibleWhenTrue}}" Width="80" ElementStyle="{StaticResource Cell}"/>
+                <!-- the row's actions: Edit, and "⋯" for the rest (unit, cost, barcodes and status give way to the editor while it is open) -->
+                <DataGridTemplateColumn Width="Auto">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="4,0">
+                                <Button x:Name="RowEditButton" Style="{StaticResource Button.Link}" Content="{x:Static pres:PresentationText.RowEdit}"
+                                        Command="{Binding DataContext.EditRowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/>
+                                <Button x:Name="RowMenuButton" Style="{StaticResource Button.RowMenu}" ToolTip="{x:Static pres:PresentationText.RowMoreActions}"
+                                        AutomationProperties.Name="{x:Static pres:PresentationText.RowMoreActions}"
+                                        Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=DataGrid}}">
+                                    <Button.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem x:Name="RowDeactivateItem" Header="{x:Static pres:PresentationText.RowDeactivate}" CommandParameter="{Binding}"
+                                                      Command="{Binding PlacementTarget.Tag.DeactivateRowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                </Button>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
 
-        <!-- EDIT MODE: one product -->
-        <ScrollViewer Grid.Row="0" Grid.RowSpan="2" VerticalScrollBarVisibility="Auto"
-                      Visibility="{Binding IsEditorOpen, Converter={StaticResource VisibleWhenTrue}}">
-            <Grid x:Name="Editor" MaxWidth="640" HorizontalAlignment="Left">
+        <!-- the editor, beside the list -->
+        <Border Grid.Column="1" Grid.RowSpan="2" x:Name="EditorPanel" Style="{StaticResource Panel.Side}" Width="380"
+                Visibility="{Binding IsEditorOpen, Converter={StaticResource VisibleWhenTrue}}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" x:Name="EditorTitle">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource Box.Title}">
+                            <Setter Property="Text" Value="{x:Static res:CatalogText.EditProductTitle}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsNewProduct}" Value="True">
+                                    <Setter Property="Text" Value="{x:Static res:CatalogText.NewProduct}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0">
+                    <Button x:Name="SaveButton" Style="{StaticResource Button.Primary}" Content="{x:Static res:CatalogText.Save}" Command="{Binding SaveCommand}" IsDefault="True" Margin="0,0,8,0"/>
+                    <Button x:Name="CancelButton" Content="{x:Static res:CatalogText.Cancel}" Command="{Binding CancelCommand}"/>
+                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <Grid x:Name="Editor">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -129,15 +177,13 @@
                 <TextBlock Grid.Row="8" Style="{StaticResource Label}" Text="{x:Static res:CatalogText.AddBarcode}"/>
                 <TextBox Grid.Row="8" Grid.Column="1" x:Name="BarcodeBox" Width="240" HorizontalAlignment="Left" Text="{Binding EditBarcode, UpdateSourceTrigger=PropertyChanged}"
                          AutomationProperties.Name="{x:Static res:CatalogText.AddBarcode}"/>
-                <StackPanel Grid.Row="9" Grid.Column="1" Orientation="Horizontal" Margin="0,16,0,0">
-                    <Button x:Name="SaveButton" Content="{x:Static res:CatalogText.Save}" Command="{Binding SaveCommand}" IsDefault="True"/>
-                    <Button x:Name="CancelButton" Content="{x:Static res:CatalogText.Cancel}" Command="{Binding CancelCommand}"/>
-                </StackPanel>
             </Grid>
-        </ScrollViewer>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
 
         <!-- what happened -->
-        <StackPanel Grid.Row="2" Margin="0,8,0,0">
+        <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0">
             <TextBlock x:Name="ProductsInfoText" Text="{Binding ResultInfo}" Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap"/>
             <TextBlock x:Name="ProductsStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap"/>
             <TextBlock x:Name="ProductsErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap"/>

@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:res="clr-namespace:Client.Desktop.Resources"
              xmlns:vm="clr-namespace:Client.Desktop.Screens.Backup"
+             xmlns:screens="clr-namespace:Platform.Presentation.Screens;assembly=Platform.Presentation"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:BackupViewModel}">
 
@@ -43,115 +44,135 @@
             <Setter Property="Padding" Value="12"/>
             <Setter Property="Margin" Value="0,12,0,0"/>
         </Style>
+
+        <!-- MISS-08c: the main action, shown by the shell at the end of the title row -->
+        <Button x:Key="{x:Static screens:ScreenParts.HeaderActions}" x:Name="BackUpNowButton" Style="{StaticResource Button.Primary}" Margin="0"
+                Content="{x:Static res:BackupText.BackUpNow}" Command="{Binding BackUpNowCommand}" Visibility="{Binding CanMake, Converter={StaticResource VisibleWhenTrue}}"/>
     </UserControl.Resources>
 
+    <!-- MISS-08c (owner's choice: settings in two columns of white boxes): the state and the settings side by side, the backups below -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel MaxWidth="980" HorizontalAlignment="Left">
-            <!-- the state of the backups -->
+        <StackPanel>
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="{x:Static res:BackupText.LastBackup}"/>
-                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="LastBackupText" Text="{Binding LastBackupText}" FontWeight="SemiBold"/>
-                <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="{x:Static res:BackupText.Folder}"/>
-                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="FolderText" Text="{Binding FolderText}"/>
-                <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="{x:Static res:BackupText.Schedule}"/>
-                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="ScheduleText" Text="{Binding ScheduleText}"/>
-            </Grid>
-            <!-- design decision 2: local backups are plain files - say so -->
-            <TextBlock x:Name="UnencryptedText" Text="{x:Static res:BackupText.Unencrypted}" Foreground="{DynamicResource Brush.Warning}" FontSize="12" Margin="0,8,0,0"/>
-            <TextBlock x:Name="LastRestoreText" Text="{Binding LastRestoreText}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="12" Margin="0,6,0,0"/>
 
-            <Button x:Name="BackUpNowButton" Content="{x:Static res:BackupText.BackUpNow}" Command="{Binding BackUpNowCommand}" HorizontalAlignment="Left"
-                    Margin="0,16,0,0" Visibility="{Binding CanMake, Converter={StaticResource VisibleWhenTrue}}"/>
+                <!-- the state of the backups -->
+                <Border Grid.Column="0" Style="{StaticResource Box}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:BackupText.State}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="{x:Static res:BackupText.LastBackup}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="LastBackupText" Text="{Binding LastBackupText}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="{x:Static res:BackupText.Folder}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="FolderText" Text="{Binding FolderText}"/>
+                            <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="{x:Static res:BackupText.Schedule}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="ScheduleText" Text="{Binding ScheduleText}"/>
+                        </Grid>
+                        <!-- design decision 2: local backups are plain files - say so -->
+                        <TextBlock x:Name="UnencryptedText" Text="{x:Static res:BackupText.Unencrypted}" Foreground="{DynamicResource Brush.Warning}" FontSize="12" Margin="0,8,0,0"/>
+                        <TextBlock x:Name="LastRestoreText" Text="{Binding LastRestoreText}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="12" Margin="0,6,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- settings -->
+                <Border Grid.Column="2" Style="{StaticResource Box}" Visibility="{Binding CanConfigure, Converter={StaticResource VisibleWhenTrue}}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:BackupText.Settings}"/>
+                        <TextBlock Style="{StaticResource Label}" Text="{x:Static res:BackupText.Folder}"/>
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" x:Name="BrowseFolderButton" Content="{x:Static res:BackupText.Browse}" Click="OnBrowseFolder" Margin="8,0,0,0"/>
+                            <TextBox x:Name="FolderBox" Text="{Binding Folder, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight"
+                                     AutomationProperties.Name="{x:Static res:BackupText.Folder}"/>
+                        </DockPanel>
+                        <WrapPanel Margin="0,10,0,0">
+                            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:BackupText.KeepNewest}"/>
+                            <TextBox x:Name="KeepBox" Width="60" Text="{Binding KeepText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:BackupText.KeepNewest}"/>
+                            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:BackupText.KeepUnit}" Margin="8,4,0,4"/>
+                        </WrapPanel>
+                        <WrapPanel Margin="0,6,0,0">
+                            <CheckBox x:Name="ScheduleBox" IsChecked="{Binding ScheduleEnabled}" VerticalAlignment="Center" Margin="0,0,6,0"
+                                      AutomationProperties.Name="{x:Static res:BackupText.DailyAt}"/>
+                            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:BackupText.DailyAt}" Margin="0,4,8,4"/>
+                            <TextBox x:Name="DailyAtBox" Width="70" Text="{Binding DailyAtText, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight"
+                                     AutomationProperties.Name="{x:Static res:BackupText.DailyAt}"/>
+                            <TextBlock Text="{x:Static res:BackupText.TimeHint}" Foreground="{DynamicResource Brush.TextSubtle}" FontSize="11" Margin="8,0,0,0"/>
+                        </WrapPanel>
+                        <Button x:Name="SaveSettingsButton" Content="{x:Static res:BackupText.Save}" Command="{Binding SaveSettingsCommand}" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
 
             <!-- the backups -->
-            <StackPanel Visibility="{Binding CanMake, Converter={StaticResource VisibleWhenTrue}}">
-                <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:BackupText.History}"/>
-                <DataGrid x:Name="BackupGrid" ItemsSource="{Binding Backups}" SelectedItem="{Binding Selected}" IsReadOnly="True" Height="220"
-                          AutomationProperties.Name="{x:Static res:BackupText.History}">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="{x:Static res:BackupText.Made}" Binding="{Binding MadeText}" Width="140" ElementStyle="{StaticResource Cell}"/>
-                        <DataGridTextColumn Header="{x:Static res:BackupText.File}" Binding="{Binding Record.FileName}" Width="*" ElementStyle="{StaticResource Cell}"/>
-                        <DataGridTextColumn Header="{x:Static res:BackupText.Where}" Binding="{Binding WhereText}" Width="160" ElementStyle="{StaticResource Cell}"/>
-                        <DataGridTextColumn Header="{x:Static res:BackupText.Size}" Binding="{Binding SizeText}" Width="80" ElementStyle="{StaticResource Cell}"/>
-                        <DataGridTextColumn Header="{x:Static res:BackupText.How}" Binding="{Binding HowText}" Width="90" ElementStyle="{StaticResource Cell}"/>
-                        <DataGridTextColumn Header="{x:Static res:BackupText.Checked}" Binding="{Binding CheckText}" Width="90" ElementStyle="{StaticResource Cell}"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-                <WrapPanel Margin="0,8,0,0">
-                    <Button x:Name="CheckButton" Content="{x:Static res:BackupText.Check}" Command="{Binding CheckCommand}"/>
-                    <Button x:Name="RestoreButton" Content="{x:Static res:BackupText.Restore}" Command="{Binding RestoreCommand}"
-                            Visibility="{Binding CanRestore, Converter={StaticResource VisibleWhenTrue}}"/>
-                    <Button x:Name="RestoreFromFileButton" Content="{x:Static res:BackupText.RestoreFromFile}" Click="OnRestoreFromFile"
-                            Visibility="{Binding CanRestore, Converter={StaticResource VisibleWhenTrue}}"/>
-                    <Button x:Name="DeleteButton" Content="{x:Static res:BackupText.Delete}" Command="{Binding DeleteCommand}"
-                            Visibility="{Binding CanDelete, Converter={StaticResource VisibleWhenTrue}}"/>
-                </WrapPanel>
-            </StackPanel>
-
-            <!-- delete: asked first -->
-            <Border Style="{StaticResource Question}" Visibility="{Binding IsDeleteAsked, Converter={StaticResource VisibleWhenTrue}}">
+            <Border Style="{StaticResource Box}" Visibility="{Binding CanMake, Converter={StaticResource VisibleWhenTrue}}">
                 <StackPanel>
-                    <TextBlock x:Name="DeleteQuestionText" Text="{Binding DeleteQuestion}"/>
-                    <WrapPanel Margin="0,8,0,0">
-                        <Button x:Name="ConfirmDeleteButton" Content="{x:Static res:BackupText.DeleteYes}" Command="{Binding ConfirmDeleteCommand}"/>
-                        <Button x:Name="KeepButton" Content="{x:Static res:BackupText.Keep}" Command="{Binding KeepCommand}"/>
+                    <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:BackupText.History}"/>
+                    <DataGrid x:Name="BackupGrid" ItemsSource="{Binding Backups}" SelectedItem="{Binding Selected}" IsReadOnly="True" Height="200"
+                              AutomationProperties.Name="{x:Static res:BackupText.History}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="{x:Static res:BackupText.Made}" Binding="{Binding MadeText}" Width="140" ElementStyle="{StaticResource Cell}"/>
+                            <DataGridTextColumn Header="{x:Static res:BackupText.File}" Binding="{Binding Record.FileName}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                            <DataGridTextColumn Header="{x:Static res:BackupText.Where}" Binding="{Binding WhereText}" Width="140" ElementStyle="{StaticResource Cell}"/>
+                            <DataGridTextColumn Header="{x:Static res:BackupText.Size}" Binding="{Binding SizeText}" Width="80" ElementStyle="{StaticResource Cell}"/>
+                            <DataGridTextColumn Header="{x:Static res:BackupText.How}" Binding="{Binding HowText}" Width="90" ElementStyle="{StaticResource Cell}"/>
+                            <DataGridTextColumn Header="{x:Static res:BackupText.Checked}" Binding="{Binding CheckText}" Width="90" ElementStyle="{StaticResource Cell}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <WrapPanel Margin="0,10,0,0">
+                        <Button x:Name="CheckButton" Content="{x:Static res:BackupText.Check}" Command="{Binding CheckCommand}"/>
+                        <Button x:Name="RestoreButton" Content="{x:Static res:BackupText.Restore}" Command="{Binding RestoreCommand}"
+                                Visibility="{Binding CanRestore, Converter={StaticResource VisibleWhenTrue}}"/>
+                        <Button x:Name="RestoreFromFileButton" Content="{x:Static res:BackupText.RestoreFromFile}" Click="OnRestoreFromFile"
+                                Visibility="{Binding CanRestore, Converter={StaticResource VisibleWhenTrue}}"/>
+                        <Button x:Name="DeleteButton" Content="{x:Static res:BackupText.Delete}" Command="{Binding DeleteCommand}"
+                                Visibility="{Binding CanDelete, Converter={StaticResource VisibleWhenTrue}}"/>
                     </WrapPanel>
+                    <!-- delete: asked first -->
+                    <Border Style="{StaticResource Question}" Visibility="{Binding IsDeleteAsked, Converter={StaticResource VisibleWhenTrue}}">
+                        <StackPanel>
+                            <TextBlock x:Name="DeleteQuestionText" Text="{Binding DeleteQuestion}"/>
+                            <WrapPanel Margin="0,8,0,0">
+                                <Button x:Name="ConfirmDeleteButton" Content="{x:Static res:BackupText.DeleteYes}" Command="{Binding ConfirmDeleteCommand}"/>
+                                <Button x:Name="KeepButton" Content="{x:Static res:BackupText.Keep}" Command="{Binding KeepCommand}"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- restore: what it replaces, asked first -->
+                    <Border Style="{StaticResource Question}" Visibility="{Binding IsRestorePrepared, Converter={StaticResource VisibleWhenTrue}}">
+                        <StackPanel>
+                            <TextBlock x:Name="RestoreQuestionText" Text="{Binding RestoreQuestion}"/>
+                            <WrapPanel Margin="0,8,0,0">
+                                <Button x:Name="ConfirmRestoreButton" Content="{x:Static res:BackupText.ConfirmRestore}" Command="{Binding ConfirmRestoreCommand}"/>
+                                <Button x:Name="CancelRestoreButton" Content="{x:Static res:BackupText.Cancel}" Command="{Binding CancelRestoreCommand}"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- restore: confirmed, waiting for the restart -->
+                    <Border Style="{StaticResource Question}" Visibility="{Binding IsRestorePending, Converter={StaticResource VisibleWhenTrue}}">
+                        <StackPanel>
+                            <TextBlock x:Name="PendingText" Text="{Binding PendingText}"/>
+                            <WrapPanel Margin="0,8,0,0">
+                                <Button x:Name="RestartNowButton" Content="{x:Static res:BackupText.RestartNow}" Command="{Binding RestartNowCommand}"/>
+                                <Button x:Name="CancelPendingButton" Content="{x:Static res:BackupText.CancelPending}" Command="{Binding CancelRestoreCommand}"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </Border>
-
-            <!-- restore: what it replaces, asked first -->
-            <Border Style="{StaticResource Question}" Visibility="{Binding IsRestorePrepared, Converter={StaticResource VisibleWhenTrue}}">
-                <StackPanel>
-                    <TextBlock x:Name="RestoreQuestionText" Text="{Binding RestoreQuestion}"/>
-                    <WrapPanel Margin="0,8,0,0">
-                        <Button x:Name="ConfirmRestoreButton" Content="{x:Static res:BackupText.ConfirmRestore}" Command="{Binding ConfirmRestoreCommand}"/>
-                        <Button x:Name="CancelRestoreButton" Content="{x:Static res:BackupText.Cancel}" Command="{Binding CancelRestoreCommand}"/>
-                    </WrapPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- restore: confirmed, waiting for the restart -->
-            <Border Style="{StaticResource Question}" Visibility="{Binding IsRestorePending, Converter={StaticResource VisibleWhenTrue}}">
-                <StackPanel>
-                    <TextBlock x:Name="PendingText" Text="{Binding PendingText}"/>
-                    <WrapPanel Margin="0,8,0,0">
-                        <Button x:Name="RestartNowButton" Content="{x:Static res:BackupText.RestartNow}" Command="{Binding RestartNowCommand}"/>
-                        <Button x:Name="CancelPendingButton" Content="{x:Static res:BackupText.CancelPending}" Command="{Binding CancelRestoreCommand}"/>
-                    </WrapPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- settings -->
-            <StackPanel Visibility="{Binding CanConfigure, Converter={StaticResource VisibleWhenTrue}}">
-                <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:BackupText.Settings}"/>
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource Label}" Text="{x:Static res:BackupText.Folder}"/>
-                    <Button DockPanel.Dock="Right" x:Name="BrowseFolderButton" Content="{x:Static res:BackupText.Browse}" Click="OnBrowseFolder" Margin="8,0,0,0"/>
-                    <TextBox x:Name="FolderBox" Text="{Binding Folder, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight"
-                             AutomationProperties.Name="{x:Static res:BackupText.Folder}"/>
-                </DockPanel>
-                <WrapPanel Margin="0,8,0,0">
-                    <TextBlock Style="{StaticResource Label}" Text="{x:Static res:BackupText.KeepNewest}"/>
-                    <TextBox x:Name="KeepBox" Width="60" Text="{Binding KeepText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:BackupText.KeepNewest}"/>
-                    <TextBlock Style="{StaticResource Label}" Text="{x:Static res:BackupText.KeepUnit}" Margin="8,4,24,4"/>
-                    <CheckBox x:Name="ScheduleBox" IsChecked="{Binding ScheduleEnabled}" VerticalAlignment="Center" Margin="0,0,6,0"
-                              AutomationProperties.Name="{x:Static res:BackupText.DailyAt}"/>
-                    <TextBlock Style="{StaticResource Label}" Text="{x:Static res:BackupText.DailyAt}" Margin="0,4,8,4"/>
-                    <TextBox x:Name="DailyAtBox" Width="70" Text="{Binding DailyAtText, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight"
-                             AutomationProperties.Name="{x:Static res:BackupText.DailyAt}"/>
-                    <TextBlock Text="{x:Static res:BackupText.TimeHint}" Foreground="{DynamicResource Brush.TextSubtle}" FontSize="11" Margin="8,0,0,0"/>
-                </WrapPanel>
-                <Button x:Name="SaveSettingsButton" Content="{x:Static res:BackupText.Save}" Command="{Binding SaveSettingsCommand}" HorizontalAlignment="Left" Margin="0,12,0,0"/>
-            </StackPanel>
 
             <!-- what happened -->
             <TextBlock x:Name="BackupStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" Margin="0,16,0,0"/>

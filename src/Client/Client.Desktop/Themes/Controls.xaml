@@ -1,11 +1,14 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+                    xmlns:themes="clr-namespace:Client.Desktop.Themes">
     <!--
         MATJAR CONTROL STYLES (MISS-08). The look of every control, shared by the shell and every module screen; colours only through the
         theme names of Light.xaml / Dark.xaml (DynamicResource), so switching the theme restyles everything at once.
         A screen that needs its own spacing writes  <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">  - never a new look.
         Keyed styles: Button.Primary (the one main action of a screen), Button.Checkout (the till), Button.Navigation (the shell's menu).
+        MISS-08c screen patterns (owner's choices): Button.Link (a row's "Edit"), Button.RowMenu (a row's "⋯" with its ContextMenu),
+        Box + Box.Title (a white box grouping settings or a list), Panel.Side (the edit panel beside a list).
     -->
 
     <FontFamily x:Key="Font.Ui">Segoe UI</FontFamily>
@@ -111,6 +114,111 @@
                             <Setter TargetName="Face" Property="Background" Value="{DynamicResource Brush.Selected}"/>
                             <Setter TargetName="Marker" Property="Visibility" Value="Visible"/>
                             <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ================================================================ screen patterns (MISS-08c) -->
+    <!-- a row action written as a link: accent text, no frame -->
+    <Style x:Key="Button.Link" TargetType="Button">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Ui}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="8,3"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Face" Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter x:Name="Text" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Face" Property="Background" Value="{DynamicResource Brush.Hover}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Face" Property="Background" Value="{DynamicResource Brush.Hover}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.TextDisabled}"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- a row's "more actions" button: a click opens its ContextMenu (themes:MenuButton) -->
+    <Style x:Key="Button.RowMenu" TargetType="Button" BasedOn="{StaticResource Button.Link}">
+        <Setter Property="Content" Value="⋯"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}"/>
+        <Setter Property="Padding" Value="8,0,8,3"/>
+        <Setter Property="themes:MenuButton.OpensMenu" Value="True"/>
+    </Style>
+
+    <!-- a white box that groups one part of a screen (settings, a list, an editor) -->
+    <Style x:Key="Box" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Brush.Page}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Line}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Padding" Value="16,14"/>
+        <Setter Property="Margin" Value="0,0,0,12"/>
+    </Style>
+    <Style x:Key="Box.Title" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Ui}"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+        <Setter Property="Margin" Value="0,0,0,10"/>
+    </Style>
+
+    <!-- the edit panel beside a list (end side; mirrored in Arabic with the layout) -->
+    <Style x:Key="Panel.Side" TargetType="Border" BasedOn="{StaticResource Box}">
+        <Setter Property="Background" Value="{DynamicResource Brush.Surface}"/>
+        <Setter Property="Margin" Value="16,0,0,0"/>
+        <Setter Property="Padding" Value="16,14,16,16"/>
+    </Style>
+
+    <!-- menus (a row's "⋯") -->
+    <Style TargetType="ContextMenu">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Ui}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ContextMenu">
+                    <Border Background="{DynamicResource Brush.Page}" BorderBrush="{DynamicResource Brush.LineStrong}" BorderThickness="1"
+                            CornerRadius="8" Padding="4" MinWidth="160">
+                        <StackPanel IsItemsHost="True"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style TargetType="MenuItem">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="MenuItem">
+                    <Border x:Name="Face" Background="Transparent" CornerRadius="5" Padding="10,7">
+                        <ContentPresenter ContentSource="Header" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="Face" Property="Background" Value="{DynamicResource Brush.Hover}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.TextDisabled}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -431,13 +539,14 @@
         <Setter Property="HeadersVisibility" Value="Column"/>
         <Setter Property="Background" Value="{DynamicResource Brush.Page}"/>
         <Setter Property="RowBackground" Value="{DynamicResource Brush.Page}"/>
-        <Setter Property="AlternatingRowBackground" Value="{DynamicResource Brush.RowAlt}"/>
+        <!-- MISS-08c: plain tables (no alternating shade; lines between rows) -->
+        <Setter Property="AlternatingRowBackground" Value="{DynamicResource Brush.Page}"/>
         <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Brush.Line}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="GridLinesVisibility" Value="Horizontal"/>
         <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource Brush.Line}"/>
-        <Setter Property="RowHeight" Value="32"/>
+        <Setter Property="RowHeight" Value="34"/>
     </Style>
     <Style TargetType="DataGridColumnHeader">
         <Setter Property="Background" Value="{DynamicResource Brush.Surface}"/>

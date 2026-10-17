@@ -180,4 +180,7 @@
   <data name="BackupFiles" xml:space="preserve">
     <value>ملفات النسخ الاحتياطي</value>
   </data>
+  <data name="State" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
 </root>

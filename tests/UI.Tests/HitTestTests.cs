@@ -130,6 +130,7 @@ public sealed class HitTestTests
         var screens = provider.GetServices<IScreenProvider>().SelectMany(p => p.GetScreens()).ToList();
         var problems = new List<string>();
         var checkedControls = 0;
+        var headerActions = 0;
         WpfThread.Run(() =>
         {
             foreach (var screen in screens)
@@ -138,17 +139,28 @@ public sealed class HitTestTests
                     // as the shell builds a screen: the view bound to its real view model (hidden panels stay hidden), not loaded with data
                     var view = (FrameworkElement)Activator.CreateInstance(screen.ViewType)!;
                     view.DataContext = ActivatorUtilities.CreateInstance(provider, screen.ViewModelType);
-                    var window = Host(view, direction);
+                    // MISS-08c: a screen's main action is shown by the shell above it, bound to the same view model - checked with it
+                    var page = new DockPanel();
+                    if (view.Resources.Contains(ScreenParts.HeaderActions) && view.Resources[ScreenParts.HeaderActions] is FrameworkElement header)
+                    {
+                        var slot = new ContentControl { Content = header, DataContext = view.DataContext, HorizontalAlignment = HorizontalAlignment.Right };
+                        DockPanel.SetDock(slot, Dock.Top);
+                        page.Children.Add(slot);
+                        headerActions++;
+                    }
+                    page.Children.Add(view);
+                    var window = Host(page, direction);
                     try
                     {
-                        checkedControls += Descendants(view).OfType<Control>().Count(c => c.IsVisible && c.TemplatedParent is null && (c is TextBox or PasswordBox or ComboBox or ButtonBase or DatePicker));
-                        problems.AddRange(Problems(view).Select(p => $"{screen.Id} ({direction}): {p}"));
+                        checkedControls += Descendants(page).OfType<Control>().Count(c => c.IsVisible && c.TemplatedParent is null && (c is TextBox or PasswordBox or ComboBox or ButtonBase or DatePicker));
+                        problems.AddRange(Problems(page).Select(p => $"{screen.Id} ({direction}): {p}"));
                     }
                     finally { window.Close(); }
                 }
         });
 
         Assert.True(checkedControls > 200, $"only {checkedControls} controls were checked");
+        Assert.True(headerActions >= 4, $"only {headerActions} main actions were checked");   // 2 screens x 2 directions at least
         Assert.True(problems.Count == 0, string.Join(Environment.NewLine, problems));
     }
 }

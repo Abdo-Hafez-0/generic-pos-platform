@@ -39,4 +39,16 @@
   <data name="GroupAdministration" xml:space="preserve">
     <value>Administration</value>
   </data>
+  <data name="RowEdit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="RowMoreActions" xml:space="preserve">
+    <value>More actions</value>
+  </data>
+  <data name="RowDeactivate" xml:space="preserve">
+    <value>Deactivate</value>
+  </data>
+  <data name="RowReactivate" xml:space="preserve">
+    <value>Reactivate</value>
+  </data>
 </root>

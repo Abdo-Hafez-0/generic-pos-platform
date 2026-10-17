@@ -52,10 +52,11 @@ public sealed class ProductsViewModel : ViewModelBase, INavigationAware
         _runner = runner;
         SearchCommand = Command(SearchAsync);
         NewCommand = Command(() => { OpenEditor(null); return Task.CompletedTask; }, () => !IsEditorOpen);
-        EditCommand = Command(() => { OpenEditor(Selected); return Task.CompletedTask; }, () => !IsEditorOpen && Selected is not null);
         SaveCommand = Command(SaveAsync, () => IsEditorOpen);
         CancelCommand = Command(() => { IsEditorOpen = false; return Task.CompletedTask; }, () => IsEditorOpen);
-        DeactivateCommand = Command(DeactivateAsync, () => !IsEditorOpen && Selected is { IsActive: true });
+        // MISS-08c (owner: actions on each row): the row's own Edit and "⋯" > Deactivate
+        EditRowCommand = Command<ProductRow>(row => { Selected = row; OpenEditor(row); return Task.CompletedTask; }, row => !IsEditorOpen && row is not null);
+        DeactivateRowCommand = Command<ProductRow>(row => { Selected = row; return DeactivateAsync(); }, row => !IsEditorOpen && row is { IsActive: true });
     }
 
     public ObservableCollection<ProductRow> Products { get; } = [];
@@ -64,10 +65,10 @@ public sealed class ProductsViewModel : ViewModelBase, INavigationAware
 
     public ICommand SearchCommand { get; }
     public ICommand NewCommand { get; }
-    public ICommand EditCommand { get; }
     public ICommand SaveCommand { get; }
     public ICommand CancelCommand { get; }
-    public ICommand DeactivateCommand { get; }
+    public ICommand EditRowCommand { get; }
+    public ICommand DeactivateRowCommand { get; }
 
     public string SearchText { get => _searchText; set => Set(ref _searchText, value); }
     public bool IncludeInactive { get => _includeInactive; set => Set(ref _includeInactive, value); }

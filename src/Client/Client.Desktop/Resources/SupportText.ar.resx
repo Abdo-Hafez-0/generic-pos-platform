@@ -54,4 +54,7 @@
   <data name="Saved" xml:space="preserve">
     <value>تم حفظ ملف الدعم باسم {0} ({1} ملف سجل، {2} تقرير عطل). أرسله إلى المورّد.</value>
   </data>
+  <data name="FileHeading" xml:space="preserve">
+    <value>ملف الدعم</value>
+  </data>
 </root>

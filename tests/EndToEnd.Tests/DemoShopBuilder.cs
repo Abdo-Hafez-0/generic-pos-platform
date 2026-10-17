@@ -125,6 +125,7 @@ public sealed class DemoShopBuilder(ITestOutputHelper output)
         Try("tax rate VAT 14% (default)", () =>
         {
             Open(main, "Tax rates");
+            Click(main, "NewTaxRateButton");   // MISS-08c: the panel beside the list
             SetText(main, "TaxCodeBox", "VAT");
             SetText(main, "TaxNameBox", "VAT 14%");
             SetText(main, "TaxPercentBox", "14");
@@ -174,6 +175,7 @@ public sealed class DemoShopBuilder(ITestOutputHelper output)
         foreach (var (name, code) in new[] { ("Main store", "MAIN"), ("Back room", "BACK") })
             Try("warehouse " + name, () =>
             {
+                Click(main, "NewWarehouseButton");   // MISS-08c: the panel beside the list
                 SetText(main, "WarehouseNameBox", name);
                 SetText(main, "WarehouseCodeBox", code);
                 Click(main, "AddWarehouseButton");
@@ -183,6 +185,7 @@ public sealed class DemoShopBuilder(ITestOutputHelper output)
         foreach (var p in Products)
             Try($"stock {p.Sku} x{p.Stock}", () =>
             {
+                Click(main, "NewReceiptButton");   // MISS-08c: the panel beside the list
                 SetText(main, "ReceiveCodeBox", p.Sku);
                 Choose(main, "ReceiveWarehouseBox", "Main store");
                 SetText(main, "ReceiveQuantityBox", p.Stock.ToString(CultureInfo.InvariantCulture));

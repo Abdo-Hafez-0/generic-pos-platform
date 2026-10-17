@@ -5,11 +5,14 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:res="clr-namespace:Inventory.UI.Resources"
              xmlns:vm="clr-namespace:Inventory.UI.ViewModels"
+             xmlns:screens="clr-namespace:Platform.Presentation.Screens;assembly=Platform.Presentation"
+             xmlns:pres="clr-namespace:Platform.Presentation.Resources;assembly=Platform.Presentation"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:WarehousesViewModel}">
 
     <!-- WAREHOUSES (FIX-01c). DataContext: WarehousesViewModel. Texts: Resources/InventoryText.resx. -->
     <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
@@ -25,26 +28,24 @@
         <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="Margin" Value="0,0,8,0"/>
         </Style>
+
+        <!-- MISS-08c: the main action, shown by the shell at the end of the title row -->
+        <Button x:Key="{x:Static screens:ScreenParts.HeaderActions}" x:Name="NewWarehouseButton" Style="{StaticResource Button.Primary}" Margin="0"
+                Content="{x:Static res:InventoryText.NewWarehouse}" Command="{Binding NewCommand}"/>
     </UserControl.Resources>
 
+    <!-- MISS-08c (owner's choices): the plain list; "New warehouse" by the title opens a panel beside it -->
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-            <TextBox x:Name="WarehouseNameBox" Width="180" Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}"
-                     AutomationProperties.Name="{x:Static res:InventoryText.Name}" ToolTip="{x:Static res:InventoryText.Name}"/>
-            <TextBox x:Name="WarehouseCodeBox" Width="90" Text="{Binding NewCode, UpdateSourceTrigger=PropertyChanged}"
-                     AutomationProperties.Name="{x:Static res:InventoryText.Code}" ToolTip="{x:Static res:InventoryText.Code}"/>
-            <TextBox x:Name="WarehouseDescriptionBox" Width="220" Text="{Binding NewDescription, UpdateSourceTrigger=PropertyChanged}"
-                     AutomationProperties.Name="{x:Static res:InventoryText.Description}" ToolTip="{x:Static res:InventoryText.Description}"/>
-            <Button x:Name="AddWarehouseButton" Content="{x:Static res:InventoryText.AddWarehouse}" Command="{Binding AddCommand}"/>
-        </StackPanel>
-
-        <DataGrid Grid.Row="1" x:Name="WarehouseGrid" ItemsSource="{Binding Warehouses}" IsReadOnly="True"
+        <DataGrid Grid.Row="0" x:Name="WarehouseGrid" ItemsSource="{Binding Warehouses}" IsReadOnly="True"
                   AutomationProperties.Name="{x:Static res:InventoryText.WarehousesTitle}">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="{x:Static res:InventoryText.Code}" Binding="{Binding Warehouse.Code}" Width="110" ElementStyle="{StaticResource Cell}"/>
@@ -53,7 +54,30 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <StackPanel Grid.Row="2" Margin="0,8,0,0">
+        <!-- a new warehouse, beside the list -->
+        <Border Grid.Column="1" Grid.Row="0" x:Name="EditorPanel" Style="{StaticResource Panel.Side}" Width="340"
+                Visibility="{Binding IsEditorOpen, Converter={StaticResource VisibleWhenTrue}}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Box.Title}" Text="{x:Static res:InventoryText.NewWarehouse}"/>
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,14,0,0">
+                    <Button x:Name="AddWarehouseButton" Style="{StaticResource Button.Primary}" Content="{x:Static res:InventoryText.AddWarehouse}" Command="{Binding AddCommand}"
+                            IsDefault="True" Margin="0,0,8,0"/>
+                    <Button x:Name="CancelWarehouseButton" Content="{x:Static pres:PresentationText.PanelCancel}" Command="{Binding CancelCommand}"/>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:InventoryText.Name}" Margin="0,0,0,4"/>
+                    <TextBox x:Name="WarehouseNameBox" Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:InventoryText.Name}"/>
+                    <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:InventoryText.Code}"/>
+                    <TextBox x:Name="WarehouseCodeBox" Width="140" HorizontalAlignment="Left" Text="{Binding NewCode, UpdateSourceTrigger=PropertyChanged}"
+                             AutomationProperties.Name="{x:Static res:InventoryText.Code}"/>
+                    <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:InventoryText.Description}"/>
+                    <TextBox x:Name="WarehouseDescriptionBox" Text="{Binding NewDescription, UpdateSourceTrigger=PropertyChanged}"
+                             AutomationProperties.Name="{x:Static res:InventoryText.Description}"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,8,0,0">
             <TextBlock x:Name="WarehousesStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap"/>
             <TextBlock x:Name="WarehousesErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap"/>
         </StackPanel>

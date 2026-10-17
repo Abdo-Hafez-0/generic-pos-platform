@@ -51,4 +51,10 @@
   <data name="RowReactivate" xml:space="preserve">
     <value>إعادة تنشيط</value>
   </data>
+  <data name="PanelCancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="PanelSave" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
 </root>

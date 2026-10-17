@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:res="clr-namespace:Client.Desktop.Resources"
              xmlns:vm="clr-namespace:Client.Desktop.Screens.Devices"
+             xmlns:screens="clr-namespace:Platform.Presentation.Screens;assembly=Platform.Presentation"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:DevicesViewModel}">
 
@@ -40,96 +41,125 @@
             <Setter Property="MinWidth" Value="260"/>
             <Setter Property="HorizontalAlignment" Value="Left"/>
         </Style>
+
+        <!-- MISS-08c: the main action, shown by the shell at the end of the title row -->
+        <Button x:Key="{x:Static screens:ScreenParts.HeaderActions}" Style="{StaticResource Button.Primary}" Margin="0" x:Name="SaveDevicesButton" Content="{x:Static res:DevicesText.Save}" Command="{Binding SaveCommand}"/>
     </UserControl.Resources>
 
+    <!-- MISS-08c (owner's choice: settings in two columns of white boxes): one box per device, each with its own test -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel MaxWidth="980" HorizontalAlignment="Left">
+        <StackPanel>
             <TextBlock x:Name="DevicesExplanation" Text="{x:Static res:DevicesText.Explanation}"/>
             <TextBlock x:Name="NoWindowsPrintersText" Text="{x:Static res:DevicesText.NoWindowsPrinters}" Foreground="{DynamicResource Brush.Warning}" Margin="0,8,0,0"
                        Visibility="{Binding HasNoWindowsPrinters, Converter={StaticResource VisibleWhenTrue}}"/>
-
-            <!-- receipt printer -->
-            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:DevicesText.ReceiptPrinter}"/>
-            <WrapPanel>
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.Connection}"/>
-                <ComboBox x:Name="ReceiptKindBox" ItemsSource="{Binding PrinterKinds}" SelectedItem="{Binding ReceiptKind}" DisplayMemberPath="Text"
-                          AutomationProperties.Name="{x:Static res:DevicesText.ReceiptPrinter}"/>
-            </WrapPanel>
-            <WrapPanel Margin="0,6,0,0" Visibility="{Binding IsReceiptWindows, Converter={StaticResource VisibleWhenTrue}}">
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.PrinterName}"/>
-                <ComboBox x:Name="ReceiptPrinterNameBox" ItemsSource="{Binding WindowsPrinters}" SelectedItem="{Binding ReceiptPrinterName}" FlowDirection="LeftToRight"
-                          AutomationProperties.Name="{x:Static res:DevicesText.PrinterName}"/>
-            </WrapPanel>
-            <WrapPanel Margin="0,6,0,0" Visibility="{Binding IsReceiptNetwork, Converter={StaticResource VisibleWhenTrue}}">
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.Host}"/>
-                <TextBox x:Name="ReceiptHostBox" Width="200" FlowDirection="LeftToRight" Text="{Binding ReceiptHost, UpdateSourceTrigger=PropertyChanged}"
-                         AutomationProperties.Name="{x:Static res:DevicesText.Host}"/>
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.Port}" MinWidth="0" Margin="16,4,8,4"/>
-                <TextBox x:Name="ReceiptPortBox" Width="70" FlowDirection="LeftToRight" Text="{Binding ReceiptPort, UpdateSourceTrigger=PropertyChanged}"
-                         AutomationProperties.Name="{x:Static res:DevicesText.Port}"/>
-            </WrapPanel>
-            <WrapPanel Margin="0,6,0,0">
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.CharactersPerLine}"/>
-                <ComboBox x:Name="LineWidthBox" ItemsSource="{Binding LineWidths}" DisplayMemberPath="Text" SelectedValuePath="Value" SelectedValue="{Binding CharactersPerLine}" MinWidth="80"
-                          AutomationProperties.Name="{x:Static res:DevicesText.CharactersPerLine}"/>
-                <CheckBox x:Name="CutPaperBox" Content="{x:Static res:DevicesText.CutPaper}" IsChecked="{Binding CutPaper}" Foreground="{DynamicResource Brush.Text}" Margin="24,0,0,0" VerticalAlignment="Center"/>
-            </WrapPanel>
-            <TextBlock x:Name="ReceiptStateText" Style="{StaticResource State}" Text="{Binding ReceiptState}"/>
-
-            <!-- cash drawer -->
-            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:DevicesText.CashDrawer}"/>
-            <CheckBox x:Name="DrawerUsedBox" Content="{x:Static res:DevicesText.DrawerViaPrinter}" IsChecked="{Binding DrawerUsed}" Foreground="{DynamicResource Brush.Text}"/>
-            <WrapPanel Margin="0,6,0,0" Visibility="{Binding DrawerUsed, Converter={StaticResource VisibleWhenTrue}}">
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.DrawerPin}"/>
-                <ComboBox x:Name="DrawerPinBox" ItemsSource="{Binding DrawerPins}" SelectedItem="{Binding DrawerPin}" DisplayMemberPath="Text"
-                          AutomationProperties.Name="{x:Static res:DevicesText.DrawerPin}"/>
-            </WrapPanel>
-            <TextBlock x:Name="DrawerStateText" Style="{StaticResource State}" Text="{Binding DrawerState}"/>
-
-            <!-- barcode scanner -->
-            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:DevicesText.Scanner}"/>
-            <CheckBox x:Name="ScannerUsedBox" Content="{x:Static res:DevicesText.ScannerKeyboard}" IsChecked="{Binding ScannerUsed}" Foreground="{DynamicResource Brush.Text}"/>
-            <TextBlock x:Name="ScannerStateText" Style="{StaticResource State}" Text="{Binding ScannerState}"/>
-            <TextBlock Text="{x:Static res:DevicesText.ScanHint}" Foreground="{DynamicResource Brush.TextSubtle}" FontSize="11" Margin="0,8,0,0"/>
-            <TextBlock x:Name="LastScanText" Text="{Binding LastScan}" FontWeight="SemiBold" Margin="0,4,0,0"/>
-
-            <!-- label printer -->
-            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:DevicesText.LabelPrinter}"/>
-            <WrapPanel>
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.Connection}"/>
-                <ComboBox x:Name="LabelKindBox" ItemsSource="{Binding LabelKinds}" SelectedItem="{Binding LabelKind}" DisplayMemberPath="Text"
-                          AutomationProperties.Name="{x:Static res:DevicesText.LabelPrinter}"/>
-            </WrapPanel>
-            <WrapPanel Margin="0,6,0,0" Visibility="{Binding IsLabelWindows, Converter={StaticResource VisibleWhenTrue}}">
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.PrinterName}"/>
-                <ComboBox x:Name="LabelPrinterNameBox" ItemsSource="{Binding WindowsPrinters}" SelectedItem="{Binding LabelPrinterName}" FlowDirection="LeftToRight"
-                          AutomationProperties.Name="{x:Static res:DevicesText.PrinterName}"/>
-            </WrapPanel>
-            <WrapPanel Margin="0,6,0,0" Visibility="{Binding IsLabelNetwork, Converter={StaticResource VisibleWhenTrue}}">
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.Host}"/>
-                <TextBox x:Name="LabelHostBox" Width="200" FlowDirection="LeftToRight" Text="{Binding LabelHost, UpdateSourceTrigger=PropertyChanged}"
-                         AutomationProperties.Name="{x:Static res:DevicesText.Host}"/>
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.Port}" MinWidth="0" Margin="16,4,8,4"/>
-                <TextBox x:Name="LabelPortBox" Width="70" FlowDirection="LeftToRight" Text="{Binding LabelPort, UpdateSourceTrigger=PropertyChanged}"
-                         AutomationProperties.Name="{x:Static res:DevicesText.Port}"/>
-            </WrapPanel>
-            <TextBlock x:Name="LabelStateText" Style="{StaticResource State}" Text="{Binding LabelState}"/>
-
-            <!-- tests and saving -->
-            <WrapPanel Margin="0,24,0,0">
+            <WrapPanel Margin="0,10,0,12">
                 <Button x:Name="CheckDevicesButton" Content="{x:Static res:DevicesText.Check}" Command="{Binding CheckCommand}"/>
-                <Button x:Name="TestReceiptButton" Content="{x:Static res:DevicesText.TestReceipt}" Command="{Binding TestReceiptCommand}"/>
-                <Button x:Name="OpenDrawerButton" Content="{x:Static res:DevicesText.OpenDrawer}" Command="{Binding OpenDrawerCommand}"/>
-                <Button x:Name="TestLabelButton" Content="{x:Static res:DevicesText.TestLabel}" Command="{Binding TestLabelCommand}"/>
-            </WrapPanel>
-            <WrapPanel Margin="0,12,0,0">
-                <Button x:Name="SaveDevicesButton" Content="{x:Static res:DevicesText.Save}" Command="{Binding SaveCommand}"/>
                 <Button x:Name="DevicesRestartButton" Content="{x:Static res:DevicesText.RestartNow}" Command="{Binding RestartNowCommand}"
                         Visibility="{Binding RestartNeeded, Converter={StaticResource VisibleWhenTrue}}"/>
             </WrapPanel>
 
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource Box}">
+                    <StackPanel>
+                    <!-- receipt printer -->
+                    <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:DevicesText.ReceiptPrinter}"/>
+                    <WrapPanel>
+                        <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.Connection}"/>
+                        <ComboBox x:Name="ReceiptKindBox" ItemsSource="{Binding PrinterKinds}" SelectedItem="{Binding ReceiptKind}" DisplayMemberPath="Text"
+                                  AutomationProperties.Name="{x:Static res:DevicesText.ReceiptPrinter}"/>
+                    </WrapPanel>
+                    <WrapPanel Margin="0,6,0,0" Visibility="{Binding IsReceiptWindows, Converter={StaticResource VisibleWhenTrue}}">
+                        <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.PrinterName}"/>
+                        <ComboBox x:Name="ReceiptPrinterNameBox" ItemsSource="{Binding WindowsPrinters}" SelectedItem="{Binding ReceiptPrinterName}" FlowDirection="LeftToRight"
+                                  AutomationProperties.Name="{x:Static res:DevicesText.PrinterName}"/>
+                    </WrapPanel>
+                    <WrapPanel Margin="0,6,0,0" Visibility="{Binding IsReceiptNetwork, Converter={StaticResource VisibleWhenTrue}}">
+                        <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.Host}"/>
+                        <TextBox x:Name="ReceiptHostBox" Width="200" FlowDirection="LeftToRight" Text="{Binding ReceiptHost, UpdateSourceTrigger=PropertyChanged}"
+                                 AutomationProperties.Name="{x:Static res:DevicesText.Host}"/>
+                        <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.Port}" MinWidth="0" Margin="16,4,8,4"/>
+                        <TextBox x:Name="ReceiptPortBox" Width="70" FlowDirection="LeftToRight" Text="{Binding ReceiptPort, UpdateSourceTrigger=PropertyChanged}"
+                                 AutomationProperties.Name="{x:Static res:DevicesText.Port}"/>
+                    </WrapPanel>
+                    <WrapPanel Margin="0,6,0,0">
+                        <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.CharactersPerLine}"/>
+                        <ComboBox x:Name="LineWidthBox" ItemsSource="{Binding LineWidths}" DisplayMemberPath="Text" SelectedValuePath="Value" SelectedValue="{Binding CharactersPerLine}" MinWidth="80"
+                                  AutomationProperties.Name="{x:Static res:DevicesText.CharactersPerLine}"/>
+                        <CheckBox x:Name="CutPaperBox" Content="{x:Static res:DevicesText.CutPaper}" IsChecked="{Binding CutPaper}" Foreground="{DynamicResource Brush.Text}" Margin="24,0,0,0" VerticalAlignment="Center"/>
+                    </WrapPanel>
+                    <TextBlock x:Name="ReceiptStateText" Style="{StaticResource State}" Text="{Binding ReceiptState}"/>
+                        <WrapPanel Margin="0,10,0,0">
+                            <Button x:Name="TestReceiptButton" Content="{x:Static res:DevicesText.TestReceipt}" Command="{Binding TestReceiptCommand}"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Row="0" Grid.Column="2" Style="{StaticResource Box}">
+                    <StackPanel>
+                    <!-- cash drawer -->
+                    <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:DevicesText.CashDrawer}"/>
+                    <CheckBox x:Name="DrawerUsedBox" Content="{x:Static res:DevicesText.DrawerViaPrinter}" IsChecked="{Binding DrawerUsed}" Foreground="{DynamicResource Brush.Text}"/>
+                    <WrapPanel Margin="0,6,0,0" Visibility="{Binding DrawerUsed, Converter={StaticResource VisibleWhenTrue}}">
+                        <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.DrawerPin}"/>
+                        <ComboBox x:Name="DrawerPinBox" ItemsSource="{Binding DrawerPins}" SelectedItem="{Binding DrawerPin}" DisplayMemberPath="Text"
+                                  AutomationProperties.Name="{x:Static res:DevicesText.DrawerPin}"/>
+                    </WrapPanel>
+                    <TextBlock x:Name="DrawerStateText" Style="{StaticResource State}" Text="{Binding DrawerState}"/>
+                        <WrapPanel Margin="0,10,0,0">
+                            <Button x:Name="OpenDrawerButton" Content="{x:Static res:DevicesText.OpenDrawer}" Command="{Binding OpenDrawerCommand}"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource Box}">
+                    <StackPanel>
+                    <!-- barcode scanner -->
+                    <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:DevicesText.Scanner}"/>
+                    <CheckBox x:Name="ScannerUsedBox" Content="{x:Static res:DevicesText.ScannerKeyboard}" IsChecked="{Binding ScannerUsed}" Foreground="{DynamicResource Brush.Text}"/>
+                    <TextBlock x:Name="ScannerStateText" Style="{StaticResource State}" Text="{Binding ScannerState}"/>
+                    <TextBlock Text="{x:Static res:DevicesText.ScanHint}" Foreground="{DynamicResource Brush.TextSubtle}" FontSize="11" Margin="0,8,0,0"/>
+                    <TextBlock x:Name="LastScanText" Text="{Binding LastScan}" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Row="1" Grid.Column="2" Style="{StaticResource Box}">
+                    <StackPanel>
+                    <!-- label printer -->
+                    <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:DevicesText.LabelPrinter}"/>
+                    <WrapPanel>
+                        <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.Connection}"/>
+                        <ComboBox x:Name="LabelKindBox" ItemsSource="{Binding LabelKinds}" SelectedItem="{Binding LabelKind}" DisplayMemberPath="Text"
+                                  AutomationProperties.Name="{x:Static res:DevicesText.LabelPrinter}"/>
+                    </WrapPanel>
+                    <WrapPanel Margin="0,6,0,0" Visibility="{Binding IsLabelWindows, Converter={StaticResource VisibleWhenTrue}}">
+                        <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.PrinterName}"/>
+                        <ComboBox x:Name="LabelPrinterNameBox" ItemsSource="{Binding WindowsPrinters}" SelectedItem="{Binding LabelPrinterName}" FlowDirection="LeftToRight"
+                                  AutomationProperties.Name="{x:Static res:DevicesText.PrinterName}"/>
+                    </WrapPanel>
+                    <WrapPanel Margin="0,6,0,0" Visibility="{Binding IsLabelNetwork, Converter={StaticResource VisibleWhenTrue}}">
+                        <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.Host}"/>
+                        <TextBox x:Name="LabelHostBox" Width="200" FlowDirection="LeftToRight" Text="{Binding LabelHost, UpdateSourceTrigger=PropertyChanged}"
+                                 AutomationProperties.Name="{x:Static res:DevicesText.Host}"/>
+                        <TextBlock Style="{StaticResource Label}" Text="{x:Static res:DevicesText.Port}" MinWidth="0" Margin="16,4,8,4"/>
+                        <TextBox x:Name="LabelPortBox" Width="70" FlowDirection="LeftToRight" Text="{Binding LabelPort, UpdateSourceTrigger=PropertyChanged}"
+                                 AutomationProperties.Name="{x:Static res:DevicesText.Port}"/>
+                    </WrapPanel>
+                    <TextBlock x:Name="LabelStateText" Style="{StaticResource State}" Text="{Binding LabelState}"/>
+                        <WrapPanel Margin="0,10,0,0">
+                            <Button x:Name="TestLabelButton" Content="{x:Static res:DevicesText.TestLabel}" Command="{Binding TestLabelCommand}"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
             <!-- what happened -->
-            <TextBlock x:Name="DevicesStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" Margin="0,16,0,0"/>
+            <TextBlock x:Name="DevicesStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" Margin="0,4,0,0"/>
             <TextBlock x:Name="DevicesErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" Margin="0,4,0,0"/>
         </StackPanel>
     </ScrollViewer>

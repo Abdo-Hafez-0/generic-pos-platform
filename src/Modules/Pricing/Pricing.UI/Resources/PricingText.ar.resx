@@ -184,4 +184,19 @@
   <data name="ProductTaxNone" xml:space="preserve">
     <value>{0} ({1}): بلا ضريبة - لم تُعرَّف أي نسبة ضريبة بعد.</value>
   </data>
+  <data name="NewTaxRate" xml:space="preserve">
+    <value>نسبة ضريبة جديدة</value>
+  </data>
+  <data name="EditTaxRateTitle" xml:space="preserve">
+    <value>تغيير نسبة الضريبة</value>
+  </data>
+  <data name="NewPriceList" xml:space="preserve">
+    <value>قائمة أسعار جديدة</value>
+  </data>
+  <data name="NewPrice" xml:space="preserve">
+    <value>سعر جديد</value>
+  </data>
+  <data name="UseForSales" xml:space="preserve">
+    <value>استخدامها للبيع</value>
+  </data>
 </root>

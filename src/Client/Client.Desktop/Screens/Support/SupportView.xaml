@@ -37,40 +37,57 @@
         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"/>
     </UserControl.Resources>
 
+    <!-- MISS-08c (owner's choice: settings in two columns of white boxes): the support file and the crash reports side by side -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel MaxWidth="980" HorizontalAlignment="Left">
-            <TextBlock x:Name="SupportExplanation" Text="{x:Static res:SupportText.Explanation}"/>
-
-            <Grid Margin="0,16,0,0">
+        <StackPanel>
+            <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="{x:Static res:SupportText.LogFolder}"/>
-                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="LogFolderText" Text="{Binding LogFolder}"/>
-                <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="{x:Static res:SupportText.LogFiles}"/>
-                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="LogFilesText" Text="{Binding LogFilesText}"/>
+
+                <Border Grid.Column="0" Style="{StaticResource Box}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:SupportText.FileHeading}"/>
+                        <TextBlock x:Name="SupportExplanation" Text="{x:Static res:SupportText.Explanation}"/>
+                        <Grid Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="{x:Static res:SupportText.LogFolder}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="LogFolderText" Text="{Binding LogFolder}"/>
+                            <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="{x:Static res:SupportText.LogFiles}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="LogFilesText" Text="{Binding LogFilesText}"/>
+                        </Grid>
+                        <Button x:Name="SaveSupportFileButton" Content="{x:Static res:SupportText.SaveFile}" Click="OnSave" HorizontalAlignment="Left" Margin="0,14,0,0"
+                                Style="{StaticResource Button.Primary}"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Style="{StaticResource Box}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:SupportText.CrashReports}"/>
+                        <TextBlock x:Name="NoCrashesText" Text="{x:Static res:SupportText.NoCrashes}" Visibility="{Binding HasNoCrashes, Converter={StaticResource VisibleWhenTrue}}"/>
+                        <DataGrid x:Name="CrashGrid" ItemsSource="{Binding CrashReports}" IsReadOnly="True" MaxHeight="300"
+                                  Visibility="{Binding HasCrashes, Converter={StaticResource VisibleWhenTrue}}"
+                                  AutomationProperties.Name="{x:Static res:SupportText.CrashReports}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="{x:Static res:SupportText.When}" Binding="{Binding WhenText}" Width="140" ElementStyle="{StaticResource Cell}"/>
+                                <DataGridTextColumn Header="{x:Static res:SupportText.What}" Binding="{Binding Summary}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
             </Grid>
 
-            <Button x:Name="SaveSupportFileButton" Content="{x:Static res:SupportText.SaveFile}" Click="OnSave" HorizontalAlignment="Left" Margin="0,16,0,0"/>
-
-            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:SupportText.CrashReports}"/>
-            <TextBlock x:Name="NoCrashesText" Text="{x:Static res:SupportText.NoCrashes}" Visibility="{Binding HasNoCrashes, Converter={StaticResource VisibleWhenTrue}}"/>
-            <DataGrid x:Name="CrashGrid" ItemsSource="{Binding CrashReports}" IsReadOnly="True" MaxHeight="300"
-                      Visibility="{Binding HasCrashes, Converter={StaticResource VisibleWhenTrue}}"
-                      AutomationProperties.Name="{x:Static res:SupportText.CrashReports}">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="{x:Static res:SupportText.When}" Binding="{Binding WhenText}" Width="160" ElementStyle="{StaticResource Cell}"/>
-                    <DataGridTextColumn Header="{x:Static res:SupportText.What}" Binding="{Binding Summary}" Width="*" ElementStyle="{StaticResource Cell}"/>
-                </DataGrid.Columns>
-            </DataGrid>
-
             <!-- what happened -->
-            <TextBlock x:Name="SupportStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" Margin="0,16,0,0"/>
+            <TextBlock x:Name="SupportStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" Margin="0,4,0,0"/>
             <TextBlock x:Name="SupportErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" Margin="0,4,0,0"/>
         </StackPanel>
     </ScrollViewer>

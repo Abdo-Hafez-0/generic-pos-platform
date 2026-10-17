@@ -171,4 +171,7 @@
   <data name="NewCodeNeeded" xml:space="preserve">
     <value>This computer's data was restored with a key from the vendor. Make a new recovery code now and write it down: cloud backups stay off until you do.</value>
   </data>
+  <data name="StateHeading" xml:space="preserve">
+    <value>State</value>
+  </data>
 </root>

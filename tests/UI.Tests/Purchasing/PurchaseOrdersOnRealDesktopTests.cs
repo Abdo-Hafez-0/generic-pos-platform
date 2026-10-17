@@ -24,10 +24,10 @@ public sealed class PurchaseOrdersOnRealDesktopTests
         Assert.False(vm.IsBusy);
     }
 
-    private static async Task Run(ViewModelBase vm, ICommand command)
+    private static async Task Run(ViewModelBase vm, ICommand command, object? parameter = null)
     {
-        Assert.True(command.CanExecute(null), "the command was not executable");
-        command.Execute(null);
+        Assert.True(command.CanExecute(parameter), "the command was not executable");
+        command.Execute(parameter);
         await Wait(vm);
     }
 

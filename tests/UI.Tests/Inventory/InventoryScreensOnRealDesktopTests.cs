@@ -36,6 +36,7 @@ public sealed class InventoryScreensOnRealDesktopTests
     {
         var vm = new WarehousesViewModel(Runner(services));
         await vm.OnNavigatedToAsync();
+        await Run(vm, vm.NewCommand);   // MISS-08c: the panel beside the list
         (vm.NewName, vm.NewCode) = (name, code);
         await Run(vm, vm.AddCommand);
         Assert.Null(vm.ErrorMessage);
@@ -72,7 +73,8 @@ public sealed class InventoryScreensOnRealDesktopTests
         var row = Assert.Single(vm.Warehouses);
         Assert.Equal(("Main shop", InventoryText.Active), (row.Warehouse.Name, row.StatusText));
         Assert.Equal(string.Format(CultureInfo.CurrentCulture, InventoryText.WarehouseAdded, "Main shop"), vm.StatusMessage);
-        Assert.False(vm.AddCommand.CanExecute(null));   // the form was cleared
+        Assert.False(vm.IsEditorOpen);   // the panel closed after adding
+        Assert.Equal((string.Empty, string.Empty), (vm.NewName, vm.NewCode));   // and was cleared for the next one
     }
 
     [Fact]
@@ -98,18 +100,23 @@ public sealed class InventoryScreensOnRealDesktopTests
         await vm.OnNavigatedToAsync();
         Assert.Null(vm.ReceiveWarehouse);   // two warehouses: the user chooses
 
+        // MISS-08c: "Receive stock" opens the panel beside the list; receiving closes and clears it
+        await Run(vm, vm.NewReceiptCommand);
         vm.ReceiveWarehouse = vm.Warehouses.Single(w => w.Name == "Main shop");
         (vm.ReceiveCode, vm.ReceiveQuantity, vm.ReceiveReference) = ("cola-1", Number(10m), "DN-1");
         await Run(vm, vm.ReceiveCommand);
         Assert.Null(vm.ErrorMessage);
         Assert.Equal(string.Empty, vm.ReceiveCode);
+        Assert.False(vm.IsEditorOpen);
 
+        await Run(vm, vm.NewReceiptCommand);
         vm.ReceiveWarehouse = vm.Warehouses.Single(w => w.Name == "Kiosk");
         (vm.ReceiveCode, vm.ReceiveQuantity) = ("4006381333931", Number(3m));   // scanned barcode
         await Run(vm, vm.ReceiveCommand);
         Assert.Equal([("Cola", "Kiosk", 3m), ("Cola", "Main shop", 10m)], vm.Stock.Select(s => (s.ProductName, s.WarehouseName, s.OnHand)));
 
-        vm.Selected = vm.Stock.Single(s => s.WarehouseName == "Main shop");
+        await Run(vm, vm.CorrectRowCommand, vm.Stock.Single(s => s.WarehouseName == "Main shop"));   // the row's "Correct"
+        Assert.True(vm.IsCorrecting);
         (vm.AdjustBy, vm.AdjustReason) = (Number(-2m), vm.Reasons.Single(r => r.Reason == AdjustmentReason.DamageWrite));
         await Run(vm, vm.AdjustCommand);
         Assert.Null(vm.ErrorMessage);
@@ -129,6 +136,7 @@ public sealed class InventoryScreensOnRealDesktopTests
         var vm = new StockViewModel(Runner(desktop.Services));
         await vm.OnNavigatedToAsync();
 
+        await Run(vm, vm.NewReceiptCommand);
         (vm.ReceiveCode, vm.ReceiveQuantity) = ("NOPE", Number(1m));
         await Run(vm, vm.ReceiveCommand);
         Assert.Contains("NOPE", vm.ErrorMessage);
@@ -139,7 +147,7 @@ public sealed class InventoryScreensOnRealDesktopTests
 
         vm.ReceiveQuantity = Number(1m);
         await Run(vm, vm.ReceiveCommand);
-        vm.Selected = vm.Stock[0];
+        await Run(vm, vm.CorrectRowCommand, vm.Stock[0]);
         vm.AdjustBy = "0";
         await Run(vm, vm.AdjustCommand);
         Assert.Equal(InventoryText.AdjustInvalid, vm.ErrorMessage);
@@ -157,6 +165,7 @@ public sealed class InventoryScreensOnRealDesktopTests
         await AddWarehouseAsync(services, "Main shop", "MAIN");
         var stock = new StockViewModel(Runner(services));
         await stock.OnNavigatedToAsync();
+        await Run(stock, stock.NewReceiptCommand);
         (stock.ReceiveCode, stock.ReceiveQuantity) = ("WATER-1", Number(12m));
         await Run(stock, stock.ReceiveCommand);
         Assert.Null(stock.ErrorMessage);

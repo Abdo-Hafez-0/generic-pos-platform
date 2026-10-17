@@ -20,10 +20,10 @@ public sealed class PeopleScreensOnRealDesktopTests
     private static UiActionRunner Runner(IServiceProvider services)
         => new(services.GetRequiredService<IServiceScopeFactory>(), NullLogger<UiActionRunner>.Instance);
 
-    private static async Task Run(ViewModelBase vm, ICommand command)
+    private static async Task Run(ViewModelBase vm, ICommand command, object? parameter = null)
     {
-        Assert.True(command.CanExecute(null), "the command was not executable");
-        command.Execute(null);
+        Assert.True(command.CanExecute(parameter), "the command was not executable");
+        command.Execute(parameter);
         for (var i = 0; i < 1000 && vm.IsBusy; i++) await Task.Delay(10);
         Assert.False(vm.IsBusy);
     }
@@ -46,26 +46,24 @@ public sealed class PeopleScreensOnRealDesktopTests
 
         vm.SearchText = "cafe@";
         await Run(vm, vm.SearchCommand);
-        vm.Selected = Assert.Single(vm.Customers);
-
-        await Run(vm, vm.EditCommand);
+        await Run(vm, vm.EditRowCommand, Assert.Single(vm.Customers));
         Assert.Equal(("C-001", "Pays monthly"), (vm.EditCode, vm.EditNotes));   // the full record, not just the list item
         Assert.False(vm.IsNew);
         vm.EditName = "Corner Cafe Ltd";
         await Run(vm, vm.SaveCommand);
         Assert.Equal("Corner Cafe Ltd", vm.Customers.Single().Customer.Name);
 
-        vm.Selected = vm.Customers[0];
-        await Run(vm, vm.DeactivateCommand);
+        await Run(vm, vm.DeactivateRowCommand, vm.Customers[0]);
         vm.SearchText = string.Empty;
         await Run(vm, vm.SearchCommand);
         Assert.Empty(vm.Customers);
 
         vm.ShowInactive = true;
         await Run(vm, vm.SearchCommand);
-        vm.Selected = Assert.Single(vm.Customers);
-        Assert.Equal(CustomersText.Inactive, vm.Selected.StatusText);
-        await Run(vm, vm.ReactivateCommand);
+        var inactive = Assert.Single(vm.Customers);
+        Assert.Equal(CustomersText.Inactive, inactive.StatusText);
+        Assert.False(vm.DeactivateRowCommand.CanExecute(inactive));   // the row menu offers only what fits the row
+        await Run(vm, vm.ReactivateRowCommand, inactive);
         Assert.Equal(CustomersText.Active, vm.Customers.Single().StatusText);
     }
 
@@ -100,15 +98,12 @@ public sealed class PeopleScreensOnRealDesktopTests
         (vm.EditCode, vm.EditName, vm.EditPhone) = ("S-001", "Fresh Water Co", "0200 000 0000");
         await Run(vm, vm.SaveCommand);
         Assert.Null(vm.ErrorMessage);
-        vm.Selected = Assert.Single(vm.Suppliers);
-
-        await Run(vm, vm.EditCommand);
+        await Run(vm, vm.EditRowCommand, Assert.Single(vm.Suppliers));
         vm.EditEmail = "orders@freshwater.test";
         await Run(vm, vm.SaveCommand);
         Assert.Equal("orders@freshwater.test", vm.Suppliers.Single().Supplier.Email);
 
-        vm.Selected = vm.Suppliers[0];
-        await Run(vm, vm.DeactivateCommand);
+        await Run(vm, vm.DeactivateRowCommand, vm.Suppliers[0]);
         Assert.Empty(vm.Suppliers);
         Assert.Equal(string.Format(CultureInfo.CurrentCulture, SuppliersText.Deactivated, "Fresh Water Co"), vm.StatusMessage);
     }

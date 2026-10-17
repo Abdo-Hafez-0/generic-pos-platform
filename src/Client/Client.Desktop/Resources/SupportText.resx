@@ -54,4 +54,7 @@
   <data name="Saved" xml:space="preserve">
     <value>The support file was saved as {0} ({1} log file(s), {2} crash report(s)). Send it to your vendor.</value>
   </data>
+  <data name="FileHeading" xml:space="preserve">
+    <value>Support file</value>
+  </data>
 </root>

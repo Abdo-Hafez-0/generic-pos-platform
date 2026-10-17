@@ -98,12 +98,14 @@ public sealed class NewShopWorkflowTests(ITestOutputHelper output) : IDisposable
 
             // ---- a warehouse and the opening stock
             Open(main, "Warehouses");
+            Click(main, "NewWarehouseButton");   // MISS-08c: the panel beside the list
             SetText(main, "WarehouseNameBox", "Main store");
             SetText(main, "WarehouseCodeBox", "MAIN");
             Click(main, "AddWarehouseButton");
             WaitText(main, "WarehousesStatusText", t => t.Length > 0, "warehouse added");
 
             Open(main, "Stock");
+            Click(main, "NewReceiptButton");   // MISS-08c: the panel beside the list
             SetText(main, "ReceiveCodeBox", "COLA-330");
             Choose(main, "ReceiveWarehouseBox", "Main store");
             SetText(main, "ReceiveQuantityBox", "24");

@@ -5,6 +5,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:res="clr-namespace:Pricing.UI.Resources"
              xmlns:vm="clr-namespace:Pricing.UI.ViewModels"
+             xmlns:screens="clr-namespace:Platform.Presentation.Screens;assembly=Platform.Presentation"
+             xmlns:pres="clr-namespace:Platform.Presentation.Resources;assembly=Platform.Presentation"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:PricesViewModel}">
 
@@ -47,91 +49,153 @@
             <Setter Property="IsReadOnly" Value="True"/>
         </Style>
         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"/>
+
+        <!-- MISS-08c: the main action, shown by the shell at the end of the title row -->
+        <Button x:Key="{x:Static screens:ScreenParts.HeaderActions}" x:Name="NewListButton" Style="{StaticResource Button.Primary}" Margin="0"
+                Content="{x:Static res:PricingText.NewPriceList}" Command="{Binding NewListCommand}"/>
     </UserControl.Resources>
 
+    <!-- MISS-08c (owner's choices): the price lists and the prices of one product in white boxes, "⋯" on each row; a new list or a new
+         price opens in a panel beside them -->
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="140"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- price lists -->
-        <StackPanel Grid.Row="0">
-            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:PricingText.ListsHeading}"/>
-            <WrapPanel Margin="0,0,0,6">
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.Code}"/>
-                <TextBox x:Name="ListCodeBox" Width="100" Text="{Binding NewListCode, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.Code}" ToolTip="{x:Static res:PricingText.Code}"/>
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.Name}"/>
-                <TextBox x:Name="ListNameBox" Width="180" Text="{Binding NewListName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.Name}" ToolTip="{x:Static res:PricingText.Name}"/>
-                <CheckBox x:Name="ListDefaultBox" Content="{x:Static res:PricingText.MakeDefault}" IsChecked="{Binding NewListDefault}"/>
-                <Button x:Name="AddListButton" Content="{x:Static res:PricingText.AddList}" Command="{Binding AddListCommand}"/>
-                <Button x:Name="SetDefaultButton" Content="{x:Static res:PricingText.SetDefault}" Command="{Binding SetDefaultCommand}"/>
-                <Button x:Name="DeactivateListButton" Content="{x:Static res:PricingText.DeactivateList}" Command="{Binding DeactivateListCommand}"/>
-            </WrapPanel>
-        </StackPanel>
-        <DataGrid Grid.Row="1" x:Name="PriceListGrid" ItemsSource="{Binding PriceLists}" SelectedItem="{Binding SelectedList}" AutomationProperties.Name="{x:Static res:PricingText.ListsHeading}">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="{x:Static res:PricingText.Code}" Binding="{Binding List.Code}" Width="120" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:PricingText.Name}" Binding="{Binding List.Name}" Width="*" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:PricingText.Default}" Binding="{Binding DefaultText}" Width="90" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:PricingText.Status}" Binding="{Binding StatusText}" Width="90" ElementStyle="{StaticResource Cell}"/>
-            </DataGrid.Columns>
-        </DataGrid>
+        <Border Grid.Row="0" Style="{StaticResource Box}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:PricingText.ListsHeading}"/>
+                <DataGrid x:Name="PriceListGrid" ItemsSource="{Binding PriceLists}" SelectedItem="{Binding SelectedList}" IsReadOnly="True" Height="150"
+                          AutomationProperties.Name="{x:Static res:PricingText.ListsHeading}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{x:Static res:PricingText.Code}" Binding="{Binding List.Code}" Width="120" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:PricingText.Name}" Binding="{Binding List.Name}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:PricingText.Default}" Binding="{Binding DefaultText}" Width="90" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:PricingText.Status}" Binding="{Binding StatusText}" Width="90" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTemplateColumn Width="Auto">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button x:Name="ListMenuButton" Style="{StaticResource Button.RowMenu}" ToolTip="{x:Static pres:PresentationText.RowMoreActions}" Margin="4,0"
+                                            AutomationProperties.Name="{x:Static pres:PresentationText.RowMoreActions}"
+                                            Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=DataGrid}}">
+                                        <Button.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem x:Name="ListSetDefaultItem" Header="{x:Static res:PricingText.UseForSales}" CommandParameter="{Binding}"
+                                                          Command="{Binding PlacementTarget.Tag.SetDefaultRowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                <MenuItem x:Name="ListDeactivateItem" Header="{x:Static pres:PresentationText.RowDeactivate}" CommandParameter="{Binding}"
+                                                          Command="{Binding PlacementTarget.Tag.DeactivateListRowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                            </ContextMenu>
+                                        </Button.ContextMenu>
+                                    </Button>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </StackPanel>
+        </Border>
 
         <!-- prices of one product -->
-        <StackPanel Grid.Row="2" Margin="0,14,0,0">
-            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:PricingText.ProductHeading}"/>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.ProductCode}"/>
-                <TextBox x:Name="PriceProductBox" Width="180" Text="{Binding ProductCode, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.ProductCode}">
-                    <TextBox.InputBindings>
-                        <KeyBinding Key="Enter" Command="{Binding FindCommand}"/>
-                    </TextBox.InputBindings>
-                </TextBox>
-                <Button x:Name="FindProductButton" Content="{x:Static res:PricingText.Find}" Command="{Binding FindCommand}"/>
-                <TextBlock x:Name="PricingProductText" Text="{Binding ProductText}" Margin="8,0,0,0"/>
-            </StackPanel>
-            <TextBlock x:Name="CurrentPriceText" Text="{Binding CurrentPriceText}" Foreground="{DynamicResource Brush.Success}" Margin="0,6,0,0"/>
-        </StackPanel>
+        <Border Grid.Row="1" Style="{StaticResource Box}" Margin="0">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Box.Title}" Text="{x:Static res:PricingText.ProductHeading}"/>
+                <DockPanel DockPanel.Dock="Top" LastChildFill="False">
+                    <TextBox DockPanel.Dock="Left" x:Name="PriceProductBox" Width="220" Text="{Binding ProductCode, UpdateSourceTrigger=PropertyChanged}" Tag="{x:Static res:PricingText.ProductCode}"
+                             AutomationProperties.Name="{x:Static res:PricingText.ProductCode}">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding FindCommand}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+                    <Button DockPanel.Dock="Left" x:Name="FindProductButton" Content="{x:Static res:PricingText.Find}" Command="{Binding FindCommand}" Margin="8,0,0,0"/>
+                    <TextBlock DockPanel.Dock="Left" x:Name="PricingProductText" Text="{Binding ProductText}" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                    <Button DockPanel.Dock="Right" x:Name="NewPriceButton" Content="{x:Static res:PricingText.NewPrice}" Command="{Binding NewPriceCommand}"
+                            Visibility="{Binding HasProduct, Converter={StaticResource VisibleWhenTrue}}"/>
+                </DockPanel>
+                <TextBlock DockPanel.Dock="Top" x:Name="CurrentPriceText" Text="{Binding CurrentPriceText}" Foreground="{DynamicResource Brush.Success}" Margin="0,8,0,8"/>
+                <TextBlock DockPanel.Dock="Bottom" Text="{x:Static res:PricingText.ValidUntilHint}" Foreground="{DynamicResource Brush.TextSubtle}" FontSize="11" Margin="0,6,0,0"
+                           Visibility="{Binding HasProduct, Converter={StaticResource VisibleWhenTrue}}"/>
+                <DataGrid x:Name="PriceGrid" ItemsSource="{Binding Prices}" SelectedItem="{Binding SelectedPrice}" IsReadOnly="True" MinHeight="80"
+                          Visibility="{Binding HasProduct, Converter={StaticResource VisibleWhenTrue}}" AutomationProperties.Name="{x:Static res:PricingText.ProductHeading}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{x:Static res:PricingText.List}" Binding="{Binding ListCode}" Width="110" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:PricingText.Amount}" Binding="{Binding Price.Amount, StringFormat=N2}" Width="100" ElementStyle="{StaticResource Number}"/>
+                        <DataGridTextColumn Header="{x:Static res:PricingText.MinimumQuantity}" Binding="{Binding Price.MinimumQuantity, StringFormat=0.###}" Width="90" ElementStyle="{StaticResource Number}"/>
+                        <DataGridTextColumn Header="{x:Static res:PricingText.ValidFrom}" Binding="{Binding FromText}" Width="110" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:PricingText.ValidUntil}" Binding="{Binding UntilText}" Width="110" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:PricingText.Status}" Binding="{Binding StatusText}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTemplateColumn Width="Auto">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button x:Name="PriceMenuButton" Style="{StaticResource Button.RowMenu}" ToolTip="{x:Static pres:PresentationText.RowMoreActions}" Margin="4,0"
+                                            AutomationProperties.Name="{x:Static pres:PresentationText.RowMoreActions}"
+                                            Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=DataGrid}}">
+                                        <Button.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem x:Name="PriceDeactivateItem" Header="{x:Static pres:PresentationText.RowDeactivate}" CommandParameter="{Binding}"
+                                                          Command="{Binding PlacementTarget.Tag.DeactivatePriceRowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                            </ContextMenu>
+                                        </Button.ContextMenu>
+                                    </Button>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
 
-        <WrapPanel Grid.Row="3" Margin="0,8,0,6" Visibility="{Binding HasProduct, Converter={StaticResource VisibleWhenTrue}}">
-            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.List}"/>
-            <ComboBox x:Name="NewPriceListBox" Width="120" Margin="0,0,10,0" ItemsSource="{Binding ActiveLists}" SelectedItem="{Binding NewPriceList}" DisplayMemberPath="Code"
-                      AutomationProperties.Name="{x:Static res:PricingText.List}"/>
-            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.Amount}"/>
-            <TextBox x:Name="NewPriceAmountBox" Width="80" Text="{Binding NewAmount, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.Amount}"/>
-            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.MinimumQuantity}"/>
-            <TextBox x:Name="NewPriceMinQtyBox" Width="60" Text="{Binding NewMinimumQuantity, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.MinimumQuantity}"/>
-            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.ValidFrom}"/>
-            <DatePicker x:Name="NewPriceFromPicker" Width="150" Margin="0,0,10,0" SelectedDate="{Binding NewFrom}" AutomationProperties.Name="{x:Static res:PricingText.ValidFrom}"/>
-            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.ValidUntil}"/>
-            <DatePicker x:Name="NewPriceUntilPicker" Width="150" Margin="0,0,10,0" SelectedDate="{Binding NewUntil}" ToolTip="{x:Static res:PricingText.ValidUntilHint}"
-                        AutomationProperties.Name="{x:Static res:PricingText.ValidUntil}"/>
-            <Button x:Name="AddPriceButton" Content="{x:Static res:PricingText.AddPrice}" Command="{Binding AddPriceCommand}"/>
-            <Button x:Name="DeactivatePriceButton" Content="{x:Static res:PricingText.DeactivatePrice}" Command="{Binding DeactivatePriceCommand}"/>
-        </WrapPanel>
+        <!-- a new list or a new price, beside the boxes -->
+        <Border Grid.Column="1" Grid.RowSpan="2" x:Name="EditorPanel" Style="{StaticResource Panel.Side}" Width="320" Margin="16,0,0,12"
+                Visibility="{Binding IsEditorOpen, Converter={StaticResource VisibleWhenTrue}}">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,14,0,0">
+                    <Button x:Name="AddListButton" Style="{StaticResource Button.Primary}" Content="{x:Static res:PricingText.AddList}" Command="{Binding AddListCommand}" Margin="0,0,8,0"
+                            Visibility="{Binding IsAddingList, Converter={StaticResource VisibleWhenTrue}}"/>
+                    <Button x:Name="AddPriceButton" Style="{StaticResource Button.Primary}" Content="{x:Static res:PricingText.AddPrice}" Command="{Binding AddPriceCommand}" Margin="0,0,8,0"
+                            Visibility="{Binding IsAddingPrice, Converter={StaticResource VisibleWhenTrue}}"/>
+                    <Button x:Name="CancelPricingButton" Content="{x:Static pres:PresentationText.PanelCancel}" Command="{Binding CancelCommand}"/>
+                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <!-- a new price list -->
+                        <StackPanel Visibility="{Binding IsAddingList, Converter={StaticResource VisibleWhenTrue}}">
+                            <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:PricingText.NewPriceList}"/>
+                            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:PricingText.Code}" Margin="0,0,0,4"/>
+                            <TextBox x:Name="ListCodeBox" Width="140" HorizontalAlignment="Left" Text="{Binding NewListCode, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.Code}"/>
+                            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:PricingText.Name}"/>
+                            <TextBox x:Name="ListNameBox" Text="{Binding NewListName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.Name}"/>
+                            <CheckBox x:Name="ListDefaultBox" Content="{x:Static res:PricingText.MakeDefault}" IsChecked="{Binding NewListDefault}" Margin="0,12,0,0"/>
+                        </StackPanel>
+                        <!-- a new price for the product found -->
+                        <StackPanel Visibility="{Binding IsAddingPrice, Converter={StaticResource VisibleWhenTrue}}">
+                            <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:PricingText.NewPrice}"/>
+                            <TextBlock Text="{Binding ProductText}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:PricingText.List}"/>
+                            <ComboBox x:Name="NewPriceListBox" ItemsSource="{Binding ActiveLists}" SelectedItem="{Binding NewPriceList}" DisplayMemberPath="Code"
+                                      AutomationProperties.Name="{x:Static res:PricingText.List}"/>
+                            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:PricingText.Amount}"/>
+                            <TextBox x:Name="NewPriceAmountBox" Width="120" HorizontalAlignment="Left" Text="{Binding NewAmount, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.Amount}"/>
+                            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:PricingText.MinimumQuantity}"/>
+                            <TextBox x:Name="NewPriceMinQtyBox" Width="120" HorizontalAlignment="Left" Text="{Binding NewMinimumQuantity, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.MinimumQuantity}"/>
+                            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:PricingText.ValidFrom}"/>
+                            <DatePicker x:Name="NewPriceFromPicker" SelectedDate="{Binding NewFrom}" AutomationProperties.Name="{x:Static res:PricingText.ValidFrom}"/>
+                            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:PricingText.ValidUntil}"/>
+                            <DatePicker x:Name="NewPriceUntilPicker" SelectedDate="{Binding NewUntil}" ToolTip="{x:Static res:PricingText.ValidUntilHint}"
+                                        AutomationProperties.Name="{x:Static res:PricingText.ValidUntil}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
 
-        <DataGrid Grid.Row="4" x:Name="PriceGrid" ItemsSource="{Binding Prices}" SelectedItem="{Binding SelectedPrice}"
-                  Visibility="{Binding HasProduct, Converter={StaticResource VisibleWhenTrue}}" AutomationProperties.Name="{x:Static res:PricingText.ProductHeading}">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="{x:Static res:PricingText.List}" Binding="{Binding ListCode}" Width="110" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:PricingText.Amount}" Binding="{Binding Price.Amount, StringFormat=N2}" Width="100" ElementStyle="{StaticResource Number}"/>
-                <DataGridTextColumn Header="{x:Static res:PricingText.MinimumQuantity}" Binding="{Binding Price.MinimumQuantity, StringFormat=0.###}" Width="90" ElementStyle="{StaticResource Number}"/>
-                <DataGridTextColumn Header="{x:Static res:PricingText.ValidFrom}" Binding="{Binding FromText}" Width="120" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:PricingText.ValidUntil}" Binding="{Binding UntilText}" Width="120" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:PricingText.Status}" Binding="{Binding StatusText}" Width="*" ElementStyle="{StaticResource Cell}"/>
-            </DataGrid.Columns>
-        </DataGrid>
-
-        <TextBlock Grid.Row="5" Text="{x:Static res:PricingText.ValidUntilHint}" Foreground="{DynamicResource Brush.TextSubtle}" FontSize="11" Margin="0,4,0,0"
-                   Visibility="{Binding HasProduct, Converter={StaticResource VisibleWhenTrue}}"/>
-
-        <StackPanel Grid.Row="6" Margin="0,8,0,0">
+        <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0">
             <TextBlock x:Name="PricingStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap"/>
             <TextBlock x:Name="PricingErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap"/>
         </StackPanel>

@@ -171,4 +171,7 @@
   <data name="NewCodeNeeded" xml:space="preserve">
     <value>تمت استعادة بيانات هذا الحاسوب بمفتاح من المورّد. أنشئ رمز استرداد جديدًا الآن واكتبه: يبقى النسخ الاحتياطي السحابي متوقفًا حتى تفعل ذلك.</value>
   </data>
+  <data name="StateHeading" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
 </root>

@@ -26,73 +26,92 @@
         </Style>
     </UserControl.Resources>
 
+    <!-- MISS-08c (owner's choice: settings in two columns of white boxes): what is licensed, and activation, side by side -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel MaxWidth="760" HorizontalAlignment="Left">
-            <!-- what the installation is licensed for -->
+        <StackPanel>
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="{x:Static res:LicenseText.State}"/>
-                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="StateText" Text="{Binding StateText}" FontWeight="SemiBold"/>
-                <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="{x:Static res:LicenseText.Customer}"/>
-                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="CustomerText" Text="{Binding CustomerText}"/>
-                <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="{x:Static res:LicenseText.ValidUntil}"/>
-                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="ValidUntilText" Text="{Binding ValidUntilText}"/>
-                <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="{x:Static res:LicenseText.RenewBy}"/>
-                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="RenewByText" Text="{Binding RenewByText}"/>
-                <TextBlock Grid.Row="4" Style="{StaticResource Label}" Text="{x:Static res:LicenseText.Modules}"/>
-                <TextBlock Grid.Row="4" Grid.Column="1" x:Name="ModulesText" Text="{Binding ModulesText}"/>
-                <TextBlock Grid.Row="5" Style="{StaticResource Label}" Text="{x:Static res:LicenseText.InstallationId}" MaxWidth="260"/>
-                <!-- read-only text box so the ID can be selected and copied -->
-                <TextBox Grid.Row="5" Grid.Column="1" x:Name="InstallationIdBox" Text="{Binding InstallationIdText, Mode=OneWay}" IsReadOnly="True"
-                         Background="Transparent" Foreground="{DynamicResource Brush.Text}" BorderThickness="0" VerticalAlignment="Center" FontFamily="Consolas"
-                         AutomationProperties.Name="{x:Static res:LicenseText.InstallationId}"/>
+                <!-- what the installation is licensed for -->
+                <Border Grid.Column="0" Style="{StaticResource Box}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:LicenseText.LicenseHeading}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="{x:Static res:LicenseText.State}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="StateText" Text="{Binding StateText}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="{x:Static res:LicenseText.Customer}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="CustomerText" Text="{Binding CustomerText}"/>
+                            <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="{x:Static res:LicenseText.ValidUntil}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="ValidUntilText" Text="{Binding ValidUntilText}"/>
+                            <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="{x:Static res:LicenseText.RenewBy}"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="RenewByText" Text="{Binding RenewByText}"/>
+                            <TextBlock Grid.Row="4" Style="{StaticResource Label}" Text="{x:Static res:LicenseText.Modules}" VerticalAlignment="Top"/>
+                            <TextBlock Grid.Row="4" Grid.Column="1" x:Name="ModulesText" Text="{Binding ModulesText}" Margin="0,4,0,4"/>
+                            <TextBlock Grid.Row="5" Style="{StaticResource Label}" Text="{x:Static res:LicenseText.InstallationId}" MaxWidth="200"/>
+                            <!-- read-only text box so the ID can be selected and copied -->
+                            <TextBox Grid.Row="5" Grid.Column="1" x:Name="InstallationIdBox" Text="{Binding InstallationIdText, Mode=OneWay}" IsReadOnly="True"
+                                     Background="Transparent" Foreground="{DynamicResource Brush.Text}" BorderThickness="0" VerticalAlignment="Center" FontFamily="Consolas"
+                                     AutomationProperties.Name="{x:Static res:LicenseText.InstallationId}"/>
+                        </Grid>
+
+                        <TextBlock x:Name="NoticeText" Text="{Binding NoticeText}" Margin="0,12,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                    <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsRestricted}" Value="True">
+                                            <Setter Property="Foreground" Value="{DynamicResource Brush.Warning}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <!-- renew -->
+                        <Button x:Name="RenewButton" Content="{x:Static res:LicenseText.Renew}" HorizontalAlignment="Left" Margin="0,14,0,0" Command="{Binding RenewCommand}"
+                                Visibility="{Binding HasVerifiedLicense, Converter={StaticResource VisibleWhenTrue}}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- activate -->
+                <Border Grid.Column="2" Style="{StaticResource Box}" VerticalAlignment="Top">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:LicenseText.ActivateHeading}"/>
+                        <TextBlock Style="{StaticResource Label}" Text="{x:Static res:LicenseText.ActivationKey}"/>
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" x:Name="ActivateButton" Content="{x:Static res:LicenseText.Activate}" Margin="8,0,0,0" Command="{Binding ActivateCommand}"
+                                    Style="{StaticResource Button.Primary}"/>
+                            <TextBox x:Name="ActivationKeyBox" Text="{Binding ActivationKey, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="{x:Static res:LicenseText.ActivationKey}">
+                                <TextBox.InputBindings>
+                                    <KeyBinding Key="Enter" Command="{Binding ActivateCommand}"/>
+                                </TextBox.InputBindings>
+                            </TextBox>
+                        </DockPanel>
+                        <TextBlock Text="{x:Static res:LicenseText.ActivateHint}" Foreground="{DynamicResource Brush.TextSubtle}" FontSize="11" Margin="0,6,0,0"/>
+                    </StackPanel>
+                </Border>
             </Grid>
 
-            <TextBlock x:Name="NoticeText" Text="{Binding NoticeText}" Margin="0,12,0,0">
-                <TextBlock.Style>
-                    <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                        <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsRestricted}" Value="True">
-                                <Setter Property="Foreground" Value="{DynamicResource Brush.Warning}"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
-
-            <!-- activate -->
-            <TextBlock Text="{x:Static res:LicenseText.ActivateHeading}" FontSize="15" FontWeight="SemiBold" Margin="0,24,0,8"/>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:LicenseText.ActivationKey}"/>
-                <TextBox x:Name="ActivationKeyBox" Width="320" Padding="4,2" Text="{Binding ActivationKey, UpdateSourceTrigger=PropertyChanged}"
-                         AutomationProperties.Name="{x:Static res:LicenseText.ActivationKey}">
-                    <TextBox.InputBindings>
-                        <KeyBinding Key="Enter" Command="{Binding ActivateCommand}"/>
-                    </TextBox.InputBindings>
-                </TextBox>
-                <Button x:Name="ActivateButton" Content="{x:Static res:LicenseText.Activate}" Margin="12,0,0,0" Command="{Binding ActivateCommand}"/>
-            </StackPanel>
-            <TextBlock Text="{x:Static res:LicenseText.ActivateHint}" Foreground="{DynamicResource Brush.TextSubtle}" FontSize="11" Margin="0,6,0,0"/>
-
-            <!-- renew -->
-            <Button x:Name="RenewButton" Content="{x:Static res:LicenseText.Renew}" HorizontalAlignment="Left" Margin="0,20,0,0" Command="{Binding RenewCommand}"
-                    Visibility="{Binding HasVerifiedLicense, Converter={StaticResource VisibleWhenTrue}}"/>
-
             <!-- what happened -->
-            <TextBlock x:Name="LicenseStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" Margin="0,16,0,0"/>
+            <TextBlock x:Name="LicenseStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" Margin="0,4,0,0"/>
             <TextBlock x:Name="LicenseErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" Margin="0,4,0,0"/>
         </StackPanel>
     </ScrollViewer>

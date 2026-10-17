@@ -25,16 +25,25 @@ public sealed class WarehousesViewModel : ViewModelBase, INavigationAware
     private string _newName = string.Empty;
     private string _newCode = string.Empty;
     private string _newDescription = string.Empty;
+    private bool _isEditorOpen;
 
     public WarehousesViewModel(IUiActionRunner runner)
     {
         _runner = runner;
-        AddCommand = Command(AddAsync, () => !string.IsNullOrWhiteSpace(NewName) && !string.IsNullOrWhiteSpace(NewCode));
+        AddCommand = Command(AddAsync, () => IsEditorOpen && !string.IsNullOrWhiteSpace(NewName) && !string.IsNullOrWhiteSpace(NewCode));
+        // MISS-08c (owner: the editor in a panel beside the list): "New warehouse" opens it, Cancel closes it
+        NewCommand = Command(() => { IsEditorOpen = true; return Task.CompletedTask; }, () => !IsEditorOpen);
+        CancelCommand = Command(() => { CloseEditor(); return Task.CompletedTask; }, () => IsEditorOpen);
     }
 
     public ObservableCollection<WarehouseRow> Warehouses { get; } = [];
 
     public ICommand AddCommand { get; }
+    public ICommand NewCommand { get; }
+    public ICommand CancelCommand { get; }
+
+    /// <summary>The panel for a new warehouse is open.</summary>
+    public bool IsEditorOpen { get => _isEditorOpen; private set => Set(ref _isEditorOpen, value); }
 
     public string NewName { get => _newName; set => Set(ref _newName, value); }
     public string NewCode { get => _newCode; set => Set(ref _newCode, value); }
@@ -48,9 +57,15 @@ public sealed class WarehousesViewModel : ViewModelBase, INavigationAware
         var added = await _runner.RunAsync((scope, ct) => Discard(scope.Get<CreateWarehouseCommandHandler>().HandleAsync(new CreateWarehouseCommand(name, code, description), ct)));
         if (!Accept(added)) return;
 
-        NewName = NewCode = NewDescription = string.Empty;
+        CloseEditor();
         await ReloadAsync(CancellationToken.None);
         StatusMessage = string.Format(CultureInfo.CurrentCulture, InventoryText.WarehouseAdded, name);
+    }
+
+    private void CloseEditor()
+    {
+        NewName = NewCode = NewDescription = string.Empty;
+        IsEditorOpen = false;
     }
 
     private async Task ReloadAsync(CancellationToken cancellationToken)

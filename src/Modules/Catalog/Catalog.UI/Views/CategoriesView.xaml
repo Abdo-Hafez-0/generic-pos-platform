@@ -30,12 +30,17 @@
             <Setter Property="MinHeight" Value="200"/>
             <Setter Property="Margin" Value="0,8,0,0"/>
         </Style>
+        <Style x:Key="Cell" TargetType="TextBlock">
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
     </UserControl.Resources>
 
+    <!-- MISS-08c (owner's choices): two white boxes side by side, each with its own add line and a plain table -->
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="24"/>
+            <ColumnDefinition Width="12"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
@@ -43,40 +48,45 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <DockPanel Grid.Column="0">
-            <TextBlock DockPanel.Dock="Top" Style="{StaticResource Heading}" Text="{x:Static res:CatalogText.Categories}"/>
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
-                <TextBox x:Name="CategoryNameBox" Width="160" Text="{Binding NewCategoryName, UpdateSourceTrigger=PropertyChanged}"
-                         AutomationProperties.Name="{x:Static res:CatalogText.Name}" ToolTip="{x:Static res:CatalogText.Name}"/>
-                <TextBox x:Name="CategoryDescriptionBox" Width="160" Text="{Binding NewCategoryDescription, UpdateSourceTrigger=PropertyChanged}"
-                         AutomationProperties.Name="{x:Static res:CatalogText.Description}" ToolTip="{x:Static res:CatalogText.Description}"/>
-                <Button x:Name="AddCategoryButton" Content="{x:Static res:CatalogText.AddCategory}" Command="{Binding AddCategoryCommand}"/>
-            </StackPanel>
-            <ListBox x:Name="CategoryList" ItemsSource="{Binding Categories}" DisplayMemberPath="Name" AutomationProperties.Name="{x:Static res:CatalogText.Categories}"/>
-        </DockPanel>
+        <Border Grid.Column="0" Style="{StaticResource Box}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Box.Title}" Text="{x:Static res:CatalogText.Categories}"/>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                    <Button DockPanel.Dock="Right" x:Name="AddCategoryButton" Content="{x:Static res:CatalogText.AddCategory}" Command="{Binding AddCategoryCommand}" Margin="8,0,0,0"/>
+                    <TextBox DockPanel.Dock="Left" x:Name="CategoryNameBox" Width="150" Text="{Binding NewCategoryName, UpdateSourceTrigger=PropertyChanged}" Tag="{x:Static res:CatalogText.Name}"
+                             AutomationProperties.Name="{x:Static res:CatalogText.Name}" ToolTip="{x:Static res:CatalogText.Name}" Margin="0,0,8,0"/>
+                    <TextBox x:Name="CategoryDescriptionBox" Text="{Binding NewCategoryDescription, UpdateSourceTrigger=PropertyChanged}" Tag="{x:Static res:CatalogText.Description}"
+                             AutomationProperties.Name="{x:Static res:CatalogText.Description}" ToolTip="{x:Static res:CatalogText.Description}"/>
+                </DockPanel>
+                <DataGrid x:Name="CategoryList" ItemsSource="{Binding Categories}" IsReadOnly="True" AutomationProperties.Name="{x:Static res:CatalogText.Categories}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{x:Static res:CatalogText.Name}" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:CatalogText.Description}" Binding="{Binding Description}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
 
-        <DockPanel Grid.Column="2">
-            <TextBlock DockPanel.Dock="Top" Style="{StaticResource Heading}" Text="{x:Static res:CatalogText.Units}"/>
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
-                <TextBox x:Name="UnitNameBox" Width="160" Text="{Binding NewUnitName, UpdateSourceTrigger=PropertyChanged}"
-                         AutomationProperties.Name="{x:Static res:CatalogText.Name}" ToolTip="{x:Static res:CatalogText.Name}"/>
-                <TextBox x:Name="UnitAbbreviationBox" Width="80" Text="{Binding NewUnitAbbreviation, UpdateSourceTrigger=PropertyChanged}"
-                         AutomationProperties.Name="{x:Static res:CatalogText.Abbreviation}" ToolTip="{x:Static res:CatalogText.Abbreviation}"/>
-                <Button x:Name="AddUnitButton" Content="{x:Static res:CatalogText.AddUnit}" Command="{Binding AddUnitCommand}"/>
-            </StackPanel>
-            <ListBox x:Name="UnitList" ItemsSource="{Binding Units}" AutomationProperties.Name="{x:Static res:CatalogText.Units}">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock>
-                            <Run Text="{Binding Name, Mode=OneWay}"/>
-                            <Run Text=" (" Foreground="{DynamicResource Brush.TextSubtle}"/><Run Text="{Binding Abbreviation, Mode=OneWay}" Foreground="{DynamicResource Brush.TextSubtle}"/><Run Text=")" Foreground="{DynamicResource Brush.TextSubtle}"/>
-                        </TextBlock>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-        </DockPanel>
+        <Border Grid.Column="2" Style="{StaticResource Box}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Box.Title}" Text="{x:Static res:CatalogText.Units}"/>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                    <Button DockPanel.Dock="Right" x:Name="AddUnitButton" Content="{x:Static res:CatalogText.AddUnit}" Command="{Binding AddUnitCommand}" Margin="8,0,0,0"/>
+                    <TextBox DockPanel.Dock="Right" x:Name="UnitAbbreviationBox" Width="90" Text="{Binding NewUnitAbbreviation, UpdateSourceTrigger=PropertyChanged}" Tag="{x:Static res:CatalogText.Abbreviation}"
+                             AutomationProperties.Name="{x:Static res:CatalogText.Abbreviation}" ToolTip="{x:Static res:CatalogText.Abbreviation}" Margin="8,0,0,0"/>
+                    <TextBox x:Name="UnitNameBox" Text="{Binding NewUnitName, UpdateSourceTrigger=PropertyChanged}" Tag="{x:Static res:CatalogText.Name}"
+                             AutomationProperties.Name="{x:Static res:CatalogText.Name}" ToolTip="{x:Static res:CatalogText.Name}"/>
+                </DockPanel>
+                <DataGrid x:Name="UnitList" ItemsSource="{Binding Units}" IsReadOnly="True" AutomationProperties.Name="{x:Static res:CatalogText.Units}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{x:Static res:CatalogText.Name}" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:CatalogText.Abbreviation}" Binding="{Binding Abbreviation}" Width="110" ElementStyle="{StaticResource Cell}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
 
-        <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0">
+        <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,0,0,0">
             <TextBlock x:Name="CategoriesStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap"/>
             <TextBlock x:Name="CategoriesErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap"/>
         </StackPanel>

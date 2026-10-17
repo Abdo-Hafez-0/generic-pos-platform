@@ -54,4 +54,10 @@
   <data name="ReasonTransferOut" xml:space="preserve"><value>Transfer out</value></data>
   <data name="ReasonOpeningBalance" xml:space="preserve"><value>Opening balance</value></data>
   <data name="ReasonOther" xml:space="preserve"><value>Other</value></data>
+  <data name="NewWarehouse" xml:space="preserve">
+    <value>New warehouse</value>
+  </data>
+  <data name="CorrectTitle" xml:space="preserve">
+    <value>Correct stock</value>
+  </data>
 </root>

@@ -38,6 +38,8 @@ public sealed class TaxRatesViewModel : ViewModelBase, INavigationAware
     private bool _newDefault;
     private string _editName = string.Empty;
     private string _editPercent = string.Empty;
+    private bool _isAdding;
+    private bool _isEditing;
 
     private string _productCode = string.Empty;
     private PricingProductDto? _product;
@@ -47,10 +49,15 @@ public sealed class TaxRatesViewModel : ViewModelBase, INavigationAware
     public TaxRatesViewModel(IUiActionRunner runner)
     {
         _runner = runner;
-        AddCommand = Command(AddAsync, () => !string.IsNullOrWhiteSpace(NewCode) && !string.IsNullOrWhiteSpace(NewName) && !string.IsNullOrWhiteSpace(NewPercent));
-        UpdateCommand = Command(UpdateAsync, () => SelectedRate is { IsActive: true } && !string.IsNullOrWhiteSpace(EditName) && !string.IsNullOrWhiteSpace(EditPercent));
-        SetDefaultCommand = Command(SetDefaultAsync, () => SelectedRate is { IsActive: true, Rate.IsDefault: false });
-        DeactivateCommand = Command(DeactivateAsync, () => SelectedRate is { IsActive: true, Rate.IsDefault: false });
+        AddCommand = Command(AddAsync, () => IsAdding && !string.IsNullOrWhiteSpace(NewCode) && !string.IsNullOrWhiteSpace(NewName) && !string.IsNullOrWhiteSpace(NewPercent));
+        UpdateCommand = Command(UpdateAsync, () => IsEditing && SelectedRate is { IsActive: true } && !string.IsNullOrWhiteSpace(EditName) && !string.IsNullOrWhiteSpace(EditPercent));
+        // MISS-08c (owner's choices): "New tax rate" by the title and the row's Edit open the panel beside the list; the row's "..." holds
+        // Use as default and Deactivate (neither for the default rate)
+        NewCommand = Command(() => { CloseEditor(); IsAdding = true; return Task.CompletedTask; }, () => !IsEditorOpen);
+        EditRowCommand = Command<TaxRateRow>(row => { SelectedRate = row; IsEditing = true; return Task.CompletedTask; }, row => !IsEditorOpen && row is { IsActive: true });
+        CancelCommand = Command(() => { CloseEditor(); return Task.CompletedTask; }, () => IsEditorOpen);
+        SetDefaultRowCommand = Command<TaxRateRow>(row => { SelectedRate = row; return SetDefaultAsync(); }, row => !IsEditorOpen && row is { IsActive: true, Rate.IsDefault: false });
+        DeactivateRowCommand = Command<TaxRateRow>(row => { SelectedRate = row; return DeactivateAsync(); }, row => !IsEditorOpen && row is { IsActive: true, Rate.IsDefault: false });
         FindCommand = Command(FindAsync, () => !string.IsNullOrWhiteSpace(ProductCode));
         SaveProductCommand = Command(SaveProductAsync, () => Product is not null && ProductChoice is not null);
     }
@@ -62,8 +69,20 @@ public sealed class TaxRatesViewModel : ViewModelBase, INavigationAware
 
     public ICommand AddCommand { get; }
     public ICommand UpdateCommand { get; }
-    public ICommand SetDefaultCommand { get; }
-    public ICommand DeactivateCommand { get; }
+    public ICommand NewCommand { get; }
+    public ICommand EditRowCommand { get; }
+    public ICommand CancelCommand { get; }
+    public ICommand SetDefaultRowCommand { get; }
+    public ICommand DeactivateRowCommand { get; }
+
+    /// <summary>The panel shows a new rate.</summary>
+    public bool IsAdding { get => _isAdding; private set { if (Set(ref _isAdding, value)) Raise(nameof(IsEditorOpen)); } }
+
+    /// <summary>The panel shows the selected rate's name and percentage.</summary>
+    public bool IsEditing { get => _isEditing; private set { if (Set(ref _isEditing, value)) Raise(nameof(IsEditorOpen)); } }
+
+    /// <summary>The panel beside the list is open (a new rate or the selected one).</summary>
+    public bool IsEditorOpen => IsAdding || IsEditing;
     public ICommand FindCommand { get; }
     public ICommand SaveProductCommand { get; }
 
@@ -117,7 +136,7 @@ public sealed class TaxRatesViewModel : ViewModelBase, INavigationAware
         var added = await _runner.RunAsync(async (scope, ct) => Drop(await scope.Get<CreateTaxRateCommandHandler>().HandleAsync(new CreateTaxRateCommand(code, name, rate, makeDefault), ct)));
         if (!Accept(added)) return;
 
-        (NewCode, NewName, NewPercent, NewDefault) = (string.Empty, string.Empty, string.Empty, false);
+        CloseEditor();
         await ReloadRatesAsync(CancellationToken.None);
         StatusMessage = string.Format(CultureInfo.CurrentCulture, PricingText.TaxRateAdded, code.ToUpperInvariant());
     }
@@ -131,9 +150,16 @@ public sealed class TaxRatesViewModel : ViewModelBase, INavigationAware
         var done = await _runner.RunAsync((scope, ct) => scope.Get<UpdateTaxRateCommandHandler>().HandleAsync(new UpdateTaxRateCommand(row.Rate.TaxRateId, name, rate), ct));
         if (!Accept(done)) return;
 
+        CloseEditor();
         await ReloadRatesAsync(CancellationToken.None);
         if (Product is not null) await ReloadProductAsync(CancellationToken.None);
         StatusMessage = string.Format(CultureInfo.CurrentCulture, PricingText.TaxRateChanged, row.Rate.Code);
+    }
+
+    private void CloseEditor()
+    {
+        (NewCode, NewName, NewPercent, NewDefault) = (string.Empty, string.Empty, string.Empty, false);
+        IsAdding = IsEditing = false;
     }
 
     private async Task SetDefaultAsync()

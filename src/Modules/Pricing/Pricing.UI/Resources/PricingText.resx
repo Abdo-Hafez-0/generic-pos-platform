@@ -64,4 +64,19 @@
   <data name="ProductTaxOwn" xml:space="preserve"><value>{0} ({1}): {2} % ({3}, chosen for this product).</value></data>
   <data name="ProductTaxDefault" xml:space="preserve"><value>{0} ({1}): {2} % ({3}, the default rate).</value></data>
   <data name="ProductTaxNone" xml:space="preserve"><value>{0} ({1}): no tax - no tax rate is set up yet.</value></data>
+  <data name="NewTaxRate" xml:space="preserve">
+    <value>New tax rate</value>
+  </data>
+  <data name="EditTaxRateTitle" xml:space="preserve">
+    <value>Change tax rate</value>
+  </data>
+  <data name="NewPriceList" xml:space="preserve">
+    <value>New price list</value>
+  </data>
+  <data name="NewPrice" xml:space="preserve">
+    <value>New price</value>
+  </data>
+  <data name="UseForSales" xml:space="preserve">
+    <value>Use for sales</value>
+  </data>
 </root>

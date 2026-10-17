@@ -76,4 +76,7 @@
   <data name="NoResults" xml:space="preserve">
     <value>لا يوجد مورد مطابق.</value>
   </data>
+  <data name="EditTitle" xml:space="preserve">
+    <value>تعديل المورد</value>
+  </data>
 </root>

@@ -17,10 +17,10 @@ namespace UI.Tests.Pricing;
 [Collection(nameof(RealDesktop))]
 public sealed class TaxRatesOnRealDesktopTests
 {
-    private static async Task Run(ViewModelBase vm, ICommand command)
+    private static async Task Run(ViewModelBase vm, ICommand command, object? parameter = null)
     {
-        Assert.True(command.CanExecute(null), "the command was not executable");
-        command.Execute(null);
+        Assert.True(command.CanExecute(parameter), "the command was not executable");
+        command.Execute(parameter);
         for (var i = 0; i < 1000 && vm.IsBusy; i++) await Task.Delay(10);
         Assert.False(vm.IsBusy);
     }
@@ -42,12 +42,15 @@ public sealed class TaxRatesOnRealDesktopTests
         await vm.OnNavigatedToAsync();
         Assert.Empty(vm.Rates);
 
-        // the first rate becomes the default
+        // the first rate becomes the default ("New tax rate" opens the panel; adding closes it - MISS-08c)
+        await Run(vm, vm.NewCommand);
         (vm.NewCode, vm.NewName, vm.NewPercent) = ("std", "Standard VAT", Percent(14m));
         await Run(vm, vm.AddCommand);
         Assert.Null(vm.ErrorMessage);
+        Assert.False(vm.IsEditorOpen);
         var standard = Assert.Single(vm.Rates);
         Assert.Equal(("STD", 0.14m, PricingText.Yes), (standard.Rate.Code, standard.Rate.Rate, standard.DefaultText));
+        await Run(vm, vm.NewCommand);
         (vm.NewCode, vm.NewName, vm.NewPercent) = ("ZERO", "Basic food", Percent(0m));
         await Run(vm, vm.AddCommand);
         Assert.Equal(0.14m, await TillRateAsync(desktop.Services, shop.ProductId));
@@ -63,18 +66,19 @@ public sealed class TaxRatesOnRealDesktopTests
         Assert.Equal(0m, await TillRateAsync(desktop.Services, shop.ProductId));
 
         // a new law: the standard rate changes; the product goes back to the default
-        vm.SelectedRate = vm.Rates.Single(r => r.Rate.Code == "STD");
+        await Run(vm, vm.EditRowCommand, vm.Rates.Single(r => r.Rate.Code == "STD"));
+        Assert.Equal("Standard VAT", vm.EditName);   // the panel shows the row
         vm.EditPercent = Percent(15m);
         await Run(vm, vm.UpdateCommand);
+        Assert.False(vm.IsEditorOpen);
         vm.ProductChoice = vm.Choices[0];
         await Run(vm, vm.SaveProductCommand);
         Assert.Equal(0.15m, await TillRateAsync(desktop.Services, shop.ProductId));
 
         // the default cannot be deactivated (the command is not even offered); another rate can
-        vm.SelectedRate = vm.Rates.Single(r => r.Rate.Code == "STD");
-        Assert.False(vm.DeactivateCommand.CanExecute(null));
-        vm.SelectedRate = vm.Rates.Single(r => r.Rate.Code == "ZERO");
-        await Run(vm, vm.DeactivateCommand);
+        Assert.False(vm.DeactivateRowCommand.CanExecute(vm.Rates.Single(r => r.Rate.Code == "STD")));
+        Assert.False(vm.SetDefaultRowCommand.CanExecute(vm.Rates.Single(r => r.Rate.Code == "STD")));   // already the default
+        await Run(vm, vm.DeactivateRowCommand, vm.Rates.Single(r => r.Rate.Code == "ZERO"));
         Assert.Equal(PricingText.Inactive, vm.Rates.Single(r => r.Rate.Code == "ZERO").StatusText);
         Assert.DoesNotContain(vm.Choices, c => c.Rate?.Code == "ZERO");
     }
@@ -86,6 +90,7 @@ public sealed class TaxRatesOnRealDesktopTests
         var vm = new TaxRatesViewModel(new UiActionRunner(desktop.Services.GetRequiredService<IServiceScopeFactory>(), NullLogger<UiActionRunner>.Instance));
         await vm.OnNavigatedToAsync();
 
+        await Run(vm, vm.NewCommand);
         (vm.NewCode, vm.NewName, vm.NewPercent) = ("STD", "Standard", "fourteen");
         await Run(vm, vm.AddCommand);
         Assert.Equal(PricingText.TaxPercentInvalid, vm.ErrorMessage);

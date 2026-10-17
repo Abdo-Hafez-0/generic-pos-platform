@@ -46,22 +46,23 @@ public sealed class CustomersViewModel : ViewModelBase, INavigationAware
         _runner = runner;
         SearchCommand = Command(() => LoadAsync(CancellationToken.None));
         NewCommand = Command(() => { OpenEditor(null); return Task.CompletedTask; }, () => !IsEditorOpen);
-        EditCommand = Command(EditSelectedAsync, () => !IsEditorOpen && Selected is not null);
         SaveCommand = Command(SaveAsync, () => IsEditorOpen && !string.IsNullOrWhiteSpace(EditName) && (!IsNew || !string.IsNullOrWhiteSpace(EditCode)));
         CancelCommand = Command(() => { IsEditorOpen = false; return Task.CompletedTask; }, () => IsEditorOpen);
-        DeactivateCommand = Command(() => SetActiveAsync(false), () => !IsEditorOpen && Selected is { IsActive: true });
-        ReactivateCommand = Command(() => SetActiveAsync(true), () => !IsEditorOpen && Selected is { IsActive: false });
+        // MISS-08c (owner: actions on each row): the row's own Edit and its "⋯" menu
+        EditRowCommand = Command<CustomerRow>(row => { Selected = row; return EditSelectedAsync(); }, row => !IsEditorOpen && row is not null);
+        DeactivateRowCommand = Command<CustomerRow>(row => { Selected = row; return SetActiveAsync(false); }, row => !IsEditorOpen && row is { IsActive: true });
+        ReactivateRowCommand = Command<CustomerRow>(row => { Selected = row; return SetActiveAsync(true); }, row => !IsEditorOpen && row is { IsActive: false });
     }
 
     public ObservableCollection<CustomerRow> Customers { get; } = [];
 
     public ICommand SearchCommand { get; }
     public ICommand NewCommand { get; }
-    public ICommand EditCommand { get; }
     public ICommand SaveCommand { get; }
     public ICommand CancelCommand { get; }
-    public ICommand DeactivateCommand { get; }
-    public ICommand ReactivateCommand { get; }
+    public ICommand EditRowCommand { get; }
+    public ICommand DeactivateRowCommand { get; }
+    public ICommand ReactivateRowCommand { get; }
 
     public string SearchText { get => _searchText; set => Set(ref _searchText, value); }
     public bool ShowInactive { get => _showInactive; set => Set(ref _showInactive, value); }

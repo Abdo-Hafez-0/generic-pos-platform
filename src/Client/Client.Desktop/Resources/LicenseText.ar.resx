@@ -78,4 +78,7 @@
   <data name="StateInvalid" xml:space="preserve">
     <value>غير صالح</value>
   </data>
+  <data name="LicenseHeading" xml:space="preserve">
+    <value>هذا التثبيت</value>
+  </data>
 </root>

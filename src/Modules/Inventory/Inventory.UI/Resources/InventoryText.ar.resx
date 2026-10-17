@@ -138,4 +138,10 @@
   <data name="ReasonOther" xml:space="preserve">
     <value>أخرى</value>
   </data>
+  <data name="NewWarehouse" xml:space="preserve">
+    <value>مخزن جديد</value>
+  </data>
+  <data name="CorrectTitle" xml:space="preserve">
+    <value>تصحيح المخزون</value>
+  </data>
 </root>

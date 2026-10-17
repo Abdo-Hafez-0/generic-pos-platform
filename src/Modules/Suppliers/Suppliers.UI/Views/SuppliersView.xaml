@@ -4,6 +4,8 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:res="clr-namespace:Suppliers.UI.Resources"
+             xmlns:pres="clr-namespace:Platform.Presentation.Resources;assembly=Platform.Presentation"
+             xmlns:screens="clr-namespace:Platform.Presentation.Screens;assembly=Platform.Presentation"
              xmlns:vm="clr-namespace:Suppliers.UI.ViewModels"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:SuppliersViewModel}">
@@ -36,19 +38,27 @@
             <Setter Property="IsReadOnly" Value="True"/>
         </Style>
         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"/>
+
+        <!-- MISS-08c: the main action, shown by the shell at the end of the title row -->
+        <Button x:Key="{x:Static screens:ScreenParts.HeaderActions}" x:Name="NewSupplierButton" Content="{x:Static res:SuppliersText.New}" Command="{Binding NewCommand}" Style="{StaticResource Button.Primary}" Margin="0"/>
     </UserControl.Resources>
 
+    <!-- MISS-08c (owner's choices): search, the plain list with Edit and "⋯" on each row, the editor in a panel beside it -->
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Visibility="{Binding IsListMode, Converter={StaticResource VisibleWhenTrue}}">
+        <StackPanel Grid.Row="0" Margin="0,0,0,2">
             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                 <TextBox x:Name="SupplierSearchBox" Width="260" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                         AutomationProperties.Name="{x:Static res:SuppliersText.SearchHint}" ToolTip="{x:Static res:SuppliersText.SearchHint}">
+                         Tag="{x:Static res:SuppliersText.SearchHint}" AutomationProperties.Name="{x:Static res:SuppliersText.SearchHint}" ToolTip="{x:Static res:SuppliersText.SearchHint}">
                     <TextBox.InputBindings>
                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}"/>
                     </TextBox.InputBindings>
@@ -56,59 +66,99 @@
                 <Button x:Name="SupplierSearchButton" Content="{x:Static res:SuppliersText.Search}" Margin="8,0,16,0" Command="{Binding SearchCommand}"/>
                 <CheckBox x:Name="ShowInactiveSuppliersBox" Content="{x:Static res:SuppliersText.ShowInactive}" IsChecked="{Binding ShowInactive}"/>
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                <Button x:Name="NewSupplierButton" Content="{x:Static res:SuppliersText.New}" Command="{Binding NewCommand}"/>
-                <Button x:Name="EditSupplierButton" Content="{x:Static res:SuppliersText.Edit}" Command="{Binding EditCommand}"/>
-                <Button x:Name="DeactivateSupplierButton" Content="{x:Static res:SuppliersText.Deactivate}" Command="{Binding DeactivateCommand}"/>
-                <Button x:Name="ReactivateSupplierButton" Content="{x:Static res:SuppliersText.Reactivate}" Command="{Binding ReactivateCommand}"/>
-            </StackPanel>
         </StackPanel>
 
-        <DataGrid Grid.Row="1" x:Name="SupplierGrid" ItemsSource="{Binding Suppliers}" SelectedItem="{Binding Selected}"
-                  Visibility="{Binding IsListMode, Converter={StaticResource VisibleWhenTrue}}" AutomationProperties.Name="{x:Static res:SuppliersText.ScreenTitle}">
+        <!-- columns are not in the element tree: they read the view model through this element (x:Reference) -->
+        <FrameworkElement x:Name="ColumnsSource" Visibility="Collapsed"/>
+        <DataGrid IsReadOnly="True" Grid.Row="1" x:Name="SupplierGrid" ItemsSource="{Binding Suppliers}" SelectedItem="{Binding Selected}" AutomationProperties.Name="{x:Static res:SuppliersText.ScreenTitle}">
+            <DataGrid.InputBindings>
+                <MouseBinding Gesture="LeftDoubleClick" Command="{Binding EditRowCommand}" CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+            </DataGrid.InputBindings>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="{x:Static res:SuppliersText.Code}" Binding="{Binding Supplier.Code}" Width="110" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:SuppliersText.Name}" Binding="{Binding Supplier.Name}" Width="*" MinWidth="160" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:SuppliersText.Email}" Binding="{Binding Supplier.Email}" Width="200" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:SuppliersText.Email}" Binding="{Binding Supplier.Email}" Visibility="{Binding DataContext.IsListMode, Source={x:Reference ColumnsSource}, Converter={StaticResource VisibleWhenTrue}}" Width="200" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:SuppliersText.Phone}" Binding="{Binding Supplier.Phone, StringFormat=&#x200E;{0}}" Width="140" ElementStyle="{StaticResource Cell}"/>
-                <DataGridTextColumn Header="{x:Static res:SuppliersText.Status}" Binding="{Binding StatusText}" Width="90" ElementStyle="{StaticResource Cell}"/>
+                <DataGridTextColumn Header="{x:Static res:SuppliersText.Status}" Binding="{Binding StatusText}" Visibility="{Binding DataContext.IsListMode, Source={x:Reference ColumnsSource}, Converter={StaticResource VisibleWhenTrue}}" Width="90" ElementStyle="{StaticResource Cell}"/>
+                <!-- the row's actions: Edit, and "⋯" for the rest (MISS-08c) -->
+                <DataGridTemplateColumn Width="Auto">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="4,0">
+                                <Button x:Name="RowEditButton" Style="{StaticResource Button.Link}" Content="{x:Static pres:PresentationText.RowEdit}"
+                                        Command="{Binding DataContext.EditRowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/>
+                                <Button x:Name="RowMenuButton" Style="{StaticResource Button.RowMenu}" ToolTip="{x:Static pres:PresentationText.RowMoreActions}"
+                                        AutomationProperties.Name="{x:Static pres:PresentationText.RowMoreActions}"
+                                        Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=DataGrid}}">
+                                    <Button.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem x:Name="RowDeactivateItem" Header="{x:Static pres:PresentationText.RowDeactivate}" CommandParameter="{Binding}"
+                                                      Command="{Binding PlacementTarget.Tag.DeactivateRowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                            <MenuItem x:Name="RowReactivateItem" Header="{x:Static pres:PresentationText.RowReactivate}" CommandParameter="{Binding}"
+                                                      Command="{Binding PlacementTarget.Tag.ReactivateRowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                </Button>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
 
-        <Grid Grid.Row="0" Grid.RowSpan="2" x:Name="SupplierEditor" MaxWidth="600" HorizontalAlignment="Left" VerticalAlignment="Top"
-              Visibility="{Binding IsEditorOpen, Converter={StaticResource VisibleWhenTrue}}">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="{x:Static res:SuppliersText.Code}"/>
-            <TextBox Grid.Row="0" Grid.Column="1" x:Name="SupplierCodeBox" Width="160" HorizontalAlignment="Left" Text="{Binding EditCode, UpdateSourceTrigger=PropertyChanged}"
-                     IsEnabled="{Binding IsNew}" AutomationProperties.Name="{x:Static res:SuppliersText.Code}"/>
-            <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="{x:Static res:SuppliersText.Name}"/>
-            <TextBox Grid.Row="1" Grid.Column="1" x:Name="SupplierNameBox" Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:SuppliersText.Name}"/>
-            <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="{x:Static res:SuppliersText.Email}"/>
-            <TextBox Grid.Row="2" Grid.Column="1" x:Name="SupplierEmailBox" FlowDirection="LeftToRight" Text="{Binding EditEmail, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:SuppliersText.Email}"/>
-            <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="{x:Static res:SuppliersText.Phone}"/>
-            <TextBox Grid.Row="3" Grid.Column="1" x:Name="SupplierPhoneBox" FlowDirection="LeftToRight" Width="220" HorizontalAlignment="Left" Text="{Binding EditPhone, UpdateSourceTrigger=PropertyChanged}"
-                     AutomationProperties.Name="{x:Static res:SuppliersText.Phone}"/>
-            <TextBlock Grid.Row="4" Style="{StaticResource Label}" Text="{x:Static res:SuppliersText.Notes}" VerticalAlignment="Top"/>
-            <TextBox Grid.Row="4" Grid.Column="1" x:Name="SupplierNotesBox" Height="70" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top"
-                     Text="{Binding EditNotes, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:SuppliersText.Notes}"/>
-            <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" Margin="0,16,0,0">
-                <Button x:Name="SaveSupplierButton" Content="{x:Static res:SuppliersText.Save}" Command="{Binding SaveCommand}"/>
-                <Button x:Name="CancelSupplierButton" Content="{x:Static res:SuppliersText.Cancel}" Command="{Binding CancelCommand}"/>
-            </StackPanel>
-        </Grid>
+        <!-- the editor, beside the list (MISS-08c) -->
+        <Border Grid.Column="1" Grid.RowSpan="2" x:Name="EditorPanel" Style="{StaticResource Panel.Side}" Width="380"
+                Visibility="{Binding IsEditorOpen, Converter={StaticResource VisibleWhenTrue}}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" x:Name="EditorTitle">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource Box.Title}">
+                            <Setter Property="Text" Value="{x:Static res:SuppliersText.EditTitle}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsNew}" Value="True">
+                                    <Setter Property="Text" Value="{x:Static res:SuppliersText.New}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0">
+                    <Button Style="{StaticResource Button.Primary}" IsDefault="True" Margin="0,0,8,0" x:Name="SaveSupplierButton" Content="{x:Static res:SuppliersText.Save}" Command="{Binding SaveCommand}"/>
+                    <Button x:Name="CancelSupplierButton" Content="{x:Static res:SuppliersText.Cancel}" Command="{Binding CancelCommand}"/>
+                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Grid x:Name="SupplierEditor">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="{x:Static res:SuppliersText.Code}"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" x:Name="SupplierCodeBox" Width="160" HorizontalAlignment="Left" Text="{Binding EditCode, UpdateSourceTrigger=PropertyChanged}"
+                                 IsEnabled="{Binding IsNew}" AutomationProperties.Name="{x:Static res:SuppliersText.Code}"/>
+                        <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="{x:Static res:SuppliersText.Name}"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" x:Name="SupplierNameBox" Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:SuppliersText.Name}"/>
+                        <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="{x:Static res:SuppliersText.Email}"/>
+                        <TextBox Grid.Row="2" Grid.Column="1" x:Name="SupplierEmailBox" FlowDirection="LeftToRight" Text="{Binding EditEmail, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:SuppliersText.Email}"/>
+                        <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="{x:Static res:SuppliersText.Phone}"/>
+                        <TextBox Grid.Row="3" Grid.Column="1" x:Name="SupplierPhoneBox" FlowDirection="LeftToRight" Width="220" HorizontalAlignment="Left" Text="{Binding EditPhone, UpdateSourceTrigger=PropertyChanged}"
+                                 AutomationProperties.Name="{x:Static res:SuppliersText.Phone}"/>
+                        <TextBlock Grid.Row="4" Style="{StaticResource Label}" Text="{x:Static res:SuppliersText.Notes}" VerticalAlignment="Top"/>
+                        <TextBox Grid.Row="4" Grid.Column="1" x:Name="SupplierNotesBox" Height="70" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top"
+                                 Text="{Binding EditNotes, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:SuppliersText.Notes}"/>
+                    </Grid>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
 
-        <StackPanel Grid.Row="2" Margin="0,8,0,0">
+        <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0">
             <TextBlock x:Name="SuppliersInfoText" Text="{Binding ResultInfo}" Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap"/>
             <TextBlock x:Name="SuppliersStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap"/>
             <TextBlock x:Name="SuppliersErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap"/>

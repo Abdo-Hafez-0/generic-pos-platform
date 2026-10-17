@@ -34,10 +34,10 @@ public sealed class HostedScreensFailureTests
 
     private static string Number(decimal value) => value.ToString(CultureInfo.CurrentCulture);
 
-    private static async Task Run(ViewModelBase vm, ICommand command)
+    private static async Task Run(ViewModelBase vm, ICommand command, object? parameter = null)
     {
-        Assert.True(command.CanExecute(null), "the command was not executable");
-        command.Execute(null);
+        Assert.True(command.CanExecute(parameter), "the command was not executable");
+        command.Execute(parameter);
         for (var i = 0; i < 1000 && vm.IsBusy; i++) await Task.Delay(10);
         Assert.False(vm.IsBusy);
     }
@@ -89,16 +89,19 @@ public sealed class HostedScreensFailureTests
         var shop = await CreateShopAsync(desktop.Services, stock: 10m);
 
         var warehouses = await ShownAsync(new WarehousesViewModel(Runner(desktop.Services)));
+        warehouses.NewCommand.Execute(null);
         (warehouses.NewName, warehouses.NewCode) = ("Kiosk", "KIOSK");
         await SavingFailsPlainlyAndWritesNothingAsync(desktop, "inv_Warehouses", "INSERT", warehouses, warehouses.AddCommand);
 
         var stock = await ShownAsync(new StockViewModel(Runner(desktop.Services)));
+        stock.NewReceiptCommand.Execute(null);
         (stock.ReceiveCode, stock.ReceiveQuantity) = (shop.Sku, Number(5m));
         stock.ReceiveWarehouse ??= stock.Warehouses.Single();
         await SavingFailsPlainlyAndWritesNothingAsync(desktop, "inv_StockMovements", "INSERT", stock, stock.ReceiveCommand);
 
         await stock.OnNavigatedToAsync();
-        stock.Selected = stock.Stock.Single();
+        stock.CancelCommand.Execute(null);   // the refused receipt kept its panel open
+        stock.CorrectRowCommand.Execute(stock.Stock.Single());
         (stock.AdjustBy, stock.AdjustReason) = (Number(-1m), stock.Reasons.Single(r => r.Reason == AdjustmentReason.DamageWrite));
         await SavingFailsPlainlyAndWritesNothingAsync(desktop, "inv_StockAdjustments", "INSERT", stock, stock.AdjustCommand);
         Assert.Equal(10m, await OnHandAsync(desktop.Host, shop.ProductId));
@@ -126,6 +129,7 @@ public sealed class HostedScreensFailureTests
         await using var desktop = await OfflineDesktop.StartAsync();
 
         var prices = await ShownAsync(new PricesViewModel(Runner(desktop.Services)));
+        prices.NewListCommand.Execute(null);
         (prices.NewListCode, prices.NewListName, prices.NewListDefault) = ("RETAIL", "Retail", true);
         await SavingFailsPlainlyAndWritesNothingAsync(desktop, "pri_PriceLists", "INSERT", prices, prices.AddListCommand);
     }

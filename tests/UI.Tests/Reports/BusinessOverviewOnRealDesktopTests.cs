@@ -21,10 +21,10 @@ public sealed class BusinessOverviewOnRealDesktopTests
     private static UiActionRunner Runner(IServiceProvider services)
         => new(services.GetRequiredService<IServiceScopeFactory>(), NullLogger<UiActionRunner>.Instance);
 
-    private static async Task Run(ViewModelBase vm, ICommand command)
+    private static async Task Run(ViewModelBase vm, ICommand command, object? parameter = null)
     {
-        Assert.True(command.CanExecute(null), "the command was not executable");
-        command.Execute(null);
+        Assert.True(command.CanExecute(parameter), "the command was not executable");
+        command.Execute(parameter);
         for (var i = 0; i < 1000 && vm.IsBusy; i++) await Task.Delay(10);
         Assert.False(vm.IsBusy);
     }

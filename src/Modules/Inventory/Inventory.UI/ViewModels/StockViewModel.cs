@@ -42,6 +42,8 @@ public sealed class StockViewModel : ViewModelBase, INavigationAware
     private string _adjustBy = string.Empty;
     private ReasonChoice? _adjustReason;
     private string _adjustNotes = string.Empty;
+    private bool _isReceiving;
+    private bool _isCorrecting;
 
     public StockViewModel(IUiActionRunner runner)
     {
@@ -59,8 +61,12 @@ public sealed class StockViewModel : ViewModelBase, INavigationAware
         _adjustReason = Reasons[0];
 
         SearchCommand = Command(() => RefreshAsync(CancellationToken.None));
-        ReceiveCommand = Command(ReceiveAsync, () => !string.IsNullOrWhiteSpace(ReceiveCode) && !string.IsNullOrWhiteSpace(ReceiveQuantity));
-        AdjustCommand = Command(AdjustAsync, () => Selected is not null && !string.IsNullOrWhiteSpace(AdjustBy) && AdjustReason is not null);
+        ReceiveCommand = Command(ReceiveAsync, () => IsReceiving && !string.IsNullOrWhiteSpace(ReceiveCode) && !string.IsNullOrWhiteSpace(ReceiveQuantity));
+        AdjustCommand = Command(AdjustAsync, () => IsCorrecting && Selected is not null && !string.IsNullOrWhiteSpace(AdjustBy) && AdjustReason is not null);
+        // MISS-08c (owner's choices): "Receive stock" by the title and the row's "Correct" open the panel beside the list
+        NewReceiptCommand = Command(() => { CloseEditor(); IsReceiving = true; return Task.CompletedTask; }, () => !IsEditorOpen);
+        CorrectRowCommand = Command<StockOverviewItem>(row => { Selected = row; CloseEditor(); IsCorrecting = true; return Task.CompletedTask; }, row => !IsEditorOpen && row is not null);
+        CancelCommand = Command(() => { CloseEditor(); return Task.CompletedTask; }, () => IsEditorOpen);
     }
 
     public ObservableCollection<StockOverviewItem> Stock { get; } = [];
@@ -71,6 +77,18 @@ public sealed class StockViewModel : ViewModelBase, INavigationAware
     public ICommand SearchCommand { get; }
     public ICommand ReceiveCommand { get; }
     public ICommand AdjustCommand { get; }
+    public ICommand NewReceiptCommand { get; }
+    public ICommand CorrectRowCommand { get; }
+    public ICommand CancelCommand { get; }
+
+    /// <summary>The panel shows a stock receipt.</summary>
+    public bool IsReceiving { get => _isReceiving; private set { if (Set(ref _isReceiving, value)) Raise(nameof(IsEditorOpen)); } }
+
+    /// <summary>The panel shows a correction of the selected line.</summary>
+    public bool IsCorrecting { get => _isCorrecting; private set { if (Set(ref _isCorrecting, value)) Raise(nameof(IsEditorOpen)); } }
+
+    /// <summary>The panel beside the list is open.</summary>
+    public bool IsEditorOpen => IsReceiving || IsCorrecting;
 
     public string SearchText { get => _searchText; set => Set(ref _searchText, value); }
     public WarehouseChoice? FilterWarehouse { get => _filterWarehouse; set => Set(ref _filterWarehouse, value); }
@@ -140,8 +158,15 @@ public sealed class StockViewModel : ViewModelBase, INavigationAware
 
         if (!Accept(received)) return;
         Show(received.Value.Stock);
-        ReceiveCode = ReceiveQuantity = ReceiveReference = string.Empty;
+        CloseEditor();
         StatusMessage = string.Format(CultureInfo.CurrentCulture, InventoryText.Received, quantity, received.Value.Product.Name, warehouse.Name);
+    }
+
+    private void CloseEditor()
+    {
+        ReceiveCode = ReceiveQuantity = ReceiveReference = string.Empty;
+        AdjustBy = AdjustNotes = string.Empty;
+        IsReceiving = IsCorrecting = false;
     }
 
     private async Task AdjustAsync()
@@ -160,7 +185,7 @@ public sealed class StockViewModel : ViewModelBase, INavigationAware
 
         if (!Accept(adjusted)) return;
         Show(adjusted.Value);
-        AdjustBy = AdjustNotes = string.Empty;
+        CloseEditor();
         StatusMessage = string.Format(CultureInfo.CurrentCulture, InventoryText.Adjusted, line.ProductName, line.WarehouseName, change.ToString("+0.###;-0.###", CultureInfo.CurrentCulture));
     }
 

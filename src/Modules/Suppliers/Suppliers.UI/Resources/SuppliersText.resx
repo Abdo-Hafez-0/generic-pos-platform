@@ -28,4 +28,7 @@
   <data name="Reactivated" xml:space="preserve"><value>Supplier {0} is active again.</value></data>
   <data name="Count" xml:space="preserve"><value>Showing {0} of {1} suppliers. Search to find others.</value></data>
   <data name="NoResults" xml:space="preserve"><value>No supplier matches.</value></data>
+  <data name="EditTitle" xml:space="preserve">
+    <value>Edit supplier</value>
+  </data>
 </root>

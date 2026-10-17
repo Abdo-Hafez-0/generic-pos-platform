@@ -78,4 +78,7 @@
   <data name="StateInvalid" xml:space="preserve">
     <value>Not valid</value>
   </data>
+  <data name="LicenseHeading" xml:space="preserve">
+    <value>This installation</value>
+  </data>
 </root>

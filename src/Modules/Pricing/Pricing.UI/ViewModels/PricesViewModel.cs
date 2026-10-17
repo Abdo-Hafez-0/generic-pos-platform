@@ -38,6 +38,8 @@ public sealed class PricesViewModel : ViewModelBase, INavigationAware
     private string _newListCode = string.Empty;
     private string _newListName = string.Empty;
     private bool _newListDefault;
+    private bool _isAddingList;
+    private bool _isAddingPrice;
 
     private string _productCode = string.Empty;
     private PricingProductDto? _product;
@@ -52,12 +54,17 @@ public sealed class PricesViewModel : ViewModelBase, INavigationAware
     public PricesViewModel(IUiActionRunner runner)
     {
         _runner = runner;
-        AddListCommand = Command(AddListAsync, () => !string.IsNullOrWhiteSpace(NewListCode) && !string.IsNullOrWhiteSpace(NewListName));
-        SetDefaultCommand = Command(SetDefaultAsync, () => SelectedList is { IsActive: true, List.IsDefault: false });
-        DeactivateListCommand = Command(DeactivateListAsync, () => SelectedList is { IsActive: true });
+        AddListCommand = Command(AddListAsync, () => IsAddingList && !string.IsNullOrWhiteSpace(NewListCode) && !string.IsNullOrWhiteSpace(NewListName));
         FindCommand = Command(FindAsync, () => !string.IsNullOrWhiteSpace(ProductCode));
-        AddPriceCommand = Command(AddPriceAsync, () => Product is not null && !string.IsNullOrWhiteSpace(NewAmount));
-        DeactivatePriceCommand = Command(DeactivatePriceAsync, () => SelectedPrice is { IsActive: true });
+        AddPriceCommand = Command(AddPriceAsync, () => IsAddingPrice && Product is not null && !string.IsNullOrWhiteSpace(NewAmount));
+        // MISS-08c (owner's choices): "New price list" by the title and "New price" open the panel beside the lists; each row's "..." holds
+        // what can be done to that row
+        NewListCommand = Command(() => { CloseEditor(); IsAddingList = true; return Task.CompletedTask; }, () => !IsEditorOpen);
+        NewPriceCommand = Command(() => { CloseEditor(); IsAddingPrice = true; return Task.CompletedTask; }, () => !IsEditorOpen && Product is not null);
+        CancelCommand = Command(() => { CloseEditor(); return Task.CompletedTask; }, () => IsEditorOpen);
+        SetDefaultRowCommand = Command<PriceListRow>(row => { SelectedList = row; return SetDefaultAsync(); }, row => !IsEditorOpen && row is { IsActive: true, List.IsDefault: false });
+        DeactivateListRowCommand = Command<PriceListRow>(row => { SelectedList = row; return DeactivateListAsync(); }, row => !IsEditorOpen && row is { IsActive: true });
+        DeactivatePriceRowCommand = Command<PriceRow>(row => { SelectedPrice = row; return DeactivatePriceAsync(); }, row => !IsEditorOpen && row is { IsActive: true });
     }
 
     public ObservableCollection<PriceListRow> PriceLists { get; } = [];
@@ -65,11 +72,23 @@ public sealed class PricesViewModel : ViewModelBase, INavigationAware
     public ObservableCollection<PriceRow> Prices { get; } = [];
 
     public ICommand AddListCommand { get; }
-    public ICommand SetDefaultCommand { get; }
-    public ICommand DeactivateListCommand { get; }
     public ICommand FindCommand { get; }
     public ICommand AddPriceCommand { get; }
-    public ICommand DeactivatePriceCommand { get; }
+    public ICommand NewListCommand { get; }
+    public ICommand NewPriceCommand { get; }
+    public ICommand CancelCommand { get; }
+    public ICommand SetDefaultRowCommand { get; }
+    public ICommand DeactivateListRowCommand { get; }
+    public ICommand DeactivatePriceRowCommand { get; }
+
+    /// <summary>The panel shows a new price list.</summary>
+    public bool IsAddingList { get => _isAddingList; private set { if (Set(ref _isAddingList, value)) Raise(nameof(IsEditorOpen)); } }
+
+    /// <summary>The panel shows a new price for the product found.</summary>
+    public bool IsAddingPrice { get => _isAddingPrice; private set { if (Set(ref _isAddingPrice, value)) Raise(nameof(IsEditorOpen)); } }
+
+    /// <summary>The panel beside the lists is open.</summary>
+    public bool IsEditorOpen => IsAddingList || IsAddingPrice;
 
     public PriceListRow? SelectedList { get => _selectedList; set => Set(ref _selectedList, value); }
     public string NewListCode { get => _newListCode; set => Set(ref _newListCode, value); }
@@ -105,13 +124,20 @@ public sealed class PricesViewModel : ViewModelBase, INavigationAware
         if (Product is not null) await ReloadPricesAsync(cancellationToken);
     });
 
+    private void CloseEditor()
+    {
+        (NewListCode, NewListName, NewListDefault) = (string.Empty, string.Empty, false);
+        (NewAmount, NewMinimumQuantity, NewUntil) = (string.Empty, "1", null);
+        IsAddingList = IsAddingPrice = false;
+    }
+
     private async Task AddListAsync()
     {
         var (code, name, makeDefault) = (NewListCode.Trim(), NewListName.Trim(), NewListDefault);
         var added = await _runner.RunAsync(async (scope, ct) => Drop(await scope.Get<CreatePriceListCommandHandler>().HandleAsync(new CreatePriceListCommand(code, name, makeDefault), ct)));
         if (!Accept(added)) return;
 
-        (NewListCode, NewListName, NewListDefault) = (string.Empty, string.Empty, false);
+        CloseEditor();
         await ReloadListsAsync(CancellationToken.None);
         StatusMessage = string.Format(CultureInfo.CurrentCulture, PricingText.ListAdded, code.ToUpperInvariant());
     }
@@ -163,7 +189,7 @@ public sealed class PricesViewModel : ViewModelBase, INavigationAware
         var added = await _runner.RunAsync(async (scope, ct) => Drop(await scope.Get<CreatePriceCommandHandler>().HandleAsync(command, ct)));
         if (!Accept(added)) return;
 
-        (NewAmount, NewMinimumQuantity, NewUntil) = (string.Empty, "1", null);
+        CloseEditor();
         await ReloadPricesAsync(CancellationToken.None);
         StatusMessage = PricingText.PriceAdded;
     }

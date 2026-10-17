@@ -51,4 +51,10 @@
   <data name="RowReactivate" xml:space="preserve">
     <value>Reactivate</value>
   </data>
+  <data name="PanelCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="PanelSave" xml:space="preserve">
+    <value>Save</value>
+  </data>
 </root>

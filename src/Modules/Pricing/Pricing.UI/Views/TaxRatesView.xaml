@@ -5,6 +5,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:res="clr-namespace:Pricing.UI.Resources"
              xmlns:vm="clr-namespace:Pricing.UI.ViewModels"
+             xmlns:screens="clr-namespace:Platform.Presentation.Screens;assembly=Platform.Presentation"
+             xmlns:pres="clr-namespace:Platform.Presentation.Resources;assembly=Platform.Presentation"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:TaxRatesViewModel}">
 
@@ -47,76 +49,125 @@
             <Setter Property="IsReadOnly" Value="True"/>
         </Style>
         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"/>
+
+        <!-- MISS-08c: the main action, shown by the shell at the end of the title row -->
+        <Button x:Key="{x:Static screens:ScreenParts.HeaderActions}" x:Name="NewTaxRateButton" Style="{StaticResource Button.Primary}" Margin="0"
+                Content="{x:Static res:PricingText.NewTaxRate}" Command="{Binding NewCommand}"/>
     </UserControl.Resources>
 
+    <!-- MISS-08c (owner's choices): the plain list of rates with Edit and "⋯" on each row, a panel beside it for a new or changed rate,
+         and the rate of one product in a white box below -->
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="160"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- the rates -->
-        <StackPanel Grid.Row="0">
-            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:PricingText.TaxRatesHeading}"/>
-            <TextBlock Text="{x:Static res:PricingText.TaxIncludedHint}" Foreground="{DynamicResource Brush.TextSubtle}" FontSize="11" Margin="0,0,0,6" TextWrapping="Wrap"/>
-            <WrapPanel Margin="0,0,0,6">
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.Code}"/>
-                <TextBox x:Name="TaxCodeBox" Width="90" Text="{Binding NewCode, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.Code}"/>
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.Name}"/>
-                <TextBox x:Name="TaxNameBox" Width="160" Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.Name}"/>
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.TaxPercent}"/>
-                <TextBox x:Name="TaxPercentBox" Width="70" Text="{Binding NewPercent, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.TaxPercent}"/>
-                <CheckBox x:Name="TaxDefaultBox" Content="{x:Static res:PricingText.MakeDefault}" IsChecked="{Binding NewDefault}"/>
-                <Button x:Name="AddTaxRateButton" Content="{x:Static res:PricingText.AddTaxRate}" Command="{Binding AddCommand}"/>
-            </WrapPanel>
-        </StackPanel>
-        <DataGrid Grid.Row="1" x:Name="TaxRateGrid" ItemsSource="{Binding Rates}" SelectedItem="{Binding SelectedRate}" AutomationProperties.Name="{x:Static res:PricingText.TaxRatesHeading}">
+        <TextBlock Grid.Row="0" Text="{x:Static res:PricingText.TaxIncludedHint}" Foreground="{DynamicResource Brush.TextSubtle}" FontSize="12" Margin="0,0,0,10" TextWrapping="Wrap"/>
+
+        <DataGrid Grid.Row="1" x:Name="TaxRateGrid" ItemsSource="{Binding Rates}" SelectedItem="{Binding SelectedRate}" IsReadOnly="True" MinHeight="120"
+                  AutomationProperties.Name="{x:Static res:PricingText.TaxRatesHeading}">
+            <DataGrid.InputBindings>
+                <MouseBinding Gesture="LeftDoubleClick" Command="{Binding EditRowCommand}" CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+            </DataGrid.InputBindings>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="{x:Static res:PricingText.Code}" Binding="{Binding Rate.Code}" Width="110" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:PricingText.Name}" Binding="{Binding Rate.Name}" Width="*" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:PricingText.TaxPercent}" Binding="{Binding PercentText}" Width="90" ElementStyle="{StaticResource Number}"/>
                 <DataGridTextColumn Header="{x:Static res:PricingText.Default}" Binding="{Binding DefaultText}" Width="80" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:PricingText.Status}" Binding="{Binding StatusText}" Width="90" ElementStyle="{StaticResource Cell}"/>
+                <!-- the row's actions: Edit, and "⋯" for the rest -->
+                <DataGridTemplateColumn Width="Auto">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="4,0">
+                                <Button x:Name="RowEditButton" Style="{StaticResource Button.Link}" Content="{x:Static pres:PresentationText.RowEdit}"
+                                        Command="{Binding DataContext.EditRowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/>
+                                <Button x:Name="RowMenuButton" Style="{StaticResource Button.RowMenu}" ToolTip="{x:Static pres:PresentationText.RowMoreActions}"
+                                        AutomationProperties.Name="{x:Static pres:PresentationText.RowMoreActions}"
+                                        Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=DataGrid}}">
+                                    <Button.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem x:Name="RowSetDefaultItem" Header="{x:Static res:PricingText.SetDefaultTax}" CommandParameter="{Binding}"
+                                                      Command="{Binding PlacementTarget.Tag.SetDefaultRowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                            <MenuItem x:Name="RowDeactivateItem" Header="{x:Static pres:PresentationText.RowDeactivate}" CommandParameter="{Binding}"
+                                                      Command="{Binding PlacementTarget.Tag.DeactivateRowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                </Button>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
 
-        <!-- change the selected rate -->
-        <WrapPanel Grid.Row="2" Margin="0,8,0,0">
-            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.Name}"/>
-            <TextBox x:Name="EditTaxNameBox" Width="160" Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.EditTaxName}"/>
-            <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.TaxPercent}"/>
-            <TextBox x:Name="EditTaxPercentBox" Width="70" Text="{Binding EditPercent, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.EditTaxPercent}"/>
-            <Button x:Name="UpdateTaxRateButton" Content="{x:Static res:PricingText.ChangeTaxRate}" Command="{Binding UpdateCommand}"/>
-            <Button x:Name="SetDefaultTaxButton" Content="{x:Static res:PricingText.SetDefaultTax}" Command="{Binding SetDefaultCommand}"/>
-            <Button x:Name="DeactivateTaxButton" Content="{x:Static res:PricingText.DeactivateTaxRate}" Command="{Binding DeactivateCommand}"/>
-        </WrapPanel>
+        <!-- a new rate, or the selected one, beside the list -->
+        <Border Grid.Column="1" Grid.Row="0" Grid.RowSpan="3" x:Name="EditorPanel" Style="{StaticResource Panel.Side}" Width="320"
+                Visibility="{Binding IsEditorOpen, Converter={StaticResource VisibleWhenTrue}}">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,14,0,0">
+                    <Button x:Name="AddTaxRateButton" Style="{StaticResource Button.Primary}" Content="{x:Static res:PricingText.AddTaxRate}" Command="{Binding AddCommand}" Margin="0,0,8,0"
+                            Visibility="{Binding IsAdding, Converter={StaticResource VisibleWhenTrue}}"/>
+                    <Button x:Name="UpdateTaxRateButton" Style="{StaticResource Button.Primary}" Content="{x:Static pres:PresentationText.PanelSave}" Command="{Binding UpdateCommand}" Margin="0,0,8,0"
+                            Visibility="{Binding IsEditing, Converter={StaticResource VisibleWhenTrue}}"/>
+                    <Button x:Name="CancelTaxRateButton" Content="{x:Static pres:PresentationText.PanelCancel}" Command="{Binding CancelCommand}"/>
+                </StackPanel>
+                <StackPanel>
+                    <!-- a new rate -->
+                    <StackPanel Visibility="{Binding IsAdding, Converter={StaticResource VisibleWhenTrue}}">
+                        <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:PricingText.NewTaxRate}"/>
+                        <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:PricingText.Code}" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TaxCodeBox" Width="120" HorizontalAlignment="Left" Text="{Binding NewCode, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.Code}"/>
+                        <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:PricingText.Name}"/>
+                        <TextBox x:Name="TaxNameBox" Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.Name}"/>
+                        <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:PricingText.TaxPercent}"/>
+                        <TextBox x:Name="TaxPercentBox" Width="100" HorizontalAlignment="Left" Text="{Binding NewPercent, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.TaxPercent}"/>
+                        <CheckBox x:Name="TaxDefaultBox" Content="{x:Static res:PricingText.MakeDefault}" IsChecked="{Binding NewDefault}" Margin="0,12,0,0"/>
+                    </StackPanel>
+                    <!-- the selected rate -->
+                    <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource VisibleWhenTrue}}">
+                        <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:PricingText.EditTaxRateTitle}"/>
+                        <TextBlock Text="{Binding SelectedRate.Rate.Code}" FontWeight="SemiBold"/>
+                        <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:PricingText.Name}"/>
+                        <TextBox x:Name="EditTaxNameBox" Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.EditTaxName}"/>
+                        <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:PricingText.TaxPercent}"/>
+                        <TextBox x:Name="EditTaxPercentBox" Width="100" HorizontalAlignment="Left" Text="{Binding EditPercent, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.EditTaxPercent}"/>
+                    </StackPanel>
+                </StackPanel>
+            </DockPanel>
+        </Border>
 
         <!-- the rate of one product -->
-        <StackPanel Grid.Row="3" Margin="0,16,0,0">
-            <TextBlock Style="{StaticResource Heading}" Text="{x:Static res:PricingText.ProductTaxHeading}"/>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.ProductCode}"/>
-                <TextBox x:Name="TaxProductBox" Width="180" Text="{Binding ProductCode, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PricingText.ProductCode}">
-                    <TextBox.InputBindings>
-                        <KeyBinding Key="Enter" Command="{Binding FindCommand}"/>
-                    </TextBox.InputBindings>
-                </TextBox>
-                <Button x:Name="FindTaxProductButton" Content="{x:Static res:PricingText.Find}" Command="{Binding FindCommand}"/>
+        <Border Grid.Row="2" Style="{StaticResource Box}" Margin="0,12,0,0">
+            <StackPanel>
+                <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:PricingText.ProductTaxHeading}"/>
+                <StackPanel Orientation="Horizontal">
+                    <TextBox x:Name="TaxProductBox" Width="220" Text="{Binding ProductCode, UpdateSourceTrigger=PropertyChanged}" Tag="{x:Static res:PricingText.ProductCode}"
+                             AutomationProperties.Name="{x:Static res:PricingText.ProductCode}">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding FindCommand}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+                    <Button x:Name="FindTaxProductButton" Content="{x:Static res:PricingText.Find}" Command="{Binding FindCommand}" Margin="8,0,0,0"/>
+                </StackPanel>
+                <TextBlock x:Name="ProductTaxText" Text="{Binding ProductTaxText}" Foreground="{DynamicResource Brush.Success}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding HasProduct, Converter={StaticResource VisibleWhenTrue}}">
+                    <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.ProductTaxChoice}"/>
+                    <ComboBox x:Name="ProductTaxBox" Width="280" Margin="0,0,10,0" ItemsSource="{Binding Choices}" SelectedItem="{Binding ProductChoice}" DisplayMemberPath="Text"
+                              AutomationProperties.Name="{x:Static res:PricingText.ProductTaxChoice}"/>
+                    <Button x:Name="SaveProductTaxButton" Content="{x:Static res:PricingText.SaveProductTax}" Command="{Binding SaveProductCommand}"/>
+                </StackPanel>
             </StackPanel>
-            <TextBlock x:Name="ProductTaxText" Text="{Binding ProductTaxText}" Foreground="{DynamicResource Brush.Success}" Margin="0,6,0,0" TextWrapping="Wrap"/>
-            <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Visibility="{Binding HasProduct, Converter={StaticResource VisibleWhenTrue}}">
-                <TextBlock Style="{StaticResource Label}" Text="{x:Static res:PricingText.ProductTaxChoice}"/>
-                <ComboBox x:Name="ProductTaxBox" Width="280" Margin="0,0,10,0" ItemsSource="{Binding Choices}" SelectedItem="{Binding ProductChoice}" DisplayMemberPath="Text"
-                          AutomationProperties.Name="{x:Static res:PricingText.ProductTaxChoice}"/>
-                <Button x:Name="SaveProductTaxButton" Content="{x:Static res:PricingText.SaveProductTax}" Command="{Binding SaveProductCommand}"/>
-            </StackPanel>
-        </StackPanel>
+        </Border>
 
-        <StackPanel Grid.Row="5" Margin="0,8,0,0">
+        <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Margin="0,4,0,0">
             <TextBlock x:Name="TaxStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap"/>
             <TextBlock x:Name="TaxErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap"/>
         </StackPanel>

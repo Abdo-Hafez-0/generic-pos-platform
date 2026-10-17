@@ -8,7 +8,7 @@
         A screen that needs its own spacing writes  <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">  - never a new look.
         Keyed styles: Button.Primary (the one main action of a screen), Button.Checkout (the till), Button.Navigation (the shell's menu).
         MISS-08c screen patterns (owner's choices): Button.Link (a row's "Edit"), Button.RowMenu (a row's "⋯" with its ContextMenu),
-        Box + Box.Title (a white box grouping settings or a list), Panel.Side (the edit panel beside a list).
+        Box + Box.Title (a white box grouping settings or a list), Panel.Side (the edit panel beside a list), Label.Field (a label above a field).
     -->
 
     <FontFamily x:Key="Font.Ui">Segoe UI</FontFamily>
@@ -179,6 +179,15 @@
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
         <Setter Property="Margin" Value="0,0,0,10"/>
+    </Style>
+
+    <!-- a field's label in a panel or box: above the field, quiet -->
+    <Style x:Key="Label.Field" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Ui}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}"/>
+        <Setter Property="Margin" Value="0,10,0,4"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
     <!-- the edit panel beside a list (end side; mirrored in Arabic with the layout) -->

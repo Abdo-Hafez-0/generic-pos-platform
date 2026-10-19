@@ -1,8 +1,7 @@
 # MISS-11 - Electronic receipts for Egypt (ETA) and Saudi Arabia (ZATCA): plan
 
-Status: PLAN (2026-10-19). Owner's decision 2026-10-19: Matjar is sold in **both Egypt and Saudi Arabia**, so MISS-11 covers the
-Egyptian Tax Authority's B2C e-receipt and ZATCA's e-invoicing phase 2 (integration). Nothing is built yet; the open questions at the end
-are settled with the owner before coding. Facts marked *(to confirm)* must be checked against the authorities' current specifications or a
+Status: PLAN, decisions settled (2026-10-19). Owner's decision 2026-10-19: Matjar is sold in **both Egypt and Saudi Arabia**, so MISS-11 covers the
+Egyptian Tax Authority's B2C e-receipt and ZATCA's e-invoicing phase 2 (integration). Nothing is built yet; the owner's decisions are in section 4. Facts marked *(to confirm)* must be checked against the authorities' current specifications or a
 tax adviser before release.
 
 ## 1. What each country requires (from the official documentation)
@@ -75,22 +74,22 @@ authority's lists.
 
 - **11a Shared fiscal core**: the Fiscal module, country choice, shop tax details, per-till chain and counter, documents stored in the sale's
   transaction, the outbox and sender, states and warnings, the Fiscal screen (without a country part it does nothing).
-- **11b Product and tax codes**: authority codes on products, units and tax rates; a check that lists what is missing.
-- **11c Saudi Arabia (ZATCA)**: UBL XML for simplified invoices, signing, ICV/PIH chain, the 9-field QR on the receipt, onboarding of a till
-  (OTP, CSR, compliance checks, production CSID, renewal), reporting; tested on the simulation environment.
-- **11d Egypt (ETA)**: the receipt JSON, UUID chain, the QR on the receipt, POS registration (client ID/secret, token), batch submission and
-  status, late-submission handling; tested on the pre-production environment.
+- **11b Product and tax codes**: authority codes on products, units and tax rates (Egypt's first); a check that lists what is missing.
+- **11c Egypt (ETA)** - first (owner): the receipt JSON, UUID chain, the QR on the receipt, POS registration (client ID/secret, token), batch
+  submission and status, late-submission handling; built against the published SDK and samples, tested on the pre-production environment.
+- **11d Saudi Arabia (ZATCA)**: UBL XML for simplified invoices, signing, ICV/PIH chain, the 9-field QR on the receipt, onboarding of a till
+  (OTP, CSR, compliance checks, production CSID, renewal), reporting; built against the published specification and samples, tested on the
+  simulation environment.
 - **11e Returns**: fiscal returns / credit notes from MISS-10 in both countries.
 - **11f Release check**: a real end-to-end run in both test environments, a review by a tax adviser in each country, an owner's guide for
   registering a shop and its tills.
 
-## 4. Open questions for the owner (before 11a)
+## 4. Owner's decisions (2026-10-19)
 
-1. **Which country first** (11c Saudi or 11d Egypt)? Saudi is the larger piece (XML signing, onboarding); Egypt is simpler but needs
-   product item codes. Building the shared core first serves both.
-2. **B2B invoices**: only shop sales (Egypt B2C receipts, Saudi simplified invoices) for now, or also full tax invoices to businesses
-   (Egypt e-invoice, Saudi standard invoice with clearance)? Recommended: shop sales first, B2B later.
-3. **Test accounts**: the ETA pre-production and ZATCA simulation need a taxpayer account (a test or a real shop). Who registers them
-   (the owner's company, or a first customer)?
-4. **Order with MISS-10 (returns)**: recommended MISS-10 first, then MISS-11 (returns need fiscal return documents).
-5. **Tax adviser**: will the owner have the plan and the finished receipts checked by a tax adviser in each country before selling?
+1. **Egypt first**: after the shared core (11a, 11b), the ETA e-receipt (11c), then ZATCA (11d).
+2. **Shop sales only**: Egypt B2C e-receipts and Saudi simplified invoices. Full tax invoices to businesses (Egypt e-invoice, Saudi standard
+   invoice with clearance) are a later item (LATER-11).
+3. **Test accounts decided later**: build against the published specifications and samples first; the ETA pre-production and ZATCA
+   simulation accounts are arranged before the release check (11f).
+4. **MISS-10 first**: returns and refunds are built before MISS-11 (fiscal returns need them).
+5. **A tax adviser in each country** checks the plan and the finished receipts before Matjar is sold there.

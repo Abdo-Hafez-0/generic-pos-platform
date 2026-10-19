@@ -72,6 +72,8 @@
         <!-- MISS-08c: who sells and "Close till" stand by the title (the shell shows them), so the sale gets the height of that row -->
         <StackPanel x:Key="{x:Static screens:ScreenParts.HeaderActions}" Orientation="Horizontal">
             <TextBlock x:Name="CashierText" Text="{Binding CashierText}" Style="{StaticResource Muted}" FontSize="14" Margin="0,0,14,0"/>
+            <!-- MISS-10b: a return of a completed sale (by its receipt number) -->
+            <Button x:Name="StartReturnButton" Content="{x:Static res:PosText.ReturnStart}" Margin="0,0,8,0" Command="{Binding StartReturnCommand}"/>
             <Button x:Name="CloseSessionButton" Content="{x:Static res:PosText.CloseSession}" Margin="0"
                     Command="{Binding CloseSessionCommand}"
                     Visibility="{Binding HasOpenSession, Converter={StaticResource VisibleWhenTrue}}"/>
@@ -88,7 +90,7 @@
 
         <!-- Until a till is open: where from -->
         <Border Grid.Row="1" x:Name="SessionPanel" Style="{StaticResource Panel}" HorizontalAlignment="Left" Margin="0,0,0,12" Padding="20"
-                Visibility="{Binding NeedsSession, Converter={StaticResource VisibleWhenTrue}}">
+                Visibility="{Binding ShowsWarehouseChoice, Converter={StaticResource VisibleWhenTrue}}">
             <StackPanel>
                 <TextBlock Text="{x:Static res:PosText.Warehouse}" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
                 <StackPanel Orientation="Horizontal">
@@ -103,7 +105,7 @@
         </Border>
 
         <!-- The sale in progress: the sale on the start side, the totals and payment on the end side -->
-        <Grid Grid.Row="2" x:Name="SalePanel" Visibility="{Binding HasOpenSession, Converter={StaticResource VisibleWhenTrue}}">
+        <Grid Grid.Row="2" x:Name="SalePanel" Visibility="{Binding IsSelling, Converter={StaticResource VisibleWhenTrue}}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" MinWidth="420"/>
                 <ColumnDefinition Width="16"/>
@@ -311,6 +313,138 @@
             </Border>
         </Grid>
 
+        <!--
+            MISS-10b RETURN MODE (owner's choices 2026-10-19): the sale area becomes the return - the sale's lines with − / + and Shelf | Damaged on
+            the start side, the refund with its method, the reason and "Give refund" on the end side. The sale in progress is kept meanwhile.
+        -->
+        <Grid Grid.Row="1" Grid.RowSpan="2" x:Name="ReturnPanel" Visibility="{Binding IsReturnMode, Converter={StaticResource VisibleWhenTrue}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- which sale: the receipt number until it is found, then its title -->
+            <DockPanel Grid.Row="0" Margin="0,0,0,12">
+                <Button x:Name="BackToSellingButton" DockPanel.Dock="Right" Content="{x:Static res:PosText.BackToSelling}" Margin="10,0,0,0" Command="{Binding BackToSellingCommand}"/>
+                <StackPanel x:Name="FindReturnPanel" Orientation="Horizontal" Visibility="{Binding IsFindingReturn, Converter={StaticResource VisibleWhenTrue}}">
+                    <TextBlock Text="{x:Static res:PosText.ReceiptNumber}" Style="{StaticResource Muted}" Margin="0,0,10,0"/>
+                    <TextBox x:Name="ReceiptNumberBox" Width="260" MinHeight="52" FontSize="18" Text="{Binding ReceiptNumberText, UpdateSourceTrigger=PropertyChanged}"
+                             Tag="S-1A2B3C4D" FlowDirection="LeftToRight" AutomationProperties.Name="{x:Static res:PosText.ReceiptNumber}" ToolTip="{x:Static res:PosText.ReceiptNumberHint}">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding FindReturnCommand}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+                    <Button x:Name="FindReturnButton" Content="{x:Static res:PosText.FindSale}" Margin="10,0,0,0" MinHeight="52" Style="{StaticResource Touch.Primary}"
+                            Command="{Binding FindReturnCommand}"/>
+                </StackPanel>
+                <StackPanel Visibility="{Binding HasReturnSale, Converter={StaticResource VisibleWhenTrue}}">
+                    <TextBlock x:Name="ReturnTitleText" Text="{Binding ReturnTitle}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="ReturnCustomerText" Text="{Binding ReturnCustomerText}" Style="{StaticResource Muted}" FontSize="14" Margin="0,2,0,0"/>
+                </StackPanel>
+            </DockPanel>
+
+            <Grid Grid.Row="1" x:Name="ReturnSalePanel" Visibility="{Binding HasReturnSale, Converter={StaticResource VisibleWhenTrue}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="420"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="340"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- ======== the sale's lines -->
+                <Border Grid.Column="0" Style="{StaticResource Panel}" Padding="0">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource Brush.Line}" BorderThickness="0,0,0,1" Background="{DynamicResource Brush.Surface}"
+                                CornerRadius="10,10,0,0" Padding="16,10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="110"/>
+                                    <ColumnDefinition Width="52"/>
+                                    <ColumnDefinition Width="52"/>
+                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="160"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{x:Static res:PosText.Product}" Style="{StaticResource Muted}"/>
+                                <TextBlock Grid.Column="1" Text="{x:Static res:PosText.ReturnSold}" Style="{StaticResource Muted}" TextAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="{x:Static res:PosText.ReturnLeft}" Style="{StaticResource Muted}" TextAlignment="Center"/>
+                                <TextBlock Grid.Column="3" Text="{x:Static res:PosText.ReturnQuantity}" Style="{StaticResource Muted}" TextAlignment="Center"/>
+                                <TextBlock Grid.Column="4" Text="{x:Static res:PosText.ReturnGoes}" Style="{StaticResource Muted}" TextAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <StackPanel DockPanel.Dock="Bottom" Margin="16,10,16,14">
+                            <Button x:Name="ReturnEverythingButton" Content="{x:Static res:PosText.ReturnEverything}" HorizontalAlignment="Left" Command="{Binding ReturnEverythingCommand}"/>
+                            <TextBlock x:Name="ReturnNothingLeftText" Text="{x:Static res:PosText.ReturnNothingLeft}" Foreground="{DynamicResource Brush.Warning}" FontSize="14" Margin="0,10,0,0"
+                                       TextWrapping="Wrap" Visibility="{Binding ReturnNothingLeft, Converter={StaticResource VisibleWhenTrue}}"/>
+                            <TextBlock x:Name="ReturnLateText" Text="{Binding ReturnLateText}" Foreground="{DynamicResource Brush.Warning}" FontSize="14" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                            <ItemsControl x:Name="ReturnLinesList" ItemsSource="{Binding ReturnLines}" AutomationProperties.Name="{x:Static res:PosText.ReturnQuantity}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{DynamicResource Brush.Line}" BorderThickness="0,0,0,1" Padding="16,6" MinHeight="60"
+                                                AutomationProperties.Name="{Binding ProductName}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" MinWidth="110"/>
+                                                    <ColumnDefinition Width="52"/>
+                                                    <ColumnDefinition Width="52"/>
+                                                    <ColumnDefinition Width="160"/>
+                                                    <ColumnDefinition Width="160"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding ProductName}" FontSize="16" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,6,0"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding SoldText}" FontSize="16" VerticalAlignment="Center" TextAlignment="Center"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding LeftText}" FontSize="16" VerticalAlignment="Center" TextAlignment="Center"/>
+                                                <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Center"
+                                                            Visibility="{Binding CanReturn, Converter={StaticResource VisibleWhenTrue}}">
+                                                    <Button x:Name="FewerButton" Content="−" MinWidth="44" Padding="0" FontSize="20" Command="{Binding FewerCommand}"
+                                                            AutomationProperties.Name="{x:Static res:PosText.ReturnFewer}" ToolTip="{x:Static res:PosText.ReturnFewer}"/>
+                                                    <TextBox x:Name="ReturnQuantityBox" Width="56" Margin="4,0" FontSize="18" HorizontalContentAlignment="Center"
+                                                             Text="{Binding QuantityText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{x:Static res:PosText.ReturnQuantity}"/>
+                                                    <Button x:Name="MoreButton" Content="+" MinWidth="44" Padding="0" FontSize="20" Command="{Binding MoreCommand}"
+                                                            AutomationProperties.Name="{x:Static res:PosText.ReturnMore}" ToolTip="{x:Static res:PosText.ReturnMore}"/>
+                                                </StackPanel>
+                                                <Border Grid.Column="4" Style="{StaticResource Segments}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                        Visibility="{Binding CanReturn, Converter={StaticResource VisibleWhenTrue}}">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <RadioButton x:Name="ShelfChoice" Style="{StaticResource Segment}" MinHeight="40" Padding="10,6" FontSize="14"
+                                                                     Content="{x:Static res:PosText.ReturnShelf}" IsChecked="{Binding GoesToShelf}"/>
+                                                        <RadioButton x:Name="DamagedChoice" Style="{StaticResource Segment}" MinHeight="40" Padding="10,6" FontSize="14"
+                                                                     Content="{x:Static res:PosText.ReturnDamaged}" IsChecked="{Binding IsDamaged}"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <TextBlock Grid.Column="3" Grid.ColumnSpan="2" Text="{x:Static res:PosText.ReturnAlreadyReturned}" Style="{StaticResource Muted}" FontSize="14"
+                                                           TextAlignment="Center" Visibility="{Binding IsFullyReturned, Converter={StaticResource VisibleWhenTrue}}"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+
+                <!-- ======== the refund -->
+                <Border Grid.Column="2" Style="{StaticResource Panel}">
+                    <DockPanel LastChildFill="False">
+                        <DockPanel DockPanel.Dock="Top">
+                            <TextBlock x:Name="RefundTotalText" DockPanel.Dock="Right" Text="{Binding RefundTotal, StringFormat=N2}" FontSize="34" FontWeight="SemiBold"/>
+                            <TextBlock Text="{x:Static res:PosText.RefundTitle}" FontSize="16" FontWeight="SemiBold"/>
+                        </DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="{x:Static res:PosText.RefundBy}" Style="{StaticResource Label.Field}" FontSize="13" Margin="0,16,0,4"/>
+                        <ComboBox DockPanel.Dock="Top" x:Name="RefundMethodBox" ItemsSource="{Binding PaymentMethods}" SelectedItem="{Binding RefundMethod}"
+                                  DisplayMemberPath="Text" AutomationProperties.Name="{x:Static res:PosText.RefundBy}"/>
+                        <TextBox DockPanel.Dock="Top" x:Name="RefundNoteBox" Margin="0,8,0,0" Text="{Binding RefundNote, UpdateSourceTrigger=PropertyChanged}"
+                                 Tag="{x:Static res:PosText.RefundNote}" AutomationProperties.Name="{x:Static res:PosText.RefundNote}"
+                                 Visibility="{Binding RefundNeedsNote, Converter={StaticResource VisibleWhenTrue}}"/>
+                        <TextBlock DockPanel.Dock="Top" Text="{x:Static res:PosText.ReturnReason}" Style="{StaticResource Label.Field}" FontSize="13" Margin="0,14,0,4"/>
+                        <TextBox DockPanel.Dock="Top" x:Name="ReturnReasonBox" Text="{Binding ReturnReason, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"
+                                 MinHeight="72" VerticalContentAlignment="Top" AutomationProperties.Name="{x:Static res:PosText.ReturnReason}"/>
+                        <Button DockPanel.Dock="Bottom" x:Name="GiveRefundButton" Content="{x:Static res:PosText.GiveRefund}" Style="{StaticResource Button.Checkout}"
+                                MinHeight="64" FontSize="19" HorizontalAlignment="Stretch" Margin="0,14,0,0" Command="{Binding GiveRefundCommand}"/>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
         <!-- What happened -->
         <StackPanel Grid.Row="3" Margin="0,10,0,0">
             <!-- MISS-07c: today's and yesterday's sales of this till, to print a receipt again -->
@@ -330,6 +464,7 @@
                     </DataGrid>
                     <WrapPanel Margin="0,8,0,0">
                         <Button x:Name="ReprintSelectedButton" Content="{x:Static res:PosText.ReprintSelected}" Style="{StaticResource Touch.Primary}" Command="{Binding ReprintSelectedCommand}"/>
+                        <Button x:Name="ReturnRecentButton" Content="{x:Static res:PosText.ReturnRecent}" Margin="8,0,0,0" Command="{Binding ReturnRecentCommand}"/>
                         <Button x:Name="HideRecentButton" Content="{x:Static res:PosText.CloseRecent}" Margin="8,0,0,0" Command="{Binding HideRecentCommand}"/>
                     </WrapPanel>
                 </StackPanel>

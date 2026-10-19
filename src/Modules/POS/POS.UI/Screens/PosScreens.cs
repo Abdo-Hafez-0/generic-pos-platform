@@ -19,6 +19,7 @@ public sealed class PosScreens : IScreenProvider
             ViewType: typeof(PosView),
             ViewModelType: typeof(PosViewModel),
             RequiredCapability: POSCapabilities.CreateSale,
-            Order: 0),
+            Order: 0,
+            Handles: [ScreenRequests.ReturnSale]),   // MISS-10b: Sales history's "Return" opens the till's return mode
     ];
 }

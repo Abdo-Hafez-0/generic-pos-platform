@@ -69,6 +69,8 @@ public sealed class PosTestDatabase : IAsyncDisposable
         services.AddSingleton<IStockAvailabilityChecker>(inventory);
         services.AddSingleton<IStockIssueService>(inventory);
         services.AddSingleton<IInventoryReader>(inventory);
+        services.AddSingleton<IStockReceiptService>(inventory);   // MISS-10: returns put items back
+        services.AddSingleton<ISalesReader, NoSalesReader>();     // MISS-10: the refund path reads sales (tested in Integration.Tests)
         services.AddSingleton<ISalesService>(sales);
         if (priceResolver is not null) services.AddSingleton(priceResolver);   // OPTIONAL integration
         if (paymentService is not null) services.AddSingleton(paymentService); // OPTIONAL integration
@@ -105,6 +107,8 @@ public sealed class PosTestDatabase : IAsyncDisposable
         services.AddTransient<GetCurrentCartQueryHandler>();
         services.AddTransient<GetOpenSessionForCashierQueryHandler>();
         services.AddTransient<GetSaleWarehousesQueryHandler>();
+        services.AddTransient<RefundSaleCommandHandler>();   // MISS-10 (behind IPOSService.RefundSaleAsync)
+        services.AddTransient<ReturnableSaleQueryHandler>();   // MISS-10b
 
         var provider = services.BuildServiceProvider();
 
@@ -155,8 +159,14 @@ public sealed class StubCatalog : IProductLookup, IProductBarcodeResolver
 }
 
 /// <summary>Stub of Inventory.Contracts: stock availability + stock issue + the warehouse list the cashier screen offers.</summary>
-public sealed class StubInventory : IStockAvailabilityChecker, IStockIssueService, IInventoryReader
+public sealed class StubInventory : IStockAvailabilityChecker, IStockIssueService, IInventoryReader, IStockReceiptService
 {
+    public Task<ReceiveStockResult> ReceiveStockAsync(Guid catalogProductId, Guid warehouseId, decimal quantity, string? reference = null, CancellationToken cancellationToken = default)
+    {
+        _onHand[catalogProductId] = OnHand(catalogProductId) + quantity;
+        return Task.FromResult(ReceiveStockResult.Success(Guid.NewGuid()));
+    }
+
     public List<WarehouseDto> Warehouses { get; } = [];
 
     public Task<IReadOnlyList<WarehouseDto>> GetAllWarehousesAsync(CancellationToken cancellationToken = default)
@@ -195,6 +205,16 @@ public sealed class StubInventory : IStockAvailabilityChecker, IStockIssueServic
         Issued.Add((catalogProductId, warehouseId, quantity, reference));
         return Task.FromResult(IssueStockResult.Success(Guid.NewGuid()));
     }
+}
+
+/// <summary>MISS-10: these tests sell; returns read completed sales through the real Sales module (Integration.Tests RefundIntegrationTests).</summary>
+public sealed class NoSalesReader : ISalesReader
+{
+    public Task<SaleSummaryResult?> FindByIdAsync(Guid saleId, CancellationToken cancellationToken = default) => Task.FromResult<SaleSummaryResult?>(null);
+    public Task<IReadOnlyList<SaleSummaryResult>> GetRecentAsync(int limit = 50, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<SaleSummaryResult>>([]);
+    public Task<IReadOnlyList<CompletedSaleResult>> GetCompletedBetweenAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<CompletedSaleResult>>([]);
+    public Task<ReturnableSaleResult?> GetReturnableAsync(Guid saleId, CancellationToken cancellationToken = default) => Task.FromResult<ReturnableSaleResult?>(null);
+    public Task<IReadOnlyList<Guid>> FindCompletedByReceiptNumberAsync(string receiptNumber, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Guid>>([]);
 }
 
 /// <summary>Stub of Sales.Contracts that records the calls POS makes. Can be told to fail at a step.</summary>

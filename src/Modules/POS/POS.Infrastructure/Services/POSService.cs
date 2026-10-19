@@ -25,6 +25,7 @@ internal sealed class POSService(
     SetCartDiscountCommandHandler cartDiscountHandler,
     FindSaleCustomersQueryHandler findCustomersHandler,
     SetSaleCustomerCommandHandler setCustomerHandler,
+    RefundSaleCommandHandler refundHandler,
     ILogger<POSService>? logger = null) : IPOSService
 {
     private readonly ILogger _logger = logger ?? NullLogger<POSService>.Instance;
@@ -153,6 +154,17 @@ internal sealed class POSService(
         return POSCheckoutResult.Success(result.Value.SaleId, result.Value.PaymentId, result.Value.ChangeDue, result.Value.HardwareNotices, result.Value.PaymentIds);
     }
 
+    public Task<POSRefundResult> RefundSaleAsync(Guid saleId, IReadOnlyList<POSRefundLineRequest> lines, string reason, POSPaymentMethod method,
+        string? methodDetail = null, CancellationToken cancellationToken = default)
+        => GuardAsync("refund sale", POSRefundResult.Failure, async () =>
+        {
+            var result = await refundHandler.HandleAsync(new RefundSaleCommand(saleId,
+                (lines ?? []).Select(l => new RefundLine(l.SaleItemId, l.Quantity, l.BackToStock)).ToList(), reason ?? string.Empty, method, methodDetail), cancellationToken);
+            return result.IsSuccess
+                ? POSRefundResult.Success(result.Value.ReturnId, result.Value.RefundTotal)
+                : POSRefundResult.Failure(result.Error.Code, result.Error.Description);
+        });
+
     private static POSOperationResult ToOperation(Result result)
         => result.IsSuccess
             ? POSOperationResult.Success()
@@ -165,8 +177,15 @@ internal sealed class POSReader(
     GetCartQueryHandler cartHandler,
     GetCurrentCartQueryHandler currentCartHandler,
     GetOpenSessionForCashierQueryHandler openSessionHandler,
-    GetSaleWarehousesQueryHandler warehousesHandler) : IPOSReader
+    GetSaleWarehousesQueryHandler warehousesHandler,
+    ReturnableSaleQueryHandler returnableHandler) : IPOSReader
 {
+    public Task<POSReturnableSale?> GetReturnableSaleAsync(Guid saleId, CancellationToken cancellationToken = default)
+        => returnableHandler.HandleAsync(new GetReturnableSaleQuery(saleId), cancellationToken);
+
+    public Task<POSFindReturnResult> FindReturnableSaleAsync(string receiptNumber, CancellationToken cancellationToken = default)
+        => returnableHandler.HandleAsync(new FindReturnableSaleQuery(receiptNumber), cancellationToken);
+
     public Task<POSSessionResult?> GetSessionAsync(Guid sessionId, CancellationToken cancellationToken = default)
         => sessionHandler.HandleAsync(new GetPosSessionQuery(sessionId), cancellationToken);
 

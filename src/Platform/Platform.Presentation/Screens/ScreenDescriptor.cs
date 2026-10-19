@@ -23,6 +23,10 @@ namespace Platform.Presentation.Screens;
 /// needs a licensed module and the license does not cover it, the screen is shown locked with an explanation.
 /// </param>
 /// <param name="Order">Position inside its group (ascending).</param>
+/// <param name="Handles">
+/// MISS-10b: the <see cref="ScreenRequests"/> kinds this screen handles (its view model implements <see cref="IScreenRequestHandler"/>);
+/// another module's screen asks for them through <see cref="IShellNavigation.OpenForAsync"/>.
+/// </param>
 public sealed record ScreenDescriptor(
     string Id,
     string Module,
@@ -31,8 +35,12 @@ public sealed record ScreenDescriptor(
     Type ViewType,
     Type ViewModelType,
     string? RequiredCapability = null,
-    int Order = 0)
+    int Order = 0,
+    IReadOnlyList<string>? Handles = null)
 {
+    /// <summary>True when this screen handles requests of <paramref name="requestKind"/>.</summary>
+    public bool HandlesRequest(string requestKind) => Handles?.Contains(requestKind, StringComparer.OrdinalIgnoreCase) == true;
+
     /// <summary>Throws when the declaration is malformed (a programming error in the module UI, caught when the shell starts).</summary>
     public void Validate()
     {
@@ -53,6 +61,14 @@ public sealed record ScreenDescriptor(
 
         if (ViewModelType.IsAbstract)
             throw new InvalidOperationException($"The view model of screen '{Id}' ({ViewModelType.Name}) cannot be abstract.");
+
+        if (Handles is { Count: > 0 } kinds)
+        {
+            if (kinds.FirstOrDefault(k => !CapabilityCodes.IsValid(k)) is { } malformed)
+                throw new InvalidOperationException($"Screen '{Id}' handles the malformed request kind '{malformed}'.");
+            if (!typeof(IScreenRequestHandler).IsAssignableFrom(ViewModelType))
+                throw new InvalidOperationException($"Screen '{Id}' handles requests, but its view model ({ViewModelType.Name}) is not an {nameof(IScreenRequestHandler)}.");
+        }
     }
 }
 

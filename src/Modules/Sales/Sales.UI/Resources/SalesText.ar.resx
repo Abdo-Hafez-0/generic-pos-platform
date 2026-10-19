@@ -87,4 +87,7 @@
   <data name="SaleCustomer" xml:space="preserve">
     <value>العميل: {0}</value>
   </data>
+  <data name="RowReturn" xml:space="preserve">
+    <value>إرجاع…</value>
+  </data>
 </root>

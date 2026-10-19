@@ -255,4 +255,100 @@
   <data name="CustomerPlaceholder" xml:space="preserve">
     <value>الكود أو الاسم</value>
   </data>
+  <data name="ReturnStart" xml:space="preserve">
+    <value>إرجاع…</value>
+  </data>
+  <data name="ReceiptNumber" xml:space="preserve">
+    <value>رقم الإيصال</value>
+  </data>
+  <data name="ReceiptNumberHint" xml:space="preserve">
+    <value>امسح أو اكتب الرقم المطبوع على الإيصال، مثل S-1A2B3C4D.</value>
+  </data>
+  <data name="FindSale" xml:space="preserve">
+    <value>بحث</value>
+  </data>
+  <data name="BackToSelling" xml:space="preserve">
+    <value>العودة إلى البيع</value>
+  </data>
+  <data name="ReturnOf" xml:space="preserve">
+    <value>إرجاع {0} · {1} · المدفوع {2:N2}</value>
+  </data>
+  <data name="ReturnCustomer" xml:space="preserve">
+    <value>العميل: {0}</value>
+  </data>
+  <data name="ReturnSold" xml:space="preserve">
+    <value>المباع</value>
+  </data>
+  <data name="ReturnLeft" xml:space="preserve">
+    <value>المتبقي</value>
+  </data>
+  <data name="ReturnQuantity" xml:space="preserve">
+    <value>المرتجع</value>
+  </data>
+  <data name="ReturnGoes" xml:space="preserve">
+    <value>يذهب إلى</value>
+  </data>
+  <data name="ReturnShelf" xml:space="preserve">
+    <value>الرف</value>
+  </data>
+  <data name="ReturnDamaged" xml:space="preserve">
+    <value>تالف</value>
+  </data>
+  <data name="ReturnAlreadyReturned" xml:space="preserve">
+    <value>تم إرجاعه</value>
+  </data>
+  <data name="ReturnEverything" xml:space="preserve">
+    <value>إرجاع الكل</value>
+  </data>
+  <data name="ReturnFewer" xml:space="preserve">
+    <value>واحد أقل</value>
+  </data>
+  <data name="ReturnMore" xml:space="preserve">
+    <value>واحد أكثر</value>
+  </data>
+  <data name="RefundTitle" xml:space="preserve">
+    <value>المبلغ المردود</value>
+  </data>
+  <data name="RefundBy" xml:space="preserve">
+    <value>الرد عن طريق</value>
+  </data>
+  <data name="RefundNote" xml:space="preserve">
+    <value>كيف (مثلًا: تحويل بنكي)</value>
+  </data>
+  <data name="ReturnReason" xml:space="preserve">
+    <value>السبب</value>
+  </data>
+  <data name="GiveRefund" xml:space="preserve">
+    <value>رد المبلغ</value>
+  </data>
+  <data name="ReturnLate" xml:space="preserve">
+    <value>مضى على هذا البيع أكثر من {0} يومًا: لا يرد المبلغ إلا من يُسمح له بقبول المرتجعات المتأخرة.</value>
+  </data>
+  <data name="ReturnNothingLeft" xml:space="preserve">
+    <value>أُرجع كل ما في هذا البيع من قبل.</value>
+  </data>
+  <data name="ReturnChooseItems" xml:space="preserve">
+    <value>اختر ما يُرجع بالزرين − و +، ثم السبب وطريقة رد المبلغ.</value>
+  </data>
+  <data name="RefundGiven" xml:space="preserve">
+    <value>تم رد المبلغ: {0:N2} ({1}).</value>
+  </data>
+  <data name="ReturnReceiptNotFound" xml:space="preserve">
+    <value>لا يوجد بيع مكتمل برقم الإيصال {0}.</value>
+  </data>
+  <data name="ReturnReceiptAmbiguous" xml:space="preserve">
+    <value>رقم الإيصال هذا يطابق أكثر من بيع. افتح البيع من سجل المبيعات بدلًا من ذلك.</value>
+  </data>
+  <data name="ReturnSaleNotFound" xml:space="preserve">
+    <value>لا يمكن إرجاع هذا البيع: ليس بيعًا مكتملًا.</value>
+  </data>
+  <data name="ReturnScanIgnored" xml:space="preserve">
+    <value>لا يُضاف المسح إلى البيع أثناء فتح الإرجاع.</value>
+  </data>
+  <data name="ReturnRecent" xml:space="preserve">
+    <value>إرجاع</value>
+  </data>
+  <data name="ReturnQuantityInvalid" xml:space="preserve">
+    <value>اكتب كمية من 0 إلى المتبقي من السطر.</value>
+  </data>
 </root>

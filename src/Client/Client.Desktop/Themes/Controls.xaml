@@ -9,6 +9,7 @@
         Keyed styles: Button.Primary (the one main action of a screen), Button.Checkout (the till), Button.Navigation (the shell's menu).
         MISS-08c screen patterns (owner's choices): Button.Link (a row's "Edit"), Button.RowMenu (a row's "⋯" with its ContextMenu),
         Box + Box.Title (a white box grouping settings or a list), Panel.Side (the edit panel beside a list), Label.Field (a label above a field).
+        MISS-10b: Segments + Segment (a switch of two or three choices, e.g. Shelf | Damaged).
     -->
 
     <FontFamily x:Key="Font.Ui">Segoe UI</FontFamily>
@@ -537,6 +538,52 @@
     <Style TargetType="RadioButton">
         <Setter Property="FontFamily" Value="{StaticResource Font.Ui}"/>
         <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+    </Style>
+
+    <!-- MISS-10b: a two- or three-way switch (Shelf | Damaged): radio buttons styled Segment inside a Border styled Segments -->
+    <Style x:Key="Segments" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Brush.ButtonFace}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.LineStrong}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="2"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+    </Style>
+    <Style x:Key="Segment" TargetType="RadioButton">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Ui}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="12,5"/>
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Face" Background="{TemplateBinding Background}" CornerRadius="6" BorderThickness="2" BorderBrush="Transparent" SnapsToDevicePixels="True">
+                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Face" Property="Background" Value="{DynamicResource Brush.Hover}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Face" Property="Background" Value="{DynamicResource Brush.Accent}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.OnAccent}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Face" Property="BorderBrush" Value="{DynamicResource Brush.Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.TextDisabled}"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
     <Style TargetType="ListBox">
         <Setter Property="Background" Value="{DynamicResource Brush.Page}"/>

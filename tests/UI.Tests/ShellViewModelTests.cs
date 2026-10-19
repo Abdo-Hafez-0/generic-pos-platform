@@ -33,7 +33,7 @@ public sealed class ShellViewModelTests
         var navigation = new NavigationBuilder(
         [
             new ScreenProvider(
-                Screens.Of("pos.sell", "pos", ScreenGroups.Sales, "pos.sale.create"),
+                Screens.Of("pos.sell", "pos", ScreenGroups.Sales, "pos.sale.create", handles: [ScreenRequests.ReturnSale]),
                 Screens.Of("pos.drawer", "pos", ScreenGroups.Sales, "pos.drawer.count", order: 1),
                 Screens.Of("catalog.products", "catalog", ScreenGroups.Inventory, "catalog.product.create"))
         ], catalog, _licensing);
@@ -186,6 +186,50 @@ public sealed class ShellViewModelTests
         await _shell.ResetAsync();
 
         Assert.Equal(1, ViewModel("pos.sell").Leaves);
+    }
+
+    [Fact]
+    public async Task A_request_opens_the_screen_that_handles_it_and_passes_the_request_after_it_is_shown()
+    {
+        _permissions.Held.AddRange(["pos.sale.create", "pos.drawer.count"]);
+        await _shell.RefreshAsync();
+        await _shell.OpenAsync(Entry("pos.drawer"));
+        var request = new ScreenRequest(ScreenRequests.ReturnSale, Guid.NewGuid());
+
+        Assert.True(_shell.CanOpenFor(ScreenRequests.ReturnSale));
+        Assert.True(await _shell.OpenForAsync(request));
+
+        Assert.Equal("Title of pos.sell", _shell.CurrentTitle);                         // the menu shows the till as the open screen
+        Assert.Equal([(request, 1)], ViewModel("pos.sell").Requests);                    // after it loaded
+        Assert.Equal(1, ViewModel("pos.drawer").Leaves);
+    }
+
+    [Fact]
+    public async Task Without_a_screen_the_user_may_open_for_it_a_request_opens_nothing()
+    {
+        _permissions.Held.Add("pos.drawer.count");                                       // may not sell: the till is hidden
+        await _shell.RefreshAsync();
+
+        Assert.False(_shell.CanOpenFor(ScreenRequests.ReturnSale));
+        Assert.False(await _shell.OpenForAsync(new ScreenRequest(ScreenRequests.ReturnSale, Guid.NewGuid())));
+        Assert.False(_shell.CanOpenFor("unknown.kind"));
+        Assert.Empty(_factory.Created);
+    }
+
+    [Fact]
+    public async Task A_locked_screen_does_not_handle_requests()
+    {
+        _permissions.Held.Add("catalog.product.create");
+        var navigation = new NavigationBuilder([new ScreenProvider(Screens.Of("catalog.products", "catalog", ScreenGroups.Inventory, "catalog.product.create",
+            handles: ["product.open"]))], new CapabilityCatalog([new CapabilityProvider(new CapabilityDescriptor("catalog.product.create", "catalog", "Create", "Create"))]),
+            new FakeLicensing("pos") { State = LicenseState.GracePeriod });
+        var services = new ServiceCollection();
+        services.AddScoped<IPermissionProvider>(_ => _permissions);
+        var shell = new ShellViewModel(new UiActionRunner(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), NullLogger<UiActionRunner>.Instance),
+            navigation, _user, _factory);
+        await shell.RefreshAsync();
+
+        Assert.False(shell.CanOpenFor("product.open"));
     }
 
     [Fact]

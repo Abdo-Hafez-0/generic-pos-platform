@@ -37,4 +37,7 @@
   <data name="SelectSale" xml:space="preserve"><value>Select a sale to see its lines.</value></data>
   <data name="Customer" xml:space="preserve"><value>Customer</value></data>
   <data name="SaleCustomer" xml:space="preserve"><value>Customer: {0}</value></data>
+  <data name="RowReturn" xml:space="preserve">
+    <value>Return…</value>
+  </data>
 </root>

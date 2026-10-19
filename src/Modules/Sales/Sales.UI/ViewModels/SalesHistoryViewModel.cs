@@ -11,8 +11,8 @@ using Sales.UI.Resources;
 
 namespace Sales.UI.ViewModels;
 
-/// <summary>One sale as the list shows it (times in the computer's local time).</summary>
-public sealed record SaleRow(SaleDto Sale, string TimeText, string StatusText, int ItemCount)
+/// <summary>One sale as the list shows it (times in the computer's local time). <see cref="CanReturn"/>: a completed sale and a screen to return it.</summary>
+public sealed record SaleRow(SaleDto Sale, string TimeText, string StatusText, int ItemCount, bool CanReturn = false)
 {
     public bool IsCompleted => Sale.Status == SaleStatus.Completed;
 
@@ -23,21 +23,30 @@ public sealed record SaleRow(SaleDto Sale, string TimeText, string StatusText, i
 /// <summary>
 /// Sales history (FIX-01c, read-only): the sales of a period (local dates, today by default), newest first, the takings of the
 /// completed ones, and the lines of the selected sale. Reading your own sales needs no license and no capability.
+/// MISS-10b: a completed sale's "⋯" offers "Return…", which asks the shell for the screen that handles returns (the till) - Sales does not
+/// know POS; without such a screen for the signed-in user the menu is not shown.
 /// </summary>
 public sealed class SalesHistoryViewModel : ViewModelBase, INavigationAware
 {
     private readonly IUiActionRunner _runner;
+    private readonly IShellNavigation? _shell;
     private DateTime _fromDate = DateTime.Today;
     private DateTime _toDate = DateTime.Today;
     private SaleRow? _selected;
     private string _summaryText = string.Empty;
     private string? _resultInfo;
 
-    public SalesHistoryViewModel(IUiActionRunner runner)
+    public SalesHistoryViewModel(IUiActionRunner runner, IShellNavigation? shell = null)
     {
         _runner = runner;
+        _shell = shell;
         ShowCommand = Command(() => LoadAsync(CancellationToken.None));
+        ReturnRowCommand = Command<SaleRow>(row => row is null ? Task.CompletedTask : _shell!.OpenForAsync(new ScreenRequest(ScreenRequests.ReturnSale, row.Sale.SaleId)),
+            row => row is { CanReturn: true } && _shell is not null);
     }
+
+    /// <summary>MISS-10b: opens the return of the sale given as the parameter (in the till).</summary>
+    public ICommand ReturnRowCommand { get; }
 
     public ObservableCollection<SaleRow> Sales { get; } = [];
     public ObservableCollection<SaleItemDto> Lines { get; } = [];
@@ -90,9 +99,11 @@ public sealed class SalesHistoryViewModel : ViewModelBase, INavigationAware
         if (!Accept(history)) return;
 
         var selectedId = Selected?.Sale.SaleId;
+        var mayReturn = _shell?.CanOpenFor(ScreenRequests.ReturnSale) == true;
         Sales.Clear();
         foreach (var sale in history.Value.Sales)
-            Sales.Add(new SaleRow(sale, LocalTime(sale.CompletedAt ?? sale.CreatedAt), Describe(sale.Status), sale.Items.Count));
+            Sales.Add(new SaleRow(sale, LocalTime(sale.CompletedAt ?? sale.CreatedAt), Describe(sale.Status), sale.Items.Count,
+                CanReturn: mayReturn && sale.Status == SaleStatus.Completed));
         Selected = Sales.FirstOrDefault(s => s.Sale.SaleId == selectedId);
 
         SummaryText = string.Format(CultureInfo.CurrentCulture, SalesText.Summary, history.Value.CompletedCount, history.Value.CompletedTotal);

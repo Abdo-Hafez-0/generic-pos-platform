@@ -90,6 +90,7 @@ public static class POSServicesExtensions
         services.AddTransient<ClearCartCommandHandler>();
         services.AddTransient<CheckoutCartCommandHandler>();
         services.AddTransient<RefundSaleCommandHandler>();   // MISS-10
+        services.AddTransient<ReturnableSaleQueryHandler>();   // MISS-10b
         services.AddTransient<SetLineDiscountCommandHandler>();   // FIX-08c
         services.AddTransient<SetCartDiscountCommandHandler>();   // FIX-08c
         services.AddTransient<FindSaleCustomersQueryHandler>();   // FIX-11

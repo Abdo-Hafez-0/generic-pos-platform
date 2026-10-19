@@ -28,6 +28,21 @@ internal sealed class FakeTill
     public List<POSCustomerResult> Customers { get; } = [];
     public Dictionary<Guid, POSCustomerResult> CartCustomer { get; } = [];
 
+    // MISS-10b: completed sales the till can return, and the refunds asked for
+    public Dictionary<Guid, POSReturnableSale> ReturnableSales { get; } = [];
+    public List<(Guid SaleId, IReadOnlyList<POSRefundLineRequest> Lines, string Reason, POSPaymentMethod Method, string? Detail)> Refunds { get; } = [];
+    public string? RefundRefusal { get; set; }
+
+    public POSReturnableSale AddReturnableSale(params (string Name, decimal Sold, decimal Returned, decimal LineTotal, decimal Refunded)[] lines)
+    {
+        var id = Guid.NewGuid();
+        var sale = new POSReturnableSale(id, "S-" + id.ToString("N")[..8].ToUpperInvariant(), DateTime.UtcNow.AddHours(-2), null, lines.Sum(l => l.LineTotal),
+            lines.Sum(l => l.Refunded), lines.Select(l => new POSReturnableLine(Guid.NewGuid(), l.Name.ToUpperInvariant(), l.Name, l.Sold, l.Returned, l.LineTotal, l.Refunded)).ToList(),
+            IsLate: false, DaysAllowed: 14);
+        ReturnableSales[id] = sale;
+        return sale;
+    }
+
     public Guid AddWarehouse(string name)
     {
         var id = Guid.NewGuid();
@@ -176,6 +191,37 @@ internal sealed class FakePosService : IPOSService, IPOSReader
 
         _till.CheckedOut.Add(cartId);
         return Task.FromResult(POSCheckoutResult.Success(Guid.NewGuid(), changeDue: _till.ChangeDue, hardwareNotices: _till.HardwareNotices));
+    }
+
+    public Task<POSRefundResult> RefundSaleAsync(Guid saleId, IReadOnlyList<POSRefundLineRequest> lines, string reason, POSPaymentMethod method,
+        string? methodDetail = null, CancellationToken cancellationToken = default)
+    {
+        Enter("refund");
+        if (_till.RefundRefusal is { } refusal) return Task.FromResult(POSRefundResult.Failure("POS.Refund.NotEnoughCash", refusal));
+        _till.Refunds.Add((saleId, lines, reason, method, methodDetail));
+        var sale = _till.ReturnableSales[saleId];
+        var total = lines.Sum(l => sale.Lines.Single(s => s.SaleItemId == l.SaleItemId).RefundFor(l.Quantity));
+        return Task.FromResult(POSRefundResult.Success(Guid.NewGuid(), total));
+    }
+
+    public Task<POSReturnableSale?> GetReturnableSaleAsync(Guid saleId, CancellationToken cancellationToken = default)
+    {
+        Enter("returnable");
+        return Task.FromResult(_till.ReturnableSales.GetValueOrDefault(saleId));
+    }
+
+    public Task<POSFindReturnResult> FindReturnableSaleAsync(string receiptNumber, CancellationToken cancellationToken = default)
+    {
+        Enter($"find-return:{receiptNumber}");
+        var key = receiptNumber.Trim().ToUpperInvariant();
+        if (!key.StartsWith("S-", StringComparison.Ordinal)) key = "S-" + key;
+        var found = _till.ReturnableSales.Values.Where(s => s.ReceiptNumber.StartsWith(key, StringComparison.Ordinal)).ToList();
+        return Task.FromResult(found.Count switch
+        {
+            0 => POSFindReturnResult.Failure("POS.Return.ReceiptNotFound", "not found"),
+            > 1 => POSFindReturnResult.Failure("POS.Return.ReceiptAmbiguous", "several"),
+            _ => POSFindReturnResult.Success(found[0]),
+        });
     }
 
     public Task<POSSessionResult?> GetSessionAsync(Guid sessionId, CancellationToken cancellationToken = default)

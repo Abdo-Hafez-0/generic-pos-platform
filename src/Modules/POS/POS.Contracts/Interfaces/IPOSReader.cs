@@ -20,4 +20,10 @@ public interface IPOSReader
 
     /// <summary>The active warehouses a session can sell from, ordered by name.</summary>
     Task<IReadOnlyList<POSWarehouseResult>> GetWarehousesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>MISS-10b: a completed sale with what can still be returned of it, or null when there is no completed sale with that id.</summary>
+    Task<POSReturnableSale?> GetReturnableSaleAsync(Guid saleId, CancellationToken cancellationToken = default);
+
+    /// <summary>MISS-10b: the completed sale a printed receipt number points at ("S-1A2B3C4D"; the "S-" may be left out).</summary>
+    Task<POSFindReturnResult> FindReturnableSaleAsync(string receiptNumber, CancellationToken cancellationToken = default);
 }

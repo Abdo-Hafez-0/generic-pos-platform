@@ -39,6 +39,10 @@ public sealed class ReportingApplicationTests
                 .Where(x => x.Status == SaleStatusContract.Completed && x.CompletedAt is { } at && at >= fromUtc && at <= toUtc)
                 .Select(x => new CompletedSaleResult(x.SaleId, x.CompletedAt!.Value, x.GrandTotal, 0m)).ToList());
         }
+
+        public Task<ReturnableSaleResult?> GetReturnableAsync(Guid saleId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<Guid>> FindCompletedByReceiptNumberAsync(string receiptNumber, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     /// <summary>The shop's time zone as the report sees it (FIX-12); tests never depend on the computer's own zone.</summary>

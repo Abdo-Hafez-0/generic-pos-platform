@@ -123,4 +123,13 @@ public sealed class NavigationBuilderTests
     [Fact]
     public void Every_group_has_a_title()
         => Assert.All(ScreenGroups.All, g => Assert.False(string.IsNullOrWhiteSpace(ScreenGroups.TitleOf(g))));
+
+    [Fact]
+    public void A_screen_that_handles_requests_needs_well_formed_kinds_and_a_view_model_that_takes_them()
+    {
+        Assert.Throws<InvalidOperationException>(() => Builder(null, Screens.Of("pos.sell", "pos", ScreenGroups.Sales, handles: ["Sale Return"])));
+        Assert.Throws<InvalidOperationException>(() => Builder(null, Screens.Of("pos.sell", "pos", ScreenGroups.Sales, handles: [ScreenRequests.ReturnSale],
+            viewModel: typeof(object))));
+        Builder(null, Screens.Of("pos.sell", "pos", ScreenGroups.Sales, handles: [ScreenRequests.ReturnSale]));
+    }
 }

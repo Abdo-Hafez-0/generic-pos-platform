@@ -27,7 +27,7 @@ public sealed record RecentReceiptRow(POSRecentReceipt Receipt, string WhenText,
 /// Barcode scanner (FIX-02): while the screen is shown it listens to <see cref="IPOSBarcodeInput"/>, which adds every scan to the open cart
 /// exactly like a typed code; the screen then shows the cart again, or the reason a scan was refused. No scanner: the cashier types codes.
 /// </summary>
-public sealed class PosViewModel : ViewModelBase, INavigationAware
+public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenRequestHandler
 {
     private readonly IUiActionRunner _runner;
     private readonly ICurrentUser _currentUser;
@@ -60,6 +60,12 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     private Guid? _lastCartId;
     private bool _canReprint, _isRecentShown;
     private RecentReceiptRow? _selectedRecent;
+    private bool _isReturnMode;
+    private POSReturnableSale? _returnSale;
+    private string _receiptNumberText = string.Empty;
+    private PaymentChoice _refundMethod;
+    private string _refundNote = string.Empty;
+    private string _returnReason = string.Empty;
 
     public PosViewModel(IUiActionRunner runner, ICurrentUser currentUser, IPOSBarcodeInput? scanner = null)
     {
@@ -88,7 +94,203 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
         ShowRecentCommand = Command(ShowRecentAsync, () => CanReprint);
         ReprintSelectedCommand = Command(() => ReprintAsync(SelectedRecent!.Receipt.CartId), () => CanReprint && SelectedRecent is not null);
         HideRecentCommand = Command(() => { IsRecentShown = false; return Task.CompletedTask; }, () => IsRecentShown);
+        // MISS-10b: returns - by the receipt number, from the recent sales, or asked for by Sales history (OnRequestAsync)
+        _refundMethod = PaymentMethods[0];
+        StartReturnCommand = Command(() => { EnterReturnMode(); return Task.CompletedTask; }, () => !IsReturnMode);
+        FindReturnCommand = Command(FindReturnAsync, () => IsReturnMode && !string.IsNullOrWhiteSpace(ReceiptNumberText));
+        ReturnRecentCommand = Command(() => LoadReturnAsync(SelectedRecent!.Receipt.SaleId, CancellationToken.None), () => SelectedRecent is not null);
+        ReturnEverythingCommand = Command(() => { foreach (var row in ReturnLines) row.Quantity = row.Line.RemainingQuantity; return Task.CompletedTask; },
+            () => ReturnLines.Any(r => r.Quantity < r.Line.RemainingQuantity));
+        GiveRefundCommand = Command(GiveRefundAsync, () => CanGiveRefund);
+        BackToSellingCommand = Command(() => { LeaveReturnMode(); return Task.CompletedTask; }, () => IsReturnMode);
     }
+
+    // ---- MISS-10b: returns
+
+    public ICommand StartReturnCommand { get; }
+    public ICommand FindReturnCommand { get; }
+    public ICommand ReturnRecentCommand { get; }
+    public ICommand ReturnEverythingCommand { get; }
+    public ICommand GiveRefundCommand { get; }
+    public ICommand BackToSellingCommand { get; }
+
+    /// <summary>The till shows a return instead of the sale in progress (which is kept and comes back after).</summary>
+    public bool IsReturnMode
+    {
+        get => _isReturnMode;
+        private set
+        {
+            if (!Set(ref _isReturnMode, value)) return;
+            foreach (var name in new[] { nameof(IsSelling), nameof(ShowsWarehouseChoice), nameof(IsFindingReturn) }) Raise(name);
+            BindScanner();
+        }
+    }
+
+    /// <summary>The sale in progress is shown (a till is open and no return is).</summary>
+    public bool IsSelling => HasOpenSession && !IsReturnMode;
+
+    /// <summary>The warehouse choice is shown (no till is open and no return is).</summary>
+    public bool ShowsWarehouseChoice => NeedsSession && !IsReturnMode;
+
+    /// <summary>In a return, before its sale is found: the receipt number is asked for.</summary>
+    public bool IsFindingReturn => IsReturnMode && ReturnSale is null;
+
+    /// <summary>The receipt number as typed or scanned ("S-1A2B3C4D").</summary>
+    public string ReceiptNumberText { get => _receiptNumberText; set => Set(ref _receiptNumberText, value); }
+
+    /// <summary>The sale being returned, or null while it is being looked for.</summary>
+    public POSReturnableSale? ReturnSale
+    {
+        get => _returnSale;
+        private set
+        {
+            if (!Set(ref _returnSale, value)) return;
+            foreach (var name in new[] { nameof(HasReturnSale), nameof(IsFindingReturn), nameof(ReturnTitle), nameof(ReturnCustomerText), nameof(ReturnLateText),
+                         nameof(ReturnNothingLeft) }) Raise(name);
+        }
+    }
+
+    public bool HasReturnSale => ReturnSale is not null;
+
+    /// <summary>"Return of S-1A2B3C4D · 18/10/2026 14:32 · paid 42.50".</summary>
+    public string? ReturnTitle => ReturnSale is { } sale
+        ? string.Format(CultureInfo.CurrentCulture, PosText.ReturnOf, Ltr(sale.ReceiptNumber),
+            Ltr(DateTime.SpecifyKind(sale.CompletedAtUtc, DateTimeKind.Utc).ToLocalTime().ToString("g", CultureInfo.CurrentCulture)), sale.GrandTotal)
+        : null;
+
+    public string? ReturnCustomerText => ReturnSale?.CustomerName is { Length: > 0 } name ? string.Format(CultureInfo.CurrentCulture, PosText.ReturnCustomer, name) : null;
+
+    /// <summary>The sale is past the shop's limit: only someone allowed to accept late returns can give the refund (the handler checks).</summary>
+    public string? ReturnLateText => ReturnSale is { IsLate: true } sale ? string.Format(CultureInfo.CurrentCulture, PosText.ReturnLate, sale.DaysAllowed) : null;
+
+    public bool ReturnNothingLeft => ReturnSale is { HasAnythingLeft: false };
+
+    /// <summary>The sale's lines with what comes back of each.</summary>
+    public ObservableCollection<ReturnLineRow> ReturnLines { get; } = [];
+
+    /// <summary>What the chosen units give back.</summary>
+    public decimal RefundTotal => ReturnLines.Sum(r => r.Refund);
+
+    /// <summary>How the money goes back - the cashier's choice, whatever the customer paid with (owner's decision).</summary>
+    public PaymentChoice RefundMethod { get => _refundMethod; set { if (Set(ref _refundMethod, value)) Raise(nameof(RefundNeedsNote)); } }
+
+    public bool RefundNeedsNote => RefundMethod.Method == POSPaymentMethod.Other;
+
+    /// <summary>How an "Other" refund is given (required for it).</summary>
+    public string RefundNote { get => _refundNote; set => Set(ref _refundNote, value); }
+
+    /// <summary>Why the items come back (required).</summary>
+    public string ReturnReason { get => _returnReason; set => Set(ref _returnReason, value); }
+
+    /// <summary>Something comes back, every typed quantity is valid, the reason is given (and how, for "Other").</summary>
+    public bool CanGiveRefund => HasReturnSale && ReturnLines.Any(r => r.Quantity > 0m) && ReturnLines.All(r => r.IsValid)
+        && !string.IsNullOrWhiteSpace(ReturnReason) && (!RefundNeedsNote || !string.IsNullOrWhiteSpace(RefundNote));
+
+    /// <summary>Sales history asked for a return of one of its sales: the till shows it, ready to choose what comes back.</summary>
+    public async Task OnRequestAsync(ScreenRequest request, CancellationToken cancellationToken = default)
+    {
+        if (!string.Equals(request.Kind, ScreenRequests.ReturnSale, StringComparison.OrdinalIgnoreCase)) return;
+        await BusyAsync(() => LoadReturnAsync(request.Id, cancellationToken));
+    }
+
+    private void EnterReturnMode()
+    {
+        IsRecentShown = false;
+        ShowReturn(null);
+        (ReceiptNumberText, ReturnReason, RefundNote, RefundMethod) = (string.Empty, string.Empty, string.Empty, PaymentMethods[0]);
+        (ErrorMessage, StatusMessage) = (null, PosText.ReceiptNumberHint);
+        IsReturnMode = true;
+    }
+
+    private void LeaveReturnMode()
+    {
+        ShowReturn(null);
+        IsReturnMode = false;
+        (ErrorMessage, StatusMessage) = (null, null);
+    }
+
+    private async Task FindReturnAsync()
+    {
+        var number = ReceiptNumberText.Trim();
+        var found = await _runner.QueryAsync((scope, ct) => scope.Get<IPOSReader>().FindReturnableSaleAsync(number, ct));
+        if (!Accept(found)) return;
+        if (!found.Value.IsSuccess)
+        {
+            Fail(found.Value.ErrorCode == "POS.Return.ReceiptAmbiguous" ? PosText.ReturnReceiptAmbiguous
+                : string.Format(CultureInfo.CurrentCulture, PosText.ReturnReceiptNotFound, Ltr(number)));
+            return;
+        }
+
+        StartReturn(found.Value.Sale!);
+    }
+
+    private async Task LoadReturnAsync(Guid saleId, CancellationToken cancellationToken)
+    {
+        if (!IsReturnMode) EnterReturnMode();
+        var sale = await _runner.QueryAsync((scope, ct) => scope.Get<IPOSReader>().GetReturnableSaleAsync(saleId, ct), cancellationToken);
+        if (!Accept(sale)) return;
+        if (sale.Value is null)
+        {
+            Fail(PosText.ReturnSaleNotFound);
+            return;
+        }
+
+        StartReturn(sale.Value);
+    }
+
+    private void StartReturn(POSReturnableSale sale)
+    {
+        ReceiptNumberText = sale.ReceiptNumber;
+        ShowReturn(sale);
+        ErrorMessage = null;
+        StatusMessage = sale.HasAnythingLeft ? PosText.ReturnChooseItems : null;
+    }
+
+    private void ShowReturn(POSReturnableSale? sale)
+    {
+        foreach (var row in ReturnLines) row.PropertyChanged -= OnReturnLineChanged;
+        ReturnLines.Clear();
+        foreach (var line in sale?.Lines ?? [])
+        {
+            var row = new ReturnLineRow(line);
+            row.PropertyChanged += OnReturnLineChanged;
+            ReturnLines.Add(row);
+        }
+
+        ReturnSale = sale;
+        Raise(nameof(RefundTotal));
+    }
+
+    private void OnReturnLineChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ReturnLineRow.Refund) or nameof(ReturnLineRow.Quantity) or nameof(ReturnLineRow.IsValid))
+        {
+            Raise(nameof(RefundTotal));
+            Raise(nameof(CanGiveRefund));
+        }
+    }
+
+    private async Task GiveRefundAsync()
+    {
+        if (ReturnSale is not { } sale) return;
+
+        var lines = ReturnLines.Where(r => r.Quantity > 0m).Select(r => new POSRefundLineRequest(r.Line.SaleItemId, r.Quantity, !r.IsDamaged)).ToList();
+        var (method, reason) = (RefundMethod, ReturnReason.Trim());
+        var note = RefundNeedsNote ? RefundNote.Trim() : null;
+        var refunded = await _runner.QueryAsync((scope, ct) => scope.Get<IPOSService>().RefundSaleAsync(sale.SaleId, lines, reason, method.Method, note, ct));
+        if (!Accept(refunded)) return;
+        if (!refunded.Value.IsSuccess)
+        {
+            Fail(refunded.Value.ErrorMessage);
+            return;
+        }
+
+        LeaveReturnMode();
+        StatusMessage = string.Format(CultureInfo.CurrentCulture, PosText.RefundGiven, refunded.Value.RefundTotal, method.Text);
+    }
+
+    /// <summary>Keeps a receipt number or a date in its order inside an Arabic sentence.</summary>
+    private static string Ltr(string text) => "‎" + text + "‎";
 
     public ICommand ReprintLastCommand { get; }
     public ICommand ShowRecentCommand { get; }
@@ -356,7 +558,7 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     }
 
     /// <summary>Scans go to the cart on the screen, and nowhere while no cart is open or the screen is not shown.</summary>
-    private void BindScanner() => _scanner?.BindCart(_listening ? _cartId : null);
+    private void BindScanner() => _scanner?.BindCart(_listening && !IsReturnMode ? _cartId : null);   // MISS-10b: never into the sale during a return
 
     /// <summary>Raised by the scanner input once a scan has been added (or refused); shown on the UI thread.</summary>
     private void OnScanProcessed(object? sender, POSScanOutcome outcome)
@@ -368,6 +570,12 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     private async Task ShowScanAsync(POSScanOutcome outcome)
     {
         if (!_listening) return;
+        if (IsReturnMode)
+        {
+            Fail(PosText.ReturnScanIgnored);
+            return;
+        }
+
         if (!outcome.IsSuccess)
         {
             Fail(outcome.ErrorMessage);
@@ -782,6 +990,8 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware
     {
         Raise(nameof(HasOpenSession));
         Raise(nameof(NeedsSession));
+        Raise(nameof(IsSelling));
+        Raise(nameof(ShowsWarehouseChoice));
         Raise(nameof(SessionId));
         Raise(nameof(CanCheckout));
     }

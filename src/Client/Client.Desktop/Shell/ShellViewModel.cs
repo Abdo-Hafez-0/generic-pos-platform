@@ -328,6 +328,26 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
             await aware.OnNavigatedToAsync();
     }
 
+    /// <summary>MISS-10b: true when a screen the signed-in user may open now handles <paramref name="requestKind"/>.</summary>
+    public bool CanOpenFor(string requestKind) => EntryFor(requestKind) is not null;
+
+    /// <summary>
+    /// MISS-10b: opens the screen that handles the request (as if chosen in the menu) and passes the request to it - so one module's screen
+    /// asks for another's without depending on it. False when no screen the user may open handles it.
+    /// </summary>
+    public async Task<bool> OpenForAsync(ScreenRequest request, CancellationToken cancellationToken = default)
+    {
+        if (EntryFor(request.Kind) is not { } entry) return false;
+
+        await OpenAsync(entry);
+        if (_shown?.ViewModel is IScreenRequestHandler handler)
+            await handler.OnRequestAsync(request, cancellationToken);
+        return true;
+    }
+
+    private NavigationEntry? EntryFor(string requestKind)
+        => Groups.SelectMany(g => g.Entries).FirstOrDefault(e => e.IsAvailable && e.Screen.HandlesRequest(requestKind));
+
     /// <summary>
     /// Forgets every open screen and the navigation (sign-out): nothing of one user's work stays visible to the next. The screen that was
     /// shown is told it was left first (FIX-02: the cashier screen stops listening to the scanner).

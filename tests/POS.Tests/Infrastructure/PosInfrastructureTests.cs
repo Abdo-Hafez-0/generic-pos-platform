@@ -172,6 +172,8 @@ public sealed class PosInfrastructureTests
         services.AddSingleton<Inventory.Contracts.Interfaces.IStockIssueService>(stubs.Inventory);
         services.AddSingleton<Inventory.Contracts.Interfaces.IInventoryReader>(stubs.Inventory);
         services.AddSingleton<Sales.Contracts.Interfaces.ISalesService>(stubs.Sales);
+        services.AddSingleton<Sales.Contracts.Interfaces.ISalesReader, NoSalesReader>();             // MISS-10: returns
+        services.AddSingleton<Inventory.Contracts.Interfaces.IStockReceiptService>(stubs.Inventory);
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = false });
     }
 
@@ -190,6 +192,8 @@ public sealed class PosInfrastructureTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IPosCartRepository>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<POS.Application.Commands.CheckoutCartCommandHandler>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<POS.Application.Queries.GetCurrentCartQueryHandler>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<POS.Application.Commands.RefundSaleCommandHandler>());   // MISS-10
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<POS.Application.Queries.ReturnableSaleQueryHandler>());   // MISS-10b
         Assert.IsType<POSModule>(provider.GetServices<IModule>().Single(m => m is POSModule));
         Assert.Contains(provider.GetServices<IHostedService>(), s => s is POSDatabaseInitializer);
     }

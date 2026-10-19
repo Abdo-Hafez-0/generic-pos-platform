@@ -55,4 +55,12 @@ public interface IPOSService
     /// total, only cash may be tendered above its amount (the change). Every part is recorded in the same transaction as the sale.
     /// </summary>
     Task<POSCheckoutResult> CheckoutWithPaymentsAsync(Guid cartId, IReadOnlyList<POSPaymentRequest> payments, string? transactionReference = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MISS-10: takes items of a completed sale back and gives the money back the way the cashier chose (cash from this till's drawer, card,
+    /// or other with <paramref name="methodDetail"/>); lines go back on the shelf or are written off as damaged. One transaction: all or nothing.
+    /// Anyone who may sell; a sale past the shop's limit also needs the late-returns permission.
+    /// </summary>
+    Task<POSRefundResult> RefundSaleAsync(Guid saleId, IReadOnlyList<POSRefundLineRequest> lines, string reason, POSPaymentMethod method,
+        string? methodDetail = null, CancellationToken cancellationToken = default);
 }

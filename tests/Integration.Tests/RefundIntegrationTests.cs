@@ -186,6 +186,35 @@ public sealed class RefundIntegrationTests
     }
 
     [Fact]
+    public async Task Through_the_POS_contracts_the_till_finds_the_sale_by_its_receipt_and_its_preview_is_what_is_refunded()
+    {
+        await using var host = await IntegrationHost.StartAllAsync();
+        var shop = await CreateShopAsync(host.Services, salePrice: 2.5m, stock: 10m);
+        var saleId = await SellAsync(host, shop, 3m, lineDiscount: 1m);                  // 6.50
+
+        var found = await InScopeAsync(host.Services, sp => sp.GetRequiredService<IPOSReader>().FindReturnableSaleAsync(saleId.ToString("N")[..8]));
+        Assert.True(found.IsSuccess, found.ErrorMessage);
+        var sale = found.Sale!;
+        Assert.Equal((saleId, "S-" + saleId.ToString("N")[..8].ToUpperInvariant(), false, 14), (sale.SaleId, sale.ReceiptNumber, sale.IsLate, sale.DaysAllowed));
+        var line = Assert.Single(sale.Lines);
+        var preview = line.RefundFor(1m);
+
+        var refund = await InScopeAsync(host.Services, sp => sp.GetRequiredService<IPOSService>().RefundSaleAsync(saleId,
+            [new POSRefundLineRequest(line.SaleItemId, 1m)], "Changed mind", POSPaymentMethod.Cash));
+        Assert.True(refund.IsSuccess, refund.ErrorMessage);
+        Assert.Equal((2.17m, 2.17m), (preview, refund.RefundTotal));
+
+        var after = (await InScopeAsync(host.Services, sp => sp.GetRequiredService<IPOSReader>().GetReturnableSaleAsync(saleId)))!.Lines[0];
+        Assert.Equal((2m, 4.33m), (after.RemainingQuantity, after.RefundFor(2m)));     // what is left of 6.50
+        Assert.Equal("POS.Return.ReceiptNotFound",
+            (await InScopeAsync(host.Services, sp => sp.GetRequiredService<IPOSReader>().FindReturnableSaleAsync("S-FFFFFFFF"))).ErrorCode);
+
+        var noReason = await InScopeAsync(host.Services, sp => sp.GetRequiredService<IPOSService>().RefundSaleAsync(saleId,
+            [new POSRefundLineRequest(line.SaleItemId, 1m)], " ", POSPaymentMethod.Cash));
+        Assert.Equal("POS.Refund.ReasonRequired", noReason.ErrorCode);
+    }
+
+    [Fact]
     public async Task The_receipt_number_finds_the_sale_and_a_return_needs_a_reason()
     {
         await using var host = await IntegrationHost.StartAllAsync();

@@ -11,9 +11,18 @@ internal sealed class FakeView
 {
 }
 
-internal sealed class FakeViewModel : INavigationAware
+internal sealed class FakeViewModel : INavigationAware, IScreenRequestHandler
 {
     public int Navigations { get; private set; }
+
+    /// <summary>MISS-10b: the requests passed to the screen, with how many times it had been shown when each arrived.</summary>
+    public List<(ScreenRequest Request, int AfterNavigations)> Requests { get; } = [];
+
+    public Task OnRequestAsync(ScreenRequest request, CancellationToken cancellationToken = default)
+    {
+        Requests.Add((request, Navigations));
+        return Task.CompletedTask;
+    }
 
     public int Leaves { get; private set; }
 
@@ -89,6 +98,7 @@ internal sealed class FakeScreenFactory : IScreenFactory
 
 internal static class Screens
 {
-    public static ScreenDescriptor Of(string id, string module, string group, string? capability = null, int order = 0, Type? view = null)
-        => new(id, module, group, () => "Title of " + id, view ?? typeof(FakeView), typeof(FakeViewModel), capability, order);
+    public static ScreenDescriptor Of(string id, string module, string group, string? capability = null, int order = 0, Type? view = null,
+        IReadOnlyList<string>? handles = null, Type? viewModel = null)
+        => new(id, module, group, () => "Title of " + id, view ?? typeof(FakeView), viewModel ?? typeof(FakeViewModel), capability, order, handles);
 }

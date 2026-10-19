@@ -217,9 +217,9 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] **MISS-08c** The other screens to the drawn patterns (title and main action, search, plain table; settings in white boxes) and the whole application checked in Arabic, the till included (2026-10-17; all 22 screens and the new panels shot in English and Arabic for the owner's review)
   - [x] **MISS-08d** The dark theme and the Light / Dark / Windows choice per user (2026-10-17)
     - [x] Decisions (owner 2026-10-17, from drawn options): the choice is a **sun / moon button in the header with a small menu** (Like Windows / Light / Dark); the sign-in and first-run window **follows Windows**; a change of the Windows setting applies **at the next sign-in** (a choice made in the menu applies at once)
-  - [ ] Every screen moved to the new look, in English and Arabic (right-to-left), at the usual screen sizes
-  - [ ] Kept working: AutomationIds stay stable (UI tests and the end-to-end test drive them), all texts stay in .resx, the generic XAML / Arabic-twin checks pass
-  - [ ] Checked on the real executable with screenshots of every screen (English and Arabic) for the user's review
+  - [x] Every screen moved to the new look, in English and Arabic (right-to-left), at the usual screen sizes (MISS-08c, 08d)
+  - [x] Kept working: AutomationIds stay stable (UI tests and the end-to-end test drive them), all texts stay in .resx, the generic XAML / Arabic-twin checks pass
+  - [x] Checked on the real executable with screenshots of every screen (English and Arabic, light and dark) for the user's review
 
 - [ ] **MISS-09 Product name, brand identity, logo and colours** (added by the user 2026-10-15; taken BEFORE MISS-08 at the user's request): the product has no name, brand or logo yet ("GenericPOS" / "Generic POS Platform" is a working name). Brief (user 2026-10-15): Arabic and English markets from the start, any small business, a PREMIUM feeling; name suggestions of every kind shown to choose from
   - [x] Name chosen (user 2026-10-15): **Matjar / متجر** ("store") - from two rounds of drawn suggestions; a common Arabic word, so a trademark / name check by the user (and possibly a short tag or distinctive spelling) is still advised before the installer
@@ -230,6 +230,29 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
   - [x] Brand sheet `branding/BRAND.md` (2026-10-15): name in both scripts, logo files and rules, colour roles for light and dark with contrast figures, type
   - [x] Brand applied in the application (MISS-08a, 2026-10-15): window titles Matjar / متجر, the logo in the header, the sign-in and the welcome page, the Matjar icon on Client.Desktop.exe and GenericPOS.exe; renaming the executables waits for the installer (PKG-03)
   - [ ] Put the name and logo in one place (resources) so a later rename is one change; decide whether the executable / install folder names follow it (before PKG-03, the installer)
+
+### B-extra. Added after the feature review (user 2026-10-19)
+
+Found by a review of the whole product against small-shop POS products and the region's tax rules (web search 2026-10-19), plus the user's own requests. Suggested order: MISS-10, MISS-11 (once the countries are decided), MISS-12, MISS-14, MISS-13, then MISS-15..MISS-17; MISS-18 before the installer (PKG-03) and the vendor's licence setup.
+
+- [ ] **MISS-10 Returns and refunds at the till** (gap since FIX-04): return items of a past sale (whole or part), found by its receipt or from Sales history; the money back by the way it was paid (cash out of the drawer, card), the items back into stock, a return receipt printed; who may refund is a permission (sensitive, audited); a reason for each return; Sales history and the reports show returns
+  - [ ] Decisions to settle with the user first: refund without the receipt (yes/no, who may), store credit instead of money, a time limit for returns
+- [ ] **MISS-11 Electronic receipts for the tax authority** (legal; may block selling in a country): every sale reported to the tax authority's system, the receipt carrying the authority's QR code; works offline and sends what waits when the connection is back
+  - [ ] Decision first: which countries the product is sold in first (Egypt, Saudi Arabia, both) - the work differs per country
+  - [ ] Egypt: ETA B2C e-receipt (POS integration, named waves of obliged businesses since 2025; dates and penalties to be confirmed with the ETA or a tax adviser)
+  - [ ] Saudi Arabia: ZATCA phase 2 (simplified invoices with the 9-field TLV QR code, reported within 24 hours; a cryptographic stamp (CSID) per POS device; UUID, previous-invoice hash, invoice counter)
+- [ ] **MISS-12 Selling on credit (آجل)** (user 2026-10-19: the shop's customer can buy on credit): a sale (whole or part) charged to a customer's account at checkout; each customer's balance, a credit limit, payments collected later (cash or card) recorded against the balance; a statement per customer (sales, payments, balance) printable; who may sell on credit is a permission; the Customers screen and the till show the balance
+- [ ] **MISS-13 Accounting-lite** (a paid module; full double-entry accounting stays out): expenses by category (rent, salaries, electricity...), supplier balances (what is owed from purchase orders) and payments to suppliers, profit by day and month (sales minus the cost of what was sold minus expenses - the cost price is already kept), an export (CSV / Excel) for the shop's accountant
+- [ ] **MISS-14 The till redesigned, with search suggestions, frequent sellers and low-stock warnings** (user 2026-10-19)
+  - [ ] Search as you type: typing in the till's search box shows a drop-down of matching products (name, SKU, barcode; similar spellings too) while typing, with a short pause before searching (debounce) so it stays fast; choosing one adds it; the scanner keeps working as before
+  - [ ] A section of frequent sellers on the till (the most sold products, touch-sized buttons) to add them with one tap
+  - [ ] Low-stock warning: when a product that is almost out of stock is found or added at the till, a short notice (toast) says so with the quantity left
+  - [ ] The Stock screen gets a "Running low" section listing those products with what is left
+  - [ ] Decisions to settle with the user first: the new till layout (drawn options), what "almost out of stock" means (one shop-wide number, or a reorder level per product), how "frequent" is counted (last 30 days, all time) and how many products are shown
+- [ ] **MISS-15 Barcode and price labels** (gap found in MISS-07d): choose products (or a received purchase order) and print shelf / product labels with name, price and barcode on the label printer already set up on the Devices screen
+- [ ] **MISS-16 Import products from Excel / CSV**: a new shop loads its products (and opening stock) from a file instead of typing them; a preview shows what will be added and what is wrong before anything is saved
+- [ ] **MISS-17 End-of-day report**: printed when a till shift is closed - sales by payment method, discounts, refunds, cash in and out, expected and counted cash, the difference
+- [ ] **MISS-18 Draw up the packages** (user 2026-10-19): which modules make up each package sold (for example a basic till, a shop, a shop with purchasing and accounting), what each costs, and what is extra (cloud backup, e-receipts); the licence server's modules and features follow it; before the installer (PKG-03)
 
 ---
 
@@ -262,6 +285,8 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 - [ ] **LATER-06** Receipt graphics (logo, barcode), customer display
 - [ ] **LATER-07** Reporting: export (CSV/PDF), scheduling
 - [ ] **LATER-08** Stage 15 production readiness
+- [ ] **LATER-09** Loyalty points, promotions and coupons (the optional Discounts module set aside in FIX-08)
+- [ ] **LATER-10** Weighing-scale barcodes (price or weight inside the barcode) and scale connection ("no scale now", MISS-07)
 
 ---
 
@@ -327,4 +352,5 @@ Recommended order: Part A (fixes) -> Part B (missing before packaging) -> Part C
 | 2026-10-17 | MISS-08c | 5b0938e | Owner's choices from drawn options (actions on each row, the editor beside the list, settings in two columns of white boxes) and the approved pilot: the main action by the shell's title (ScreenParts.HeaderActions), theme pieces (Button.Link, Button.RowMenu, Box, Panel.Side), plain tables; Products and Backup; 2951 tests |
 | 2026-10-17 | MISS-08c | 433eafd | Customers, Suppliers, Warehouses, Tax rates, Prices, Stock, Categories and units, Cloud backup, Devices, License, Updates, Support on the patterns; row commands replace the selection commands; the end-to-end test and the demo builder follow |
 | 2026-10-17 | MISS-08c | 96254f2 | Purchase orders, Users, Roles (the form where the chosen record shows), Sales history, Audit log, Cash drawer, Business overview in white boxes; the till: cashier and Close till by the title, the payment fits above Checkout on a 720 px window, the discount kind readable; Arabic: dates, times and signed amounts kept in order (left-to-right marks, ARCH-UI-003), the installation ID readable; all 22 screens and the panels shot in English and Arabic; 2953 tests + 2 opt-in, 0 warnings; the end-to-end test passes |
-| 2026-10-17 | MISS-08d | (this commit) | The dark theme per user (owner's choices: a sun / moon button with Like Windows / Light / Dark; sign-in follows Windows; a Windows change applies at the next sign-in): User.Theme + SetUserTheme / GetUserTheme + migration AddUserTheme; Windows' app mode read; applied at sign-in and at once from the menu; dark title bars (DWM); every screen shot dark in English and Arabic; 2965 tests + 2 opt-in, 0 warnings; the end-to-end test passes. MISS-08 complete |
+| 2026-10-17 | MISS-08d | 64f6aac | The dark theme per user (owner's choices: a sun / moon button with Like Windows / Light / Dark; sign-in follows Windows; a Windows change applies at the next sign-in): User.Theme + SetUserTheme / GetUserTheme + migration AddUserTheme; Windows' app mode read; applied at sign-in and at once from the menu; dark title bars (DWM); every screen shot dark in English and Arabic; 2965 tests + 2 opt-in, 0 warnings; the end-to-end test passes. MISS-08 complete |
+| 2026-10-19 | MISS-10..MISS-18, LATER-09, LATER-10 | (this commit) | Added after a review of the whole product (web search) and the user's requests: returns and refunds, e-receipts for the tax authority (countries to decide), selling on credit, accounting-lite, the till redesigned with search suggestions (debounced), frequent sellers and low-stock warnings (toast + a Running low section in Stock), labels, product import, end-of-day report, drawing up the packages; loyalty/promotions and scale barcodes for later |

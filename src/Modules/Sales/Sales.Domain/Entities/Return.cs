@@ -41,10 +41,10 @@ public sealed class Return
     /// <summary>Read-only view of return line items.</summary>
     public IReadOnlyList<ReturnItem> Items => _items.AsReadOnly();
 
-    /// <summary>Total refund amount (sum of all item line totals).</summary>
+    /// <summary>Total refund amount: the sum of the lines' refunds (MISS-10: what the customer paid for the returned units).</summary>
     public Money TotalRefundAmount => _items.Aggregate(
         Money.Zero,
-        (acc, i) => acc + i.UnitPrice * i.Quantity.Value);
+        (acc, i) => acc + i.RefundAmount);
 
     // -----------------------------------------------------------------------
     // Factory
@@ -85,7 +85,9 @@ public sealed class Return
         string productName,
         SaleQuantity quantity,
         Money unitPrice,
-        string? reason = null)
+        string? reason = null,
+        bool backToStock = true,
+        Money? refundAmount = null)
     {
         if (Status != ReturnStatus.Pending)
             return Result.Failure<ReturnItem>(Error.Conflict(
@@ -94,7 +96,7 @@ public sealed class Return
 
         var itemResult = ReturnItem.Create(
             Id, originalSaleItemId, catalogProductId,
-            productName, quantity, unitPrice, reason);
+            productName, quantity, unitPrice, reason, backToStock, refundAmount ?? unitPrice * quantity.Value);
 
         if (itemResult.IsFailure)
             return Result.Failure<ReturnItem>(itemResult.Error);

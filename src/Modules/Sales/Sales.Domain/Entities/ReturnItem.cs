@@ -36,6 +36,12 @@ public sealed class ReturnItem
     /// <summary>Reason for this particular return line.</summary>
     public string? Reason { get; private set; }
 
+    /// <summary>MISS-10: true when the returned units go back into stock; false when they are written off as damaged.</summary>
+    public bool BackToStock { get; private set; } = true;
+
+    /// <summary>MISS-10: the money given back for this line - the share of what the customer paid for it (after discounts, tax included).</summary>
+    public Money RefundAmount { get; private set; }
+
     // -----------------------------------------------------------------------
     // Factory
     // -----------------------------------------------------------------------
@@ -47,7 +53,9 @@ public sealed class ReturnItem
         string productName,
         SaleQuantity quantity,
         Money unitPrice,
-        string? reason = null)
+        string? reason,
+        bool backToStock,
+        Money refundAmount)
     {
         if (returnId == ReturnId.Empty)
             return Result.Failure<ReturnItem>(Error.Validation(
@@ -69,6 +77,11 @@ public sealed class ReturnItem
                 "Sales.ReturnItem.ProductNameRequired",
                 "Product name is required for return records."));
 
+        if (refundAmount.Amount < 0m)
+            return Result.Failure<ReturnItem>(Error.Validation(
+                "Sales.ReturnItem.RefundNegative",
+                "A refund cannot be negative."));
+
         if (reason is not null && reason.Length > 500)
             return Result.Failure<ReturnItem>(Error.Validation(
                 "Sales.ReturnItem.ReasonTooLong",
@@ -83,7 +96,9 @@ public sealed class ReturnItem
             ProductName = productName.Trim(),
             Quantity = quantity,
             UnitPrice = unitPrice,
-            Reason = reason?.Trim()
+            Reason = reason?.Trim(),
+            BackToStock = backToStock,
+            RefundAmount = refundAmount
         });
     }
 }

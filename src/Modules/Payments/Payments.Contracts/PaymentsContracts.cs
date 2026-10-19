@@ -26,6 +26,15 @@ namespace Payments.Contracts.Models
         decimal? TenderedAmount = null,
         string? RecordedBy = null);
 
+    /// <summary>MISS-10: a request to record money paid BACK to a customer (a refund) for a generic reference (e.g. "return" + return ID).</summary>
+    public sealed record RecordRefundRequest(
+        string ReferenceType,
+        Guid ReferenceId,
+        decimal Amount,
+        PaymentMethodContract Method,
+        string? MethodDetail = null,
+        string? RecordedBy = null);
+
     public sealed record RecordPaymentResult(bool IsSuccess, Guid PaymentId, decimal ChangeDue, string? ErrorCode, string? ErrorMessage)
     {
         public static RecordPaymentResult Success(Guid paymentId, decimal changeDue) => new(true, paymentId, changeDue, null, null);
@@ -50,7 +59,8 @@ namespace Payments.Contracts.Models
         string? MethodDetail,
         decimal? TenderedAmount,
         PaymentStatusContract Status,
-        DateTime RecordedAt);
+        DateTime RecordedAt,
+        bool IsRefund = false);
 }
 
 namespace Payments.Contracts.Interfaces
@@ -66,6 +76,9 @@ namespace Payments.Contracts.Interfaces
         Task<RecordPaymentResult> RecordPaymentAsync(RecordPaymentRequest request, CancellationToken cancellationToken = default);
 
         Task<PaymentOperationResult> VoidPaymentAsync(Guid paymentId, string reason, CancellationToken cancellationToken = default);
+
+        /// <summary>MISS-10: records a refund (money paid back to a customer). The result's PaymentId is the refund's id; no change is due.</summary>
+        Task<RecordPaymentResult> RecordRefundAsync(RecordRefundRequest request, CancellationToken cancellationToken = default);
     }
 
     /// <summary>Read-only access to payments. Implemented by Payments.Infrastructure.Services.PaymentReader.</summary>
@@ -73,7 +86,7 @@ namespace Payments.Contracts.Interfaces
     {
         Task<IReadOnlyList<PaymentResult>> GetPaymentsForReferenceAsync(string referenceType, Guid referenceId, CancellationToken cancellationToken = default);
 
-        /// <summary>Sum of the Recorded (not voided) payments for the reference.</summary>
+        /// <summary>Sum of the Recorded (not voided) payments received for the reference (refunds are not counted).</summary>
         Task<decimal> GetTotalPaidAsync(string referenceType, Guid referenceId, CancellationToken cancellationToken = default);
     }
 }

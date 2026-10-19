@@ -247,6 +247,9 @@ public sealed class StubSales : ISalesService
         return Task.FromResult(SaleOperationResult.Success());
     }
 
+    public Task<RecordReturnResult> RecordReturnAsync(Guid saleId, IReadOnlyList<ReturnLineRequest> lines, string reason, CancellationToken cancellationToken = default)
+        => Task.FromResult(RecordReturnResult.Failure("Stub.NotUsed", "Returns are not used by these tests."));   // MISS-10
+
     public Task<SaleOperationResult> CancelSaleAsync(Guid saleId, string reason, CancellationToken cancellationToken = default)
     {
         Calls.Add("cancel");

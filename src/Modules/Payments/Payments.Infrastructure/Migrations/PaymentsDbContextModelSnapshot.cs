@@ -25,6 +25,9 @@ namespace Payments.Infrastructure.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Direction")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Method")
                         .HasColumnType("INTEGER");
 

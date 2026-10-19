@@ -28,6 +28,7 @@ internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(p => p.TenderedAmount).HasColumnType("TEXT");
         builder.Property(p => p.RecordedBy).HasMaxLength(100);
         builder.Property(p => p.Status).HasConversion<int>().IsRequired();
+        builder.Property(p => p.Direction).HasConversion<int>().IsRequired();   // MISS-10
         builder.Property(p => p.RecordedAt).IsRequired();
         builder.Property(p => p.VoidedAt);
         builder.Property(p => p.VoidReason).HasMaxLength(500);

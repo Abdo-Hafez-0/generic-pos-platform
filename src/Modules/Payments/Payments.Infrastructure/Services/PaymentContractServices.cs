@@ -13,7 +13,8 @@ namespace Payments.Infrastructure.Services;
 /// FIX-06: an UNEXPECTED failure (database locked or unavailable, disk error) reaches the calling module as a failed result with a plain
 /// sentence, never as an exception or database text; the details go to the log.
 /// </summary>
-internal sealed class PaymentService(RecordPaymentCommandHandler recordHandler, VoidPaymentCommandHandler voidHandler, ILogger<PaymentService>? logger = null) : IPaymentService
+internal sealed class PaymentService(RecordPaymentCommandHandler recordHandler, VoidPaymentCommandHandler voidHandler, RecordRefundCommandHandler refundHandler,
+    ILogger<PaymentService>? logger = null) : IPaymentService
 {
     private const string OperationFailedCode = "Payments.OperationFailed";
 
@@ -54,6 +55,26 @@ internal sealed class PaymentService(RecordPaymentCommandHandler recordHandler, 
             ? PaymentOperationResult.Success()
             : PaymentOperationResult.Failure(result.Error.Code, result.Error.Description);
     }
+
+    public async Task<RecordPaymentResult> RecordRefundAsync(RecordRefundRequest request, CancellationToken cancellationToken = default)
+    {
+        Platform.Core.Results.Result<Guid> result;
+        try
+        {
+            result = await refundHandler.ExecuteAsync(new RecordRefundCommand(
+                request.ReferenceType, request.ReferenceId, request.Amount, (PaymentMethod)(int)request.Method, request.MethodDetail, request.RecordedBy),
+                cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger?.LogError(ex, "Recording a refund for {ReferenceType} {ReferenceId} failed unexpectedly.", request.ReferenceType, request.ReferenceId);
+            return RecordPaymentResult.Failure(OperationFailedCode, "The refund could not be recorded and Payments changed nothing. Try again; if it keeps failing, contact support.");
+        }
+
+        return result.IsSuccess
+            ? RecordPaymentResult.Success(result.Value, 0m)
+            : RecordPaymentResult.Failure(result.Error.Code, result.Error.Description);
+    }
 }
 
 /// <summary>Implements IPaymentReader from Payments.Contracts (read-only).</summary>
@@ -63,11 +84,11 @@ internal sealed class PaymentReader(GetPaymentsForReferenceQueryHandler handler)
         => (await handler.HandleAsync(new GetPaymentsForReferenceQuery(referenceType, referenceId), cancellationToken))
             .Select(p => new PaymentResult(
                 p.PaymentId, p.ReferenceType, p.ReferenceId, p.Amount, (PaymentMethodContract)(int)p.Method, p.MethodDetail,
-                p.TenderedAmount, (PaymentStatusContract)(int)p.Status, p.RecordedAt))
+                p.TenderedAmount, (PaymentStatusContract)(int)p.Status, p.RecordedAt, p.Direction == PaymentDirection.Refunded))
             .ToList();
 
     public async Task<decimal> GetTotalPaidAsync(string referenceType, Guid referenceId, CancellationToken cancellationToken = default)
         => (await GetPaymentsForReferenceAsync(referenceType, referenceId, cancellationToken))
-            .Where(p => p.Status == PaymentStatusContract.Recorded)
+            .Where(p => p.Status == PaymentStatusContract.Recorded && !p.IsRefund)
             .Sum(p => p.Amount);
 }

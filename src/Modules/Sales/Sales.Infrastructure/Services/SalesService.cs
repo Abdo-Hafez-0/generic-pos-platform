@@ -18,7 +18,8 @@ internal sealed class SalesService(
     AddSaleItemCommandHandler addItemHandler,
     ConfirmSaleCommandHandler confirmHandler,
     CompleteSaleCommandHandler completeHandler,
-    CancelSaleCommandHandler cancelHandler) : ISalesService
+    CancelSaleCommandHandler cancelHandler,
+    RecordReturnCommandHandler returnHandler) : ISalesService
 {
     public async Task<CreateSaleResult> CreateSaleAsync(
         string? reference = null,
@@ -89,5 +90,19 @@ internal sealed class SalesService(
         return result.IsSuccess
             ? SaleOperationResult.Success()
             : SaleOperationResult.Failure(result.Error.Code, result.Error.Description);
+    }
+
+    public async Task<RecordReturnResult> RecordReturnAsync(Guid saleId, IReadOnlyList<ReturnLineRequest> lines, string reason,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await returnHandler.HandleAsync(
+            new RecordReturnCommand(saleId, lines.Select(l => new ReturnLine(l.SaleItemId, l.Quantity, l.BackToStock)).ToList(), reason),
+            cancellationToken);
+        if (result.IsFailure) return RecordReturnResult.Failure(result.Error.Code, result.Error.Description);
+
+        var recorded = result.Value.Return;
+        return RecordReturnResult.Success(recorded.Id.Value, recorded.TotalRefundAmount.Amount,
+            recorded.Items.Select(i => new ReturnedLineResult(i.OriginalSaleItemId.Value, i.CatalogProductId, i.ProductName, i.Quantity.Value,
+                i.BackToStock, i.RefundAmount.Amount)).ToList());
     }
 }

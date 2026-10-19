@@ -31,6 +31,13 @@ namespace Payments.Domain.Enums
         Other = 3
     }
 
+    /// <summary>MISS-10: which way the money went - received from the customer, or paid back to them (a refund).</summary>
+    public enum PaymentDirection
+    {
+        Received = 1,
+        Refunded = 2
+    }
+
     public enum PaymentStatus
     {
         /// <summary>The payment was received/recorded.</summary>
@@ -69,6 +76,10 @@ namespace Payments.Domain.Entities
 
         public string? RecordedBy { get; private set; }
         public PaymentStatus Status { get; private set; }
+
+        /// <summary>MISS-10: received from the customer (a payment) or paid back to them (a refund).</summary>
+        public PaymentDirection Direction { get; private set; } = PaymentDirection.Received;
+
         public DateTime RecordedAt { get; private set; }
         public DateTime? VoidedAt { get; private set; }
         public string? VoidReason { get; private set; }
@@ -120,6 +131,19 @@ namespace Payments.Domain.Entities
                 Status = PaymentStatus.Recorded,
                 RecordedAt = DateTime.UtcNow
             });
+        }
+
+        /// <summary>
+        /// MISS-10: records money paid BACK to a customer (a refund) for a generic reference (e.g. "return" + a Sales return ID), by cash,
+        /// card or another method; nothing is tendered.
+        /// </summary>
+        public static Result<Payment> Refund(
+            string referenceType, Guid referenceId, decimal amount, PaymentMethod method, string? methodDetail = null, string? recordedBy = null)
+        {
+            var recorded = Record(referenceType, referenceId, amount, method, methodDetail, tenderedAmount: null, recordedBy);
+            if (recorded.IsFailure) return recorded;
+            recorded.Value.Direction = PaymentDirection.Refunded;
+            return recorded;
         }
 
         public Result Void(string reason)

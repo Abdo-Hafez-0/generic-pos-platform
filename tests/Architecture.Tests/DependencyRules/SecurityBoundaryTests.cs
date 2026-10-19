@@ -120,6 +120,8 @@ public sealed class SecurityBoundaryTests
         ["ConfirmSaleCommandHandler"] = "Sales workflow (see above).",
         ["CompleteSaleCommandHandler"] = "Sales workflow (see above).",
         ["CancelSaleCommandHandler"] = "Sales workflow, including checkout's own compensation (see above).",
+        ["RecordReturnCommandHandler"] = "MISS-10: only reachable through ISalesService inside the POS refund, which is authorized as pos.sale.create (and pos.return.late past the limit).",
+        ["RecordRefundCommandHandler"] = "MISS-10: only reachable through IPaymentService inside the POS refund (authorized there); it has no public entry point.",
         ["IssueStockCommandHandler"] = "Only reachable through IStockIssueService inside the POS checkout.",
         ["RecordAuditEntryCommandHandler"] = "Modules record to the append-only audit log on their own account through IAuditRecorder.",
         ["SignInCommandHandler"] = "Authentication itself: it happens BEFORE anyone is signed in; protected by lockout instead.",

@@ -24,4 +24,13 @@ public interface ISalesReader
     /// so a report over a busy period is never cut off. Reporting limits the range itself (at most 366 days).
     /// </summary>
     Task<IReadOnlyList<CompletedSaleResult>> GetCompletedBetweenAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>MISS-10: a COMPLETED sale with its lines, what was already returned and refunded; null when there is no such completed sale.</summary>
+    Task<ReturnableSaleResult?> GetReturnableAsync(Guid saleId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MISS-10: the completed sales a receipt number points at ("S-" and the first 8 characters of the sale's id, as printed; the "S-" may be
+    /// left out), newest first - normally one.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> FindCompletedByReceiptNumberAsync(string receiptNumber, CancellationToken cancellationToken = default);
 }

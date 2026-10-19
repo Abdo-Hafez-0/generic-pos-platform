@@ -29,6 +29,15 @@ public sealed class PosCashOptions
     public string DrawerCode { get; set; } = "MAIN";
 }
 
+/// <summary>MISS-10 (owner): how long after a sale it can be returned without the late-returns permission (setting "PosReturns:DaysAllowed").</summary>
+public sealed class PosReturnOptions
+{
+    public const string SectionName = "PosReturns";
+
+    /// <summary>Days after the sale during which anyone who can sell may accept a return; after it, only the late-returns permission.</summary>
+    public int DaysAllowed { get; set; } = 14;
+}
+
 public sealed class PosReceiptOptions
 {
     public const string SectionName = "PosReceipt";

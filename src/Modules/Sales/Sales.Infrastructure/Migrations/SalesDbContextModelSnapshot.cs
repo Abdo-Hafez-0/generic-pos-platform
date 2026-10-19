@@ -55,6 +55,9 @@ namespace Sales.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("BackToStock")
+                        .HasColumnType("INTEGER");
+
                     b.Property<Guid>("CatalogProductId")
                         .HasColumnType("TEXT");
 
@@ -71,6 +74,9 @@ namespace Sales.Infrastructure.Migrations
 
                     b.Property<string>("Reason")
                         .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("RefundAmount")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("ReturnId")

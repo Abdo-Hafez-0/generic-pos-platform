@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sales.Application.Repositories;
 using Sales.Domain.Entities;
+using Sales.Domain.Enums;
 using Sales.Domain.ValueObjects;
 using Sales.Infrastructure.Persistence;
 
@@ -22,4 +23,10 @@ internal sealed class EfReturnRepository(SalesDbContext dbContext) : IReturnRepo
 
     public void Update(Return returnEntity)
         => dbContext.Returns.Update(returnEntity);
+
+    public async Task<IReadOnlyList<Return>> GetProcessedForSaleAsync(SaleId saleId, CancellationToken cancellationToken = default)
+        => await dbContext.Returns
+            .Include(r => r.Items)
+            .Where(r => r.OriginalSaleId == saleId && r.Status == ReturnStatus.Processed)
+            .ToListAsync(cancellationToken);
 }

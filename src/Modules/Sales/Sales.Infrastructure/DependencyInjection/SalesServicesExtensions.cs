@@ -86,6 +86,7 @@ public static class SalesServicesExtensions
         services.AddTransient<ConfirmSaleCommandHandler>();
         services.AddTransient<CompleteSaleCommandHandler>();
         services.AddTransient<CancelSaleCommandHandler>();
+        services.AddTransient<RecordReturnCommandHandler>();   // MISS-10
 
         // Query handlers (Transient — stateless)
         services.AddTransient<GetSaleByIdQueryHandler>();

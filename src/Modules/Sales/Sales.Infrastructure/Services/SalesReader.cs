@@ -75,6 +75,48 @@ internal sealed class SalesReader(SalesDbContext dbContext) : ISalesReader
             .ToList().AsReadOnly();
     }
 
+    public async Task<ReturnableSaleResult?> GetReturnableAsync(Guid saleId, CancellationToken cancellationToken = default)
+    {
+        var id = new SaleId(saleId);
+        var sale = await dbContext.Sales.AsNoTracking()
+            .Include(s => s.Items)
+            .FirstOrDefaultAsync(s => s.Id == id && s.Status == SaleStatus.Completed, cancellationToken);
+        if (sale is null) return null;
+
+        var returned = await dbContext.Returns.AsNoTracking()
+            .Include(r => r.Items)
+            .Where(r => r.OriginalSaleId == id && r.Status == ReturnStatus.Processed)
+            .SelectMany(r => r.Items)
+            .ToListAsync(cancellationToken);
+
+        var lines = sale.Items.Select(item =>
+        {
+            var back = returned.Where(r => r.OriginalSaleItemId == item.Id).ToList();
+            return new ReturnableLineResult(item.Id.Value, item.CatalogProductId, item.ProductSku, item.ProductName, item.Quantity.Value,
+                back.Sum(r => r.Quantity.Value), item.LineTotal.Amount, back.Sum(r => r.RefundAmount.Amount));
+        }).ToList();
+
+        return new ReturnableSaleResult(sale.Id.Value, DateTime.SpecifyKind(sale.CompletedAt ?? sale.CreatedAt, DateTimeKind.Utc), sale.CustomerName,
+            sale.GrandTotal.Amount, lines.Sum(l => l.RefundedAmount), lines);
+    }
+
+    public async Task<IReadOnlyList<Guid>> FindCompletedByReceiptNumberAsync(string receiptNumber, CancellationToken cancellationToken = default)
+    {
+        // The receipt prints "S-" and the first 8 hexadecimal characters of the sale's id (POS); SQLite keeps the id as text.
+        var key = (receiptNumber ?? string.Empty).Trim().ToUpperInvariant();
+        if (key.StartsWith("S-", StringComparison.Ordinal)) key = key[2..];
+        if (key.Length != 8 || !key.All(Uri.IsHexDigit)) return [];
+
+        var pattern = key + "%";
+        var sales = await dbContext.Sales.FromSqlInterpolated($"SELECT * FROM sal_Sales WHERE Id LIKE {pattern}")
+            .AsNoTracking()
+            .Where(s => s.Status == SaleStatus.Completed)
+            .OrderByDescending(s => s.CompletedAt)
+            .Select(s => s.Id)
+            .ToListAsync(cancellationToken);
+        return sales.Select(s => s.Value).ToList();
+    }
+
     private static DateTime AsUtc(DateTime value)
         => value.Kind == DateTimeKind.Local ? value.ToUniversalTime() : DateTime.SpecifyKind(value, DateTimeKind.Utc);
 

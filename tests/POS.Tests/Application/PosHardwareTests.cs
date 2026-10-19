@@ -675,6 +675,11 @@ public sealed class PosHardwareTests
             return Task.FromResult(Payments.Contracts.Models.RecordPaymentResult.Success(Guid.NewGuid(), request.TenderedAmount is { } t ? t - request.Amount : 0m));
         }
 
+        public Task<Payments.Contracts.Models.RecordPaymentResult> RecordRefundAsync(Payments.Contracts.Models.RecordRefundRequest request, CancellationToken cancellationToken = default)
+
+            => Task.FromResult(Payments.Contracts.Models.RecordPaymentResult.Failure("Stub.NotUsed", "Refunds are not used by these tests."));   // MISS-10
+
+
         public Task<Payments.Contracts.Models.PaymentOperationResult> VoidPaymentAsync(Guid paymentId, string reason, CancellationToken cancellationToken = default)
         {
             Voided.Add(paymentId);

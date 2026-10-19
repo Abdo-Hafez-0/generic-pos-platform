@@ -26,7 +26,8 @@ namespace Payments.Application.DTOs
 {
     public sealed record PaymentDto(
         Guid PaymentId, string ReferenceType, Guid ReferenceId, decimal Amount, Domain.Enums.PaymentMethod Method, string? MethodDetail,
-        decimal? TenderedAmount, decimal ChangeDue, Domain.Enums.PaymentStatus Status, DateTime RecordedAt, DateTime? VoidedAt, string? VoidReason);
+        decimal? TenderedAmount, decimal ChangeDue, Domain.Enums.PaymentStatus Status, DateTime RecordedAt, DateTime? VoidedAt, string? VoidReason,
+        Domain.Enums.PaymentDirection Direction = Domain.Enums.PaymentDirection.Received);
 }
 
 namespace Payments.Application.Commands
@@ -64,6 +65,25 @@ namespace Payments.Application.Commands
             await repository.AddAsync(created.Value, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return Result.Success(new RecordedPayment(created.Value.Id.Value, created.Value.ChangeDue));
+        }
+    }
+
+    /// <summary>MISS-10: records money paid back to a customer (a refund) for a generically-identified reference (e.g. a return).</summary>
+    public sealed record RecordRefundCommand(
+        string ReferenceType, Guid ReferenceId, decimal Amount, PaymentMethod Method, string? MethodDetail = null, string? RecordedBy = null);
+
+    public sealed class RecordRefundCommandHandler(IPaymentRepository repository, IPaymentsUnitOfWork unitOfWork)
+    {
+        /// <summary>Only for trusted calls from other modules through this module's contracts (POS refunds run inside an operation the
+        /// user was already authorized for). Not reachable from UI or other modules.</summary>
+        internal async Task<Result<Guid>> ExecuteAsync(RecordRefundCommand command, CancellationToken cancellationToken = default)
+        {
+            var created = Payment.Refund(command.ReferenceType, command.ReferenceId, command.Amount, command.Method, command.MethodDetail, command.RecordedBy);
+            if (created.IsFailure) return Result.Failure<Guid>(created.Error);
+
+            await repository.AddAsync(created.Value, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success(created.Value.Id.Value);
         }
     }
 
@@ -109,7 +129,7 @@ namespace Payments.Application.Queries
     {
         public static PaymentDto ToDto(this Payment p) => new(
             p.Id.Value, p.ReferenceType, p.ReferenceId, p.Amount.Amount, p.Method, p.MethodDetail, p.TenderedAmount, p.ChangeDue,
-            p.Status, p.RecordedAt, p.VoidedAt, p.VoidReason);
+            p.Status, p.RecordedAt, p.VoidedAt, p.VoidReason, p.Direction);
     }
 
     public sealed record GetPaymentQuery(Guid PaymentId);

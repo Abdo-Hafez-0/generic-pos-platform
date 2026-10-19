@@ -69,6 +69,7 @@ public sealed class SalesTestDatabase : IAsyncDisposable
         services.AddTransient<ConfirmSaleCommandHandler>();
         services.AddTransient<CompleteSaleCommandHandler>();
         services.AddTransient<CancelSaleCommandHandler>();
+        services.AddTransient<RecordReturnCommandHandler>();   // MISS-10
 
         // Application: Query handlers
         services.AddTransient<GetSaleByIdQueryHandler>();

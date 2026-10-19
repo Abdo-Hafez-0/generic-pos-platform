@@ -69,6 +69,10 @@ public static class POSServicesExtensions
         var discountOptions = new PosDiscountOptions();
         configuration.GetSection(PosDiscountOptions.SectionName).Bind(discountOptions);
         services.AddSingleton(discountOptions);
+        // MISS-10: the time limit for returns
+        var returnOptions = new PosReturnOptions();
+        configuration.GetSection(PosReturnOptions.SectionName).Bind(returnOptions);
+        services.AddSingleton(returnOptions);
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IPOSDevices, POSDevices>();
         services.AddSingleton<IPOSBarcodeInput, POSBarcodeInput>();
@@ -85,6 +89,7 @@ public static class POSServicesExtensions
         services.AddTransient<ChangeCartQuantityCommandHandler>();
         services.AddTransient<ClearCartCommandHandler>();
         services.AddTransient<CheckoutCartCommandHandler>();
+        services.AddTransient<RefundSaleCommandHandler>();   // MISS-10
         services.AddTransient<SetLineDiscountCommandHandler>();   // FIX-08c
         services.AddTransient<SetCartDiscountCommandHandler>();   // FIX-08c
         services.AddTransient<FindSaleCustomersQueryHandler>();   // FIX-11

@@ -51,6 +51,15 @@ internal sealed class ReturnItemConfiguration : IEntityTypeConfiguration<ReturnI
         builder.Property(i => i.Reason)
             .HasMaxLength(500);
 
+        // MISS-10
+        builder.Property(i => i.BackToStock).IsRequired();
+        builder.Property(i => i.RefundAmount)
+            .HasConversion(
+                m => m.Amount,
+                value => new Money(value))
+            .HasColumnType("TEXT")
+            .IsRequired();
+
         builder.HasIndex(i => i.ReturnId);
         builder.HasIndex(i => i.OriginalSaleItemId);
     }

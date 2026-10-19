@@ -29,6 +29,11 @@ public sealed class PosPaymentsIntegrationTests
             return Task.FromResult(RecordPaymentResult.Success(LastId, request.TenderedAmount is { } t ? t - request.Amount : 0m));
         }
 
+        public Task<RecordPaymentResult> RecordRefundAsync(RecordRefundRequest request, CancellationToken cancellationToken = default)
+
+            => Task.FromResult(RecordPaymentResult.Failure("Stub.NotUsed", "Refunds are not used by these tests."));   // MISS-10
+
+
         public Task<PaymentOperationResult> VoidPaymentAsync(Guid paymentId, string reason, CancellationToken cancellationToken = default)
         {
             Voided.Add((paymentId, reason));

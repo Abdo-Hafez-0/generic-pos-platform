@@ -48,6 +48,7 @@ public static class PaymentsServicesExtensions
         services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Payments.Application.Security.PaymentsCapabilityProvider>();
         services.AddTransient<Payments.Application.Commands.RecordPaymentCommandHandler>();
         services.AddTransient<Payments.Application.Commands.VoidPaymentCommandHandler>();
+        services.AddTransient<Payments.Application.Commands.RecordRefundCommandHandler>();   // MISS-10
         services.AddTransient<Payments.Application.Queries.GetPaymentQueryHandler>();
         services.AddTransient<Payments.Application.Queries.GetPaymentsForReferenceQueryHandler>();
         return services;

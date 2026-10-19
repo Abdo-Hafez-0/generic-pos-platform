@@ -57,4 +57,8 @@ internal sealed class EfPosCartRepository(POSDbContext dbContext) : IPosCartRepo
 
     public async Task AddAsync(PosCart cart, CancellationToken cancellationToken = default)
         => await dbContext.Carts.AddAsync(cart, cancellationToken);
+
+    public async Task<PosCart?> GetBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default)
+        => await dbContext.Carts.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.SaleId == saleId && c.Status == PosCartStatus.CheckedOut, cancellationToken);
 }

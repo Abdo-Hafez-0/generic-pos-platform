@@ -23,5 +23,8 @@ public interface IPosCartRepository
     /// <summary>MISS-07c: carts checked out since a moment (including items), newest first, at most <paramref name="max"/>.</summary>
     Task<IReadOnlyList<PosCart>> GetCheckedOutSinceAsync(DateTime sinceUtc, int max, CancellationToken cancellationToken = default);
 
+    /// <summary>MISS-10: the checked-out cart that became the given sale (its till session tells which warehouse it was sold from), or null.</summary>
+    Task<PosCart?> GetBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default);
+
     Task AddAsync(PosCart cart, CancellationToken cancellationToken = default);
 }

@@ -13,6 +13,7 @@ public static class POSCapabilities
     public const string OpenDrawer = "pos.drawer.open";
     public const string PrintLabel = "pos.label.print";
     public const string GiveDiscounts = "pos.discount.give";   // FIX-08c
+    public const string LateReturns = "pos.return.late";       // MISS-10 (owner): a return after the shop's time limit
     public const string ManageDevices = "devices.manage";      // MISS-07b: no license needed - a shop can always set up and test its devices
 
     public static IReadOnlyList<CapabilityDescriptor> All { get; } =
@@ -23,6 +24,7 @@ public static class POSCapabilities
         new(OpenDrawer, Module, "Open the cash drawer", "Open the cash drawer without a sale.", LicenseRequirement.Module, IsSensitive: true),
         new(PrintLabel, Module, "Print product labels", "Print shelf or product labels.", LicenseRequirement.Module),
         new(GiveDiscounts, Module, "Give discounts", "Give a discount on a line or on the whole cart at the till, up to the configured maximum.", LicenseRequirement.Module, IsSensitive: true),
+        new(LateReturns, Module, "Accept late returns", "Accept a return after the shop's time limit for returns (refunds within the limit only need \"Sell\").", LicenseRequirement.Module, IsSensitive: true),
         new(ManageDevices, Module, "Set up devices", "Choose and test the receipt printer, cash drawer, barcode scanner and label printer (a test can open the drawer).", LicenseRequirement.None, IsSensitive: true)
     ];
 }

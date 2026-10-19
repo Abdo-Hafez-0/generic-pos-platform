@@ -42,4 +42,12 @@ public interface ISalesService
 
     /// <summary>Cancels a Draft or Confirmed Sale.</summary>
     Task<SaleOperationResult> CancelSaleAsync(Guid saleId, string reason, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MISS-10: records a return against a COMPLETED sale - never more units than were sold minus earlier returns; each line's refund is
+    /// its share of what the customer paid for it (after discounts, tax included); the reason is required. Stock and money are the
+    /// caller's (POS) to move, in the same transaction.
+    /// </summary>
+    Task<RecordReturnResult> RecordReturnAsync(Guid saleId, IReadOnlyList<ReturnLineRequest> lines, string reason,
+        CancellationToken cancellationToken = default);
 }

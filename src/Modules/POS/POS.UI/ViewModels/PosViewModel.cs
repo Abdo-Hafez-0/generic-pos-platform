@@ -286,6 +286,8 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
         }
 
         LeaveReturnMode();
+        // MISS-10c: the refund stands whatever the printer or the drawer did; what must be done by hand is said
+        HardwareMessage = refunded.Value.HardwareNotices is { Count: > 0 } notices ? string.Join(" ", notices.Select(n => n.Message)) : null;
         StatusMessage = string.Format(CultureInfo.CurrentCulture, PosText.RefundGiven, refunded.Value.RefundTotal, method.Text);
     }
 

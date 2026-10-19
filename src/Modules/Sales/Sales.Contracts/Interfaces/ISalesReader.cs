@@ -33,4 +33,10 @@ public interface ISalesReader
     /// left out), newest first - normally one.
     /// </summary>
     Task<IReadOnlyList<Guid>> FindCompletedByReceiptNumberAsync(string receiptNumber, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MISS-10c: every refund GIVEN in [<paramref name="fromUtc"/>, <paramref name="toUtc"/>] (inclusive, UTC; the processed returns), oldest
+    /// first - a refund counts on the day it was given, whatever the day of its sale.
+    /// </summary>
+    Task<IReadOnlyList<RefundGivenResult>> GetRefundsBetweenAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default);
 }

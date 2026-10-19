@@ -3,8 +3,13 @@ namespace Sales.Contracts.Models;
 /// <summary>MISS-10: one line of a return - which sale line, how many units, and whether they go back into stock (false = damaged).</summary>
 public sealed record ReturnLineRequest(Guid SaleItemId, decimal Quantity, bool BackToStock = true);
 
-/// <summary>MISS-10: a returned line as recorded: the product, the units, where they go, and the money given back for them.</summary>
-public sealed record ReturnedLineResult(Guid SaleItemId, Guid CatalogProductId, string ProductName, decimal Quantity, bool BackToStock, decimal Refund);
+/// <summary>MISS-10: a returned line as recorded: the product, the units, where they go, and the money given back for them (MISS-10c: and the unit
+/// price it was sold at, for the return receipt).</summary>
+public sealed record ReturnedLineResult(Guid SaleItemId, Guid CatalogProductId, string ProductName, decimal Quantity, bool BackToStock, decimal Refund,
+    decimal UnitPrice = 0m);
+
+/// <summary>MISS-10c: a refund given (a processed return): when, for which sale, and how much - for reports that count refunds on their day.</summary>
+public sealed record RefundGivenResult(Guid ReturnId, Guid SaleId, DateTime ProcessedAtUtc, decimal Amount);
 
 /// <summary>MISS-10: the outcome of recording a return against a completed sale.</summary>
 public sealed record RecordReturnResult(bool IsSuccess, Guid ReturnId, decimal RefundTotal, IReadOnlyList<ReturnedLineResult> Lines,

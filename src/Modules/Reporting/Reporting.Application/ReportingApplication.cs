@@ -11,10 +11,19 @@ using Suppliers.Contracts.Interfaces;
 
 namespace Reporting.Application.DTOs
 {
-    public sealed record DailySalesDto(DateOnly Date, int SaleCount, decimal Total);
+    /// <summary>One day's sales; MISS-10c: the refunds given that day and the takings kept.</summary>
+    public sealed record DailySalesDto(DateOnly Date, int SaleCount, decimal Total, decimal Refunds = 0m)
+    {
+        public decimal Net => Total - Refunds;
+    }
 
+    /// <summary>The period's sales; MISS-10c: the refunds given in the period (on the day they were given) and the takings kept.</summary>
     public sealed record SalesReportDto(
-        DateTime From, DateTime To, int SaleCount, decimal GrandTotal, decimal AverageSale, IReadOnlyList<DailySalesDto> Days, bool IsTruncated);
+        DateTime From, DateTime To, int SaleCount, decimal GrandTotal, decimal AverageSale, IReadOnlyList<DailySalesDto> Days, bool IsTruncated,
+        decimal RefundTotal = 0m)
+    {
+        public decimal NetTotal => GrandTotal - RefundTotal;
+    }
 
     public sealed record InventorySnapshotDto(int StockItemCount, int ProductCount, decimal TotalOnHand, int OutOfStockCount);
 
@@ -78,12 +87,15 @@ namespace Reporting.Application.Queries
 
             var completed = await salesReader.GetCompletedBetweenAsync(range.Value.From, range.Value.To, cancellationToken);
 
+            var refunds = await salesReader.GetRefundsBetweenAsync(range.Value.From, range.Value.To, cancellationToken);   // MISS-10c
+
             var facts = completed.Select(s => new SaleFact(s.CompletedAt, s.GrandTotal));
-            var figures = SalesCalculator.Calculate(facts, range.Value, (clock ?? TimeProvider.System).LocalTimeZone);
+            var figures = SalesCalculator.Calculate(facts, range.Value, (clock ?? TimeProvider.System).LocalTimeZone,
+                refunds.Select(r => new RefundFact(r.ProcessedAtUtc, r.Amount)));
 
             return Result.Success(new SalesReportDto(
                 range.Value.From, range.Value.To, figures.SaleCount, figures.GrandTotal, figures.AverageSale,
-                figures.Days.Select(d => new DailySalesDto(d.Date, d.SaleCount, d.Total)).ToList(), IsTruncated: false));
+                figures.Days.Select(d => new DailySalesDto(d.Date, d.SaleCount, d.Total, d.Refunds)).ToList(), IsTruncated: false, figures.RefundTotal));
         }
     }
 

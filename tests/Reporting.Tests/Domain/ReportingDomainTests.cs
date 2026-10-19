@@ -74,6 +74,21 @@ public sealed class ReportingDomainTests
     }
 
     [Fact]
+    public void Refunds_count_on_the_day_they_were_given_and_the_net_is_what_was_kept()
+    {
+        // MISS-10c: a sale on 1 January refunded on 2 January counts as takings on the 1st and as a refund on the 2nd
+        var facts = new[] { new SaleFact(Jan1.AddHours(1), 10m), new SaleFact(Jan1.AddDays(1).AddHours(1), 20m) };
+        var refunds = new[] { new RefundFact(Jan1.AddDays(1).AddHours(5), 4m), new RefundFact(Jan1.AddDays(1).AddHours(6), 1.5m), new RefundFact(Jan1.AddDays(9), 99m) };
+
+        var f = SalesCalculator.Calculate(facts, Range(1, 3), refunds: refunds);
+
+        Assert.Equal((30m, 5.5m, 24.5m), (f.GrandTotal, f.RefundTotal, f.NetTotal));
+        Assert.Equal([0m, 5.5m, 0m], f.Days.Select(d => d.Refunds).ToArray());
+        Assert.Equal([10m, 14.5m, 0m], f.Days.Select(d => d.Net).ToArray());
+        Assert.Equal(15m, f.AverageSale);                                       // the average sale is of the sales, before refunds
+    }
+
+    [Fact]
     public void Sales_ListsEveryDayOfTheRange_IncludingEmptyOnes()
     {
         var facts = new[] { new SaleFact(Jan1.AddDays(1).AddHours(3), 8m) };

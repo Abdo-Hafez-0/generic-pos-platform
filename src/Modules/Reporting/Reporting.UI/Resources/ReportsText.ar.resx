@@ -23,7 +23,7 @@
     <value>المبيعات المكتملة</value>
   </data>
   <data name="SalesTotal" xml:space="preserve">
-    <value>الإيرادات</value>
+    <value>إجمالي المبيعات</value>
   </data>
   <data name="AverageSale" xml:space="preserve">
     <value>متوسط البيع</value>
@@ -78,5 +78,11 @@
   </data>
   <data name="RangeInvalid" xml:space="preserve">
     <value>يجب ألا يسبق تاريخُ النهاية تاريخَ البداية.</value>
+  </data>
+  <data name="Refunds" xml:space="preserve">
+    <value>المردودات</value>
+  </data>
+  <data name="NetTakings" xml:space="preserve">
+    <value>صافي الإيرادات</value>
   </data>
 </root>

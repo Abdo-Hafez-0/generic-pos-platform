@@ -15,4 +15,7 @@ public interface IReturnRepository
 
     /// <summary>MISS-10: the processed returns of a sale, with their lines (what was already taken back and refunded).</summary>
     Task<IReadOnlyList<Return>> GetProcessedForSaleAsync(SaleId saleId, CancellationToken cancellationToken = default);
+
+    /// <summary>MISS-10c: the processed returns of several sales, with their lines (Sales history).</summary>
+    Task<IReadOnlyList<Return>> GetProcessedForSalesAsync(IReadOnlyCollection<SaleId> saleIds, CancellationToken cancellationToken = default);
 }

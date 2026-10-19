@@ -72,14 +72,22 @@ public static class EscPosReceiptFormatter
 
         Rule();
         if (receipt.IsCopy) lines.Add(new ReceiptImageLine("*** COPY ***", Bold: true, Center: true));   // MISS-07c: a reprint
-        lines.Add(new ReceiptImageLine("Receipt", receipt.Reference));
+        if (receipt.Return is { } returned)
+        {
+            // MISS-10c: a return receipt - its own number and the receipt of the sale it returns
+            lines.Add(new ReceiptImageLine("*** RETURN ***", Bold: true, Center: true));
+            lines.Add(new ReceiptImageLine("Return", receipt.Reference));
+            lines.Add(new ReceiptImageLine("Of receipt", returned.OriginalReference));
+        }
+        else
+            lines.Add(new ReceiptImageLine("Receipt", receipt.Reference));
         lines.Add(new ReceiptImageLine(receipt.IssuedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)));
         if (!string.IsNullOrWhiteSpace(receipt.Cashier)) lines.Add(new ReceiptImageLine("Cashier " + receipt.Cashier));
         Rule();
 
         foreach (var item in receipt.Lines ?? [])
         {
-            foreach (var l in Wrap(item.Description, width)) lines.Add(new ReceiptImageLine(l));
+            foreach (var l in Wrap(item.WrittenOff ? item.Description + "  (damaged)" : item.Description, width)) lines.Add(new ReceiptImageLine(l));
             lines.Add(new ReceiptImageLine($"  {Quantity(item.Quantity)} x {Money(item.UnitPrice)}", Money(item.LineTotal + item.Discount)));
             if (item.Discount > 0m) lines.Add(new ReceiptImageLine("  discount", "-" + Money(item.Discount)));   // FIX-08c
         }
@@ -92,7 +100,10 @@ public static class EscPosReceiptFormatter
             lines.Add(new ReceiptImageLine("Discount", "-" + Money(discountTotal)));
         }
 
-        lines.Add(new ReceiptImageLine("TOTAL", Money(receipt.Total), Bold: true));
+        if (receipt.Return is not null)
+            lines.Add(new ReceiptImageLine("REFUND TOTAL", "-" + Money(receipt.Total), Bold: true));
+        else
+            lines.Add(new ReceiptImageLine("TOTAL", Money(receipt.Total), Bold: true));
 
         // FIX-08b: prices include tax - the tax contained in the total, per rate
         foreach (var tax in receipt.Taxes ?? [])
@@ -103,6 +114,15 @@ public static class EscPosReceiptFormatter
             lines.Add(new ReceiptImageLine(payment.Method, Money(payment.Amount)));
             if (payment.Tendered is { } tendered) lines.Add(new ReceiptImageLine("Tendered", Money(tendered)));
             if (payment.Change is { } change) lines.Add(new ReceiptImageLine("Change", Money(change)));
+        }
+
+        if (receipt.Return is { } refund)
+        {
+            foreach (var l in Wrap("Reason: " + refund.Reason, width)) lines.Add(new ReceiptImageLine(l));
+            lines.Add(new ReceiptImageLine(""));
+            lines.Add(new ReceiptImageLine("Customer signature"));
+            lines.Add(new ReceiptImageLine(""));
+            lines.Add(new ReceiptImageLine(new string('_', width)));
         }
 
         foreach (var footer in receipt.FooterLines ?? [])

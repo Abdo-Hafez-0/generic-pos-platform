@@ -130,6 +130,32 @@ public sealed class EscPosReceiptTests
     }
 
     [Fact]
+    public void A_return_receipt_names_both_receipts_marks_damaged_lines_shows_the_refund_the_reason_and_a_signature_line()
+    {
+        // MISS-10c (owner's choice: the full return receipt)
+        var items = new List<ReceiptLine> { new("Cola 330ml", 2m, 2.5m, 5m), new("Potato chips", 1m, 3.25m, 3.25m, WrittenOff: true) };
+        var receipt = new ReceiptDocument("Corner Shop", [], "R-7C21A9F0", new DateTimeOffset(2026, 10, 19, 17, 55, 0, TimeSpan.Zero), "owner", items, 8.25m,
+            new ReceiptPayment("Cash", 8.25m), ["Thank you!"], Return: new ReceiptReturn("S-22D83FC0", "Changed mind"));
+
+        var lines = Render(receipt, width: 32).Split('\n').Select(l => l.TrimEnd('\r')).ToArray();
+
+        Assert.Single(lines, l => l.Contains("*** RETURN ***"));
+        Assert.EndsWith("R-7C21A9F0", lines.Single(l => l.Contains("Return  ")).TrimEnd());
+        Assert.EndsWith("S-22D83FC0", lines.Single(l => l.Contains("Of receipt")).TrimEnd());
+        Assert.DoesNotContain(lines, l => l.Contains("Receipt  "));
+        Assert.Contains(lines, l => l.Contains("Potato chips  (damaged)"));
+        Assert.DoesNotContain(lines, l => l.Contains("Cola 330ml  (damaged)"));
+        Assert.EndsWith("-8.25", lines.Single(l => l.Contains("REFUND TOTAL")).TrimEnd());
+        Assert.DoesNotContain(lines, l => l.Contains("TOTAL") && !l.Contains("REFUND TOTAL"));
+        Assert.EndsWith("8.25", lines.Single(l => l.Contains("Cash ")).TrimEnd());
+        var reason = Array.FindIndex(lines, l => l.Contains("Reason: Changed mind"));
+        var signature = Array.FindIndex(lines, l => l.Contains("Customer signature"));
+        Assert.True(reason > 0 && signature > reason);
+        Assert.Contains(lines.Skip(signature), l => l.Contains(new string('_', 32)));
+        Assert.True(Array.FindIndex(lines, l => l.Contains("Thank you!")) > signature);
+    }
+
+    [Fact]
     public void AReprint_SaysItIsACopy_AndTheOriginalDoesNot()
     {
         // MISS-07c: the copy line comes right after the heading, before the items

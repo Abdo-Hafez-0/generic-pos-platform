@@ -10,7 +10,7 @@
   <data name="Show" xml:space="preserve"><value>Show</value></data>
   <data name="SalesCard" xml:space="preserve"><value>Sales</value></data>
   <data name="SaleCount" xml:space="preserve"><value>Completed sales</value></data>
-  <data name="SalesTotal" xml:space="preserve"><value>Takings</value></data>
+  <data name="SalesTotal" xml:space="preserve"><value>Sales total</value></data>
   <data name="AverageSale" xml:space="preserve"><value>Average sale</value></data>
   <data name="SalesTruncated" xml:space="preserve"><value>Only the most recent sales were counted; the start of this period may be missing. Choose a shorter period.</value></data>
   <data name="InventoryCard" xml:space="preserve"><value>Stock</value></data>
@@ -29,4 +29,10 @@
   <data name="Total" xml:space="preserve"><value>Total</value></data>
   <data name="Day" xml:space="preserve"><value>Day</value></data>
   <data name="RangeInvalid" xml:space="preserve"><value>The end date must not be before the start date.</value></data>
+  <data name="Refunds" xml:space="preserve">
+    <value>Refunds</value>
+  </data>
+  <data name="NetTakings" xml:space="preserve">
+    <value>Net takings</value>
+  </data>
 </root>

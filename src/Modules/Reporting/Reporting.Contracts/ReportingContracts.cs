@@ -15,14 +15,22 @@ namespace Reporting.Contracts.Models
         public static ReportResult<T> Failure(string errorCode, string errorMessage) => new(false, false, default, errorCode, errorMessage);
     }
 
-    public sealed record DailySalesData(DateOnly Date, int SaleCount, decimal Total);
+    /// <summary>One day's sales; MISS-10c: the refunds given that day (Net = Total - Refunds).</summary>
+    public sealed record DailySalesData(DateOnly Date, int SaleCount, decimal Total, decimal Refunds = 0m)
+    {
+        public decimal Net => Total - Refunds;
+    }
 
     /// <summary>
     /// Completed sales in a range; Days are the shop's local calendar days (FIX-12). Every completed sale of the range is read, so IsTruncated
     /// is always false since FIX-12 (kept for callers written against the earlier 2000-sale scan window).
     /// </summary>
     public sealed record SalesReportData(
-        DateTime From, DateTime To, int SaleCount, decimal GrandTotal, decimal AverageSale, IReadOnlyList<DailySalesData> Days, bool IsTruncated);
+        DateTime From, DateTime To, int SaleCount, decimal GrandTotal, decimal AverageSale, IReadOnlyList<DailySalesData> Days, bool IsTruncated,
+        decimal RefundTotal = 0m)   // MISS-10c: the refunds given in the range, on their own day
+    {
+        public decimal NetTotal => GrandTotal - RefundTotal;
+    }
 
     public sealed record InventorySnapshotData(int StockItemCount, int ProductCount, decimal TotalOnHand, int OutOfStockCount);
 

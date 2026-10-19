@@ -103,6 +103,6 @@ internal sealed class SalesService(
         var recorded = result.Value.Return;
         return RecordReturnResult.Success(recorded.Id.Value, recorded.TotalRefundAmount.Amount,
             recorded.Items.Select(i => new ReturnedLineResult(i.OriginalSaleItemId.Value, i.CatalogProductId, i.ProductName, i.Quantity.Value,
-                i.BackToStock, i.RefundAmount.Amount)).ToList());
+                i.BackToStock, i.RefundAmount.Amount, i.UnitPrice.Amount)).ToList());
     }
 }

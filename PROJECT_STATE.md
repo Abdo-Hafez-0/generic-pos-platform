@@ -2760,7 +2760,7 @@ FIX-13 decisions (user, 2026-10-09): every screen text in Arabic with right-to-l
 - **Tests**: 2965 + 2 opt-in skipped, 0 warnings; the end-to-end test passes (36 s). Users.Tests +5 (own choice / another's, validation); UI.Tests +7 (choice x Windows setting, switching the colour set restyles named colours and keeps the control styles).
 - **MISS-08 is complete** (08a theme and shell, 08b touch till, 08c screens and Arabic, 08d dark theme).
 
-## MISS-10 Summary - Returns and refunds (2026-10-19, in progress: 10a and 10b done)
+## MISS-10 Summary - Returns and refunds (2026-10-19, complete)
 
 - **Decisions (owner, 2026-10-19, from a drawn flow)**: returns from the till and from Sales history; only against a recorded sale; the cashier chooses how the money goes back (cash / card / other); store credit later (MISS-12); a 14-day limit as a setting (`PosReturns:DaysAllowed`) with a late-returns permission (`pos.return.late`, sensitive); back to stock or damaged per line; anyone who can sell may refund; a reason is required; a return receipt is always printed (10c).
 - **10a (a51717a) - the return itself**: Sales records a return against a completed sale (never more than sold minus earlier returns; each line's refund is its share of what was paid, rounded, the last units take what is left so the cents add up); Payments records refunds (`PaymentDirection`); POS `RefundSaleCommandHandler` in ONE transaction - the return, the stock back into the warehouse the sale came from (damaged lines written off), the refund, the cash out of this till's drawer (refused when the shift holds less) - audited "sale.returned". Note: new capabilities must be ticked on the Administrator role of an existing database.
@@ -2770,7 +2770,12 @@ FIX-13 decisions (user, 2026-10-09): every screen text in Arabic with right-to-l
   - POS.Contracts: `IPOSService.RefundSaleAsync`, `IPOSReader.GetReturnableSaleAsync` / `FindReturnableSaleAsync` (`ReturnableSaleQueryHandler`, through Sales.Contracts). Theme: `Segments` / `Segment` (a switch of two or three choices).
   - Real executable: sold, returned from Sales history (2 back on the shelf, 1 damaged, in cash) and an unknown receipt number refused, in English and Arabic.
   - Tests: UI.Tests +17 (return mode against an in-memory till; the shell's requests; screen validation; on the real desktop: from Sales history in cash, the rest by receipt number as damaged by card, nothing left after); Integration.Tests +1 (the till's preview is what Sales refunds, lookups through the POS contracts). Fixed on the way: Reporting.Tests' sales stub lacked the two reader methods added in 10a, and POS.Tests' composition lacked the refund handler's dependencies.
-- **Next**: 10c - the printed return receipt and the drawer opening on cash refunds; returns in Sales history, the Cash drawer and the Business overview (takings net of refunds).
+- **10c - the return receipt and returns in the figures** (owner's choices from drawn options: the full return receipt; a Refunded column with the net in Sales history; Refunds and Net takings in the Business overview):
+  - The RETURN receipt is always printed when a receipt printer is set up (`RefundSaleCommandHandler.ReturnReceipt`; `ReceiptDocument.Return`, `ReceiptLine.WrittenOff`; `EscPosReceiptFormatter.Layout` prints "*** RETURN ***", its own number R-..., "Of receipt S-...", damaged lines marked, REFUND TOTAL, how it was given, the reason and a customer signature line); the drawer opens for a cash refund (PosReceipt:AutoOpenDrawerOnCashSale). A device problem is told at the till (`POSRefundResult.HardwareNotices`) and the refund stands.
+  - Sales history: what was refunded of each sale (Refunded column), "refunds ... net ..." in the summary, how many units of each line came back (`SalesHistory.RefundedBySale` / `ReturnedByItem`, `IReturnRepository.GetProcessedForSalesAsync`).
+  - Business overview: Refunds and Net takings in the Sales card, Refunds and Net per day; a refund counts on the day it was given, whatever the day of its sale (`ISalesReader.GetRefundsBetweenAsync`, `RefundFact`, `SalesFigures.RefundTotal`); the average sale stays the average of the sales. "Takings" is now "Sales total".
+  - The Cash drawer already listed "Cash refund" movements and their effect on the expected balance (10a).
+- **MISS-10 is complete.** Next: MISS-11 (electronic receipts, Egypt first; 11e will issue the fiscal returns for these).
 
 ---
 
@@ -2851,4 +2856,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-19 - MISS-10b: the return screens (the till's return mode, Sales history's "Return..." through the shell's new neutral request). 2989 tests + 2 opt-in skipped, 0 warnings; MISS-07 open until the device check is run; next: MISS-10c (return receipt, returns in Sales history / Cash drawer / Business overview), then MISS-11 (Egypt first), MISS-12..18, then Part C (PKG-02). Note: Backup.Tests EscrowRecoveryTests "Any_changed_lost_or_added_character..." failed once and passed on reruns (random input; a separate task).
+Last updated: 2026-10-19 - MISS-10c: the return receipt, returns in Sales history and the Business overview; MISS-10 complete. 2993 tests + 2 opt-in skipped, 0 warnings; MISS-07 open until the device check is run; next: MISS-11 (electronic receipts, Egypt first), MISS-12..18, then Part C (PKG-02). Note: Backup.Tests EscrowRecoveryTests "Any_changed_lost_or_added_character..." failed once and passed on reruns (random input; a separate task).

@@ -32,7 +32,11 @@ public interface IBarcodeScanner : IHardwareDevice
 /// <summary>One receipt line. Amounts are already calculated: printing never computes business values.</summary>
 /// <param name="LineTotal">What is charged for the line, after its discount.</param>
 /// <param name="Discount">The discount on the line (FIX-08c: its own and its share of a cart discount), 0 = none.</param>
-public sealed record ReceiptLine(string Description, decimal Quantity, decimal UnitPrice, decimal LineTotal, decimal Discount = 0m);
+/// <param name="WrittenOff">MISS-10c, on a return receipt: the units were damaged (written off, not back on the shelf).</param>
+public sealed record ReceiptLine(string Description, decimal Quantity, decimal UnitPrice, decimal LineTotal, decimal Discount = 0m, bool WrittenOff = false);
+
+/// <summary>MISS-10c: what makes a receipt a RETURN receipt - the receipt of the sale it returns and the reason given.</summary>
+public sealed record ReceiptReturn(string OriginalReference, string Reason);
 
 /// <summary>The tax contained in the receipt total for one rate (prices include tax - FIX-08b), e.g. Rate 0.14, Amount 0.61.</summary>
 public sealed record ReceiptTax(decimal Rate, decimal Amount);
@@ -53,7 +57,8 @@ public sealed record ReceiptDocument(
     IReadOnlyList<string> FooterLines,
     IReadOnlyList<ReceiptTax>? Taxes = null,
     IReadOnlyList<ReceiptPayment>? Payments = null,
-    bool IsCopy = false)   // MISS-07c: a reprint says so on the paper
+    bool IsCopy = false,   // MISS-07c: a reprint says so on the paper
+    ReceiptReturn? Return = null)   // MISS-10c: a return receipt (Lines are what came back, Total the refund, Payments how it was given)
 {
     /// <summary>Every payment to print (FIX-10: a split payment has several; a single one may come as <see cref="Payment"/>).</summary>
     public IReadOnlyList<ReceiptPayment> AllPayments => Payments is { Count: > 0 } several ? several : Payment is { } one ? [one] : [];

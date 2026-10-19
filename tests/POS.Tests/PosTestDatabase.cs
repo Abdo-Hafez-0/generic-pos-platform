@@ -215,6 +215,7 @@ public sealed class NoSalesReader : ISalesReader
     public Task<IReadOnlyList<CompletedSaleResult>> GetCompletedBetweenAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<CompletedSaleResult>>([]);
     public Task<ReturnableSaleResult?> GetReturnableAsync(Guid saleId, CancellationToken cancellationToken = default) => Task.FromResult<ReturnableSaleResult?>(null);
     public Task<IReadOnlyList<Guid>> FindCompletedByReceiptNumberAsync(string receiptNumber, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Guid>>([]);
+    public Task<IReadOnlyList<RefundGivenResult>> GetRefundsBetweenAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<RefundGivenResult>>([]);
 }
 
 /// <summary>Stub of Sales.Contracts that records the calls POS makes. Can be told to fail at a step.</summary>

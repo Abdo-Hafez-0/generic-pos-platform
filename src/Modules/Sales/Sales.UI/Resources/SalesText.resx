@@ -40,4 +40,13 @@
   <data name="RowReturn" xml:space="preserve">
     <value>Return…</value>
   </data>
+  <data name="Refunded" xml:space="preserve">
+    <value>Refunded</value>
+  </data>
+  <data name="Returned" xml:space="preserve">
+    <value>Returned</value>
+  </data>
+  <data name="SummaryWithRefunds" xml:space="preserve">
+    <value>Completed sales: {0}, total {1:N2} · refunds {2:N2} · net {3:N2}</value>
+  </data>
 </root>

@@ -62,6 +62,8 @@ public sealed class BusinessOverviewViewModel : ViewModelBase, INavigationAware
         [
             new(ReportsText.SaleCount, s.SaleCount.ToString(CultureInfo.CurrentCulture)),
             new(ReportsText.SalesTotal, s.GrandTotal.ToString("N2", CultureInfo.CurrentCulture)),
+            new(ReportsText.Refunds, Minus(s.RefundTotal)),             // MISS-10c: refunds given in the period, on their own day
+            new(ReportsText.NetTakings, s.NetTotal.ToString("N2", CultureInfo.CurrentCulture)),
             new(ReportsText.AverageSale, s.AverageSale.ToString("N2", CultureInfo.CurrentCulture)),
         ], s => s.IsTruncated ? ReportsText.SalesTruncated : null));
         Cards.Add(Card(ReportsText.InventoryCard, o.Inventory, i =>
@@ -86,6 +88,10 @@ public sealed class BusinessOverviewViewModel : ViewModelBase, INavigationAware
             // FIX-12: the report's days are the shop's local calendar days, so every day of the chosen period is listed (empty ones too)
             foreach (var day in sales.Days.OrderBy(d => d.Date)) Days.Add(day);
     }
+
+    /// <summary>MISS-10c: an amount taken off, as "-8.25" kept in its order in Arabic; nothing taken off is "0.00".</summary>
+    private static string Minus(decimal value)
+        => value == 0m ? 0m.ToString("N2", CultureInfo.CurrentCulture) : "\u200E-" + value.ToString("N2", CultureInfo.CurrentCulture) + "\u200E";
 
     private static IReadOnlyList<ReportLine> Party(PartySummaryDto p) =>
     [

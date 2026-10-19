@@ -117,6 +117,18 @@ internal sealed class SalesReader(SalesDbContext dbContext) : ISalesReader
         return sales.Select(s => s.Value).ToList();
     }
 
+    public async Task<IReadOnlyList<RefundGivenResult>> GetRefundsBetweenAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
+    {
+        var (from, to) = (AsUtc(fromUtc), AsUtc(toUtc));
+        var returns = await dbContext.Returns.AsNoTracking()
+            .Include(r => r.Items)
+            .Where(r => r.Status == ReturnStatus.Processed && r.ProcessedAt != null && r.ProcessedAt >= from && r.ProcessedAt <= to)
+            .OrderBy(r => r.ProcessedAt)
+            .ToListAsync(cancellationToken);
+        return returns.Select(r => new RefundGivenResult(r.Id.Value, r.OriginalSaleId.Value, DateTime.SpecifyKind(r.ProcessedAt!.Value, DateTimeKind.Utc),
+            r.TotalRefundAmount.Amount)).ToList().AsReadOnly();
+    }
+
     private static DateTime AsUtc(DateTime value)
         => value.Kind == DateTimeKind.Local ? value.ToUniversalTime() : DateTime.SpecifyKind(value, DateTimeKind.Utc);
 

@@ -12,12 +12,21 @@ using Sales.UI.Resources;
 namespace Sales.UI.ViewModels;
 
 /// <summary>One sale as the list shows it (times in the computer's local time). <see cref="CanReturn"/>: a completed sale and a screen to return it.</summary>
-public sealed record SaleRow(SaleDto Sale, string TimeText, string StatusText, int ItemCount, bool CanReturn = false)
+public sealed record SaleRow(SaleDto Sale, string TimeText, string StatusText, int ItemCount, bool CanReturn = false, decimal Refunded = 0m)
 {
+    /// <summary>MISS-10c: what was refunded of the sale, or "–".</summary>
+    public string RefundedText => Refunded > 0m ? Refunded.ToString("N2", CultureInfo.CurrentCulture) : "–";
+
     public bool IsCompleted => Sale.Status == SaleStatus.Completed;
 
     /// <summary>The customer snapshot taken at the sale (FIX-11): "C-001 Jane Doe", or empty.</summary>
     public string CustomerText => Sale.CustomerId is null ? string.Empty : $"{Sale.CustomerCode} {Sale.CustomerName}";
+}
+
+/// <summary>MISS-10c: a line of the chosen sale with how many of its units came back.</summary>
+public sealed record SaleLineRow(SaleItemDto Item, decimal Returned)
+{
+    public string ReturnedText => Returned > 0m ? Returned.ToString("0.###", CultureInfo.CurrentCulture) : "–";
 }
 
 /// <summary>
@@ -49,7 +58,8 @@ public sealed class SalesHistoryViewModel : ViewModelBase, INavigationAware
     public ICommand ReturnRowCommand { get; }
 
     public ObservableCollection<SaleRow> Sales { get; } = [];
-    public ObservableCollection<SaleItemDto> Lines { get; } = [];
+    public ObservableCollection<SaleLineRow> Lines { get; } = [];
+    private IReadOnlyDictionary<Guid, decimal> _returnedByItem = new Dictionary<Guid, decimal>();
 
     public ICommand ShowCommand { get; }
 
@@ -67,7 +77,7 @@ public sealed class SalesHistoryViewModel : ViewModelBase, INavigationAware
             if (!Set(ref _selected, value)) return;
             Lines.Clear();
             if (value is not null)
-                foreach (var line in value.Sale.Items) Lines.Add(line);
+                foreach (var line in value.Sale.Items) Lines.Add(new SaleLineRow(line, _returnedByItem.GetValueOrDefault(line.SaleItemId)));
             Raise(nameof(HasSelection));
             Raise(nameof(SelectedCustomerText));
         }
@@ -100,13 +110,18 @@ public sealed class SalesHistoryViewModel : ViewModelBase, INavigationAware
 
         var selectedId = Selected?.Sale.SaleId;
         var mayReturn = _shell?.CanOpenFor(ScreenRequests.ReturnSale) == true;
+        _returnedByItem = history.Value.ReturnedByItem;
+        Selected = null;   // MISS-10c: the lines are rebuilt below with the new returned quantities
         Sales.Clear();
         foreach (var sale in history.Value.Sales)
             Sales.Add(new SaleRow(sale, LocalTime(sale.CompletedAt ?? sale.CreatedAt), Describe(sale.Status), sale.Items.Count,
-                CanReturn: mayReturn && sale.Status == SaleStatus.Completed));
+                CanReturn: mayReturn && sale.Status == SaleStatus.Completed, Refunded: history.Value.RefundedBySale.GetValueOrDefault(sale.SaleId)));
         Selected = Sales.FirstOrDefault(s => s.Sale.SaleId == selectedId);
 
-        SummaryText = string.Format(CultureInfo.CurrentCulture, SalesText.Summary, history.Value.CompletedCount, history.Value.CompletedTotal);
+        SummaryText = history.Value.RefundedTotal > 0m
+            ? string.Format(CultureInfo.CurrentCulture, SalesText.SummaryWithRefunds, history.Value.CompletedCount, history.Value.CompletedTotal,
+                history.Value.RefundedTotal, history.Value.NetTotal)
+            : string.Format(CultureInfo.CurrentCulture, SalesText.Summary, history.Value.CompletedCount, history.Value.CompletedTotal);
         ResultInfo = history.Value.IsTruncated
             ? string.Format(CultureInfo.CurrentCulture, SalesText.Truncated, GetSalesHistoryQuery.MaxResults)
             : Sales.Count == 0 ? SalesText.NoSales : null;

@@ -40,10 +40,15 @@ public sealed record POSFindReturnResult(bool IsSuccess, POSReturnableSale? Sale
 /// <summary>MISS-10b: one line to give back: the sale line, the units, and whether they go back on the shelf (false = damaged).</summary>
 public sealed record POSRefundLineRequest(Guid SaleItemId, decimal Quantity, bool BackToStock = true);
 
-/// <summary>MISS-10b: a refund given (the return recorded, the money given back), or why it was refused (nothing was saved).</summary>
-public sealed record POSRefundResult(bool IsSuccess, Guid ReturnId, decimal RefundTotal, string? ErrorCode, string? ErrorMessage)
+/// <summary>
+/// MISS-10b: a refund given (the return recorded, the money given back), or why it was refused (nothing was saved). MISS-10c:
+/// <see cref="HardwareNotices"/> what the receipt printer or the drawer could not do (the refund stands).
+/// </summary>
+public sealed record POSRefundResult(bool IsSuccess, Guid ReturnId, decimal RefundTotal, string? ErrorCode, string? ErrorMessage,
+    IReadOnlyList<POSHardwareNotice>? HardwareNotices = null)
 {
-    public static POSRefundResult Success(Guid returnId, decimal refundTotal) => new(true, returnId, refundTotal, null, null);
+    public static POSRefundResult Success(Guid returnId, decimal refundTotal, IReadOnlyList<POSHardwareNotice>? hardwareNotices = null)
+        => new(true, returnId, refundTotal, null, null, hardwareNotices);
 
     public static POSRefundResult Failure(string errorCode, string errorMessage) => new(false, Guid.Empty, 0m, errorCode, errorMessage);
 }

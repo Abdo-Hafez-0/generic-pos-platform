@@ -59,7 +59,7 @@ public sealed class SalesHistoryOnRealDesktopTests
 
         vm.Selected = vm.Sales[1];
         var line = Assert.Single(vm.Lines);
-        Assert.Equal((shop.Sku, 2m, 5m), (line.ProductSku, line.Quantity, line.LineTotal));
+        Assert.Equal((shop.Sku, 2m, 5m, "–"), (line.Item.ProductSku, line.Item.Quantity, line.Item.LineTotal, line.ReturnedText));
     }
 
     [Fact]

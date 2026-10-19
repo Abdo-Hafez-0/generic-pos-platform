@@ -90,4 +90,13 @@
   <data name="RowReturn" xml:space="preserve">
     <value>إرجاع…</value>
   </data>
+  <data name="Refunded" xml:space="preserve">
+    <value>المردود</value>
+  </data>
+  <data name="Returned" xml:space="preserve">
+    <value>المرتجع</value>
+  </data>
+  <data name="SummaryWithRefunds" xml:space="preserve">
+    <value>المبيعات المكتملة: {0}، الإجمالي {1:N2} · المردود {2:N2} · الصافي {3:N2}</value>
+  </data>
 </root>

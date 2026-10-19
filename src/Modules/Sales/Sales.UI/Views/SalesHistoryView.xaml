@@ -63,6 +63,7 @@
                 <DataGridTextColumn Header="{x:Static res:SalesText.Status}" Binding="{Binding StatusText}" Width="110" ElementStyle="{StaticResource Cell}"/>
                 <DataGridTextColumn Header="{x:Static res:SalesText.Items}" Binding="{Binding ItemCount}" Width="70" ElementStyle="{StaticResource Number}"/>
                 <DataGridTextColumn Header="{x:Static res:SalesText.Total}" Binding="{Binding Sale.GrandTotal, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Number}"/>
+                <DataGridTextColumn Header="{x:Static res:SalesText.Refunded}" Binding="{Binding RefundedText}" Width="110" ElementStyle="{StaticResource Number}"/>
                 <!-- MISS-10b: a completed sale's "⋯": Return... (opens the till's return of it) -->
                 <DataGridTemplateColumn Width="Auto">
                     <DataGridTemplateColumn.CellTemplate>
@@ -92,11 +93,12 @@
                 </StackPanel>
                 <DataGrid x:Name="LinesGrid" ItemsSource="{Binding Lines}" IsReadOnly="True" AutomationProperties.Name="{x:Static res:SalesText.Items}">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="{x:Static res:SalesText.Sku}" Binding="{Binding ProductSku}" Width="120" ElementStyle="{StaticResource Cell}"/>
-                        <DataGridTextColumn Header="{x:Static res:SalesText.Product}" Binding="{Binding ProductName}" Width="*" ElementStyle="{StaticResource Cell}"/>
-                        <DataGridTextColumn Header="{x:Static res:SalesText.Quantity}" Binding="{Binding Quantity, StringFormat=0.###}" Width="70" ElementStyle="{StaticResource Number}"/>
-                        <DataGridTextColumn Header="{x:Static res:SalesText.UnitPrice}" Binding="{Binding UnitPrice, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Number}"/>
-                        <DataGridTextColumn Header="{x:Static res:SalesText.LineTotal}" Binding="{Binding LineTotal, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Number}"/>
+                        <DataGridTextColumn Header="{x:Static res:SalesText.Sku}" Binding="{Binding Item.ProductSku}" Width="120" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:SalesText.Product}" Binding="{Binding Item.ProductName}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                        <DataGridTextColumn Header="{x:Static res:SalesText.Quantity}" Binding="{Binding Item.Quantity, StringFormat=0.###}" Width="70" ElementStyle="{StaticResource Number}"/>
+                        <DataGridTextColumn Header="{x:Static res:SalesText.Returned}" Binding="{Binding ReturnedText}" Width="90" ElementStyle="{StaticResource Number}"/>
+                        <DataGridTextColumn Header="{x:Static res:SalesText.UnitPrice}" Binding="{Binding Item.UnitPrice, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Number}"/>
+                        <DataGridTextColumn Header="{x:Static res:SalesText.LineTotal}" Binding="{Binding Item.LineTotal, StringFormat=N2}" Width="110" ElementStyle="{StaticResource Number}"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </DockPanel>

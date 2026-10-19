@@ -43,9 +43,20 @@ namespace Reporting.Domain.Calculations
     /// <summary>One completed sale, reduced to what the sales report needs.</summary>
     public readonly record struct SaleFact(DateTime CompletedAt, decimal GrandTotal);
 
-    public sealed record DailySales(DateOnly Date, int SaleCount, decimal Total);
+    /// <summary>MISS-10c: one refund given, reduced to what the sales report needs (it counts on the day it was given).</summary>
+    public readonly record struct RefundFact(DateTime GivenAt, decimal Amount);
 
-    public sealed record SalesFigures(int SaleCount, decimal GrandTotal, decimal AverageSale, IReadOnlyList<DailySales> Days);
+    /// <summary>One day: its completed sales and their total; MISS-10c: the refunds given that day and what was kept (Net).</summary>
+    public sealed record DailySales(DateOnly Date, int SaleCount, decimal Total, decimal Refunds = 0m)
+    {
+        public decimal Net => Total - Refunds;
+    }
+
+    /// <summary>The period's figures; MISS-10c: <see cref="RefundTotal"/> the refunds given in the period, <see cref="NetTotal"/> the takings kept.</summary>
+    public sealed record SalesFigures(int SaleCount, decimal GrandTotal, decimal AverageSale, IReadOnlyList<DailySales> Days, decimal RefundTotal = 0m)
+    {
+        public decimal NetTotal => GrandTotal - RefundTotal;
+    }
 
     /// <summary>
     /// Pure sales arithmetic: no I/O, no other module. Sales outside the range are ignored; every day of the range is listed.
@@ -54,10 +65,11 @@ namespace Reporting.Domain.Calculations
     /// </summary>
     public static class SalesCalculator
     {
-        public static SalesFigures Calculate(IEnumerable<SaleFact> facts, DateRange range, TimeZoneInfo? zone = null)
+        public static SalesFigures Calculate(IEnumerable<SaleFact> facts, DateRange range, TimeZoneInfo? zone = null, IEnumerable<RefundFact>? refunds = null)
         {
             zone ??= TimeZoneInfo.Utc;
             var inRange = facts.Where(f => range.Contains(f.CompletedAt)).ToList();
+            var refundsInRange = (refunds ?? []).Where(r => range.Contains(r.GivenAt)).ToList();
 
             DateOnly LocalDay(DateTime instant) => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(ToUtc(instant), zone));
 
@@ -65,16 +77,18 @@ namespace Reporting.Domain.Calculations
                 .GroupBy(f => LocalDay(f.CompletedAt))
                 .ToDictionary(g => g.Key, g => (Count: g.Count(), Total: g.Sum(f => f.GrandTotal)));
 
+            var refundedByDay = refundsInRange.GroupBy(r => LocalDay(r.GivenAt)).ToDictionary(g => g.Key, g => g.Sum(r => r.Amount));
+
             var days = new List<DailySales>();
             for (var day = LocalDay(range.From); day <= LocalDay(range.To); day = day.AddDays(1))
             {
                 byDay.TryGetValue(day, out var entry);
-                days.Add(new DailySales(day, entry.Count, entry.Total));
+                days.Add(new DailySales(day, entry.Count, entry.Total, refundedByDay.GetValueOrDefault(day)));
             }
 
             var total = inRange.Sum(f => f.GrandTotal);
             var average = inRange.Count == 0 ? 0m : decimal.Round(total / inRange.Count, 4, MidpointRounding.AwayFromZero);
-            return new SalesFigures(inRange.Count, total, average, days);
+            return new SalesFigures(inRange.Count, total, average, days, refundsInRange.Sum(r => r.Amount));
         }
 
         private static DateTime ToUtc(DateTime value)

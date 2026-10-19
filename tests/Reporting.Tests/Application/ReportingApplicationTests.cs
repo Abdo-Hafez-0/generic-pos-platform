@@ -22,7 +22,7 @@ public sealed class ReportingApplicationTests
 
     // ------------------------------------------------------------------ stubs of the other modules' read contracts
 
-    private sealed class StubSales(IReadOnlyList<SaleSummaryResult> sales) : ISalesReader
+    private sealed class StubSales(IReadOnlyList<SaleSummaryResult> sales, IReadOnlyList<RefundGivenResult>? refunds = null) : ISalesReader
     {
         public (DateTime From, DateTime To)? LastRange { get; private set; }
 
@@ -43,6 +43,10 @@ public sealed class ReportingApplicationTests
         public Task<ReturnableSaleResult?> GetReturnableAsync(Guid saleId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task<IReadOnlyList<Guid>> FindCompletedByReceiptNumberAsync(string receiptNumber, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        // MISS-10c: like the real reader - the refunds given in the inclusive range
+        public Task<IReadOnlyList<RefundGivenResult>> GetRefundsBetweenAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<RefundGivenResult>>((refunds ?? []).Where(r => r.ProcessedAtUtc >= fromUtc && r.ProcessedAtUtc <= toUtc).ToList());
     }
 
     /// <summary>The shop's time zone as the report sees it (FIX-12); tests never depend on the computer's own zone.</summary>
@@ -185,6 +189,24 @@ public sealed class ReportingApplicationTests
         Assert.Equal([new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 2), new DateOnly(2026, 1, 3)], r.Value.Days.Select(d => d.Date).ToArray());
         Assert.Equal([5m, 10m, 0m], r.Value.Days.Select(d => d.Total).ToArray());
         Assert.Equal(15m, r.Value.GrandTotal);
+    }
+
+    [Fact]
+    public async Task SalesReport_takes_off_the_refunds_given_in_the_range_on_their_own_day()
+    {
+        // MISS-10c
+        var sales = new[] { Sale(SaleStatusContract.Completed, 12m, Jan1.AddDays(1)) };
+        var refunds = new[]
+        {
+            new RefundGivenResult(Guid.NewGuid(), Guid.NewGuid(), Jan1.AddDays(2), 2.5m),
+            new RefundGivenResult(Guid.NewGuid(), Guid.NewGuid(), Jan31.AddDays(2), 99m),   // after the range
+        };
+        await using var sp = Build(s => s.AddSingleton<ISalesReader>(new StubSales(sales, refunds)));
+
+        var r = await sp.GetRequiredService<GetSalesReportQueryHandler>().HandleAsync(new GetSalesReportQuery(Jan1, Jan31));
+
+        Assert.Equal((12m, 2.5m, 9.5m), (r.Value.GrandTotal, r.Value.RefundTotal, r.Value.NetTotal));
+        Assert.Equal(2.5m, r.Value.Days.Single(d => d.Date == DateOnly.FromDateTime(Jan1.AddDays(2))).Refunds);
     }
 
     [Fact]

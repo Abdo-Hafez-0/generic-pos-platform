@@ -161,6 +161,24 @@ public sealed class PosReturnTests
     }
 
     [Fact]
+    public async Task A_printer_problem_after_the_refund_is_said_and_the_refund_stands()
+    {
+        // MISS-10c
+        await OpenTillAsync();
+        await FindAsync(_till.AddReturnableSale(("Milk", 1m, 0m, 2.5m, 0m)));
+        _vm.ReturnLines[0].Quantity = 1m;
+        _vm.ReturnReason = "Changed mind";
+        _till.RefundHardwareNotices = [new POSHardwareNotice("receipt printer", "Hardware.Failed", "The refund was given and saved, but the return receipt could not be printed: out of paper")];
+
+        await Run(_vm.GiveRefundCommand);
+
+        Assert.False(_vm.IsReturnMode);
+        Assert.Null(_vm.ErrorMessage);
+        Assert.Contains("out of paper", _vm.HardwareMessage);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, PosText.RefundGiven, 2.5m, PosText.PayCash), _vm.StatusMessage);
+    }
+
+    [Fact]
     public async Task A_refused_refund_keeps_the_return_on_the_screen_with_the_reason()
     {
         await OpenTillAsync();

@@ -7,6 +7,7 @@ using Payments.Contracts.Models;
 using Platform.Application.Abstractions.Auditing;
 using Platform.Application.Abstractions.Authorization;
 using Platform.Application.Abstractions.Data;
+using Platform.Application.Abstractions.Hardware;
 using Platform.Core.Results;
 using POS.Application.Devices;
 using POS.Application.Repositories;
@@ -25,9 +26,9 @@ public sealed record RefundLine(Guid SaleItemId, decimal Quantity, bool BackToSt
 /// </summary>
 public sealed record RefundSaleCommand(Guid SaleId, IReadOnlyList<RefundLine> Lines, string Reason, POSPaymentMethod Method, string? MethodDetail = null);
 
-/// <summary>A completed refund: the return, the money given back and how.</summary>
+/// <summary>A completed refund: the return, the money given back and how; MISS-10c: what the printer or the drawer could not do.</summary>
 public sealed record RefundOutcome(Guid ReturnId, Guid SaleId, decimal RefundTotal, POSPaymentMethod Method, IReadOnlyList<ReturnedLineResult> Lines,
-    Guid? RefundPaymentId);
+    Guid? RefundPaymentId, IReadOnlyList<POSHardwareNotice>? HardwareNotices = null);
 
 /// <summary>
 /// MISS-10 - returns and refunds (owner's decisions 2026-10-19).
@@ -44,6 +45,8 @@ public sealed record RefundOutcome(Guid ReturnId, Guid SaleId, decimal RefundTot
 ///      open shift holding at least the refund.
 /// CONSISTENCY: 2-5 run as ONE database transaction (IAtomicOperation): the return, the stock, the refund and the cash movement are saved
 /// together or not at all. The audit entry is written after the commit.
+/// PERIPHERALS (MISS-10c, after the commit): the RETURN receipt is always printed when a receipt printer is set up (owner's decision), and
+/// the drawer opens for a cash refund (PosReceipt:AutoOpenDrawerOnCashSale). A device problem never undoes the refund: it is reported.
 /// </summary>
 public sealed class RefundSaleCommandHandler(
     ISalesService salesService,
@@ -60,7 +63,10 @@ public sealed class RefundSaleCommandHandler(
     TimeProvider? timeProvider = null,
     IAtomicOperation? atomicOperation = null,
     IBusinessEventSink? businessEvents = null,
-    ICurrentUser? currentUser = null)
+    ICurrentUser? currentUser = null,
+    PosReceiptOptions? receiptOptions = null,
+    IReceiptPrinter? receiptPrinter = null,
+    ICashDrawer? cashDrawer = null)
 {
     private bool TracksCash => cashRecorder is not null && cashShifts is not null;
 
@@ -108,7 +114,61 @@ public sealed class RefundSaleCommandHandler(
         if (committed.IsFailure) return committed;
 
         await businessEvents.TryRecordAsync(Refunded(command, committed.Value));
-        return committed;
+        return Result.Success(committed.Value with { HardwareNotices = await RunPeripheralsAsync(command, committed.Value) });
+    }
+
+    /// <summary>MISS-10c: the return receipt (always, when a printer is set up) and the drawer for a cash refund. Never fails the refund.</summary>
+    private async Task<IReadOnlyList<POSHardwareNotice>> RunPeripheralsAsync(RefundSaleCommand command, RefundOutcome done)
+    {
+        var options = receiptOptions ?? new PosReceiptOptions();
+        var notices = new List<POSHardwareNotice>();
+        if (receiptPrinter is not null)
+        {
+            var receipt = ReturnReceipt(command, done, options);
+            await NoticeIfFailedAsync(notices, "receipt printer", "the return receipt could not be printed", () => receiptPrinter.PrintAsync(receipt, CancellationToken.None));
+        }
+
+        if (options.AutoOpenDrawerOnCashSale && cashDrawer is not null && done.Method == POSPaymentMethod.Cash && done.RefundTotal > 0m)
+            await NoticeIfFailedAsync(notices, "cash drawer", "the cash drawer could not be opened", () => cashDrawer.OpenAsync(CancellationToken.None));
+
+        return notices;
+    }
+
+    /// <summary>The printer-independent return receipt: what came back (damaged lines marked), the refund, how it was given, the reason.</summary>
+    public ReceiptDocument ReturnReceipt(RefundSaleCommand command, RefundOutcome done, PosReceiptOptions options)
+    {
+        var clock = timeProvider ?? TimeProvider.System;
+        var method = command.Method == POSPaymentMethod.Other && !string.IsNullOrWhiteSpace(command.MethodDetail)
+            ? $"{command.Method} ({command.MethodDetail.Trim()})"
+            : command.Method.ToString();
+        return new ReceiptDocument(
+            options.StoreName,
+            options.HeaderLines ?? [],
+            "R-" + done.ReturnId.ToString("N")[..8].ToUpperInvariant(),
+            TimeZoneInfo.ConvertTime(clock.GetUtcNow(), clock.LocalTimeZone),
+            currentUser is { IsAuthenticated: true } me ? me.UserName : null,
+            done.Lines.Select(l => new ReceiptLine(l.ProductName, l.Quantity, l.UnitPrice, l.Refund, WrittenOff: !l.BackToStock)).ToList(),
+            done.RefundTotal,
+            new ReceiptPayment(method, done.RefundTotal),
+            options.FooterLines ?? [],
+            Return: new ReceiptReturn("S-" + done.SaleId.ToString("N")[..8].ToUpperInvariant(), command.Reason.Trim()));
+    }
+
+    private static async Task NoticeIfFailedAsync(List<POSHardwareNotice> notices, string device, string what, Func<Task<Result>> call)
+    {
+        Result result;
+        try
+        {
+            result = await HardwareGuard.RunAsync(device, call);
+        }
+        catch (Exception ex)
+        {
+            result = HardwareErrors.Failed(device, ex.Message);
+        }
+
+        // A missing device is the normal case, not a problem to report.
+        if (result.IsFailure && !HardwareErrors.IsNotConfigured(result.Error))
+            notices.Add(new POSHardwareNotice(device, result.Error.Code, $"The refund was given and saved, but {what}: {result.Error.Description}"));
     }
 
     private async Task<Result<RefundOutcome>> CommitAsync(RefundSaleCommand command, Guid? warehouseId, CancellationToken cancellationToken)

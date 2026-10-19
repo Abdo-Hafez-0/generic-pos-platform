@@ -68,7 +68,8 @@ internal sealed class ReportProvider(
     }
 
     private static SalesReportData ToData(SalesReportDto d)
-        => new(d.From, d.To, d.SaleCount, d.GrandTotal, d.AverageSale, d.Days.Select(x => new DailySalesData(x.Date, x.SaleCount, x.Total)).ToList(), d.IsTruncated);
+        => new(d.From, d.To, d.SaleCount, d.GrandTotal, d.AverageSale, d.Days.Select(x => new DailySalesData(x.Date, x.SaleCount, x.Total, x.Refunds)).ToList(), d.IsTruncated,
+            d.RefundTotal);
 
     private static InventorySnapshotData ToData(InventorySnapshotDto d) => new(d.StockItemCount, d.ProductCount, d.TotalOnHand, d.OutOfStockCount);
 

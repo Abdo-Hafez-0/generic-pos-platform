@@ -29,4 +29,16 @@ internal sealed class EfReturnRepository(SalesDbContext dbContext) : IReturnRepo
             .Include(r => r.Items)
             .Where(r => r.OriginalSaleId == saleId && r.Status == ReturnStatus.Processed)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Return>> GetProcessedForSalesAsync(IReadOnlyCollection<SaleId> saleIds, CancellationToken cancellationToken = default)
+    {
+        if (saleIds.Count == 0) return [];
+        var found = new List<Return>();
+        foreach (var chunk in saleIds.Distinct().Chunk(500))   // keeps the SQL parameter list short
+            found.AddRange(await dbContext.Returns.AsNoTracking()
+                .Include(r => r.Items)
+                .Where(r => chunk.Contains(r.OriginalSaleId) && r.Status == ReturnStatus.Processed)
+                .ToListAsync(cancellationToken));
+        return found;
+    }
 }

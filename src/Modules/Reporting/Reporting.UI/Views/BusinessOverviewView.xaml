@@ -78,13 +78,16 @@
         </ItemsControl>
 
         <!-- sales per day -->
-        <Border Grid.Row="2" Style="{StaticResource Box}" MaxWidth="624" HorizontalAlignment="Left" Margin="0">
+        <Border Grid.Row="2" Style="{StaticResource Box}" MaxWidth="884" HorizontalAlignment="Left" Margin="0">
             <DataGrid x:Name="DailySalesGrid" ItemsSource="{Binding Days}" IsReadOnly="True"
                       AutomationProperties.Name="{x:Static res:ReportsText.SalesCard}">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="{x:Static res:ReportsText.Day}" Binding="{Binding Date, StringFormat=&#x200E;{0:d}&#x200E;}" Width="*" ElementStyle="{StaticResource Cell}"/>
                     <DataGridTextColumn Header="{x:Static res:ReportsText.SaleCount}" Binding="{Binding SaleCount}" Width="140" ElementStyle="{StaticResource Number}"/>
                     <DataGridTextColumn Header="{x:Static res:ReportsText.SalesTotal}" Binding="{Binding Total, StringFormat=N2}" Width="140" ElementStyle="{StaticResource Number}"/>
+                    <!-- MISS-10c: the refunds given that day, and what was kept -->
+                    <DataGridTextColumn Header="{x:Static res:ReportsText.Refunds}" Binding="{Binding Refunds, StringFormat=&#x200E;-#\,0.00&#x200E;;&#x200E;-#\,0.00&#x200E;;0.00}" Width="120" ElementStyle="{StaticResource Number}"/>
+                    <DataGridTextColumn Header="{x:Static res:ReportsText.NetTakings}" Binding="{Binding Net, StringFormat=N2}" Width="140" ElementStyle="{StaticResource Number}"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>

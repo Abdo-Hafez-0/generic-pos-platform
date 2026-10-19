@@ -161,7 +161,7 @@ internal sealed class POSService(
             var result = await refundHandler.HandleAsync(new RefundSaleCommand(saleId,
                 (lines ?? []).Select(l => new RefundLine(l.SaleItemId, l.Quantity, l.BackToStock)).ToList(), reason ?? string.Empty, method, methodDetail), cancellationToken);
             return result.IsSuccess
-                ? POSRefundResult.Success(result.Value.ReturnId, result.Value.RefundTotal)
+                ? POSRefundResult.Success(result.Value.ReturnId, result.Value.RefundTotal, result.Value.HardwareNotices)
                 : POSRefundResult.Failure(result.Error.Code, result.Error.Description);
         });
 

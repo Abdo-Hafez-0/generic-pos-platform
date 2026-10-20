@@ -351,4 +351,7 @@
   <data name="ReturnQuantityInvalid" xml:space="preserve">
     <value>Type a quantity from 0 to what is left of the line.</value>
   </data>
+  <data name="FiscalOverdue" xml:space="preserve">
+    <value>{0} electronic receipt(s) have waited more than {1} hours to reach the tax authority. Tell the person who manages electronic receipts.</value>
+  </data>
 </root>

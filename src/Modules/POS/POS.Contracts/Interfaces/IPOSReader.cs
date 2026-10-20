@@ -26,4 +26,7 @@ public interface IPOSReader
 
     /// <summary>MISS-10b: the completed sale a printed receipt number points at ("S-1A2B3C4D"; the "S-" may be left out).</summary>
     Task<POSFindReturnResult> FindReturnableSaleAsync(string receiptNumber, CancellationToken cancellationToken = default);
+
+    /// <summary>MISS-11a-3: the till's line about electronic receipts waiting too long (null when none, or without the Fiscal module).</summary>
+    Task<POSFiscalNotice?> GetFiscalNoticeAsync(CancellationToken cancellationToken = default) => Task.FromResult<POSFiscalNotice?>(null);
 }

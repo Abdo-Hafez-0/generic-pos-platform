@@ -48,7 +48,44 @@ namespace Fiscal.Application.Abstractions
         /// (for example a product without the authority's code) is a failed result with a reason the shop can act on - never an exception.
         /// </summary>
         Result<FiscalBuiltDocument> Build(FiscalBuildInput input);
+
+        /// <summary>
+        /// MISS-11a-3: hands documents to the authority (in the order of the chain; a batch up to the part's limit). One outcome per document.
+        /// Being offline, the authority being unavailable or the till not being registered are NotSent outcomes (tried again later), never
+        /// exceptions.
+        /// </summary>
+        Task<IReadOnlyList<FiscalSendOutcome>> SendAsync(FiscalSendInput input, CancellationToken cancellationToken = default);
+
+        /// <summary>MISS-11a-3: asks the authority for its answer on documents handed over earlier (Sent). One outcome per document.</summary>
+        Task<IReadOnlyList<FiscalSendOutcome>> CheckAsync(FiscalSendInput input, CancellationToken cancellationToken = default);
     }
+
+    /// <summary>MISS-11a-3: documents to send or to check, with the seller and this till.</summary>
+    public sealed record FiscalSendInput(IReadOnlyList<FiscalOutgoingDocument> Documents, FiscalSettings Settings, Guid TillId, string TillName,
+        FiscalTillRegistration Registration);
+
+    /// <summary>MISS-11a-3: a document as the sender hands it to a country part.</summary>
+    public sealed record FiscalOutgoingDocument(Guid DocumentId, FiscalDocumentKind Kind, string Reference, long Number, string Hash, string Payload,
+        DateTime IssuedAt, string? AuthorityReference);
+
+    /// <summary>MISS-11a-3: what the authority did with a document.</summary>
+    public enum FiscalSendResult
+    {
+        /// <summary>Not handed over (offline, unavailable, not registered): tried again later.</summary>
+        NotSent = 0,
+
+        /// <summary>Handed over; the answer is checked later.</summary>
+        Sent = 1,
+
+        Accepted = 2,
+        Rejected = 3,
+
+        /// <summary>Checking: no answer yet.</summary>
+        StillWaiting = 4,
+    }
+
+    /// <summary>MISS-11a-3: the outcome for one document: what happened, the authority's reference, and its reasons (a refusal, or why not sent).</summary>
+    public sealed record FiscalSendOutcome(Guid DocumentId, FiscalSendResult Result, string? AuthorityReference = null, string? Reason = null);
 
     /// <summary>MISS-11a-2: what a country part builds from: the request, the seller, and the document's place in this till's chain.</summary>
     public sealed record FiscalBuildInput(Fiscal.Contracts.Models.FiscalDocumentRequest Request, FiscalSettings Settings, Guid TillId, string TillName,
@@ -67,7 +104,22 @@ namespace Fiscal.Application.Repositories
         Task<FiscalDocument?> FindBySourceAsync(FiscalDocumentKind kind, Guid sourceId, CancellationToken cancellationToken = default);
 
         Task AddAsync(FiscalDocument document, CancellationToken cancellationToken = default);
+
+        /// <summary>MISS-11a-3: Waiting documents due for an attempt (all when <paramref name="force"/>), in the order of the chain.</summary>
+        Task<IReadOnlyList<FiscalDocument>> GetDueAsync(DateTime nowUtc, bool force, int take, CancellationToken cancellationToken = default);
+
+        /// <summary>MISS-11a-3: Sent documents whose answer is awaited, oldest first.</summary>
+        Task<IReadOnlyList<FiscalDocument>> GetSentAsync(int take, CancellationToken cancellationToken = default);
+
+        /// <summary>MISS-11a-3: the newest documents, optionally in some states only.</summary>
+        Task<IReadOnlyList<FiscalDocument>> ListAsync(IReadOnlyCollection<FiscalDocumentState>? states, int take, CancellationToken cancellationToken = default);
+
+        /// <summary>MISS-11a-3: what needs attention or waits: counts and the oldest outstanding document's time.</summary>
+        Task<FiscalDocumentCounts> CountAsync(DateTime managerSinceUtc, DateTime tillSinceUtc, CancellationToken cancellationToken = default);
     }
+
+    /// <summary>MISS-11a-3: outstanding = Waiting or Sent; "over" = outstanding and created before the manager / till threshold.</summary>
+    public sealed record FiscalDocumentCounts(int Outstanding, int NotBuilt, int Rejected, int OverManagerLimit, int OverTillLimit, DateTime? OldestOutstandingAt);
 
     public interface IFiscalSetupRepository
     {
@@ -85,6 +137,21 @@ namespace Fiscal.Application.Repositories
 
 namespace Fiscal.Application.DTOs
 {
+    /// <summary>MISS-11a-3: one document for the Fiscal screen's list.</summary>
+    public sealed record FiscalDocumentDto(Guid DocumentId, FiscalDocumentKind Kind, string Reference, string? OriginalReference, long? Number, decimal Total,
+        DateTime IssuedAt, FiscalDocumentState State, string? StateReason, int Attempts, DateTime? LastAttemptAt, string? AuthorityReference);
+
+    /// <summary>MISS-11a-3: what the warnings count: waiting (outstanding), not built, refused, and waiting longer than the managers' limit.</summary>
+    public sealed record FiscalAlertsDto(int Outstanding, int NotBuilt, int Rejected, int OverLimit, double LimitHours)
+    {
+        public bool NeedsAttention => NotBuilt > 0 || Rejected > 0 || OverLimit > 0;
+    }
+
+    /// <summary>MISS-11a-3: the outcome of a sending round.</summary>
+    public sealed record FiscalSendSummary(bool Ran, int Sent, int Accepted, int Rejected, int NotSent, string? LastReason)
+    {
+        public static FiscalSendSummary NothingToDo { get; } = new(false, 0, 0, 0, 0, null);
+    }
     /// <summary>
     /// MISS-11a: the Fiscal screen's setup - the settings, this till, and whether the chosen country's part is installed (without it nothing
     /// is issued yet) and whether the country is locked (documents exist).
@@ -151,6 +218,7 @@ namespace Fiscal.Application.Commands
 {
     using Fiscal.Contracts.Models;
     using Fiscal.Application.Abstractions;
+    using Fiscal.Application.DTOs;
     using Fiscal.Application.Queries;
     using Fiscal.Application.Repositories;
     using Fiscal.Application.Security;
@@ -252,5 +320,168 @@ namespace Fiscal.Application.Commands
                 ? FiscalDocumentResult.NotBuilt(document.Id, document.StateReason!)
                 : FiscalDocumentResult.Issued(document.Id, document.Number!.Value, document.QrPayload);
         }
+    }
+
+    /// <summary>
+    /// MISS-11a-3: one round of the outbox. Waiting documents due for an attempt go to the country part in chain order (a batch); Sent ones are
+    /// checked for the authority's answer. Not handed over: tried again later with a growing pause (1, 2, 4 ... up to 30 minutes). Nothing is
+    /// ever deleted. Receipts off or no country part: nothing to do. "Send now" (the screen) forces an attempt and needs fiscal.manage; the
+    /// background sender runs it without a user (internal).
+    /// </summary>
+    public sealed class SendFiscalDocumentsCommandHandler(IFiscalSetupRepository setup, IFiscalDocumentRepository documents, IFiscalUnitOfWork unitOfWork,
+        IAuthorizationService authorization, IEnumerable<IFiscalCountryPart>? countryParts = null, TimeProvider? timeProvider = null,
+        IBusinessEventSink? businessEvents = null)
+    {
+        public const int BatchSize = 100;
+
+        /// <summary>"Send now" on the Fiscal screen (fiscal.manage, audited).</summary>
+        public async Task<Result<FiscalSendSummary>> HandleAsync(CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(FiscalCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<FiscalSendSummary>(allowed.Error);
+
+            var summary = await ExecuteAsync(force: true, cancellationToken);
+            if (summary.Ran)
+                await businessEvents.TryRecordAsync(BusinessEvent.Create(FiscalCapabilities.Module, "fiscal.sent-now", "fiscal-documents", "outbox",
+                    $"Electronic receipts sent on request: {summary.Sent} handed over, {summary.Accepted} accepted, {summary.Rejected} refused, {summary.NotSent} not sent."));
+            return Result.Success(summary);
+        }
+
+        internal async Task<FiscalSendSummary> ExecuteAsync(bool force, CancellationToken cancellationToken = default)
+        {
+            var settings = await setup.GetSettingsAsync(cancellationToken);
+            if (settings is not { IsOn: true }) return FiscalSendSummary.NothingToDo;
+            var part = (countryParts ?? []).FirstOrDefault(p => p.Country == settings.Country);
+            if (part is null) return FiscalSendSummary.NothingToDo;
+
+            var now = (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+            var till = await FiscalTillAccess.GetOrCreateAsync(setup, unitOfWork, timeProvider, cancellationToken);
+            var (sent, accepted, rejected, notSent) = (0, 0, 0, 0);
+            string? lastReason = null;
+
+            // 1. what waits goes out, in the order of the chain
+            var due = await documents.GetDueAsync(now, force, BatchSize, cancellationToken);
+            if (due.Count > 0)
+            {
+                var outcomes = await AskAsync(part.SendAsync, due, settings, till, cancellationToken);
+                foreach (var document in due)
+                {
+                    var outcome = outcomes.GetValueOrDefault(document.Id) ?? new FiscalSendOutcome(document.Id, FiscalSendResult.NotSent, Reason: "The country part gave no answer for this document.");
+                    switch (outcome.Result)
+                    {
+                        case FiscalSendResult.Sent: document.MarkSent(outcome.AuthorityReference, now); sent++; break;
+                        case FiscalSendResult.Accepted: document.MarkAccepted(outcome.AuthorityReference, now); accepted++; break;
+                        case FiscalSendResult.Rejected: document.MarkRejected(outcome.Reason ?? string.Empty, now); rejected++; break;
+                        default: document.MarkNotSent(outcome.Reason ?? string.Empty, now); notSent++; lastReason = outcome.Reason ?? lastReason; break;
+                    }
+                }
+
+                await unitOfWork.SaveChangesAsync(cancellationToken);   // what was handed over is kept even if checking fails
+            }
+
+            // 2. what was handed over earlier: the authority's answer
+            var waiting = await documents.GetSentAsync(BatchSize, cancellationToken);
+            if (waiting.Count > 0)
+            {
+                var outcomes = await AskAsync(part.CheckAsync, waiting, settings, till, cancellationToken);
+                foreach (var document in waiting)
+                {
+                    if (outcomes.GetValueOrDefault(document.Id) is not { } outcome) continue;
+                    if (outcome.Result == FiscalSendResult.Accepted) { document.MarkAccepted(outcome.AuthorityReference, now); accepted++; }
+                    else if (outcome.Result == FiscalSendResult.Rejected) { document.MarkRejected(outcome.Reason ?? string.Empty, now); rejected++; }
+                }
+            }
+
+            if (waiting.Count > 0) await unitOfWork.SaveChangesAsync(cancellationToken);
+            return new FiscalSendSummary(due.Count > 0 || waiting.Count > 0, sent, accepted, rejected, notSent, lastReason);
+        }
+
+        private static async Task<Dictionary<Guid, FiscalSendOutcome>> AskAsync(
+            Func<FiscalSendInput, CancellationToken, Task<IReadOnlyList<FiscalSendOutcome>>> call, IReadOnlyList<FiscalDocument> batch,
+            FiscalSettings settings, FiscalTill till, CancellationToken cancellationToken)
+        {
+            var input = new FiscalSendInput(batch.Select(d => new FiscalOutgoingDocument(d.Id, d.Kind, d.Reference, d.Number ?? 0, d.Hash ?? string.Empty,
+                d.Payload ?? string.Empty, d.IssuedAt, d.AuthorityReference)).ToList(), settings, till.Id, till.Name, till.Registration);
+            try
+            {
+                return (await call(input, cancellationToken)).GroupBy(o => o.DocumentId).ToDictionary(g => g.Key, g => g.Last());
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // a broken connection or a fault in the part: nothing was answered, everything is tried again later
+                return batch.ToDictionary(d => d.Id, d => new FiscalSendOutcome(d.Id, FiscalSendResult.NotSent, Reason: ex.Message));
+            }
+        }
+    }
+}
+
+namespace Fiscal.Application.Queries
+{
+    using Fiscal.Application.DTOs;
+    using Fiscal.Application.Repositories;
+    using Fiscal.Application.Security;
+
+    /// <summary>MISS-11a-3: the documents for the Fiscal screen, newest first. <see cref="States"/> null = all.</summary>
+    public sealed record ListFiscalDocumentsQuery(IReadOnlyCollection<FiscalDocumentState>? States = null)
+    {
+        public const int MaxResults = 500;
+    }
+
+    public sealed class ListFiscalDocumentsQueryHandler(IFiscalDocumentRepository documents, IAuthorizationService authorization)
+    {
+        public async Task<Result<IReadOnlyList<FiscalDocumentDto>>> HandleAsync(ListFiscalDocumentsQuery query, CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(FiscalCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<IReadOnlyList<FiscalDocumentDto>>(allowed.Error);
+
+            var found = await documents.ListAsync(query.States, ListFiscalDocumentsQuery.MaxResults, cancellationToken);
+            return Result.Success<IReadOnlyList<FiscalDocumentDto>>(found.Select(d => new FiscalDocumentDto(d.Id, d.Kind, d.Reference, d.OriginalReference,
+                d.Number, d.Total, d.IssuedAt, d.State, d.StateReason, d.Attempts, d.LastAttemptAt, d.AuthorityReference)).ToList());
+        }
+    }
+
+    /// <summary>
+    /// MISS-11a-3 (owner's decision: warnings for managers and the till): what the warnings say - documents the part could not build or the
+    /// authority refused, and outstanding documents older than the manager's limit (6 hours) and the till's (12 hours). No permission: the
+    /// till and the shell read it (the shell shows the full warning only to those who manage e-receipts).
+    /// </summary>
+    public sealed class FiscalAlertsReader(IFiscalSetupRepository setup, IFiscalDocumentRepository documents, FiscalWarningOptions? options = null,
+        TimeProvider? timeProvider = null)
+    {
+        internal async Task<FiscalDocumentCounts?> ReadAsync(CancellationToken cancellationToken = default)
+        {
+            if (await setup.GetSettingsAsync(cancellationToken) is not { IsOn: true }) return null;
+            var now = (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+            var limits = options ?? new FiscalWarningOptions();
+            return await documents.CountAsync(now.AddHours(-limits.ManagerHours), now.AddHours(-limits.TillHours), cancellationToken);
+        }
+    }
+
+    public sealed record GetFiscalAlertsQuery;
+
+    /// <summary>MISS-11a-3: the alert counts for the Fiscal screen and the status bar (fiscal.manage); null when receipts are off.</summary>
+    public sealed class GetFiscalAlertsQueryHandler(FiscalAlertsReader alerts, IAuthorizationService authorization, FiscalWarningOptions? options = null)
+    {
+        public async Task<Result<FiscalAlertsDto?>> HandleAsync(GetFiscalAlertsQuery query, CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(FiscalCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<FiscalAlertsDto?>(allowed.Error);
+
+            var counts = await alerts.ReadAsync(cancellationToken);
+            return Result.Success(counts is null ? null
+                : new FiscalAlertsDto(counts.Outstanding, counts.NotBuilt, counts.Rejected, counts.OverManagerLimit, (options ?? new FiscalWarningOptions()).ManagerHours));
+        }
+    }
+
+    /// <summary>MISS-11a-3: when documents have waited too long (section "Fiscal:Warnings").</summary>
+    public sealed class FiscalWarningOptions
+    {
+        public const string SectionName = "Fiscal:Warnings";
+
+        /// <summary>Outstanding documents older than this are in the managers' warning (the authorities want them within 24 hours).</summary>
+        public double ManagerHours { get; set; } = 6;
+
+        /// <summary>Outstanding documents older than this are also said on the till (owner's decision: 12 hours).</summary>
+        public double TillHours { get; set; } = 12;
     }
 }

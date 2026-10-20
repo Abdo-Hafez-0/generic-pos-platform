@@ -33,8 +33,17 @@ public static class FiscalServicesExtensions
 
         services.AddFiscalCore();
 
+        // MISS-11a-3: the warning limits and the background sender
+        var warnings = new Fiscal.Application.Queries.FiscalWarningOptions();
+        configuration.GetSection(Fiscal.Application.Queries.FiscalWarningOptions.SectionName).Bind(warnings);
+        services.AddSingleton(warnings);
+        var sender = new Fiscal.Infrastructure.Services.FiscalSenderOptions();
+        configuration.GetSection(Fiscal.Infrastructure.Services.FiscalSenderOptions.SectionName).Bind(sender);
+        services.AddSingleton(sender);
+
         services.AddSingleton<IModule, FiscalModule>();
         services.AddHostedService<FiscalDatabaseInitializer>();
+        services.AddHostedService<Fiscal.Infrastructure.Services.FiscalOutboxService>();
         return services;
     }
 
@@ -47,6 +56,11 @@ public static class FiscalServicesExtensions
         services.AddScoped<Fiscal.Application.Repositories.IFiscalDocumentRepository, Fiscal.Infrastructure.Repositories.EfFiscalDocumentRepository>();
         services.AddScoped<Fiscal.Contracts.Interfaces.IFiscalRecorder, Fiscal.Infrastructure.Repositories.FiscalRecorder>();   // MISS-11a-2
         services.AddTransient<Fiscal.Application.Commands.RecordFiscalDocumentCommandHandler>();
+        services.AddTransient<Fiscal.Application.Commands.SendFiscalDocumentsCommandHandler>();          // MISS-11a-3
+        services.AddTransient<Fiscal.Application.Queries.ListFiscalDocumentsQueryHandler>();
+        services.AddTransient<Fiscal.Application.Queries.FiscalAlertsReader>();
+        services.AddTransient<Fiscal.Application.Queries.GetFiscalAlertsQueryHandler>();
+        services.AddScoped<Fiscal.Contracts.Interfaces.IFiscalNotices, Fiscal.Infrastructure.Repositories.FiscalNotices>();
         services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Fiscal.Application.Security.FiscalCapabilityProvider>();
         services.AddTransient<Fiscal.Application.Queries.GetFiscalSetupQueryHandler>();
         services.AddTransient<Fiscal.Application.Commands.SaveFiscalSettingsCommandHandler>();

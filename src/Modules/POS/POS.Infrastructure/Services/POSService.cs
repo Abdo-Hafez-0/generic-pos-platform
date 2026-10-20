@@ -178,8 +178,14 @@ internal sealed class POSReader(
     GetCurrentCartQueryHandler currentCartHandler,
     GetOpenSessionForCashierQueryHandler openSessionHandler,
     GetSaleWarehousesQueryHandler warehousesHandler,
-    ReturnableSaleQueryHandler returnableHandler) : IPOSReader
+    ReturnableSaleQueryHandler returnableHandler,
+    Fiscal.Contracts.Interfaces.IFiscalNotices? fiscalNotices = null) : IPOSReader
 {
+    public async Task<POSFiscalNotice?> GetFiscalNoticeAsync(CancellationToken cancellationToken = default)
+        => fiscalNotices is not null && await fiscalNotices.GetTillNoticeAsync(cancellationToken) is { } notice
+            ? new POSFiscalNotice(notice.OverdueCount, notice.OldestAtUtc, notice.LimitHours)
+            : null;
+
     public Task<POSReturnableSale?> GetReturnableSaleAsync(Guid saleId, CancellationToken cancellationToken = default)
         => returnableHandler.HandleAsync(new GetReturnableSaleQuery(saleId), cancellationToken);
 

@@ -55,6 +55,9 @@ internal sealed class FiscalDocumentConfiguration : IEntityTypeConfiguration<Fis
         builder.Property(d => d.Total).HasPrecision(18, 2);
         builder.Property(d => d.State).HasConversion<int>().IsRequired();
         builder.Property(d => d.StateReason).HasMaxLength(2000);
+        builder.Property(d => d.AuthorityReference).HasMaxLength(200);
+        builder.Ignore(d => d.IsOutstanding);
+        builder.Ignore(d => d.NeedsAttention);
 
         // one document per sale and per return; one document per place in a till's chain
         builder.HasIndex(d => new { d.Kind, d.SourceId }).IsUnique();

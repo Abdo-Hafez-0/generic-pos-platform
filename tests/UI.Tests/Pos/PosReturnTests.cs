@@ -289,4 +289,19 @@ public sealed class PosReturnTests
         Assert.Equal(sale.SaleId, _vm.ReturnSale?.SaleId);
         Assert.False(_vm.IsRecentShown);
     }
+
+    [Fact]
+    public async Task The_till_says_when_electronic_receipts_have_waited_too_long_and_stops_when_they_are_through()
+    {
+        // MISS-11a-3 (owner's decision: a short line on the till after 12 hours)
+        _till.FiscalNotice = new POSFiscalNotice(3, DateTime.UtcNow.AddHours(-13), 12);
+        await OpenTillAsync();
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, PosText.FiscalOverdue, 3, 12d), _vm.FiscalNotice);
+
+        _till.FiscalNotice = null;
+        (_vm.ProductCode, _vm.QuantityText) = ("COLA-1", "1");
+        await Run(_vm.AddCommand);
+        await Run(_vm.CheckoutCommand);                                                   // asked again after each sale
+        Assert.Null(_vm.FiscalNotice);
+    }
 }

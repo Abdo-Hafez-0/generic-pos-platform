@@ -64,6 +64,7 @@ internal sealed class DesktopServicesRegistrar : IHostingModule
         services.AddSingleton<IScreenProvider, SuppliersScreens>(); // FIX-01d
         services.AddSingleton<IScreenProvider, CashScreens>();      // FIX-01d
         services.AddSingleton<IScreenProvider, FiscalScreens>();    // MISS-11a
+        services.AddSingleton<IShellNoticeProvider, FiscalShellNotice>();   // MISS-11a-3: electronic receipts that need attention
         services.AddSingleton<IScreenProvider, ReportingScreens>(); // FIX-01d
         services.AddSingleton<IScreenProvider, AuditScreens>();     // FIX-01d
         services.AddSingleton<IScreenProvider, PricingScreens>();   // FIX-01d

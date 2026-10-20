@@ -35,6 +35,13 @@ public sealed class FiscalIntegrationTests
             var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(payload)));
             return Result.Success(new FiscalBuiltDocument(payload, hash, "QR:" + hash));
         }
+
+        // the authority is out of reach in these tests: nothing is handed over (11a-3's sender is tested in Fiscal.Tests)
+        public Task<IReadOnlyList<FiscalSendOutcome>> SendAsync(FiscalSendInput input, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<FiscalSendOutcome>>(input.Documents.Select(d => new FiscalSendOutcome(d.DocumentId, FiscalSendResult.NotSent, Reason: "offline")).ToList());
+
+        public Task<IReadOnlyList<FiscalSendOutcome>> CheckAsync(FiscalSendInput input, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<FiscalSendOutcome>>([]);
     }
 
     private sealed class PartModule(StandInPart part) : IHostingModule

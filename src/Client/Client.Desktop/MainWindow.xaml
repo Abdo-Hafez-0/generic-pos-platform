@@ -201,6 +201,8 @@
                 <TextBlock x:Name="UpdateNoticeText" DockPanel.Dock="Right" Text="{Binding UpdateNoticeText}" Foreground="{DynamicResource Brush.Info}" Style="{StaticResource Notice}"/>
                 <!-- MISS-05: the application closed unexpectedly (for those who may save a support file) -->
                 <TextBlock x:Name="SupportNoticeText" DockPanel.Dock="Right" Text="{Binding SupportNoticeText}" Foreground="{DynamicResource Brush.Danger}" Style="{StaticResource Notice}"/>
+                <!-- MISS-11a-3: the modules' warnings (electronic receipts), for the people who can act on them -->
+                <TextBlock x:Name="ModuleNoticeText" DockPanel.Dock="Right" Text="{Binding ModuleNoticeText}" Foreground="{DynamicResource Brush.Warning}" Style="{StaticResource Notice}" MaxWidth="700"/>
                 <!-- MISS-04c: a backup problem, for the people who can act on it -->
                 <TextBlock x:Name="BackupNoticeText" DockPanel.Dock="Right" Text="{Binding BackupNoticeText}" Foreground="{DynamicResource Brush.Warning}" Style="{StaticResource Notice}" MaxWidth="700"/>
                 <TextBlock x:Name="StatusText" Text="{Binding StatusText}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="12" VerticalAlignment="Center"/>

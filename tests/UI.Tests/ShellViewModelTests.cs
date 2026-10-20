@@ -15,7 +15,24 @@ public sealed class ShellViewModelTests
     private readonly FakeCurrentUser _user = new();
     private readonly FakeScreenFactory _factory = new();
     private readonly FakeLicensing _licensing = new("pos");
+    private readonly FakeNotice _notice = new();
     private readonly ShellViewModel _shell;
+
+    /// <summary>MISS-11a-3: a module's status-bar warning for holders of pos.drawer.count.</summary>
+    private sealed class FakeNotice : IShellNoticeProvider
+    {
+        public string? Text { get; set; }
+        public int Asked { get; private set; }
+        public bool Throws { get; set; }
+        public string RequiredCapability => "pos.drawer.count";
+
+        public Task<string?> GetNoticeAsync(CancellationToken cancellationToken = default)
+        {
+            Asked++;
+            if (Throws) throw new InvalidOperationException("broken");
+            return Task.FromResult(Text);
+        }
+    }
 
     public ShellViewModelTests()
     {
@@ -38,7 +55,7 @@ public sealed class ShellViewModelTests
                 Screens.Of("catalog.products", "catalog", ScreenGroups.Inventory, "catalog.product.create"))
         ], catalog, _licensing);
 
-        _shell = new ShellViewModel(runner, navigation, _user, _factory);
+        _shell = new ShellViewModel(runner, navigation, _user, _factory, noticeProviders: [_notice]);
     }
 
     private NavigationEntry Entry(string id) => _shell.Groups.SelectMany(g => g.Entries).Single(e => e.Screen.Id == id);
@@ -242,5 +259,33 @@ public sealed class ShellViewModelTests
         await _shell.RefreshAsync();
 
         Assert.Single(_shell.Groups);
+    }
+
+    [Fact]
+    public async Task A_modules_warning_shows_only_to_those_who_may_act_on_it_and_follows_what_the_module_says()
+    {
+        _notice.Text = "Electronic receipts: 2 refused by the tax authority";
+        _permissions.Held.Add("pos.sale.create");
+        await _shell.RefreshAsync();
+        Assert.Equal(string.Empty, _shell.ModuleNoticeText);
+        Assert.Equal(0, _notice.Asked);                                                  // not even asked for someone who cannot act
+
+        _permissions.Held.Add("pos.drawer.count");
+        await _shell.RefreshAsync();
+        Assert.Equal("Electronic receipts: 2 refused by the tax authority", _shell.ModuleNoticeText);
+
+        _notice.Text = null;
+        await _shell.OpenAsync(Entry("pos.sell"));                                      // opening a screen asks again
+        Assert.Equal(string.Empty, _shell.ModuleNoticeText);
+
+        _notice.Throws = true;
+        await _shell.UpdateModuleNoticesAsync();                                          // a broken provider never breaks the shell
+        Assert.Equal(string.Empty, _shell.ModuleNoticeText);
+
+        _notice.Throws = false;
+        _notice.Text = "x";
+        await _shell.UpdateModuleNoticesAsync();
+        await _shell.ResetAsync();
+        Assert.Equal(string.Empty, _shell.ModuleNoticeText);                              // signing out forgets it
     }
 }

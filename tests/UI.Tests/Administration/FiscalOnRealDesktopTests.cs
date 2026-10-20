@@ -35,6 +35,10 @@ public sealed class FiscalOnRealDesktopTests
         Assert.Equal(FiscalText.StateOff, vm.IssuingText);
         Assert.Equal((Environment.MachineName, FiscalText.TillNotRegistered, "1"), (vm.TillName, vm.TillRegistrationText, vm.NextNumberText));
         Assert.True(vm.CanChooseCountry);
+        Assert.True(vm.HasNoDocuments);                                                   // MISS-11a-3
+        Assert.Equal(string.Empty, vm.AlertsText);
+        Assert.False(vm.CanSendNow);                                                      // nothing is issued without a country part
+        Assert.Equal(4, vm.Filters.Count);
 
         vm.Country = vm.Countries.Single(c => c.Country == FiscalCountry.Egypt);
         Assert.True(vm.NeedsDetails && vm.IsEgypt);

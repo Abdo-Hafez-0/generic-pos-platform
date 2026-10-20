@@ -37,6 +37,12 @@ public sealed record POSFindReturnResult(bool IsSuccess, POSReturnableSale? Sale
     public static POSFindReturnResult Failure(string errorCode, string errorMessage) => new(false, null, errorCode, errorMessage);
 }
 
+/// <summary>
+/// MISS-11a-3 (owner's decision: a short line on the till): electronic receipts that have waited longer than the till's limit to reach the tax
+/// authority - how many, since when, and the limit.
+/// </summary>
+public sealed record POSFiscalNotice(int OverdueCount, DateTime OldestAtUtc, double LimitHours);
+
 /// <summary>MISS-10b: one line to give back: the sale line, the units, and whether they go back on the shelf (false = damaged).</summary>
 public sealed record POSRefundLineRequest(Guid SaleItemId, decimal Quantity, bool BackToStock = true);
 

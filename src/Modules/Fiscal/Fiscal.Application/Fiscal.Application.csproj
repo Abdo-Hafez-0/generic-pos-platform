@@ -7,6 +7,7 @@
   <ItemGroup>
     <!-- The module's own contract services run inside operations the user was already authorized for (see ExecuteAsync). -->
     <InternalsVisibleTo Include="Fiscal.Infrastructure" />
+    <InternalsVisibleTo Include="Fiscal.Tests" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Fiscal.Domain\Fiscal.Domain.csproj" />

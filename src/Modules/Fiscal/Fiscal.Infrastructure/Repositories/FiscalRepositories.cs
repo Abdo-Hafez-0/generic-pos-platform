@@ -2,6 +2,7 @@ using Fiscal.Application.Repositories;
 using Fiscal.Contracts.Interfaces;
 using Fiscal.Contracts.Models;
 using Fiscal.Domain.Entities;
+using Fiscal.Domain.Enums;
 using Fiscal.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -40,6 +41,34 @@ internal sealed class EfFiscalDocumentRepository(FiscalDbContext dbContext) : IF
 
     public async Task AddAsync(FiscalDocument document, CancellationToken cancellationToken = default)
         => await dbContext.Documents.AddAsync(document, cancellationToken);
+
+    public async Task<IReadOnlyList<FiscalDocument>> GetDueAsync(DateTime nowUtc, bool force, int take, CancellationToken cancellationToken = default)
+        => await dbContext.Documents
+            .Where(d => d.State == FiscalDocumentState.Waiting && (force || d.NextAttemptAt == null || d.NextAttemptAt <= nowUtc))
+            .OrderBy(d => d.Number).Take(take).ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<FiscalDocument>> GetSentAsync(int take, CancellationToken cancellationToken = default)
+        => await dbContext.Documents.Where(d => d.State == FiscalDocumentState.Sent).OrderBy(d => d.Number).Take(take).ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<FiscalDocument>> ListAsync(IReadOnlyCollection<FiscalDocumentState>? states, int take, CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Documents.AsNoTracking();
+        if (states is { Count: > 0 }) query = query.Where(d => states.Contains(d.State));
+        return await query.OrderByDescending(d => d.CreatedAt).ThenByDescending(d => d.Number).Take(take).ToListAsync(cancellationToken);
+    }
+
+    public async Task<FiscalDocumentCounts> CountAsync(DateTime managerSinceUtc, DateTime tillSinceUtc, CancellationToken cancellationToken = default)
+    {
+        var rows = await dbContext.Documents.AsNoTracking()
+            .Where(d => d.State == FiscalDocumentState.Waiting || d.State == FiscalDocumentState.Sent
+                        || d.State == FiscalDocumentState.NotBuilt || d.State == FiscalDocumentState.Rejected)
+            .Select(d => new { d.State, d.CreatedAt })
+            .ToListAsync(cancellationToken);
+        var outstanding = rows.Where(r => r.State is FiscalDocumentState.Waiting or FiscalDocumentState.Sent).ToList();
+        return new FiscalDocumentCounts(outstanding.Count, rows.Count(r => r.State == FiscalDocumentState.NotBuilt), rows.Count(r => r.State == FiscalDocumentState.Rejected),
+            outstanding.Count(r => r.CreatedAt < managerSinceUtc), outstanding.Count(r => r.CreatedAt < tillSinceUtc),
+            outstanding.Count == 0 ? null : outstanding.Min(r => r.CreatedAt));
+    }
 }
 
 /// <summary>
@@ -62,4 +91,13 @@ internal sealed class FiscalRecorder(Fiscal.Application.Commands.RecordFiscalDoc
             return FiscalDocumentResult.Failure("Fiscal.Document.NotSaved", "The electronic receipt could not be saved.");
         }
     }
+}
+
+/// <summary>MISS-11a-3: implements the till's notice from the alert counts.</summary>
+internal sealed class FiscalNotices(Fiscal.Application.Queries.FiscalAlertsReader alerts, Fiscal.Application.Queries.FiscalWarningOptions? options = null) : IFiscalNotices
+{
+    public async Task<FiscalTillNotice?> GetTillNoticeAsync(CancellationToken cancellationToken = default)
+        => await alerts.ReadAsync(cancellationToken) is { OverTillLimit: > 0, OldestOutstandingAt: { } oldest } counts
+            ? new FiscalTillNotice(counts.OverTillLimit, DateTime.SpecifyKind(oldest, DateTimeKind.Utc), (options ?? new()).TillHours)
+            : null;
 }

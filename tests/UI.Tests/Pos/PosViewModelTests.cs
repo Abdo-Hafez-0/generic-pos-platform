@@ -298,13 +298,13 @@ public sealed class PosViewModelTests
     public async Task Every_user_action_runs_in_a_new_scope()
     {
         await OpenTillAsync();
-        Assert.Equal(2, _till.Instances);   // showing the screen and opening the till: one scope each
+        Assert.Equal(3, _till.Instances);   // showing the screen (the till, then MISS-11a-3's electronic receipt line) and opening the till: one scope each
         _vm.ProductCode = "UNKNOWN";
 
         await Run(_vm.AddCommand);
         await Run(_vm.AddCommand);
 
-        Assert.Equal(4, _till.Instances);   // one more scope per click, none kept
+        Assert.Equal(5, _till.Instances);   // one more scope per click, none kept
     }
 
     [Fact]

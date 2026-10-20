@@ -33,6 +33,7 @@ internal sealed class FakeTill
     public List<(Guid SaleId, IReadOnlyList<POSRefundLineRequest> Lines, string Reason, POSPaymentMethod Method, string? Detail)> Refunds { get; } = [];
     public string? RefundRefusal { get; set; }
     public IReadOnlyList<POSHardwareNotice>? RefundHardwareNotices { get; set; }
+    public POSFiscalNotice? FiscalNotice { get; set; }
 
     public POSReturnableSale AddReturnableSale(params (string Name, decimal Sold, decimal Returned, decimal LineTotal, decimal Refunded)[] lines)
     {
@@ -204,6 +205,8 @@ internal sealed class FakePosService : IPOSService, IPOSReader
         var total = lines.Sum(l => sale.Lines.Single(s => s.SaleItemId == l.SaleItemId).RefundFor(l.Quantity));
         return Task.FromResult(POSRefundResult.Success(Guid.NewGuid(), total, _till.RefundHardwareNotices));
     }
+
+    public Task<POSFiscalNotice?> GetFiscalNoticeAsync(CancellationToken cancellationToken = default) => Task.FromResult(_till.FiscalNotice);
 
     public Task<POSReturnableSale?> GetReturnableSaleAsync(Guid saleId, CancellationToken cancellationToken = default)
     {

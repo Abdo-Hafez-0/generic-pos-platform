@@ -220,6 +220,68 @@ namespace Fiscal.Domain.Entities
         public DateTime? LastAttemptAt { get; private set; }
         public DateTime CreatedAt { get; private set; }
 
+        /// <summary>MISS-11a-3: when the sender may try again (null = at once); it backs off after each failed attempt.</summary>
+        public DateTime? NextAttemptAt { get; private set; }
+
+        /// <summary>The authority's reference once handed over (Egypt: the submission id; Saudi Arabia: the reporting answer).</summary>
+        public string? AuthorityReference { get; private set; }
+
+        /// <summary>When the authority answered (accepted or rejected).</summary>
+        public DateTime? AnsweredAt { get; private set; }
+
+        /// <summary>Waiting or Sent: not answered by the authority yet.</summary>
+        public bool IsOutstanding => State is FiscalDocumentState.Waiting or FiscalDocumentState.Sent;
+
+        /// <summary>NotBuilt or Rejected: someone must act.</summary>
+        public bool NeedsAttention => State is FiscalDocumentState.NotBuilt or FiscalDocumentState.Rejected;
+
+        /// <summary>The longest the sender waits between two attempts.</summary>
+        public static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(30);
+
+        /// <summary>Handed to the authority; its answer comes later (a submission to check).</summary>
+        public void MarkSent(string? authorityReference, DateTime nowUtc)
+        {
+            if (State != FiscalDocumentState.Waiting) return;
+            State = FiscalDocumentState.Sent;
+            AuthorityReference = string.IsNullOrWhiteSpace(authorityReference) ? AuthorityReference : authorityReference.Trim();
+            StateReason = null;
+            Attempts++;
+            LastAttemptAt = nowUtc;
+            NextAttemptAt = null;
+        }
+
+        public void MarkAccepted(string? authorityReference, DateTime nowUtc)
+        {
+            if (!IsOutstanding) return;
+            if (State == FiscalDocumentState.Waiting) { Attempts++; LastAttemptAt = nowUtc; }
+            State = FiscalDocumentState.Accepted;
+            AuthorityReference = string.IsNullOrWhiteSpace(authorityReference) ? AuthorityReference : authorityReference.Trim();
+            StateReason = null;
+            AnsweredAt = nowUtc;
+            NextAttemptAt = null;
+        }
+
+        public void MarkRejected(string reasons, DateTime nowUtc)
+        {
+            if (!IsOutstanding) return;
+            if (State == FiscalDocumentState.Waiting) { Attempts++; LastAttemptAt = nowUtc; }
+            State = FiscalDocumentState.Rejected;
+            StateReason = string.IsNullOrWhiteSpace(reasons) ? "The tax authority refused the document without a reason." : reasons.Trim();
+            AnsweredAt = nowUtc;
+            NextAttemptAt = null;
+        }
+
+        /// <summary>Could not be handed over (offline, the authority unavailable, the till not registered): tried again later, backing off.</summary>
+        public void MarkNotSent(string reason, DateTime nowUtc)
+        {
+            if (State != FiscalDocumentState.Waiting) return;
+            Attempts++;
+            LastAttemptAt = nowUtc;
+            StateReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+            var wait = TimeSpan.FromMinutes(Math.Pow(2, Math.Min(Attempts - 1, 10)));
+            NextAttemptAt = nowUtc + (wait > MaxBackoff ? MaxBackoff : wait);
+        }
+
         public static FiscalDocument Issued(FiscalDocumentKind kind, Guid sourceId, string reference, Guid? originalSourceId, string? originalReference,
             FiscalCountry country, Guid tillId, long number, string? previousHash, string hash, string payload, string? qrPayload, decimal total,
             DateTime issuedAt, DateTime nowUtc)

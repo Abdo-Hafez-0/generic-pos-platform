@@ -31,4 +31,94 @@
   <data name="StateIssuing" xml:space="preserve"><value>{0}: every sale and return gets its electronic receipt.</value></data>
   <data name="DocumentsTitle" xml:space="preserve"><value>Documents sent to the tax authority</value></data>
   <data name="NoDocuments" xml:space="preserve"><value>No electronic receipt has been issued on this till yet.</value></data>
+  <data name="SendNow" xml:space="preserve">
+    <value>Send now</value>
+  </data>
+  <data name="SentNow" xml:space="preserve">
+    <value>Sent: {0} handed over, {1} accepted, {2} refused, {3} not sent.</value>
+  </data>
+  <data name="NothingToSend" xml:space="preserve">
+    <value>Nothing to send.</value>
+  </data>
+  <data name="NotSentBecause" xml:space="preserve">
+    <value>Not sent: {0}</value>
+  </data>
+  <data name="Show" xml:space="preserve">
+    <value>Show</value>
+  </data>
+  <data name="FilterAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="FilterOutstanding" xml:space="preserve">
+    <value>Waiting for the authority</value>
+  </data>
+  <data name="FilterAttention" xml:space="preserve">
+    <value>Need attention</value>
+  </data>
+  <data name="FilterAccepted" xml:space="preserve">
+    <value>Accepted</value>
+  </data>
+  <data name="ColumnTime" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="ColumnReceipt" xml:space="preserve">
+    <value>Receipt</value>
+  </data>
+  <data name="ColumnKind" xml:space="preserve">
+    <value>Kind</value>
+  </data>
+  <data name="ColumnNumber" xml:space="preserve">
+    <value>No.</value>
+  </data>
+  <data name="ColumnTotal" xml:space="preserve">
+    <value>Total</value>
+  </data>
+  <data name="ColumnState" xml:space="preserve">
+    <value>State</value>
+  </data>
+  <data name="ColumnReason" xml:space="preserve">
+    <value>Why</value>
+  </data>
+  <data name="KindSale" xml:space="preserve">
+    <value>Sale</value>
+  </data>
+  <data name="KindReturn" xml:space="preserve">
+    <value>Return of {0}</value>
+  </data>
+  <data name="StateWaiting" xml:space="preserve">
+    <value>Waiting</value>
+  </data>
+  <data name="StateSent" xml:space="preserve">
+    <value>Sent, awaiting answer</value>
+  </data>
+  <data name="StateAccepted" xml:space="preserve">
+    <value>Accepted</value>
+  </data>
+  <data name="StateRejected" xml:space="preserve">
+    <value>Refused</value>
+  </data>
+  <data name="StateNotBuilt" xml:space="preserve">
+    <value>Not made</value>
+  </data>
+  <data name="AlertsAllWell" xml:space="preserve">
+    <value>All electronic receipts are with the tax authority.</value>
+  </data>
+  <data name="AlertsSummary" xml:space="preserve">
+    <value>{0} waiting to reach the tax authority.</value>
+  </data>
+  <data name="NoticePrefix" xml:space="preserve">
+    <value>Electronic receipts:</value>
+  </data>
+  <data name="NoticeNotBuilt" xml:space="preserve">
+    <value>{0} could not be made</value>
+  </data>
+  <data name="NoticeRejected" xml:space="preserve">
+    <value>{0} refused by the tax authority</value>
+  </data>
+  <data name="NoticeOverdue" xml:space="preserve">
+    <value>{0} waiting more than {1} hours</value>
+  </data>
+  <data name="ListSeparator" xml:space="preserve">
+    <value>, </value>
+  </data>
 </root>

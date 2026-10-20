@@ -66,6 +66,7 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
     private PaymentChoice _refundMethod;
     private string _refundNote = string.Empty;
     private string _returnReason = string.Empty;
+    private string? _fiscalNotice;
 
     public PosViewModel(IUiActionRunner runner, ICurrentUser currentUser, IPOSBarcodeInput? scanner = null)
     {
@@ -478,6 +479,21 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
     {
         await LoadAsync(cancellationToken);
         await ListenAsync(cancellationToken);
+        await RefreshFiscalNoticeAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// MISS-11a-3 (owner's decision): "4 electronic receipts have waited more than 12 hours to reach the tax authority - tell the person who
+    /// manages them." Null when all is well (or without the Fiscal module).
+    /// </summary>
+    public string? FiscalNotice { get => _fiscalNotice; private set => Set(ref _fiscalNotice, value); }
+
+    private async Task RefreshFiscalNoticeAsync(CancellationToken cancellationToken)
+    {
+        var notice = await _runner.QueryAsync((scope, ct) => scope.Get<IPOSReader>().GetFiscalNoticeAsync(ct), cancellationToken);
+        FiscalNotice = notice is { IsSuccess: true, Value: { } n }
+            ? string.Format(CultureInfo.CurrentCulture, PosText.FiscalOverdue, n.OverdueCount, n.LimitHours)
+            : null;
     }
 
     /// <summary>The screen is left (another screen, or sign-out): scans no longer reach this cart.</summary>
@@ -723,6 +739,7 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
         _cartId = nextCart?.CartId;
         ClearPayments();
         ShowCart(nextCart);
+        await RefreshFiscalNoticeAsync(CancellationToken.None);
         StatusMessage = sale.ChangeDue > 0m
             ? string.Format(CultureInfo.CurrentCulture, PosText.SaleCompletedWithChange, total, sale.ChangeDue)
             : string.Format(CultureInfo.CurrentCulture, PosText.SaleCompleted, total);

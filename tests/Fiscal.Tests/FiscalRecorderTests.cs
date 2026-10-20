@@ -35,6 +35,31 @@ public sealed class TestCountryPart(FiscalCountry country = FiscalCountry.Egypt)
         var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(payload)));
         return Result.Success(new FiscalBuiltDocument(payload, hash, $"QR:{hash}"));
     }
+
+    /// <summary>MISS-11a-3: what the authority does with a document handed over (default: takes it, answer later).</summary>
+    public Func<FiscalOutgoingDocument, FiscalSendOutcome>? OnSend { get; set; }
+
+    /// <summary>MISS-11a-3: the authority's answer when checked (default: accepted).</summary>
+    public Func<FiscalOutgoingDocument, FiscalSendOutcome>? OnCheck { get; set; }
+
+    public bool SendThrows { get; set; }
+    public List<IReadOnlyList<FiscalOutgoingDocument>> Sends { get; } = [];
+    public List<IReadOnlyList<FiscalOutgoingDocument>> Checks { get; } = [];
+
+    public Task<IReadOnlyList<FiscalSendOutcome>> SendAsync(FiscalSendInput input, CancellationToken cancellationToken = default)
+    {
+        if (SendThrows) throw new HttpRequestException("No connection to the tax authority.");
+        Sends.Add(input.Documents);
+        return Task.FromResult<IReadOnlyList<FiscalSendOutcome>>(input.Documents
+            .Select(d => OnSend?.Invoke(d) ?? new FiscalSendOutcome(d.DocumentId, FiscalSendResult.Sent, "SUB-" + d.Number)).ToList());
+    }
+
+    public Task<IReadOnlyList<FiscalSendOutcome>> CheckAsync(FiscalSendInput input, CancellationToken cancellationToken = default)
+    {
+        Checks.Add(input.Documents);
+        return Task.FromResult<IReadOnlyList<FiscalSendOutcome>>(input.Documents
+            .Select(d => OnCheck?.Invoke(d) ?? new FiscalSendOutcome(d.DocumentId, FiscalSendResult.Accepted)).ToList());
+    }
 }
 
 /// <summary>MISS-11a-2: the fiscal document of each sale and return, chained per till.</summary>

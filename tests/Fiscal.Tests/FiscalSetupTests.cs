@@ -23,6 +23,10 @@ public sealed class FiscalSetupTests
         public FiscalCountry Country => FiscalCountry.Egypt;
 
         public Platform.Core.Results.Result<FiscalBuiltDocument> Build(FiscalBuildInput input) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<FiscalSendOutcome>> SendAsync(FiscalSendInput input, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<FiscalSendOutcome>> CheckAsync(FiscalSendInput input, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private static Task<TestModuleDatabase<FiscalDbContext>> DatabaseAsync(Action<IServiceCollection>? more = null)

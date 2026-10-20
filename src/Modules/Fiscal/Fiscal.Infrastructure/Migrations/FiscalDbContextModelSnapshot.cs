@@ -22,8 +22,15 @@ namespace Fiscal.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("AnsweredAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Attempts")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("AuthorityReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("Country")
                         .HasColumnType("INTEGER");
@@ -42,6 +49,9 @@ namespace Fiscal.Infrastructure.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime?>("LastAttemptAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("NextAttemptAt")
                         .HasColumnType("TEXT");
 
                     b.Property<long?>("Number")

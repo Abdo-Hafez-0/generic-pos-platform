@@ -36,6 +36,10 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
     private readonly IApplicationRestarter? _restarter;
     private readonly SynchronizationContext? _uiContext;
     private readonly Dictionary<string, ScreenInstance> _open = new(StringComparer.OrdinalIgnoreCase);
+    private readonly IReadOnlyList<IShellNoticeProvider> _noticeProviders;
+    private IReadOnlyCollection<string> _held = [];
+    private Timer? _noticeTimer;
+    private string _moduleNoticeText = string.Empty;
 
     private IReadOnlyList<NavigationGroup> _groups = [];
     private NavigationEntry? _current;
@@ -65,8 +69,10 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
         ICloudBackupNotice? cloud = null,
         ICrashNoticeSource? crashes = null,
         IUpdateAdoption? updates = null,
-        IApplicationRestarter? restarter = null)
+        IApplicationRestarter? restarter = null,
+        IEnumerable<IShellNoticeProvider>? noticeProviders = null)
     {
+        _noticeProviders = noticeProviders?.ToList() ?? [];
         _runner = runner;
         _navigation = navigation;
         _currentUser = currentUser;
@@ -172,6 +178,41 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
     /// </summary>
     public string SupportNoticeText { get => _supportNoticeText; private set => Set(ref _supportNoticeText, value); }
 
+    /// <summary>
+    /// MISS-11a-3: the modules' warnings (IShellNoticeProvider) for the signed-in user - only those whose permission they hold; empty when
+    /// all is well. Refreshed after sign-in, when a screen is opened, and every five minutes.
+    /// </summary>
+    public string ModuleNoticeText { get => _moduleNoticeText; private set => Set(ref _moduleNoticeText, value); }
+
+    /// <summary>Asks the modules whose warnings the signed-in user may see. A failing provider is skipped (it never breaks the shell).</summary>
+    public async Task UpdateModuleNoticesAsync(CancellationToken cancellationToken = default)
+    {
+        var notices = new List<string>();
+        foreach (var provider in _noticeProviders.Where(p => _held.Contains(p.RequiredCapability, StringComparer.OrdinalIgnoreCase)))
+        {
+            try
+            {
+                if (await provider.GetNoticeAsync(cancellationToken) is { Length: > 0 } notice) notices.Add(notice);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // a module's warning is a convenience: the next refresh asks again
+            }
+        }
+
+        ModuleNoticeText = string.Join("  ·  ", notices);
+    }
+
+    private void StartNoticeTimer()
+    {
+        if (_noticeProviders.Count == 0 || _noticeTimer is not null) return;
+        _noticeTimer = new Timer(_ =>
+        {
+            if (_uiContext is null) _ = UpdateModuleNoticesAsync();
+            else _uiContext.Post(_ => _ = UpdateModuleNoticesAsync(), null);
+        }, null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
+    }
+
     /// <summary>Rebuilds everything for the user signed in now (after sign-in, and after sign-out + sign-in as someone else).</summary>
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
@@ -196,9 +237,12 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
             _mayManageCloud = permissions.IsSuccess && permissions.Value.Contains(CloudBackupCapabilities.Manage, StringComparer.OrdinalIgnoreCase);
             _maySeeCrashes = permissions.IsSuccess && permissions.Value.Contains(SupportCapabilities.Export, StringComparer.OrdinalIgnoreCase);
             _mayManageUpdates = permissions.IsSuccess && permissions.Value.Contains(UpdatesCapabilities.Manage, StringComparer.OrdinalIgnoreCase);
+            _held = permissions.IsSuccess ? permissions.Value : [];
         });
 
         await UpdateBackupNoticeAsync(cancellationToken);
+        await UpdateModuleNoticesAsync(cancellationToken);
+        StartNoticeTimer();
     }
 
     /// <summary>Reads the backup notice and shows it if the signed-in person can act on it. Never fails the shell.</summary>
@@ -326,6 +370,7 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
         CurrentView = screen.View;
         if (screen.ViewModel is INavigationAware aware)
             await aware.OnNavigatedToAsync();
+        await UpdateModuleNoticesAsync();   // MISS-11a-3: a screen may have changed what the warnings say
     }
 
     /// <summary>MISS-10b: true when a screen the signed-in user may open now handles <paramref name="requestKind"/>.</summary>
@@ -370,6 +415,8 @@ public sealed class ShellViewModel : ViewModelBase, IShellNavigation
         _mayManageUpdates = false;
         UpdateNoticeText = string.Empty;
         CanRestartForUpdate = false;
+        _held = [];
+        ModuleNoticeText = string.Empty;
         ErrorMessage = null;
         StatusMessage = null;
     }

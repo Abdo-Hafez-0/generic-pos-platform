@@ -50,6 +50,12 @@ namespace Fiscal.Contracts.Models
     /// country's part is not installed, or the part could not build it (<see cref="NotBuiltReason"/>; the sale stands, the document waits
     /// for attention).
     /// </summary>
+    /// <summary>
+    /// MISS-11a-3: what the till says about electronic receipts (owner's decision: a short line on the till): how many have waited longer than
+    /// the till's limit (12 hours) to reach the authority, and since when.
+    /// </summary>
+    public sealed record FiscalTillNotice(int OverdueCount, DateTime OldestAtUtc, double LimitHours);
+
     public sealed record FiscalDocumentResult(bool IsSuccess, bool IsIssued, Guid? DocumentId, long? Number, string? QrPayload,
         string? NotBuiltReason, string? ErrorCode, string? ErrorMessage)
     {
@@ -84,5 +90,11 @@ namespace Fiscal.Contracts.Interfaces
     public interface IFiscalRecorder
     {
         Task<FiscalDocumentResult> RecordAsync(FiscalDocumentRequest request, CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>MISS-11a-3: the till's short warning (null when nothing has waited longer than the till's limit, or receipts are off).</summary>
+    public interface IFiscalNotices
+    {
+        Task<FiscalTillNotice?> GetTillNoticeAsync(CancellationToken cancellationToken = default);
     }
 }

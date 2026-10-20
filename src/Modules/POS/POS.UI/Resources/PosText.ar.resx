@@ -351,4 +351,7 @@
   <data name="ReturnQuantityInvalid" xml:space="preserve">
     <value>اكتب كمية من 0 إلى المتبقي من السطر.</value>
   </data>
+  <data name="FiscalOverdue" xml:space="preserve">
+    <value>{0} من الإيصالات الإلكترونية تنتظر أكثر من {1} ساعة للوصول إلى مصلحة الضرائب. أبلغ المسؤول عن الإيصالات الإلكترونية.</value>
+  </data>
 </root>

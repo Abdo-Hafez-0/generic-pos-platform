@@ -31,4 +31,94 @@
   <data name="StateIssuing" xml:space="preserve"><value>{0}: كل بيع ومرتجع يحصل على إيصاله الإلكتروني.</value></data>
   <data name="DocumentsTitle" xml:space="preserve"><value>المستندات المرسلة إلى مصلحة الضرائب</value></data>
   <data name="NoDocuments" xml:space="preserve"><value>لم يصدر أي إيصال إلكتروني من نقطة البيع هذه بعد.</value></data>
+  <data name="SendNow" xml:space="preserve">
+    <value>إرسال الآن</value>
+  </data>
+  <data name="SentNow" xml:space="preserve">
+    <value>تم الإرسال: {0} سُلّمت، {1} قُبلت، {2} رُفضت، {3} لم تُرسل.</value>
+  </data>
+  <data name="NothingToSend" xml:space="preserve">
+    <value>لا شيء للإرسال.</value>
+  </data>
+  <data name="NotSentBecause" xml:space="preserve">
+    <value>لم تُرسل: {0}</value>
+  </data>
+  <data name="Show" xml:space="preserve">
+    <value>عرض</value>
+  </data>
+  <data name="FilterAll" xml:space="preserve">
+    <value>الكل</value>
+  </data>
+  <data name="FilterOutstanding" xml:space="preserve">
+    <value>في انتظار المصلحة</value>
+  </data>
+  <data name="FilterAttention" xml:space="preserve">
+    <value>تحتاج إلى متابعة</value>
+  </data>
+  <data name="FilterAccepted" xml:space="preserve">
+    <value>مقبولة</value>
+  </data>
+  <data name="ColumnTime" xml:space="preserve">
+    <value>الوقت</value>
+  </data>
+  <data name="ColumnReceipt" xml:space="preserve">
+    <value>الإيصال</value>
+  </data>
+  <data name="ColumnKind" xml:space="preserve">
+    <value>النوع</value>
+  </data>
+  <data name="ColumnNumber" xml:space="preserve">
+    <value>الرقم</value>
+  </data>
+  <data name="ColumnTotal" xml:space="preserve">
+    <value>الإجمالي</value>
+  </data>
+  <data name="ColumnState" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
+  <data name="ColumnReason" xml:space="preserve">
+    <value>السبب</value>
+  </data>
+  <data name="KindSale" xml:space="preserve">
+    <value>بيع</value>
+  </data>
+  <data name="KindReturn" xml:space="preserve">
+    <value>مرتجع {0}</value>
+  </data>
+  <data name="StateWaiting" xml:space="preserve">
+    <value>في الانتظار</value>
+  </data>
+  <data name="StateSent" xml:space="preserve">
+    <value>أُرسلت، في انتظار الرد</value>
+  </data>
+  <data name="StateAccepted" xml:space="preserve">
+    <value>مقبولة</value>
+  </data>
+  <data name="StateRejected" xml:space="preserve">
+    <value>مرفوضة</value>
+  </data>
+  <data name="StateNotBuilt" xml:space="preserve">
+    <value>لم تُنشأ</value>
+  </data>
+  <data name="AlertsAllWell" xml:space="preserve">
+    <value>كل الإيصالات الإلكترونية لدى مصلحة الضرائب.</value>
+  </data>
+  <data name="AlertsSummary" xml:space="preserve">
+    <value>{0} في انتظار الوصول إلى مصلحة الضرائب.</value>
+  </data>
+  <data name="NoticePrefix" xml:space="preserve">
+    <value>الإيصالات الإلكترونية:</value>
+  </data>
+  <data name="NoticeNotBuilt" xml:space="preserve">
+    <value>{0} لم تُنشأ</value>
+  </data>
+  <data name="NoticeRejected" xml:space="preserve">
+    <value>{0} رفضتها مصلحة الضرائب</value>
+  </data>
+  <data name="NoticeOverdue" xml:space="preserve">
+    <value>{0} تنتظر أكثر من {1} ساعة</value>
+  </data>
+  <data name="ListSeparator" xml:space="preserve">
+    <value>، </value>
+  </data>
 </root>

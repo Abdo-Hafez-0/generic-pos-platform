@@ -472,6 +472,8 @@
             <TextBlock x:Name="PosStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap" FontSize="14"/>
             <TextBlock x:Name="PosErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap" FontSize="14"/>
             <TextBlock x:Name="HardwareText" Text="{Binding HardwareMessage}" Foreground="{DynamicResource Brush.Warning}" TextWrapping="Wrap" FontSize="14"/>
+            <!-- MISS-11a-3: electronic receipts waiting too long to reach the tax authority -->
+            <TextBlock x:Name="FiscalNoticeText" Text="{Binding FiscalNotice}" Foreground="{DynamicResource Brush.Warning}" TextWrapping="Wrap" FontSize="14"/>
         </StackPanel>
     </Grid>
 </UserControl>

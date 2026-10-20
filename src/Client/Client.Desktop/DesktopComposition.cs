@@ -1,5 +1,6 @@
 using Audit.Infrastructure.Module;
 using CashManagement.Infrastructure.Module;
+using Fiscal.Infrastructure.Module;
 using Catalog.Infrastructure.Module;
 using Client.Desktop.Shell;
 using Client.Backup.Infrastructure;
@@ -55,6 +56,7 @@ public static class DesktopComposition
         new POSHostingModule(),             // Stage 5D: POS module
         new ReportingHostingModule(),       // Stage 8: Reporting module
         new CashManagementHostingModule(),  // Stage 8: CashManagement module
+        new FiscalHostingModule(),          // MISS-11: electronic receipts for the tax authority
         new AuditHostingModule(),           // Stage 8: Audit module
         new UsersHostingModule(),           // Stage 8: Users module
         new PaymentsHostingModule(),        // Stage 8: Payments module

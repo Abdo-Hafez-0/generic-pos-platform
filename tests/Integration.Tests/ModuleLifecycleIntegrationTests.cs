@@ -24,7 +24,7 @@ public sealed class ModuleLifecycleIntegrationTests
             var registry = host.Services.GetRequiredService<IModuleRegistry>();
             modules = host.Services.GetServices<IModule>().ToList();
 
-            Assert.Equal(13, registry.GetAll().Count);
+            Assert.Equal(14, registry.GetAll().Count);
             Assert.Equal(modules.Select(m => m.Manifest.ModuleId.Value).Order(), registry.GetAll().Select(m => m.Manifest.ModuleId.Value).Order());
             Assert.All(modules, m => Assert.Equal(ModuleRuntimeStatus.Running, m.Status));
 

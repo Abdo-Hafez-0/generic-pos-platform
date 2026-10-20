@@ -37,6 +37,9 @@
     <!-- CashManagement module (Stage 8) - CashManagementHostingModule lives in CashManagement.Infrastructure -->
     <ProjectReference Include="..\..\Modules\CashManagement\CashManagement.Infrastructure\CashManagement.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\CashManagement\CashManagement.UI\CashManagement.UI.csproj" />
+    <!-- Fiscal module (MISS-11) - electronic receipts for the tax authority; FiscalHostingModule lives in Fiscal.Infrastructure -->
+    <ProjectReference Include="..\..\Modules\Fiscal\Fiscal.Infrastructure\Fiscal.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Fiscal\Fiscal.UI\Fiscal.UI.csproj" />
     <!-- Audit module (Stage 8) - AuditHostingModule lives in Audit.Infrastructure -->
     <ProjectReference Include="..\..\Modules\Audit\Audit.Infrastructure\Audit.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Audit\Audit.UI\Audit.UI.csproj" />

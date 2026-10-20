@@ -69,7 +69,7 @@ public sealed class ResilienceBoundaryTests
 
     // ------------------------------------------------------------------ who takes part
 
-    private static readonly string[] ParticipatingModules = ["Catalog", "Inventory", "Sales", "POS", "Payments", "Purchasing", "Pricing", "CashManagement", "Customers", "Suppliers"];
+    private static readonly string[] ParticipatingModules = ["Catalog", "Inventory", "Sales", "POS", "Payments", "Purchasing", "Pricing", "CashManagement", "Customers", "Suppliers", "Fiscal"];
 
     // Users and Audit deliberately stay on their own connection: an audit record or a failed sign-in must survive the rollback of the business operation it describes.
     private static readonly string[] IndependentModules = ["Users", "Audit"];

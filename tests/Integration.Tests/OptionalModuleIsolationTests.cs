@@ -1,5 +1,6 @@
 using Audit.Contracts.Interfaces;
 using CashManagement.Contracts.Interfaces;
+using Fiscal.Contracts.Interfaces;
 using Customers.Contracts.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Payments.Contracts.Interfaces;
@@ -22,7 +23,7 @@ public sealed class OptionalModuleIsolationTests
     private static readonly Dictionary<string, string> Prefixes = new()
     {
         ["Customers"] = "cus_", ["Suppliers"] = "sup_", ["Purchasing"] = "pur_", ["Pricing"] = "pri_", ["Payments"] = "pay_",
-        ["Users"] = "usr_", ["Audit"] = "aud_", ["CashManagement"] = "cash_", ["Reporting"] = ""
+        ["Users"] = "usr_", ["Audit"] = "aud_", ["CashManagement"] = "cash_", ["Reporting"] = "", ["Fiscal"] = "fis_"
     };
 
     /// <summary>The contract each Stage 8 module publishes (resolved from the real container).</summary>
@@ -36,7 +37,8 @@ public sealed class OptionalModuleIsolationTests
         ["Users"] = typeof(IUserLookup),
         ["Audit"] = typeof(IAuditRecorder),
         ["CashManagement"] = typeof(ICashMovementRecorder),
-        ["Reporting"] = typeof(IReportProvider)
+        ["Reporting"] = typeof(IReportProvider),
+        ["Fiscal"] = typeof(IFiscalSetupReader)
     };
 
     public static IEnumerable<object[]> Stage8() => IntegrationHost.Stage8Modules.Select(m => new object[] { m });

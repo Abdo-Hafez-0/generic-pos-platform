@@ -54,6 +54,7 @@
     <ProjectReference Include="..\..\src\Modules\Users\Users.Infrastructure\Users.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Audit\Audit.Infrastructure\Audit.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\CashManagement\CashManagement.Infrastructure\CashManagement.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Fiscal\Fiscal.Infrastructure\Fiscal.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reporting\Reporting.Infrastructure\Reporting.Infrastructure.csproj" />
   </ItemGroup>
 

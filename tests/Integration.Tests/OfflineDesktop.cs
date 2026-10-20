@@ -53,7 +53,7 @@ internal sealed class OfflineDesktop : IAsyncDisposable
 {
     public static readonly DateTimeOffset Start = new(2026, 6, 1, 12, 0, 0, TimeSpan.Zero);
     public static readonly string[] AllModules =
-        ["catalog", "inventory", "sales", "pos", "customers", "suppliers", "purchasing", "pricing", "payments", "users", "audit", "cash-management", "reporting"];
+        ["catalog", "inventory", "sales", "pos", "customers", "suppliers", "purchasing", "pricing", "payments", "users", "audit", "cash-management", "reporting", "fiscal"];
 
     private static readonly string[] EnvironmentKeys =
     [

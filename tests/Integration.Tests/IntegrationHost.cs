@@ -3,6 +3,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Catalog.Infrastructure.Module;
 using CashManagement.Infrastructure.Module;
+using Fiscal.Infrastructure.Module;
 using Client.Host.Hosting;
 using Client.ModuleHost;
 using Customers.Infrastructure.Module;
@@ -67,7 +68,7 @@ public sealed class IntegrationHost : IAsyncDisposable
     public static readonly IReadOnlyList<string> CoreModules = ["Catalog", "Inventory", "Sales", "POS"];
 
     public static readonly IReadOnlyList<string> Stage8Modules =
-        ["Customers", "Suppliers", "Purchasing", "Pricing", "Payments", "Users", "Audit", "CashManagement", "Reporting"];
+        ["Customers", "Suppliers", "Purchasing", "Pricing", "Payments", "Users", "Audit", "CashManagement", "Reporting", "Fiscal"];
 
     /// <summary>The Stage 8 modules a module needs in order to be enabled (its manifest dependencies on other Stage 8 modules).</summary>
     public static IReadOnlyList<string> Stage8DependenciesOf(string module) => module switch
@@ -91,6 +92,7 @@ public sealed class IntegrationHost : IAsyncDisposable
         "Audit" => new AuditHostingModule(),
         "CashManagement" => new CashManagementHostingModule(),
         "Reporting" => new ReportingHostingModule(),
+        "Fiscal" => new FiscalHostingModule(),   // MISS-11
         _ => throw new ArgumentOutOfRangeException(nameof(module), module, "Unknown module.")
     };
 

@@ -23,7 +23,7 @@ public sealed class ArchitectureCompositionTests
             .SelectMany(m => m.GetType().Assembly.GetTypes())
             .Where(t => t is { IsClass: true, IsAbstract: false } && typeof(DbContext).IsAssignableFrom(t))
             .ToList();
-        Assert.Equal(12, contextTypes.Count);   // every module but Reporting (no tables)
+        Assert.Equal(13, contextTypes.Count);   // every module but Reporting (no tables)
 
         var owners = new Dictionary<string, string>(StringComparer.Ordinal);
         var physical = await host.GetTablesAsync();

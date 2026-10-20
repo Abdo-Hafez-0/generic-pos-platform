@@ -49,7 +49,7 @@ internal sealed class LicenseServerProcess : IDisposable
 {
     public const string KeyId = "e2e-key";
     public static readonly string[] Modules =
-        ["catalog", "inventory", "sales", "pos", "customers", "suppliers", "purchasing", "pricing", "payments", "users", "audit", "cash-management", "reporting", "cloud-backup"];
+        ["catalog", "inventory", "sales", "pos", "customers", "suppliers", "purchasing", "pricing", "payments", "users", "audit", "cash-management", "reporting", "cloud-backup", "fiscal"];
 
     private readonly Process _process;
     private readonly StringBuilder _output = new();

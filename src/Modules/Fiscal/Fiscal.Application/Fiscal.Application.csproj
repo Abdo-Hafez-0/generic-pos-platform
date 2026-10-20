@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The module's own contract services run inside operations the user was already authorized for (see ExecuteAsync). -->
+    <InternalsVisibleTo Include="Fiscal.Infrastructure" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Fiscal.Domain\Fiscal.Domain.csproj" />
+    <ProjectReference Include="..\Fiscal.Contracts\Fiscal.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Platform.Application\Platform.Application.csproj" />
+  </ItemGroup>
+</Project>

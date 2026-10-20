@@ -18,7 +18,8 @@ public sealed class RealHostMigrationTests
         ["Payments"] = "pay_",
         ["Users"] = "usr_",
         ["Audit"] = "aud_",
-        ["CashManagement"] = "cash_"
+        ["CashManagement"] = "cash_",
+        ["Fiscal"] = "fis_"
     };
 
     [Fact]
@@ -39,6 +40,7 @@ public sealed class RealHostMigrationTests
         Assert.Contains("usr_Users", tables);
         Assert.Contains("aud_AuditEntries", tables);
         Assert.Contains("cash_Sessions", tables);
+        Assert.Contains("fis_Settings", tables);
     }
 
     [Fact]
@@ -82,7 +84,7 @@ public sealed class RealHostMigrationTests
         foreach (var name in new[]
                  {
                      "InitialCustomersSchema", "InitialSuppliersSchema", "InitialPurchasingSchema", "InitialPricingSchema",
-                     "InitialPaymentsSchema", "InitialUsersSchema", "InitialAuditSchema", "InitialCashManagementSchema"
+                     "InitialPaymentsSchema", "InitialUsersSchema", "InitialAuditSchema", "InitialCashManagementSchema", "InitialFiscalSchema"
                  })
         {
             Assert.Contains(applied, id => id.EndsWith(name, StringComparison.Ordinal));

@@ -1,0 +1,120 @@
+<UserControl x:Class="Fiscal.UI.Views.FiscalView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:res="clr-namespace:Fiscal.UI.Resources"
+             xmlns:vm="clr-namespace:Fiscal.UI.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:FiscalViewModel}">
+
+    <!-- ELECTRONIC RECEIPTS (MISS-11a). DataContext: FiscalViewModel. Texts: Resources/FiscalText.resx. Owner's choice: two columns of white
+         boxes for the setup, the documents underneath. -->
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="Label" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}"/>
+            <Setter Property="Margin" Value="0,4,16,4"/>
+        </Style>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinWidth" Value="90"/>
+        </Style>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"/>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- the country and the shop's tax details -->
+                <Border Grid.Column="0" Style="{StaticResource Box}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:FiscalText.ShopTitle}"/>
+                        <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.Country}" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CountryBox" ItemsSource="{Binding Countries}" SelectedItem="{Binding Country}" DisplayMemberPath="Text"
+                                  IsEnabled="{Binding CanChooseCountry}" AutomationProperties.Name="{x:Static res:FiscalText.Country}"/>
+                        <TextBlock x:Name="CountryLockedText" Text="{x:Static res:FiscalText.CountryLocked}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="12"
+                                   Margin="0,4,0,0" Visibility="{Binding IsCountryLocked, Converter={StaticResource VisibleWhenTrue}}"/>
+
+                        <StackPanel x:Name="DetailsPanel" Visibility="{Binding NeedsDetails, Converter={StaticResource VisibleWhenTrue}}">
+                            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.TaxNumber}"/>
+                            <TextBox x:Name="TaxNumberBox" Text="{Binding TaxNumber, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight"
+                                     Tag="{Binding TaxNumberHint}" AutomationProperties.Name="{x:Static res:FiscalText.TaxNumber}"/>
+                            <Grid Visibility="{Binding IsEgypt, Converter={StaticResource VisibleWhenTrue}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.BranchCode}"/>
+                                    <TextBox x:Name="BranchCodeBox" Text="{Binding BranchCode, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight"
+                                             Tag="0" AutomationProperties.Name="{x:Static res:FiscalText.BranchCode}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.ActivityCode}"/>
+                                    <TextBox x:Name="ActivityCodeBox" Text="{Binding ActivityCode, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight"
+                                             AutomationProperties.Name="{x:Static res:FiscalText.ActivityCode}"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.SellerNameArabic}"/>
+                            <TextBox x:Name="SellerNameBox" Text="{Binding SellerNameArabic, UpdateSourceTrigger=PropertyChanged}" FlowDirection="RightToLeft"
+                                     AutomationProperties.Name="{x:Static res:FiscalText.SellerNameArabic}"/>
+                            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.AddressArabic}"/>
+                            <TextBox x:Name="AddressBox" Text="{Binding AddressArabic, UpdateSourceTrigger=PropertyChanged}" FlowDirection="RightToLeft" TextWrapping="Wrap"
+                                     MinHeight="56" VerticalContentAlignment="Top" AutomationProperties.Name="{x:Static res:FiscalText.AddressArabic}"/>
+                        </StackPanel>
+                        <Button x:Name="SaveFiscalButton" Content="{x:Static res:FiscalText.Save}" Command="{Binding SaveCommand}" HorizontalAlignment="Left" Margin="0,14,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- this till -->
+                <Border Grid.Column="2" Style="{StaticResource Box}" VerticalAlignment="Top">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:FiscalText.TillTitle}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.TillName}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="TillNameText" Text="{Binding TillName}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.TillRegistration}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="TillRegistrationText" Text="{Binding TillRegistrationText}"/>
+                            <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.NextNumber}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="NextNumberText" Text="{Binding NextNumberText}"/>
+                        </Grid>
+                        <TextBlock x:Name="IssuingText" Text="{Binding IssuingText}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="12" Margin="0,10,0,0"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- the documents (MISS-11a-3) -->
+            <Border Style="{StaticResource Box}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:FiscalText.DocumentsTitle}"/>
+                    <TextBlock x:Name="NoDocumentsText" Text="{x:Static res:FiscalText.NoDocuments}" Foreground="{DynamicResource Brush.TextMuted}"/>
+                </StackPanel>
+            </Border>
+
+            <TextBlock x:Name="FiscalStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}" Margin="0,4,0,0"/>
+            <TextBlock x:Name="FiscalErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" Margin="0,4,0,0"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

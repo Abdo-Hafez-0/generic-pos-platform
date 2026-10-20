@@ -228,6 +228,7 @@ internal static class Assemblies
         .. AllUsersAssemblies,
         .. AllAuditAssemblies,
         .. AllCashManagementAssemblies,
+        .. AllFiscalAssemblies,
         .. AllReportingAssemblies,
         .. AllCloudBackupAssemblies
     ];
@@ -454,6 +455,14 @@ internal static class Assemblies
         AuditInfrastructure
         // Audit.UI excluded - net10.0-windows TFM gap
     ];
+
+    // Fiscal module assemblies (MISS-11). Fiscal.UI is net10.0-windows and cannot be referenced here (TFM gap).
+    internal static readonly Assembly FiscalDomain = typeof(Fiscal.Domain.Entities.FiscalSettings).Assembly;
+    internal static readonly Assembly FiscalContracts = typeof(Fiscal.Contracts.Interfaces.IFiscalSetupReader).Assembly;
+    internal static readonly Assembly FiscalApplication = typeof(Fiscal.Application.Commands.SaveFiscalSettingsCommandHandler).Assembly;
+    internal static readonly Assembly FiscalInfrastructure = typeof(Fiscal.Infrastructure.FiscalInfrastructureAssemblyMarker).Assembly;
+
+    internal static IReadOnlyList<Assembly> AllFiscalAssemblies => [FiscalDomain, FiscalContracts, FiscalApplication, FiscalInfrastructure];
 
     // CashManagement module assemblies (Stage 8)
     // Note: CashManagement.UI is net10.0-windows and cannot be referenced here (TFM gap).

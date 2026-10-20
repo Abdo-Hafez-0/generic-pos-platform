@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- UI depends on Application (use cases) and Contracts only. NO reference to Infrastructure or Domain. -->
+    <ProjectReference Include="..\Fiscal.Application\Fiscal.Application.csproj" />
+    <ProjectReference Include="..\Fiscal.Contracts\Fiscal.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />
+    <!-- MISS-11a: the screen declarations, the per-action runner and the view-model base of the shell -->
+    <ProjectReference Include="..\..\..\Platform\Platform.Presentation\Platform.Presentation.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\FiscalText.resx"
+                      StronglyTypedLanguage="CSharp"
+                      StronglyTypedClassName="FiscalText"
+                      StronglyTypedNamespace="Fiscal.UI.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)FiscalText.Designer.cs"
+                      PublicClass="true" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="ScreenTitle" xml:space="preserve"><value>Electronic receipts</value></data>
+  <data name="ShopTitle" xml:space="preserve"><value>Country and shop</value></data>
+  <data name="Country" xml:space="preserve"><value>Tax authority</value></data>
+  <data name="CountryNone" xml:space="preserve"><value>Off - no electronic receipts</value></data>
+  <data name="CountryEgypt" xml:space="preserve"><value>Egypt - Egyptian Tax Authority (e-receipt)</value></data>
+  <data name="CountrySaudi" xml:space="preserve"><value>Saudi Arabia - ZATCA (e-invoicing)</value></data>
+  <data name="CountryLocked" xml:space="preserve"><value>Receipts were already issued on this till, so the country can no longer change.</value></data>
+  <data name="TaxNumber" xml:space="preserve"><value>Tax registration number</value></data>
+  <data name="TaxNumberHintEgypt" xml:space="preserve"><value>9 digits</value></data>
+  <data name="TaxNumberHintSaudi" xml:space="preserve"><value>15 digits, starting and ending with 3</value></data>
+  <data name="BranchCode" xml:space="preserve"><value>Branch code</value></data>
+  <data name="ActivityCode" xml:space="preserve"><value>Activity code</value></data>
+  <data name="SellerNameArabic" xml:space="preserve"><value>Legal name in Arabic</value></data>
+  <data name="AddressArabic" xml:space="preserve"><value>Address in Arabic</value></data>
+  <data name="Save" xml:space="preserve"><value>Save</value></data>
+  <data name="Saved" xml:space="preserve"><value>The electronic receipt settings were saved.</value></data>
+  <data name="TillTitle" xml:space="preserve"><value>This till</value></data>
+  <data name="TillName" xml:space="preserve"><value>Till</value></data>
+  <data name="TillRegistration" xml:space="preserve"><value>With the tax authority</value></data>
+  <data name="TillRegistered" xml:space="preserve"><value>Registered</value></data>
+  <data name="TillNotRegistered" xml:space="preserve"><value>Not registered yet</value></data>
+  <data name="NextNumber" xml:space="preserve"><value>Next document number</value></data>
+  <data name="StateOff" xml:space="preserve"><value>Electronic receipts are off: sales are not sent to any tax authority.</value></data>
+  <data name="StateNoPart" xml:space="preserve"><value>{0}: this version cannot issue these receipts yet; the part for this country comes with an update. Sales go on as usual.</value></data>
+  <data name="StateIssuing" xml:space="preserve"><value>{0}: every sale and return gets its electronic receipt.</value></data>
+  <data name="DocumentsTitle" xml:space="preserve"><value>Documents sent to the tax authority</value></data>
+  <data name="NoDocuments" xml:space="preserve"><value>No electronic receipt has been issued on this till yet.</value></data>
+</root>

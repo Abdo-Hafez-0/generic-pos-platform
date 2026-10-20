@@ -93,3 +93,18 @@ authority's lists.
    simulation accounts are arranged before the release check (11f).
 4. **MISS-10 first**: returns and refunds are built before MISS-11 (fiscal returns need them).
 5. **A tax adviser in each country** checks the plan and the finished receipts before Matjar is sold there.
+
+## 5. Owner's decisions for 11a (2026-10-20)
+
+1. **Keep selling, queue**: once switched on, every sale and return gets its fiscal document (and QR) at once, even when the till is not
+   registered yet, offline, or the authority refuses; the documents wait in the queue and go out when possible. The shop never stops.
+2. **The Fiscal screen**: two columns of white boxes for the setup (country and shop; this till) and the documents list underneath (the
+   pattern of Backup / Devices).
+3. **Warnings for managers and the till**: the full warning in the status bar for those who manage e-receipts (`fiscal.manage`); a short
+   line on the till when documents have waited more than 12 hours, so someone is told.
+4. **The country is locked after the first document**: it can change only while no fiscal document exists for this installation.
+
+How 11a is built (each step tested and committed): **11a-1** the module, its settings (country, shop tax details), this till's record and
+the Fiscal screen's setup boxes; **11a-2** the fiscal document of every sale and return, made in the same transaction (the per-till chain
+and counter; the country part builds the content - none yet, so a test part proves the core); **11a-3** the outbox sender with retries,
+the documents list, states and warnings. One installation (its own database) is one till.

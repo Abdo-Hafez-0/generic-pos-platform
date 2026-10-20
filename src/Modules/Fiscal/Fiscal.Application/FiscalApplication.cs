@@ -87,9 +87,12 @@ namespace Fiscal.Application.Abstractions
     /// <summary>MISS-11a-3: the outcome for one document: what happened, the authority's reference, and its reasons (a refusal, or why not sent).</summary>
     public sealed record FiscalSendOutcome(Guid DocumentId, FiscalSendResult Result, string? AuthorityReference = null, string? Reason = null);
 
-    /// <summary>MISS-11a-2: what a country part builds from: the request, the seller, and the document's place in this till's chain.</summary>
+    /// <summary>
+    /// MISS-11a-2: what a country part builds from: the request, the seller, and the document's place in this till's chain. MISS-11b:
+    /// <see cref="LineCodes"/> the authority's codes of each line's product (by product id; what the shop has not set is null).
+    /// </summary>
     public sealed record FiscalBuildInput(Fiscal.Contracts.Models.FiscalDocumentRequest Request, FiscalSettings Settings, Guid TillId, string TillName,
-        long Number, string? PreviousHash);
+        long Number, string? PreviousHash, IReadOnlyDictionary<Guid, FiscalLineCodes>? LineCodes = null);
 
     /// <summary>MISS-11a-2: the authority's document as built: its content, its hash (the chain's next link) and what the QR code holds.</summary>
     public sealed record FiscalBuiltDocument(string Payload, string Hash, string? QrPayload);
@@ -141,10 +144,14 @@ namespace Fiscal.Application.DTOs
     public sealed record FiscalDocumentDto(Guid DocumentId, FiscalDocumentKind Kind, string Reference, string? OriginalReference, long? Number, decimal Total,
         DateTime IssuedAt, FiscalDocumentState State, string? StateReason, int Attempts, DateTime? LastAttemptAt, string? AuthorityReference);
 
-    /// <summary>MISS-11a-3: what the warnings count: waiting (outstanding), not built, refused, and waiting longer than the managers' limit.</summary>
-    public sealed record FiscalAlertsDto(int Outstanding, int NotBuilt, int Rejected, int OverLimit, double LimitHours)
+    /// <summary>
+    /// MISS-11a-3: what the warnings count: waiting (outstanding), not built, refused, and waiting longer than the managers' limit.
+    /// MISS-11b: and the products, units and tax rates still without the authority's code.
+    /// </summary>
+    public sealed record FiscalAlertsDto(int Outstanding, int NotBuilt, int Rejected, int OverLimit, double LimitHours,
+        int MissingProductCodes = 0, int MissingUnitCodes = 0, int MissingTaxCodes = 0)
     {
-        public bool NeedsAttention => NotBuilt > 0 || Rejected > 0 || OverLimit > 0;
+        public bool NeedsAttention => NotBuilt > 0 || Rejected > 0 || OverLimit > 0 || MissingProductCodes + MissingUnitCodes + MissingTaxCodes > 0;
     }
 
     /// <summary>MISS-11a-3: the outcome of a sending round.</summary>
@@ -271,7 +278,7 @@ namespace Fiscal.Application.Commands
     /// No capability check: only reachable through Fiscal.Contracts' IFiscalRecorder, inside an operation the user was authorized for.
     /// </summary>
     public sealed class RecordFiscalDocumentCommandHandler(IFiscalSetupRepository setup, IFiscalDocumentRepository documents, IFiscalUnitOfWork unitOfWork,
-        IEnumerable<IFiscalCountryPart>? countryParts = null, TimeProvider? timeProvider = null)
+        IEnumerable<IFiscalCountryPart>? countryParts = null, TimeProvider? timeProvider = null, FiscalCodeBook? codeBook = null)
     {
         internal async Task<FiscalDocumentResult> ExecuteAsync(FiscalDocumentRequest request, CancellationToken cancellationToken = default)
         {
@@ -293,7 +300,9 @@ namespace Fiscal.Application.Commands
             Result<FiscalBuiltDocument> built;
             try
             {
-                built = part.Build(new FiscalBuildInput(request, settings, till.Id, till.Name, till.Counter + 1, till.LastDocumentHash));
+                var lineCodes = codeBook is null ? null
+                    : await codeBook.ForProductsAsync(request.Lines.Select(l => l.ProductId).Distinct().ToList(), cancellationToken);   // MISS-11b
+                built = part.Build(new FiscalBuildInput(request, settings, till.Id, till.Name, till.Counter + 1, till.LastDocumentHash, lineCodes));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -460,7 +469,8 @@ namespace Fiscal.Application.Queries
     public sealed record GetFiscalAlertsQuery;
 
     /// <summary>MISS-11a-3: the alert counts for the Fiscal screen and the status bar (fiscal.manage); null when receipts are off.</summary>
-    public sealed class GetFiscalAlertsQueryHandler(FiscalAlertsReader alerts, IAuthorizationService authorization, FiscalWarningOptions? options = null)
+    public sealed class GetFiscalAlertsQueryHandler(FiscalAlertsReader alerts, IAuthorizationService authorization, FiscalWarningOptions? options = null,
+        IFiscalSetupRepository? setup = null, Fiscal.Application.Abstractions.FiscalCodeBook? codeBook = null)
     {
         public async Task<Result<FiscalAlertsDto?>> HandleAsync(GetFiscalAlertsQuery query, CancellationToken cancellationToken = default)
         {
@@ -468,8 +478,13 @@ namespace Fiscal.Application.Queries
             if (allowed.IsFailure) return Result.Failure<FiscalAlertsDto?>(allowed.Error);
 
             var counts = await alerts.ReadAsync(cancellationToken);
-            return Result.Success(counts is null ? null
-                : new FiscalAlertsDto(counts.Outstanding, counts.NotBuilt, counts.Rejected, counts.OverManagerLimit, (options ?? new FiscalWarningOptions()).ManagerHours));
+            if (counts is null) return Result.Success<FiscalAlertsDto?>(null);
+
+            // MISS-11b (owner's decision: missing codes in the status bar too)
+            var country = setup is null ? FiscalCountry.None : (await setup.GetSettingsAsync(cancellationToken))?.Country ?? FiscalCountry.None;
+            var missing = codeBook is null || country == FiscalCountry.None ? null : await codeBook.OverviewAsync(country, cancellationToken);
+            return Result.Success<FiscalAlertsDto?>(new FiscalAlertsDto(counts.Outstanding, counts.NotBuilt, counts.Rejected, counts.OverManagerLimit,
+                (options ?? new FiscalWarningOptions()).ManagerHours, missing?.MissingProducts ?? 0, missing?.MissingUnits ?? 0, missing?.MissingTaxRates ?? 0));
         }
     }
 

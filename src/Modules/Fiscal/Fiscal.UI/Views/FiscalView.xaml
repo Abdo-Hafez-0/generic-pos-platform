@@ -124,6 +124,137 @@
                 </Border>
             </Grid>
 
+            <!-- MISS-11b: the codes the tax authority needs (owner's decision: all of them here) -->
+            <Border x:Name="CodesBox" Style="{StaticResource Box}" DataContext="{Binding Codes}" Visibility="{Binding IsShown, Converter={StaticResource VisibleWhenTrue}}">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,8">
+                        <Border DockPanel.Dock="Right" Style="{StaticResource Segments}" Visibility="{Binding IsEgypt, Converter={StaticResource VisibleWhenTrue}}">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton x:Name="CodesProductsTab" Style="{StaticResource Segment}" Content="{Binding ProductsTabText}" IsChecked="{Binding ShowProductsSection}"/>
+                                <RadioButton x:Name="CodesUnitsTab" Style="{StaticResource Segment}" Content="{Binding UnitsTabText}" IsChecked="{Binding ShowUnitsSection}"/>
+                                <RadioButton x:Name="CodesTaxRatesTab" Style="{StaticResource Segment}" Content="{Binding TaxRatesTabText}" IsChecked="{Binding ShowTaxRatesSection}"/>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Style="{StaticResource Box.Title}" Text="{x:Static res:FiscalText.CodesTitle}" Margin="0"/>
+                    </DockPanel>
+                    <TextBlock x:Name="CodesMissingText" Text="{Binding MissingText}" Foreground="{DynamicResource Brush.TextMuted}" Margin="0,0,0,8"/>
+
+                    <!-- products (Egypt) -->
+                    <StackPanel Visibility="{Binding ShowsProducts, Converter={StaticResource VisibleWhenTrue}}">
+                        <CheckBox x:Name="OnlyMissingBox" Content="{x:Static res:FiscalText.CodesOnlyMissing}" IsChecked="{Binding OnlyMissing}" Margin="0,0,0,8"/>
+                        <DataGrid x:Name="ProductCodesGrid" ItemsSource="{Binding VisibleProducts}" IsReadOnly="True" MaxHeight="320" AutomationProperties.Name="{x:Static res:FiscalText.CodesProducts}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="{x:Static res:FiscalText.CodesProduct}" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                                <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="110" ElementStyle="{StaticResource Cell}"/>
+                                <DataGridTextColumn Header="{x:Static res:FiscalText.CodesBarcode}" Binding="{Binding Barcode}" Width="130" ElementStyle="{StaticResource Cell}"/>
+                                <DataGridTemplateColumn Header="{x:Static res:FiscalText.CodesType}" Width="90">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ComboBox ItemsSource="{Binding Types}" SelectedItem="{Binding Type, UpdateSourceTrigger=PropertyChanged}" Margin="2" AutomationProperties.Name="{x:Static res:FiscalText.CodesType}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="{x:Static res:FiscalText.CodesCode}" Width="240">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Code, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight" Margin="2" AutomationProperties.Name="{Binding Name}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="" Binding="{Binding SourceText}" Width="110" ElementStyle="{StaticResource Cell}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <WrapPanel Margin="0,10,0,0">
+                            <Button x:Name="SuggestCodesButton" Content="{x:Static res:FiscalText.CodesSuggest}" Command="{Binding SuggestCommand}" Margin="0,0,8,0"/>
+                            <Button x:Name="ExportCodesButton" Content="{x:Static res:FiscalText.CodesExport}" Click="OnExportCodes"/>
+                        </WrapPanel>
+                    </StackPanel>
+
+                    <!-- units (Egypt) -->
+                    <DataGrid x:Name="UnitCodesGrid" ItemsSource="{Binding Units}" IsReadOnly="True" MaxHeight="320" AutomationProperties.Name="{x:Static res:FiscalText.CodesUnits}"
+                              Visibility="{Binding ShowsUnits, Converter={StaticResource VisibleWhenTrue}}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="{x:Static res:FiscalText.CodesUnit}" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                            <DataGridTextColumn Header="{x:Static res:FiscalText.CodesAbbreviation}" Binding="{Binding Abbreviation}" Width="120" ElementStyle="{StaticResource Cell}"/>
+                            <DataGridTemplateColumn Header="{x:Static res:FiscalText.CodesUnitCode}" Width="200">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ComboBox IsEditable="True" Text="{Binding Code, UpdateSourceTrigger=PropertyChanged}" Margin="2" FlowDirection="LeftToRight"
+                                                  ItemsSource="{Binding DataContext.UnitCodeChoices, RelativeSource={RelativeSource AncestorType=DataGrid}}" AutomationProperties.Name="{Binding Name}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- tax rates: Egypt (tax type and subtype) -->
+                    <DataGrid x:Name="EgyptTaxCodesGrid" ItemsSource="{Binding TaxRates}" IsReadOnly="True" MaxHeight="320" AutomationProperties.Name="{x:Static res:FiscalText.CodesTaxRates}"
+                              Visibility="{Binding ShowsEgyptTaxRates, Converter={StaticResource VisibleWhenTrue}}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="{x:Static res:FiscalText.CodesTaxRate}" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                            <DataGridTextColumn Header="%" Binding="{Binding RateText}" Width="70" ElementStyle="{StaticResource Number}"/>
+                            <DataGridTemplateColumn Header="{x:Static res:FiscalText.CodesEgyptType}" Width="120">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ComboBox IsEditable="True" Text="{Binding EgyptTaxType, UpdateSourceTrigger=PropertyChanged}" Margin="2" FlowDirection="LeftToRight"
+                                                  ItemsSource="{Binding DataContext.EgyptTaxTypeChoices, RelativeSource={RelativeSource AncestorType=DataGrid}}" AutomationProperties.Name="{x:Static res:FiscalText.CodesEgyptType}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="{x:Static res:FiscalText.CodesEgyptSubType}" Width="130">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ComboBox IsEditable="True" Text="{Binding EgyptSubType, UpdateSourceTrigger=PropertyChanged}" Margin="2" FlowDirection="LeftToRight"
+                                                  ItemsSource="{Binding DataContext.EgyptSubTypeChoices, RelativeSource={RelativeSource AncestorType=DataGrid}}" AutomationProperties.Name="{x:Static res:FiscalText.CodesEgyptSubType}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- tax rates: Saudi Arabia (VAT category, and the exemption reason unless standard) -->
+                    <DataGrid x:Name="SaudiTaxCodesGrid" ItemsSource="{Binding TaxRates}" IsReadOnly="True" MaxHeight="320" AutomationProperties.Name="{x:Static res:FiscalText.CodesTaxRates}"
+                              Visibility="{Binding IsSaudi, Converter={StaticResource VisibleWhenTrue}}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="{x:Static res:FiscalText.CodesTaxRate}" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource Cell}"/>
+                            <DataGridTextColumn Header="%" Binding="{Binding RateText}" Width="70" ElementStyle="{StaticResource Number}"/>
+                            <DataGridTemplateColumn Header="{x:Static res:FiscalText.CodesSaudiCategory}" Width="90">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ComboBox SelectedItem="{Binding SaudiCategory}" Margin="2"
+                                                  ItemsSource="{Binding DataContext.SaudiCategoryChoices, RelativeSource={RelativeSource AncestorType=DataGrid}}" AutomationProperties.Name="{x:Static res:FiscalText.CodesSaudiCategory}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="{x:Static res:FiscalText.CodesSaudiReasonCode}" Width="180">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ComboBox IsEditable="True" Text="{Binding SaudiExemptionCode, UpdateSourceTrigger=PropertyChanged}" Margin="2" FlowDirection="LeftToRight" IsEnabled="{Binding NeedsReason}"
+                                                  ItemsSource="{Binding DataContext.SaudiReasonChoices, RelativeSource={RelativeSource AncestorType=DataGrid}}" AutomationProperties.Name="{x:Static res:FiscalText.CodesSaudiReasonCode}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="{x:Static res:FiscalText.CodesSaudiReason}" Width="220">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding SaudiExemptionReason, UpdateSourceTrigger=PropertyChanged}" Margin="2" IsEnabled="{Binding NeedsReason}"
+                                                 AutomationProperties.Name="{x:Static res:FiscalText.CodesSaudiReason}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <DockPanel Margin="0,12,0,0">
+                        <Button x:Name="SaveCodesButton" DockPanel.Dock="Right" Content="{x:Static res:FiscalText.CodesSave}" Command="{Binding SaveCommand}" Style="{StaticResource Button.Primary}"/>
+                        <StackPanel>
+                            <TextBlock x:Name="CodesStatusText" Text="{Binding StatusMessage}" Foreground="{DynamicResource Brush.Success}"/>
+                            <TextBlock x:Name="CodesErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}"/>
+                        </StackPanel>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+
             <!-- the documents (MISS-11a-3) -->
             <Border Style="{StaticResource Box}">
                 <StackPanel>

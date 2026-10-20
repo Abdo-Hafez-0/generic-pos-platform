@@ -108,3 +108,19 @@ How 11a is built (each step tested and committed): **11a-1** the module, its set
 the Fiscal screen's setup boxes; **11a-2** the fiscal document of every sale and return, made in the same transaction (the per-till chain
 and counter; the country part builds the content - none yet, so a test part proves the core); **11a-3** the outbox sender with retries,
 the documents list, states and warnings. One installation (its own database) is one till.
+
+## 6. Owner's decisions for 11b (2026-10-20)
+
+1. **All codes on the Electronic receipts screen**: a "Codes for the tax authority" box with products, units and tax rates (missing ones
+   counted); the product, unit and tax rate screens stay as they are.
+2. **A valid GS1 barcode is the product's code** (EAN-13 / EAN-8 / UPC / GTIN-14 with a correct check digit) without typing; the rest need an
+   EGS code.
+3. **EGS codes suggested from the SKU and exported**: EG-{tax number}-{SKU}, and a CSV file to register them on the ETA portal in one upload
+   *(to confirm: the columns of the portal's current upload template; EGS codes also need a parent GPC code, filled on the portal)*.
+4. **Missing codes in the status bar** for those who manage e-receipts.
+
+What each authority needs (from the published specifications): Egypt's receipt lines carry itemType (GS1 / EGS), itemCode, unitType (from
+ETA's unit table) and taxableItems (taxType + subType, e.g. T1 / V009 for the general VAT *(to confirm against the code tables)*). Saudi
+Arabia's simplified invoice needs each tax rate's VAT category (S, Z, E, O) and, for Z / E / O, the exemption reason code and text; no
+product codes. Noted for 11c: Egypt's seller block needs a structured branch address (governorate, city, street, building number) - the
+11a settings keep a single address line, to be split then.

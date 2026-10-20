@@ -13,7 +13,7 @@ namespace Architecture.Tests.DependencyRules;
 public sealed class FiscalBoundaryTests
 {
     private static readonly string[] ForbiddenOtherModuleLayers = ["Catalog.Domain", "Catalog.Application", "Catalog.Infrastructure", "Catalog.UI", "Inventory.Domain", "Inventory.Application", "Inventory.Infrastructure", "Inventory.UI", "Sales.Domain", "Sales.Application", "Sales.Infrastructure", "Sales.UI", "POS.Domain", "POS.Application", "POS.Infrastructure", "POS.UI", "Customers.Domain", "Customers.Application", "Customers.Infrastructure", "Customers.UI", "Suppliers.Domain", "Suppliers.Application", "Suppliers.Infrastructure", "Suppliers.UI", "Purchasing.Domain", "Purchasing.Application", "Purchasing.Infrastructure", "Purchasing.UI", "Pricing.Domain", "Pricing.Application", "Pricing.Infrastructure", "Pricing.UI", "Payments.Domain", "Payments.Application", "Payments.Infrastructure", "Payments.UI", "Users.Domain", "Users.Application", "Users.Infrastructure", "Users.UI", "Audit.Domain", "Audit.Application", "Audit.Infrastructure", "Audit.UI", "Reporting.Domain", "Reporting.Application", "Reporting.Infrastructure", "Reporting.UI", "CashManagement.Domain", "CashManagement.Application", "CashManagement.Infrastructure", "CashManagement.UI"];
-    private static readonly string[] AllowedContracts = [];
+    private static readonly string[] AllowedContracts = ["Catalog.Contracts", "Pricing.Contracts"];   // MISS-11b: the codes are kept per product, unit and tax rate
 
     private static void AssertNoDep(Assembly assembly, string forbidden, string because)
     {
@@ -144,7 +144,7 @@ public sealed class FiscalBoundaryTests
     [Fact(DisplayName = "ARCH-FIS-015: No module this module depends on depends back on Fiscal (no cycles)")]
     public void NoReverseDependencies()
     {
-        var mine = new Assembly[] {  };
+        var mine = new Assembly[] { typeof(Catalog.Contracts.Interfaces.ICatalogListing).Assembly, typeof(Pricing.Contracts.Interfaces.ITaxRateListing).Assembly };
         foreach (var contract in mine)
             Assert.DoesNotContain(Refs(contract), n => n.StartsWith("Fiscal.", StringComparison.Ordinal));
     }

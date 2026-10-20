@@ -65,3 +65,42 @@ internal sealed class FiscalDocumentConfiguration : IEntityTypeConfiguration<Fis
         builder.HasIndex(d => new { d.State, d.CreatedAt });
     }
 }
+
+internal sealed class FiscalProductCodeConfiguration : IEntityTypeConfiguration<FiscalProductCode>
+{
+    public void Configure(EntityTypeBuilder<FiscalProductCode> builder)
+    {
+        builder.ToTable("fis_ProductCodes");
+        builder.HasKey(c => c.ProductId);
+        builder.Property(c => c.ProductId).ValueGeneratedNever();
+        builder.Property(c => c.Type).HasConversion<int>().IsRequired();
+        builder.Property(c => c.Code).HasMaxLength(100).IsRequired();
+        builder.Property(c => c.UpdatedBy).HasMaxLength(100);
+    }
+}
+
+internal sealed class FiscalUnitCodeConfiguration : IEntityTypeConfiguration<FiscalUnitCode>
+{
+    public void Configure(EntityTypeBuilder<FiscalUnitCode> builder)
+    {
+        builder.ToTable("fis_UnitCodes");
+        builder.HasKey(c => c.UnitId);
+        builder.Property(c => c.UnitId).ValueGeneratedNever();
+        builder.Property(c => c.Code).HasMaxLength(30).IsRequired();
+    }
+}
+
+internal sealed class FiscalTaxCodeConfiguration : IEntityTypeConfiguration<FiscalTaxCode>
+{
+    public void Configure(EntityTypeBuilder<FiscalTaxCode> builder)
+    {
+        builder.ToTable("fis_TaxCodes");
+        builder.HasKey(c => c.TaxRateId);
+        builder.Property(c => c.TaxRateId).ValueGeneratedNever();
+        builder.Property(c => c.EgyptTaxType).HasMaxLength(30);
+        builder.Property(c => c.EgyptSubType).HasMaxLength(50);
+        builder.Property(c => c.SaudiCategory).HasMaxLength(2);
+        builder.Property(c => c.SaudiExemptionCode).HasMaxLength(50);
+        builder.Property(c => c.SaudiExemptionReason).HasMaxLength(500);
+    }
+}

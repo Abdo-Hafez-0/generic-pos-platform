@@ -121,4 +121,97 @@
   <data name="ListSeparator" xml:space="preserve">
     <value>، </value>
   </data>
+  <data name="CodesTitle" xml:space="preserve">
+    <value>رموز مصلحة الضرائب</value>
+  </data>
+  <data name="CodesProducts" xml:space="preserve">
+    <value>الأصناف</value>
+  </data>
+  <data name="CodesUnits" xml:space="preserve">
+    <value>الوحدات</value>
+  </data>
+  <data name="CodesTaxRates" xml:space="preserve">
+    <value>نسب الضريبة</value>
+  </data>
+  <data name="CodesTabMissing" xml:space="preserve">
+    <value>{0} ({1} ناقص)</value>
+  </data>
+  <data name="CodesMissing" xml:space="preserve">
+    <value>ما زال ناقصًا: {0} رمز صنف، {1} رمز وحدة، {2} تصنيف نسبة ضريبة.</value>
+  </data>
+  <data name="CodesAllSet" xml:space="preserve">
+    <value>كل الرموز التي تحتاجها مصلحة الضرائب مُدخلة.</value>
+  </data>
+  <data name="CodesOnlyMissing" xml:space="preserve">
+    <value>الأصناف بدون رمز فقط</value>
+  </data>
+  <data name="CodesProduct" xml:space="preserve">
+    <value>الصنف</value>
+  </data>
+  <data name="CodesBarcode" xml:space="preserve">
+    <value>الباركود</value>
+  </data>
+  <data name="CodesType" xml:space="preserve">
+    <value>النوع</value>
+  </data>
+  <data name="CodesCode" xml:space="preserve">
+    <value>الرمز</value>
+  </data>
+  <data name="CodeFromBarcode" xml:space="preserve">
+    <value>من الباركود</value>
+  </data>
+  <data name="CodesSuggest" xml:space="preserve">
+    <value>اقتراح رموز EGS</value>
+  </data>
+  <data name="CodesSuggested" xml:space="preserve">
+    <value>تم اقتراح {0} رمز EGS من رموز الأصناف. راجعها ثم احفظ الرموز.</value>
+  </data>
+  <data name="CodesExport" xml:space="preserve">
+    <value>تصدير لبوابة مصلحة الضرائب…</value>
+  </data>
+  <data name="CodesExported" xml:space="preserve">
+    <value>تمت كتابة رموز EGS في {0}.</value>
+  </data>
+  <data name="CodesUnit" xml:space="preserve">
+    <value>الوحدة</value>
+  </data>
+  <data name="CodesAbbreviation" xml:space="preserve">
+    <value>الاختصار</value>
+  </data>
+  <data name="CodesUnitCode" xml:space="preserve">
+    <value>رمز الوحدة (المصلحة)</value>
+  </data>
+  <data name="CodesTaxRate" xml:space="preserve">
+    <value>نسبة الضريبة</value>
+  </data>
+  <data name="CodesEgyptType" xml:space="preserve">
+    <value>نوع الضريبة</value>
+  </data>
+  <data name="CodesEgyptSubType" xml:space="preserve">
+    <value>النوع الفرعي</value>
+  </data>
+  <data name="CodesSaudiCategory" xml:space="preserve">
+    <value>الفئة</value>
+  </data>
+  <data name="CodesSaudiReasonCode" xml:space="preserve">
+    <value>رمز الإعفاء</value>
+  </data>
+  <data name="CodesSaudiReason" xml:space="preserve">
+    <value>سبب الإعفاء</value>
+  </data>
+  <data name="CodesSave" xml:space="preserve">
+    <value>حفظ الرموز</value>
+  </data>
+  <data name="CodesSaved" xml:space="preserve">
+    <value>تم حفظ الرموز.</value>
+  </data>
+  <data name="NoticeMissingProducts" xml:space="preserve">
+    <value>{0} صنف بدون رمز</value>
+  </data>
+  <data name="NoticeMissingUnits" xml:space="preserve">
+    <value>{0} وحدة بدون رمز</value>
+  </data>
+  <data name="NoticeMissingTaxRates" xml:space="preserve">
+    <value>{0} نسبة ضريبة غير مصنفة</value>
+  </data>
 </root>

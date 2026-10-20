@@ -16,6 +16,9 @@ public sealed class FiscalDbContext : DbContext
     public DbSet<FiscalSettings> Settings { get; set; } = null!;
     public DbSet<FiscalTill> Tills { get; set; } = null!;
     public DbSet<FiscalDocument> Documents { get; set; } = null!;
+    public DbSet<FiscalProductCode> ProductCodes { get; set; } = null!;
+    public DbSet<FiscalUnitCode> UnitCodes { get; set; } = null!;
+    public DbSet<FiscalTaxCode> TaxCodes { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

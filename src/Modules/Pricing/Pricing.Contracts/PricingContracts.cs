@@ -1,5 +1,8 @@
 namespace Pricing.Contracts.Models
 {
+    /// <summary>MISS-11b: a tax rate as another module's per-rate list needs it (Rate 0.14 = 14%).</summary>
+    public sealed record TaxRateListItem(Guid TaxRateId, string Code, string Name, decimal Rate, bool IsDefault, bool IsActive);
+
     /// <summary>The outcome of resolving the price of a product. Found = false means "no applicable price" (the caller falls back).</summary>
     public sealed record PriceResolutionResult(bool Found, decimal Amount, Guid PriceId, Guid PriceListId, string PriceListCode)
     {
@@ -42,5 +45,11 @@ namespace Pricing.Contracts.Interfaces
     public interface ITaxRateResolver
     {
         Task<TaxResolutionResult> ResolveAsync(Guid productId, CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>MISS-11b: every tax rate, for a module that keeps its own data per rate (Fiscal: the authority's tax type). Read only.</summary>
+    public interface ITaxRateListing
+    {
+        Task<IReadOnlyList<Pricing.Contracts.Models.TaxRateListItem>> ListAsync(CancellationToken cancellationToken = default);
     }
 }

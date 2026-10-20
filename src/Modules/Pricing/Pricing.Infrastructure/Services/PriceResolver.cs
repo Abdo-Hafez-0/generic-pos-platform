@@ -28,3 +28,13 @@ internal sealed class TaxRateResolver(GetProductTaxQueryHandler handler) : ITaxR
             : TaxResolutionResult.None;
     }
 }
+
+/// <summary>MISS-11b: implements Pricing.Contracts' tax rate listing (every rate, by code).</summary>
+internal sealed class TaxRateListing(Pricing.Application.Repositories.ITaxRateRepository rates) : ITaxRateListing
+{
+    public async Task<IReadOnlyList<TaxRateListItem>> ListAsync(CancellationToken cancellationToken = default)
+        => (await rates.ListAsync(cancellationToken))
+            .Select(r => new TaxRateListItem(r.Id.Value, r.Code, r.Name, r.Rate, r.IsDefault, r.Status == Pricing.Domain.Enums.TaxRateStatus.Active))
+            .OrderBy(r => r.Code, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+}

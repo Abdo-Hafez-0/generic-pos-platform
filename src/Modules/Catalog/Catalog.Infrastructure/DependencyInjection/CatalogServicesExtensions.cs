@@ -74,6 +74,7 @@ public static class CatalogServicesExtensions
         // Cross-module Contracts (Catalog.Contracts implementations)
         services.AddScoped<IProductLookup, CatalogProductLookup>();
         services.AddScoped<IProductBarcodeResolver, CatalogBarcodeResolver>();
+        services.AddScoped<ICatalogListing, CatalogListing>();   // MISS-11b
 
         // Module lifecycle (Singleton — IModule is stateful across the application lifetime)
         services.AddSingleton<IModule, CatalogModule>();

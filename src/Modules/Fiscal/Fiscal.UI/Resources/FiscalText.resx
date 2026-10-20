@@ -121,4 +121,97 @@
   <data name="ListSeparator" xml:space="preserve">
     <value>, </value>
   </data>
+  <data name="CodesTitle" xml:space="preserve">
+    <value>Codes for the tax authority</value>
+  </data>
+  <data name="CodesProducts" xml:space="preserve">
+    <value>Products</value>
+  </data>
+  <data name="CodesUnits" xml:space="preserve">
+    <value>Units</value>
+  </data>
+  <data name="CodesTaxRates" xml:space="preserve">
+    <value>Tax rates</value>
+  </data>
+  <data name="CodesTabMissing" xml:space="preserve">
+    <value>{0} ({1} missing)</value>
+  </data>
+  <data name="CodesMissing" xml:space="preserve">
+    <value>Still missing: {0} product code(s), {1} unit code(s), {2} tax rate classification(s).</value>
+  </data>
+  <data name="CodesAllSet" xml:space="preserve">
+    <value>Every code the tax authority needs is set.</value>
+  </data>
+  <data name="CodesOnlyMissing" xml:space="preserve">
+    <value>Only products without a code</value>
+  </data>
+  <data name="CodesProduct" xml:space="preserve">
+    <value>Product</value>
+  </data>
+  <data name="CodesBarcode" xml:space="preserve">
+    <value>Barcode</value>
+  </data>
+  <data name="CodesType" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="CodesCode" xml:space="preserve">
+    <value>Code</value>
+  </data>
+  <data name="CodeFromBarcode" xml:space="preserve">
+    <value>from the barcode</value>
+  </data>
+  <data name="CodesSuggest" xml:space="preserve">
+    <value>Suggest EGS codes</value>
+  </data>
+  <data name="CodesSuggested" xml:space="preserve">
+    <value>{0} EGS code(s) suggested from the SKUs. Check them, then save the codes.</value>
+  </data>
+  <data name="CodesExport" xml:space="preserve">
+    <value>Export for the ETA portal…</value>
+  </data>
+  <data name="CodesExported" xml:space="preserve">
+    <value>The EGS codes were written to {0}.</value>
+  </data>
+  <data name="CodesUnit" xml:space="preserve">
+    <value>Unit</value>
+  </data>
+  <data name="CodesAbbreviation" xml:space="preserve">
+    <value>Short name</value>
+  </data>
+  <data name="CodesUnitCode" xml:space="preserve">
+    <value>Unit code (ETA)</value>
+  </data>
+  <data name="CodesTaxRate" xml:space="preserve">
+    <value>Tax rate</value>
+  </data>
+  <data name="CodesEgyptType" xml:space="preserve">
+    <value>Tax type</value>
+  </data>
+  <data name="CodesEgyptSubType" xml:space="preserve">
+    <value>Subtype</value>
+  </data>
+  <data name="CodesSaudiCategory" xml:space="preserve">
+    <value>Category</value>
+  </data>
+  <data name="CodesSaudiReasonCode" xml:space="preserve">
+    <value>Exemption code</value>
+  </data>
+  <data name="CodesSaudiReason" xml:space="preserve">
+    <value>Exemption reason</value>
+  </data>
+  <data name="CodesSave" xml:space="preserve">
+    <value>Save codes</value>
+  </data>
+  <data name="CodesSaved" xml:space="preserve">
+    <value>The codes were saved.</value>
+  </data>
+  <data name="NoticeMissingProducts" xml:space="preserve">
+    <value>{0} product(s) without a code</value>
+  </data>
+  <data name="NoticeMissingUnits" xml:space="preserve">
+    <value>{0} unit(s) without a code</value>
+  </data>
+  <data name="NoticeMissingTaxRates" xml:space="preserve">
+    <value>{0} tax rate(s) not classified</value>
+  </data>
 </root>

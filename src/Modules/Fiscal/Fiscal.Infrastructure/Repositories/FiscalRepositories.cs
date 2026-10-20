@@ -101,3 +101,24 @@ internal sealed class FiscalNotices(Fiscal.Application.Queries.FiscalAlertsReade
             ? new FiscalTillNotice(counts.OverTillLimit, DateTime.SpecifyKind(oldest, DateTimeKind.Utc), (options ?? new()).TillHours)
             : null;
 }
+
+/// <summary>MISS-11b: the authority's codes for products, units and tax rates.</summary>
+internal sealed class EfFiscalCodeRepository(FiscalDbContext dbContext) : IFiscalCodeRepository
+{
+    public async Task<IReadOnlyList<FiscalProductCode>> GetProductCodesAsync(IReadOnlyCollection<Guid>? productIds = null, CancellationToken cancellationToken = default)
+        => productIds is null
+            ? await dbContext.ProductCodes.ToListAsync(cancellationToken)
+            : await dbContext.ProductCodes.Where(c => productIds.Contains(c.ProductId)).ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<FiscalUnitCode>> GetUnitCodesAsync(CancellationToken cancellationToken = default)
+        => await dbContext.UnitCodes.ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<FiscalTaxCode>> GetTaxCodesAsync(CancellationToken cancellationToken = default)
+        => await dbContext.TaxCodes.ToListAsync(cancellationToken);
+
+    public async Task AddAsync(FiscalProductCode code, CancellationToken cancellationToken = default) => await dbContext.ProductCodes.AddAsync(code, cancellationToken);
+    public async Task AddAsync(FiscalUnitCode code, CancellationToken cancellationToken = default) => await dbContext.UnitCodes.AddAsync(code, cancellationToken);
+    public async Task AddAsync(FiscalTaxCode code, CancellationToken cancellationToken = default) => await dbContext.TaxCodes.AddAsync(code, cancellationToken);
+    public void Remove(FiscalProductCode code) => dbContext.ProductCodes.Remove(code);
+    public void Remove(FiscalUnitCode code) => dbContext.UnitCodes.Remove(code);
+}

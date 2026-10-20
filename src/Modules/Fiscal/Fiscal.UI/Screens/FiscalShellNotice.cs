@@ -28,6 +28,9 @@ public sealed class FiscalShellNotice(IUiActionRunner runner) : IShellNoticeProv
         if (alerts.NotBuilt > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, FiscalText.NoticeNotBuilt, alerts.NotBuilt));
         if (alerts.Rejected > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, FiscalText.NoticeRejected, alerts.Rejected));
         if (alerts.OverLimit > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, FiscalText.NoticeOverdue, alerts.OverLimit, alerts.LimitHours));
+        if (alerts.MissingProductCodes > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, FiscalText.NoticeMissingProducts, alerts.MissingProductCodes));   // MISS-11b
+        if (alerts.MissingUnitCodes > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, FiscalText.NoticeMissingUnits, alerts.MissingUnitCodes));
+        if (alerts.MissingTaxCodes > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, FiscalText.NoticeMissingTaxRates, alerts.MissingTaxCodes));
         return FiscalText.NoticePrefix + " " + string.Join(FiscalText.ListSeparator, parts);
     }
 }

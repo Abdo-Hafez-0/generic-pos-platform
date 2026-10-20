@@ -2777,7 +2777,7 @@ FIX-13 decisions (user, 2026-10-09): every screen text in Arabic with right-to-l
   - The Cash drawer already listed "Cash refund" movements and their effect on the expected balance (10a).
 - **MISS-10 is complete.** Next: MISS-11 (electronic receipts, Egypt first; 11e will issue the fiscal returns for these).
 
-## MISS-11 Summary - Electronic receipts for Egypt and Saudi Arabia (2026-10-20, in progress: 11a done)
+## MISS-11 Summary - Electronic receipts for Egypt and Saudi Arabia (2026-10-20, in progress: 11a and 11b done)
 
 - **Plan and decisions**: `MISS-11_E_RECEIPTS_PLAN.md` (Egypt first, shop sales only, a tax adviser in each country; section 5 for 11a: keep selling and queue, the Fiscal screen as boxes + list, warnings for managers plus a short line on the till, the country locked after the first document).
 - **11a-1 - the Fiscal module and its setup**: a new module `Fiscal` (licensed module id "fiscal"; capability `fiscal.manage`, sensitive; tables `fis_Settings`, `fis_Tills`; migration `InitialFiscalSchema`; shares the database transaction like the other business modules).
@@ -2793,7 +2793,13 @@ FIX-13 decisions (user, 2026-10-09): every screen text in Arabic with right-to-l
   - The Fiscal screen: the documents list (time, receipt, kind - a return names its sale -, number, total, state, why) with a filter (all / waiting / need attention / accepted) and a summary line.
   - Warnings (owner's decision: managers + the till): a new module-neutral `IShellNoticeProvider` (Platform.Presentation) - the shell asks the providers whose capability the signed-in user holds after sign-in, on each screen and every five minutes, and shows them in the status bar (`ModuleNoticeText`); `FiscalShellNotice` says how many could not be made, were refused, or waited more than 6 hours (`Fiscal:Warnings`). The till shows a line when documents have waited more than 12 hours (`IPOSReader.GetFiscalNoticeAsync` over Fiscal.Contracts `IFiscalNotices`).
   - Tests: Fiscal.Tests +7 (chain order, answers, back-off, broken connection, refusals and warnings, off, permissions), UI.Tests +2 (the shell's module notices, the till's line). Checked on the real application with five sample documents put into the demo's database from outside the app container and removed afterwards.
-- **MISS-11a is complete.** Next: 11b - the authority's codes on products, units and tax rates (Egypt's first), then 11c - Egypt's e-receipt.
+- **MISS-11a is complete.**
+- **11b - the tax authority's codes** (owner's decisions: plan section 6):
+  - Fiscal keeps the codes per product, unit and tax rate (`FiscalProductCode` GS1 / EGS, `FiscalUnitCode`, `FiscalTaxCode` Egypt type + subtype / Saudi category + exemption reason; tables `fis_ProductCodes`, `fis_UnitCodes`, `fis_TaxCodes`, migration `AddFiscalCodes`); `Gs1.IsValid` (length and check digit), `Egs.IsValid` / `Egs.Suggest` (EG-{RIN}-{SKU}).
+  - `FiscalCodeBook` lists every active product (a valid GS1 barcode counts as its code), unit and tax rate with what is missing (Egypt: all three; Saudi Arabia: the tax rates only), and resolves each sale line's codes for the country part (`FiscalBuildInput.LineCodes`; the tax rate through Pricing's resolver). It reads the catalogue and the tax rates through new read-only contracts: Catalog.Contracts `ICatalogListing`, Pricing.Contracts `ITaxRateListing` (both modules optional for Fiscal; ARCH-FIS allowed contracts updated).
+  - The Codes box on the Electronic receipts screen: Products (type, code, "from the barcode", only missing), Units (editable list of common UN/ECE codes), Tax rates (Egypt: type and subtype; Saudi Arabia: category, exemption code and reason); "Suggest EGS codes", "Export for the ETA portal..." (CSV, UTF-8 with BOM), "Save codes" (all or nothing, audited). The status bar names the missing codes.
+  - Tests: Fiscal.Tests +13, Integration.Tests +1 (the real catalogue and tax rates), UI.Tests +2.
+- **Next**: 11c - Egypt's e-receipt (the JSON, the UUID chain, the QR on the receipt, the POS registration and token, submission and status); the seller's address to be split into the ETA's fields then.
 
 ---
 
@@ -2874,4 +2880,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-20 - MISS-11a-3: the outbox and the warnings; MISS-11a complete. 3054 tests + 2 opt-in skipped, 0 warnings; MISS-07 open until the device check is run; next: MISS-11b (the authority's codes), 11c (Egypt), 11d-11f, MISS-12..18, Part C (PKG-02). Note: Backup.Tests EscrowRecoveryTests "Any_changed_lost_or_added_character..." failed once and passed on reruns (random input; a separate task).
+Last updated: 2026-10-20 - MISS-11b: the tax authority's codes for products, units and tax rates. 3070 tests + 2 opt-in skipped, 0 warnings; MISS-07 open until the device check is run; next: MISS-11c (Egypt's e-receipt), 11d-11f, MISS-12..18, Part C (PKG-02). Note: Backup.Tests EscrowRecoveryTests "Any_changed_lost_or_added_character..." failed once and passed on reruns (random input; a separate task).

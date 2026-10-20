@@ -111,6 +111,31 @@ namespace Fiscal.Infrastructure.Migrations
                     b.ToTable("fis_Documents", (string)null);
                 });
 
+            modelBuilder.Entity("Fiscal.Domain.Entities.FiscalProductCode", b =>
+                {
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("ProductId");
+
+                    b.ToTable("fis_ProductCodes", (string)null);
+                });
+
             modelBuilder.Entity("Fiscal.Domain.Entities.FiscalSettings", b =>
                 {
                     b.Property<int>("Id")
@@ -151,6 +176,39 @@ namespace Fiscal.Infrastructure.Migrations
                     b.ToTable("fis_Settings", (string)null);
                 });
 
+            modelBuilder.Entity("Fiscal.Domain.Entities.FiscalTaxCode", b =>
+                {
+                    b.Property<Guid>("TaxRateId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EgyptSubType")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EgyptTaxType")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SaudiCategory")
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SaudiExemptionCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SaudiExemptionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("TaxRateId");
+
+                    b.ToTable("fis_TaxCodes", (string)null);
+                });
+
             modelBuilder.Entity("Fiscal.Domain.Entities.FiscalTill", b =>
                 {
                     b.Property<Guid>("Id")
@@ -178,6 +236,24 @@ namespace Fiscal.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("fis_Tills", (string)null);
+                });
+
+            modelBuilder.Entity("Fiscal.Domain.Entities.FiscalUnitCode", b =>
+                {
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("UnitId");
+
+                    b.ToTable("fis_UnitCodes", (string)null);
                 });
 #pragma warning restore 612, 618
         }

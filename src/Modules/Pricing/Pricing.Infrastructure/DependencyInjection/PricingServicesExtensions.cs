@@ -49,6 +49,7 @@ public static class PricingServicesExtensions
         services.AddScoped<Pricing.Application.Repositories.ITaxRateRepository, Pricing.Infrastructure.Repositories.EfTaxRateRepository>();
         services.AddScoped<Pricing.Application.Repositories.IProductTaxRateRepository, Pricing.Infrastructure.Repositories.EfProductTaxRateRepository>();
         services.AddScoped<Pricing.Contracts.Interfaces.ITaxRateResolver, Pricing.Infrastructure.Services.TaxRateResolver>();
+        services.AddScoped<Pricing.Contracts.Interfaces.ITaxRateListing, Pricing.Infrastructure.Services.TaxRateListing>();   // MISS-11b
         services.AddTransient<Pricing.Application.Commands.CreateTaxRateCommandHandler>();
         services.AddTransient<Pricing.Application.Commands.UpdateTaxRateCommandHandler>();
         services.AddTransient<Pricing.Application.Commands.SetDefaultTaxRateCommandHandler>();

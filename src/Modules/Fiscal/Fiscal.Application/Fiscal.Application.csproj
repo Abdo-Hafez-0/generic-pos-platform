@@ -12,6 +12,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Fiscal.Domain\Fiscal.Domain.csproj" />
     <ProjectReference Include="..\Fiscal.Contracts\Fiscal.Contracts.csproj" />
+    <!-- MISS-11b: OPTIONAL - the products, units and tax rates the authority's codes are kept for -->
+    <ProjectReference Include="..\..\Catalog\Catalog.Contracts\Catalog.Contracts.csproj" />
+    <ProjectReference Include="..\..\Pricing\Pricing.Contracts\Pricing.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />
     <ProjectReference Include="..\..\..\Platform\Platform.Application\Platform.Application.csproj" />
   </ItemGroup>

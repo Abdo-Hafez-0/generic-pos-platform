@@ -157,4 +157,34 @@ public sealed class FiscalIntegrationTests
         Assert.True((await CheckoutAsync(host.Services, cartId, tendered: 50m)).IsSuccess);
         Assert.Empty(await DocumentsAsync(host));
     }
+
+    [Fact]
+    public async Task The_codes_list_reads_the_real_catalogue_and_tax_rates_and_the_codes_reach_the_country_part()
+    {
+        // MISS-11b: Catalog.Contracts ICatalogListing and Pricing.Contracts ITaxRateListing / ITaxRateResolver on the real modules
+        var (host, _) = await StartWithEgyptAsync();
+        await using var _h = host;
+        var shop = await CreateShopAsync(host.Services, salePrice: 2.5m, stock: 10m);
+        using (var scope = host.Services.CreateScope())
+            Assert.True((await scope.ServiceProvider.GetRequiredService<Pricing.Application.Commands.CreateTaxRateCommandHandler>()
+                .HandleAsync(new Pricing.Application.Commands.CreateTaxRateCommand("VAT14", "VAT 14%", 0.14m, true))).IsSuccess);
+
+        var codes = await InScopeAsync(host.Services, async sp => (await sp.GetRequiredService<Fiscal.Application.Queries.GetFiscalCodesQueryHandler>()
+            .HandleAsync(new Fiscal.Application.Queries.GetFiscalCodesQuery())).Value);
+
+        var product = Assert.Single(codes.Products);
+        Assert.Equal((shop.ProductId, Fiscal.Application.DTOs.FiscalCodeSource.Missing), (product.ProductId, product.Source));
+        Assert.Contains(codes.Units, u => u.UnitId == product.UnitId && u.IsUsed);
+        var rate = Assert.Single(codes.TaxRates);
+        Assert.Equal(("VAT14", 0.14m, false), (rate.Code, rate.Rate, rate.IsComplete));
+        Assert.Equal(3, codes.MissingTotal);
+
+        var saved = await InScopeAsync(host.Services, sp => sp.GetRequiredService<SaveFiscalCodesCommandHandler>().HandleAsync(new SaveFiscalCodesCommand(
+            Products: [new(product.ProductId, FiscalItemCodeType.EGS, "EG-123456789-" + shop.Sku)], Units: [new(product.UnitId, "EA")],
+            TaxRates: [new(rate.TaxRateId, "T1", "V009", null, null, null)])));
+        Assert.True(saved.IsSuccess, saved.IsFailure ? saved.Error.Description : null);
+        var after = await InScopeAsync(host.Services, async sp => (await sp.GetRequiredService<Fiscal.Application.Queries.GetFiscalCodesQueryHandler>()
+            .HandleAsync(new Fiscal.Application.Queries.GetFiscalCodesQuery())).Value);
+        Assert.Equal(0, after.MissingTotal);
+    }
 }

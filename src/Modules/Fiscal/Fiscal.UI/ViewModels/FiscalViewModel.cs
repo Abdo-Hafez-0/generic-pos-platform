@@ -52,8 +52,12 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
         ];
         _filter = Filters[0];
         SendNowCommand = Command(SendNowAsync, () => _setup is { IsIssuing: true });
+        Codes = new FiscalCodesPanel(runner);   // MISS-11b
         ShowDocumentsCommand = Command(() => LoadDocumentsAsync(CancellationToken.None));
     }
+
+    /// <summary>MISS-11b: the Codes box (the tax authority's codes for products, units and tax rates).</summary>
+    public FiscalCodesPanel Codes { get; }
 
     // ---- MISS-11a-3: the documents
 
@@ -173,6 +177,7 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
     {
         await LoadAsync(cancellationToken);
         if (ErrorMessage is null) await LoadDocumentsAsync(cancellationToken);
+        if (ErrorMessage is null) await Codes.LoadAsync(cancellationToken);
     });
 
     private async Task LoadAsync(CancellationToken cancellationToken)
@@ -185,6 +190,7 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
     private void Show(FiscalSetupDto setup)
     {
         _setup = setup;
+        Codes.TaxNumber = setup.TaxNumber;
         Country = Countries.First(c => c.Country == setup.Country);
         (TaxNumber, BranchCode, ActivityCode) = (setup.TaxNumber ?? string.Empty, setup.BranchCode ?? string.Empty, setup.ActivityCode ?? string.Empty);
         (SellerNameArabic, AddressArabic) = (setup.SellerNameArabic ?? string.Empty, setup.AddressArabic ?? string.Empty);
@@ -199,6 +205,7 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
         if (!Accept(saved)) return;
 
         await LoadAsync(CancellationToken.None);
+        if (ErrorMessage is null) await Codes.LoadAsync(CancellationToken.None);   // the country decides which codes are needed
         if (ErrorMessage is null) StatusMessage = FiscalText.Saved;
     }
 

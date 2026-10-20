@@ -42,11 +42,33 @@ namespace Fiscal.Application.Abstractions
     public interface IFiscalCountryPart
     {
         FiscalCountry Country { get; }
+
+        /// <summary>
+        /// Builds the document of a sale or return at its place in the chain. Pure and offline (the receipt prints its QR at once). A failure
+        /// (for example a product without the authority's code) is a failed result with a reason the shop can act on - never an exception.
+        /// </summary>
+        Result<FiscalBuiltDocument> Build(FiscalBuildInput input);
     }
+
+    /// <summary>MISS-11a-2: what a country part builds from: the request, the seller, and the document's place in this till's chain.</summary>
+    public sealed record FiscalBuildInput(Fiscal.Contracts.Models.FiscalDocumentRequest Request, FiscalSettings Settings, Guid TillId, string TillName,
+        long Number, string? PreviousHash);
+
+    /// <summary>MISS-11a-2: the authority's document as built: its content, its hash (the chain's next link) and what the QR code holds.</summary>
+    public sealed record FiscalBuiltDocument(string Payload, string Hash, string? QrPayload);
 }
 
 namespace Fiscal.Application.Repositories
 {
+    /// <summary>MISS-11a-2: the fiscal documents.</summary>
+    public interface IFiscalDocumentRepository
+    {
+        /// <summary>The document already made for a sale or a return, or null.</summary>
+        Task<FiscalDocument?> FindBySourceAsync(FiscalDocumentKind kind, Guid sourceId, CancellationToken cancellationToken = default);
+
+        Task AddAsync(FiscalDocument document, CancellationToken cancellationToken = default);
+    }
+
     public interface IFiscalSetupRepository
     {
         /// <summary>The settings row, or null before anything was saved.</summary>
@@ -127,6 +149,7 @@ namespace Fiscal.Application.Queries
 
 namespace Fiscal.Application.Commands
 {
+    using Fiscal.Contracts.Models;
     using Fiscal.Application.Abstractions;
     using Fiscal.Application.Queries;
     using Fiscal.Application.Repositories;
@@ -169,6 +192,65 @@ namespace Fiscal.Application.Commands
             await businessEvents.TryRecordAsync(BusinessEvent.Create(FiscalCapabilities.Module, "fiscal.settings-saved", "fiscal-settings", "shop", summary,
                 $"taxNumber={settings.TaxNumber ?? "none"};branch={settings.BranchCode ?? "none"};activity={settings.ActivityCode ?? "none"}"));
             return Result.Success();
+        }
+    }
+
+    /// <summary>
+    /// MISS-11a-2: makes the fiscal document of a sale or a return, inside the caller's transaction (POS checkout / refund). Electronic
+    /// receipts off, or no part for the chosen country: nothing. Otherwise the part builds it at the next place of this till's chain and it is
+    /// stored to be sent (11a-3); when the part cannot build it, a NotBuilt document records why (the sale stands - owner's decision: keep
+    /// selling) and the chain is not advanced. The same source asked twice returns the document already made.
+    /// No capability check: only reachable through Fiscal.Contracts' IFiscalRecorder, inside an operation the user was authorized for.
+    /// </summary>
+    public sealed class RecordFiscalDocumentCommandHandler(IFiscalSetupRepository setup, IFiscalDocumentRepository documents, IFiscalUnitOfWork unitOfWork,
+        IEnumerable<IFiscalCountryPart>? countryParts = null, TimeProvider? timeProvider = null)
+    {
+        internal async Task<FiscalDocumentResult> ExecuteAsync(FiscalDocumentRequest request, CancellationToken cancellationToken = default)
+        {
+            var settings = await setup.GetSettingsAsync(cancellationToken);
+            if (settings is not { IsOn: true }) return FiscalDocumentResult.NothingToIssue();
+            var part = (countryParts ?? []).FirstOrDefault(p => p.Country == settings.Country);
+            if (part is null) return FiscalDocumentResult.NothingToIssue();
+
+            var kind = (FiscalDocumentKind)(int)request.Kind;
+            if (await documents.FindBySourceAsync(kind, request.SourceId, cancellationToken) is { } existing)
+                return existing.State == FiscalDocumentState.NotBuilt
+                    ? FiscalDocumentResult.NotBuilt(existing.Id, existing.StateReason ?? string.Empty)
+                    : FiscalDocumentResult.Issued(existing.Id, existing.Number!.Value, existing.QrPayload);
+
+            var now = (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+            var till = await FiscalTillAccess.GetOrCreateAsync(setup, unitOfWork, timeProvider, cancellationToken);
+            var issuedAt = DateTime.SpecifyKind(request.IssuedAtUtc, DateTimeKind.Utc);
+
+            Result<FiscalBuiltDocument> built;
+            try
+            {
+                built = part.Build(new FiscalBuildInput(request, settings, till.Id, till.Name, till.Counter + 1, till.LastDocumentHash));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                built = Result.Failure<FiscalBuiltDocument>(Error.Failure("Fiscal.Build.Failed", ex.Message));
+            }
+
+            FiscalDocument document;
+            if (built.IsFailure || string.IsNullOrWhiteSpace(built.Value.Hash))
+            {
+                document = FiscalDocument.NotBuilt(kind, request.SourceId, request.Reference, request.OriginalSourceId, request.OriginalReference, settings.Country,
+                    till.Id, request.Total, issuedAt, built.IsFailure ? built.Error.Description : "The country part returned a document without its hash.", now);
+            }
+            else
+            {
+                var previous = till.LastDocumentHash;
+                var number = till.Chain(built.Value.Hash);
+                document = FiscalDocument.Issued(kind, request.SourceId, request.Reference, request.OriginalSourceId, request.OriginalReference, settings.Country,
+                    till.Id, number, previous, built.Value.Hash, built.Value.Payload, built.Value.QrPayload, request.Total, issuedAt, now);
+            }
+
+            await documents.AddAsync(document, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return document.State == FiscalDocumentState.NotBuilt
+                ? FiscalDocumentResult.NotBuilt(document.Id, document.StateReason!)
+                : FiscalDocumentResult.Issued(document.Id, document.Number!.Value, document.QrPayload);
         }
     }
 }

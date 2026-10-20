@@ -44,6 +44,9 @@ public static class FiscalServicesExtensions
         services.AddScoped<Fiscal.Application.Abstractions.IFiscalUnitOfWork, FiscalUnitOfWork>();
         services.AddScoped<Fiscal.Application.Repositories.IFiscalSetupRepository, Fiscal.Infrastructure.Repositories.EfFiscalSetupRepository>();
         services.AddScoped<Fiscal.Contracts.Interfaces.IFiscalSetupReader, Fiscal.Infrastructure.Repositories.FiscalSetupReader>();
+        services.AddScoped<Fiscal.Application.Repositories.IFiscalDocumentRepository, Fiscal.Infrastructure.Repositories.EfFiscalDocumentRepository>();
+        services.AddScoped<Fiscal.Contracts.Interfaces.IFiscalRecorder, Fiscal.Infrastructure.Repositories.FiscalRecorder>();   // MISS-11a-2
+        services.AddTransient<Fiscal.Application.Commands.RecordFiscalDocumentCommandHandler>();
         services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Fiscal.Application.Security.FiscalCapabilityProvider>();
         services.AddTransient<Fiscal.Application.Queries.GetFiscalSetupQueryHandler>();
         services.AddTransient<Fiscal.Application.Commands.SaveFiscalSettingsCommandHandler>();

@@ -1,5 +1,7 @@
 using CashManagement.Contracts.Interfaces;
 using CashManagement.Contracts.Models;
+using Fiscal.Contracts.Interfaces;
+using Fiscal.Contracts.Models;
 using Platform.Application.Abstractions.Auditing;
 using Platform.Application.Abstractions.Authorization;
 using Platform.Application.Abstractions.Data;
@@ -82,11 +84,12 @@ public sealed class CheckoutCartCommandHandler(
     ICashMovementRecorder? cashRecorder = null,
     ICashSessionReader? cashShifts = null,
     PosCashOptions? cashOptions = null,
-    IBusinessEventSink? businessEvents = null)
+    IBusinessEventSink? businessEvents = null,
+    IFiscalRecorder? fiscalRecorder = null)
 {
     /// <summary>What a committed checkout leaves behind for the peripherals step.</summary>
     private sealed record Committed(PosCart Cart, PosSession Session, Guid SaleId, IReadOnlyList<Guid> PaymentIds, decimal ChangeDue,
-        IReadOnlyList<POSPaymentRequest> Parts)
+        IReadOnlyList<POSPaymentRequest> Parts, string? FiscalNotBuilt = null)
     {
         public Guid? PaymentId => PaymentIds.Count > 0 ? PaymentIds[0] : null;
     }
@@ -117,6 +120,9 @@ public sealed class CheckoutCartCommandHandler(
 
         // 9. Peripherals. The sale is complete and saved; from here on only hardware can go wrong, and that can never undo it.
         var notices = await RunPeripheralsAsync(done);
+        if (done.FiscalNotBuilt is { } reason)   // MISS-11a-2: the sale stands; the electronic receipt needs attention
+            notices = [.. notices, new POSHardwareNotice("electronic receipt", "Fiscal.Document.NotBuilt",
+                $"The sale was completed and saved, but its electronic receipt could not be made: {reason} Tell the person who manages electronic receipts.")];
         return Result.Success(new CheckoutOutcome(done.SaleId, done.PaymentId, done.ChangeDue, notices, done.PaymentIds));
     }
 
@@ -299,6 +305,24 @@ public sealed class CheckoutCartCommandHandler(
             }
         }
 
+        // 6c. MISS-11a-2: the fiscal document, in the same transaction as the sale (the Fiscal module is optional). Not saved = no sale.
+        string? fiscalNotBuilt = null;
+        if (fiscalRecorder is not null)
+        {
+            var fiscal = await fiscalRecorder.RecordAsync(FiscalSale(cart, session, saleId, parts), cancellationToken);
+            if (!fiscal.IsSuccess)
+            {
+                if (!Transactional)
+                    await VoidQuietlyAsync(paymentIds, "POS checkout failed while saving the electronic receipt.", cancellationToken);
+
+                await CancelQuietlyAsync(saleId, "POS checkout failed while saving the electronic receipt.", cancellationToken);
+                return Result.Failure<Committed>(Error.Failure("POS.Checkout.FiscalFailed",
+                    $"The electronic receipt could not be saved: {Describe(fiscal.ErrorCode, fiscal.ErrorMessage)} {Outcome}"));
+            }
+
+            fiscalNotBuilt = fiscal.NotBuiltReason;
+        }
+
         // 7. Complete the sale
         var completed = await salesService.CompleteSaleAsync(saleId, command.TransactionReference, cancellationToken);
         if (!completed.IsSuccess)
@@ -315,7 +339,21 @@ public sealed class CheckoutCartCommandHandler(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result.Success(new Committed(cart, session, saleId, paymentIds, changeDue, parts));
+        return Result.Success(new Committed(cart, session, saleId, paymentIds, changeDue, parts, fiscalNotBuilt));
+    }
+
+    /// <summary>MISS-11a-2: the sale as the tax authority's document needs it - the priced lines (tax included), the total, how it was paid.</summary>
+    private FiscalDocumentRequest FiscalSale(PosCart cart, PosSession session, Guid saleId, IReadOnlyList<POSPaymentRequest> parts)
+    {
+        var priced = cart.PricedLines;
+        var paid = parts.Count > 0
+            ? parts.Select(p => new FiscalPaymentRequest(p.Method.ToString(), p.Amount ?? 0m)).ToList()
+            : [];
+        return new FiscalDocumentRequest(FiscalDocumentKindContract.Sale, saleId, "S-" + saleId.ToString("N")[..8].ToUpperInvariant(),
+            (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime,
+            priced.Select(l => new FiscalLineRequest(l.Item.CatalogProductId, l.Item.ProductSku, l.Item.ProductName, l.Item.Quantity.Value, l.Item.UnitPrice.Amount,
+                l.Amounts.Discount, l.Amounts.Total, l.Item.TaxRate, l.Amounts.Tax)).ToList(),
+            cart.Total.Amount, cart.TaxTotal.Amount, paid, session.CashierReference, cart.CustomerName);
     }
 
     /// <summary>The payment parts of a checkout: the split payment as given, or the single payment for the whole total.</summary>

@@ -21,6 +21,8 @@ public sealed class FiscalSetupTests
     private sealed class EgyptPart : IFiscalCountryPart
     {
         public FiscalCountry Country => FiscalCountry.Egypt;
+
+        public Platform.Core.Results.Result<FiscalBuiltDocument> Build(FiscalBuildInput input) => throw new NotSupportedException();
     }
 
     private static Task<TestModuleDatabase<FiscalDbContext>> DatabaseAsync(Action<IServiceCollection>? more = null)

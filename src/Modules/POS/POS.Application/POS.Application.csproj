@@ -18,5 +18,7 @@
     <ProjectReference Include="..\..\Pricing\Pricing.Contracts\Pricing.Contracts.csproj" />
     <ProjectReference Include="..\..\Payments\Payments.Contracts\Payments.Contracts.csproj" />
     <ProjectReference Include="..\..\CashManagement\CashManagement.Contracts\CashManagement.Contracts.csproj" />
+    <!-- MISS-11a-2: the fiscal document of each sale and return (optional Fiscal module) -->
+    <ProjectReference Include="..\..\Fiscal\Fiscal.Contracts\Fiscal.Contracts.csproj" />
   </ItemGroup>
 </Project>

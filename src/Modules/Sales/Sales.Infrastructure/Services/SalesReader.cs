@@ -93,7 +93,7 @@ internal sealed class SalesReader(SalesDbContext dbContext) : ISalesReader
         {
             var back = returned.Where(r => r.OriginalSaleItemId == item.Id).ToList();
             return new ReturnableLineResult(item.Id.Value, item.CatalogProductId, item.ProductSku, item.ProductName, item.Quantity.Value,
-                back.Sum(r => r.Quantity.Value), item.LineTotal.Amount, back.Sum(r => r.RefundAmount.Amount));
+                back.Sum(r => r.Quantity.Value), item.LineTotal.Amount, back.Sum(r => r.RefundAmount.Amount), item.TaxRate);
         }).ToList();
 
         return new ReturnableSaleResult(sale.Id.Value, DateTime.SpecifyKind(sale.CompletedAt ?? sale.CreatedAt, DateTimeKind.Utc), sale.CustomerName,

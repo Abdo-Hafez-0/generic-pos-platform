@@ -2777,7 +2777,7 @@ FIX-13 decisions (user, 2026-10-09): every screen text in Arabic with right-to-l
   - The Cash drawer already listed "Cash refund" movements and their effect on the expected balance (10a).
 - **MISS-10 is complete.** Next: MISS-11 (electronic receipts, Egypt first; 11e will issue the fiscal returns for these).
 
-## MISS-11 Summary - Electronic receipts for Egypt and Saudi Arabia (2026-10-20, in progress: 11a-1 done)
+## MISS-11 Summary - Electronic receipts for Egypt and Saudi Arabia (2026-10-20, in progress: 11a-1 and 11a-2 done)
 
 - **Plan and decisions**: `MISS-11_E_RECEIPTS_PLAN.md` (Egypt first, shop sales only, a tax adviser in each country; section 5 for 11a: keep selling and queue, the Fiscal screen as boxes + list, warnings for managers plus a short line on the till, the country locked after the first document).
 - **11a-1 - the Fiscal module and its setup**: a new module `Fiscal` (licensed module id "fiscal"; capability `fiscal.manage`, sensitive; tables `fis_Settings`, `fis_Tills`; migration `InitialFiscalSchema`; shares the database transaction like the other business modules).
@@ -2787,7 +2787,8 @@ FIX-13 decisions (user, 2026-10-09): every screen text in Arabic with right-to-l
   - The Electronic receipts screen (Administration): country and shop | this till, the documents box underneath (filled in 11a-3).
   - Wired into the desktop composition, the integration and end-to-end hosts, the module registries, and the architecture rules (ARCH-FIS-001..016). Fiscal.Tests (22), a screen test on the offline desktop.
   - The demo shop: its licence was activated again with the fiscal module (from its own licence server and key) and "Manage electronic receipts" was ticked on its Administrator role.
-- **Next**: 11a-2 - the fiscal document of every sale and return in the same transaction (the per-till chain), then 11a-3 - the outbox sender, the documents list, states and warnings.
+- **11a-2 - the fiscal document of every sale and return**: `FiscalDocument` (table `fis_Documents`, migration `AddFiscalDocuments`: kind, the sale or return, its receipt number, a return's sale, the till, its number in the chain, the previous hash, its hash, the payload, the QR, the state and why). `IFiscalRecorder` (Fiscal.Contracts) is called by POS INSIDE the checkout and refund transactions (`CheckoutCartCommandHandler` step 6c, `RefundSaleCommandHandler` step 6); `RecordFiscalDocumentCommandHandler` asks the country part to build it at the next place of this till's chain (`IFiscalCountryPart.Build`, pure and offline) and stores it Waiting. Receipts off or no part: nothing. A document that cannot be SAVED fails the sale (nothing is saved). One the part cannot BUILD is kept as NotBuilt with its reason, outside the chain, and the cashier is told through the hardware notice line - the sale stands (owner's decision: keep selling). One document per sale and per return (unique index), one per chain place. Sales gives each returnable line its tax rate (the return document's tax). ARCH-POS-021: POS reaches Fiscal only through Fiscal.Contracts. Tests: Fiscal.Tests +5 (chain, idempotence, not built, lock), Integration.Tests +4 (same transaction, rollback, not built, off).
+- **Next**: 11a-3 - the outbox sender with retries, the documents list, states and the warnings.
 
 ---
 
@@ -2868,4 +2869,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-20 - MISS-11a-1: the Fiscal module, its settings and the Electronic receipts screen. 3035 tests + 2 opt-in skipped, 0 warnings; MISS-07 open until the device check is run; next: MISS-11a-2 (the fiscal document of every sale and return), 11a-3 (outbox, documents, warnings), then 11b-11f, MISS-12..18, Part C (PKG-02). Note: Backup.Tests EscrowRecoveryTests "Any_changed_lost_or_added_character..." failed once and passed on reruns (random input; a separate task).
+Last updated: 2026-10-20 - MISS-11a-2: the fiscal document of every sale and return in the same transaction. 3045 tests + 2 opt-in skipped, 0 warnings; MISS-07 open until the device check is run; next: MISS-11a-3 (outbox, documents list, warnings), then 11b-11f, MISS-12..18, Part C (PKG-02). Note: Backup.Tests EscrowRecoveryTests "Any_changed_lost_or_added_character..." failed once and passed on reruns (random input; a separate task).

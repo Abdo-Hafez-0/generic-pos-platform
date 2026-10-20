@@ -182,6 +182,16 @@ public sealed class POSBoundaryTests
         }
     }
 
+    [Fact(DisplayName = "ARCH-POS-021: POS reaches the Fiscal module only through Fiscal.Contracts, and Fiscal never depends on POS")]
+    public void POS_ReachesFiscalOnlyThroughItsContracts()
+    {
+        foreach (var assembly in Assemblies.AllPOSAssemblies)
+            Assert.DoesNotContain(assembly.GetReferencedAssemblies(), a => a.Name!.StartsWith("Fiscal.", StringComparison.Ordinal) && a.Name != "Fiscal.Contracts");
+        Assert.Contains(Assemblies.POSApplication.GetReferencedAssemblies(), a => a.Name == "Fiscal.Contracts");   // MISS-11a-2: the document of each sale and return
+        foreach (var assembly in Assemblies.AllFiscalAssemblies)
+            Assert.DoesNotContain(assembly.GetReferencedAssemblies(), a => a.Name!.StartsWith("POS.", StringComparison.Ordinal));
+    }
+
     [Fact(DisplayName = "ARCH-POS-020: The project assembly graph has no circular dependencies")]
     public void ProjectAssemblyGraph_HasNoCycles()
     {

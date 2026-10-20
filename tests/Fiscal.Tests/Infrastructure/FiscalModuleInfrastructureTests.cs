@@ -15,7 +15,7 @@ namespace Fiscal.Tests.Infrastructure;
 public sealed class FiscalModuleInfrastructureTests
 {
 
-    private static readonly string[] ExpectedTables = ["fis_Settings", "fis_Tills"];
+    private static readonly string[] ExpectedTables = ["fis_Settings", "fis_Tills", "fis_Documents"];
 
     private static async Task<(SqliteConnection Connection, FiscalDbContext Context)> OpenMigratedAsync()
     {

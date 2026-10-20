@@ -23,8 +23,9 @@ public sealed record RecordReturnResult(bool IsSuccess, Guid ReturnId, decimal R
 }
 
 /// <summary>MISS-10: a line of a completed sale as a return sees it - sold, already returned, and what is left to return.</summary>
+/// MISS-11a-2: <see cref="TaxRate"/> the line's tax rate (0.14 = 14%), for the fiscal return document.
 public sealed record ReturnableLineResult(Guid SaleItemId, Guid CatalogProductId, string ProductSku, string ProductName,
-    decimal SoldQuantity, decimal ReturnedQuantity, decimal LineTotal, decimal RefundedAmount)
+    decimal SoldQuantity, decimal ReturnedQuantity, decimal LineTotal, decimal RefundedAmount, decimal TaxRate = 0m)
 {
     public decimal RemainingQuantity => SoldQuantity - ReturnedQuantity;
 }

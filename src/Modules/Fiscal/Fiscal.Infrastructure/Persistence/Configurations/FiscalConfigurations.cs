@@ -37,3 +37,28 @@ internal sealed class FiscalTillConfiguration : IEntityTypeConfiguration<FiscalT
         builder.Ignore(t => t.HasIssued);
     }
 }
+
+internal sealed class FiscalDocumentConfiguration : IEntityTypeConfiguration<FiscalDocument>
+{
+    public void Configure(EntityTypeBuilder<FiscalDocument> builder)
+    {
+        builder.ToTable("fis_Documents");
+        builder.HasKey(d => d.Id);
+        builder.Property(d => d.Id).ValueGeneratedNever();
+        builder.Property(d => d.Kind).HasConversion<int>().IsRequired();
+        builder.Property(d => d.Reference).HasMaxLength(40).IsRequired();
+        builder.Property(d => d.OriginalReference).HasMaxLength(40);
+        builder.Property(d => d.Country).HasConversion<int>().IsRequired();
+        builder.Property(d => d.PreviousHash).HasMaxLength(128);
+        builder.Property(d => d.Hash).HasMaxLength(128);
+        builder.Property(d => d.QrPayload).HasMaxLength(2000);
+        builder.Property(d => d.Total).HasPrecision(18, 2);
+        builder.Property(d => d.State).HasConversion<int>().IsRequired();
+        builder.Property(d => d.StateReason).HasMaxLength(2000);
+
+        // one document per sale and per return; one document per place in a till's chain
+        builder.HasIndex(d => new { d.Kind, d.SourceId }).IsUnique();
+        builder.HasIndex(d => new { d.TillId, d.Number }).IsUnique().HasFilter("Number IS NOT NULL");
+        builder.HasIndex(d => new { d.State, d.CreatedAt });
+    }
+}

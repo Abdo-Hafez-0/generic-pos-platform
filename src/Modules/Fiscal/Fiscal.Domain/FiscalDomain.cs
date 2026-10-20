@@ -10,6 +10,27 @@ namespace Fiscal.Domain.Enums
         SaudiArabia = 2,    // ZATCA e-invoicing phase 2, simplified invoices (11d)
     }
 
+    /// <summary>MISS-11a-2: what a fiscal document records.</summary>
+    public enum FiscalDocumentKind
+    {
+        Sale = 1,
+        Return = 2,
+    }
+
+    /// <summary>
+    /// MISS-11a-2: where a fiscal document stands. Waiting: built and chained, to be sent. Sent: handed to the authority, its answer awaited.
+    /// Accepted / Rejected: the authority's answer. NotBuilt: the country's part could not build it (for example a product without the
+    /// authority's code) - the sale stands (owner's decision: keep selling); it is not in the chain and needs attention.
+    /// </summary>
+    public enum FiscalDocumentState
+    {
+        Waiting = 1,
+        Sent = 2,
+        Accepted = 3,
+        Rejected = 4,
+        NotBuilt = 5,
+    }
+
     /// <summary>Whether this till is registered with the authority (Egypt: a POS device with its client ID; Saudi Arabia: an onboarded unit).</summary>
     public enum FiscalTillRegistration
     {
@@ -147,5 +168,75 @@ namespace Fiscal.Domain.Entities
             LastDocumentHash = documentHash;
             return Counter;
         }
+    }
+
+    /// <summary>
+    /// MISS-11a-2: the fiscal document of one sale or return, made in the SAME transaction as it: the country part's content (JSON for Egypt,
+    /// UBL XML for Saudi Arabia), its place in this till's chain (number and the previous document's hash), its own hash and the QR the
+    /// receipt prints. Never deleted; a rejected document is corrected the way the authority allows.
+    /// </summary>
+    public sealed class FiscalDocument
+    {
+        private FiscalDocument() { }
+
+        public Guid Id { get; private set; }
+        public FiscalDocumentKind Kind { get; private set; }
+
+        /// <summary>The sale or the return it records.</summary>
+        public Guid SourceId { get; private set; }
+
+        /// <summary>The number printed on the receipt ("S-1A2B3C4D", "R-...").</summary>
+        public string Reference { get; private set; } = string.Empty;
+
+        /// <summary>A return: the sale it returns and its receipt number.</summary>
+        public Guid? OriginalSourceId { get; private set; }
+        public string? OriginalReference { get; private set; }
+
+        public FiscalCountry Country { get; private set; }
+        public Guid TillId { get; private set; }
+
+        /// <summary>Its number in this till's chain (null when not built).</summary>
+        public long? Number { get; private set; }
+
+        /// <summary>The previous document's hash (null for the first of the chain).</summary>
+        public string? PreviousHash { get; private set; }
+
+        public string? Hash { get; private set; }
+
+        /// <summary>The document as the authority receives it.</summary>
+        public string? Payload { get; private set; }
+
+        /// <summary>What the receipt's QR code holds.</summary>
+        public string? QrPayload { get; private set; }
+
+        public decimal Total { get; private set; }
+        public DateTime IssuedAt { get; private set; }
+        public FiscalDocumentState State { get; private set; }
+
+        /// <summary>Why it was not built, or the authority's reasons for a rejection.</summary>
+        public string? StateReason { get; private set; }
+
+        public int Attempts { get; private set; }
+        public DateTime? LastAttemptAt { get; private set; }
+        public DateTime CreatedAt { get; private set; }
+
+        public static FiscalDocument Issued(FiscalDocumentKind kind, Guid sourceId, string reference, Guid? originalSourceId, string? originalReference,
+            FiscalCountry country, Guid tillId, long number, string? previousHash, string hash, string payload, string? qrPayload, decimal total,
+            DateTime issuedAt, DateTime nowUtc)
+            => new()
+            {
+                Id = Guid.NewGuid(), Kind = kind, SourceId = sourceId, Reference = reference, OriginalSourceId = originalSourceId, OriginalReference = originalReference,
+                Country = country, TillId = tillId, Number = number, PreviousHash = previousHash, Hash = hash, Payload = payload, QrPayload = qrPayload,
+                Total = total, IssuedAt = issuedAt, State = FiscalDocumentState.Waiting, CreatedAt = nowUtc,
+            };
+
+        public static FiscalDocument NotBuilt(FiscalDocumentKind kind, Guid sourceId, string reference, Guid? originalSourceId, string? originalReference,
+            FiscalCountry country, Guid tillId, decimal total, DateTime issuedAt, string reason, DateTime nowUtc)
+            => new()
+            {
+                Id = Guid.NewGuid(), Kind = kind, SourceId = sourceId, Reference = reference, OriginalSourceId = originalSourceId, OriginalReference = originalReference,
+                Country = country, TillId = tillId, Total = total, IssuedAt = issuedAt, State = FiscalDocumentState.NotBuilt,
+                StateReason = string.IsNullOrWhiteSpace(reason) ? "The document could not be built." : reason.Trim(), CreatedAt = nowUtc,
+            };
     }
 }

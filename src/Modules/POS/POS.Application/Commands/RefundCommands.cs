@@ -1,6 +1,8 @@
 using System.Globalization;
 using CashManagement.Contracts.Interfaces;
 using CashManagement.Contracts.Models;
+using Fiscal.Contracts.Interfaces;
+using Fiscal.Contracts.Models;
 using Inventory.Contracts.Interfaces;
 using Payments.Contracts.Interfaces;
 using Payments.Contracts.Models;
@@ -28,7 +30,7 @@ public sealed record RefundSaleCommand(Guid SaleId, IReadOnlyList<RefundLine> Li
 
 /// <summary>A completed refund: the return, the money given back and how; MISS-10c: what the printer or the drawer could not do.</summary>
 public sealed record RefundOutcome(Guid ReturnId, Guid SaleId, decimal RefundTotal, POSPaymentMethod Method, IReadOnlyList<ReturnedLineResult> Lines,
-    Guid? RefundPaymentId, IReadOnlyList<POSHardwareNotice>? HardwareNotices = null);
+    Guid? RefundPaymentId, IReadOnlyList<POSHardwareNotice>? HardwareNotices = null, string? FiscalNotBuilt = null);
 
 /// <summary>
 /// MISS-10 - returns and refunds (owner's decisions 2026-10-19).
@@ -66,7 +68,8 @@ public sealed class RefundSaleCommandHandler(
     ICurrentUser? currentUser = null,
     PosReceiptOptions? receiptOptions = null,
     IReceiptPrinter? receiptPrinter = null,
-    ICashDrawer? cashDrawer = null)
+    ICashDrawer? cashDrawer = null,
+    IFiscalRecorder? fiscalRecorder = null)
 {
     private bool TracksCash => cashRecorder is not null && cashShifts is not null;
 
@@ -109,12 +112,16 @@ public sealed class RefundSaleCommandHandler(
             warehouseId = session.WarehouseId;
         }
 
-        Func<Task<Result<RefundOutcome>>> commit = () => CommitAsync(command, warehouseId, cancellationToken);
+        Func<Task<Result<RefundOutcome>>> commit = () => CommitAsync(command, sale, warehouseId, cancellationToken);
         var committed = atomicOperation is null ? await commit() : await atomicOperation.ExecuteAsync(commit, cancellationToken);
         if (committed.IsFailure) return committed;
 
         await businessEvents.TryRecordAsync(Refunded(command, committed.Value));
-        return Result.Success(committed.Value with { HardwareNotices = await RunPeripheralsAsync(command, committed.Value) });
+        var notices = await RunPeripheralsAsync(command, committed.Value);
+        if (committed.Value.FiscalNotBuilt is { } reason)   // MISS-11a-2: the refund stands; the electronic receipt needs attention
+            notices = [.. notices, new POSHardwareNotice("electronic receipt", "Fiscal.Document.NotBuilt",
+                $"The refund was given and saved, but its electronic receipt could not be made: {reason} Tell the person who manages electronic receipts.")];
+        return Result.Success(committed.Value with { HardwareNotices = notices });
     }
 
     /// <summary>MISS-10c: the return receipt (always, when a printer is set up) and the drawer for a cash refund. Never fails the refund.</summary>
@@ -171,7 +178,7 @@ public sealed class RefundSaleCommandHandler(
             notices.Add(new POSHardwareNotice(device, result.Error.Code, $"The refund was given and saved, but {what}: {result.Error.Description}"));
     }
 
-    private async Task<Result<RefundOutcome>> CommitAsync(RefundSaleCommand command, Guid? warehouseId, CancellationToken cancellationToken)
+    private async Task<Result<RefundOutcome>> CommitAsync(RefundSaleCommand command, ReturnableSaleResult sale, Guid? warehouseId, CancellationToken cancellationToken)
     {
         // 2. The return, recorded by Sales (its rules decide the quantities and the money)
         var recorded = await salesService.RecordReturnAsync(command.SaleId,
@@ -220,7 +227,36 @@ public sealed class RefundSaleCommandHandler(
                 return Result.Failure<RefundOutcome>(Error.Failure("POS.Refund.CashFailed", $"The cash could not be taken from the drawer: {cash.ErrorMessage} Nothing was saved."));
         }
 
-        return Result.Success(new RefundOutcome(recorded.ReturnId, command.SaleId, recorded.RefundTotal, command.Method, recorded.Lines, refundId));
+        // 6. MISS-11a-2: the fiscal return document (it names the sale's), in the same transaction (the Fiscal module is optional)
+        string? fiscalNotBuilt = null;
+        if (fiscalRecorder is not null)
+        {
+            var fiscal = await fiscalRecorder.RecordAsync(FiscalReturn(command, sale, recorded, by), cancellationToken);
+            if (!fiscal.IsSuccess)
+                return Result.Failure<RefundOutcome>(Error.Failure("POS.Refund.FiscalFailed",
+                    $"The electronic receipt of the return could not be saved: {fiscal.ErrorMessage} Nothing was saved."));
+            fiscalNotBuilt = fiscal.NotBuiltReason;
+        }
+
+        return Result.Success(new RefundOutcome(recorded.ReturnId, command.SaleId, recorded.RefundTotal, command.Method, recorded.Lines, refundId,
+            FiscalNotBuilt: fiscalNotBuilt));
+    }
+
+    /// <summary>MISS-11a-2: the return as the tax authority's document needs it - what came back, the money given back (tax included) and how.</summary>
+    private FiscalDocumentRequest FiscalReturn(RefundSaleCommand command, ReturnableSaleResult sale, RecordReturnResult recorded, string? cashier)
+    {
+        var lines = recorded.Lines.Select(l =>
+        {
+            var sold = sale.Lines.FirstOrDefault(s => s.SaleItemId == l.SaleItemId);
+            var rate = sold?.TaxRate ?? 0m;
+            var tax = rate <= 0m ? 0m : decimal.Round(l.Refund * rate / (1m + rate), 2, MidpointRounding.AwayFromZero);
+            return new FiscalLineRequest(l.CatalogProductId, sold?.ProductSku ?? string.Empty, l.ProductName, l.Quantity, l.UnitPrice,
+                Math.Max(0m, l.UnitPrice * l.Quantity - l.Refund), l.Refund, rate, tax);
+        }).ToList();
+        return new FiscalDocumentRequest(FiscalDocumentKindContract.Return, recorded.ReturnId, "R-" + recorded.ReturnId.ToString("N")[..8].ToUpperInvariant(),
+            (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime, lines, recorded.RefundTotal, lines.Sum(l => l.Tax),
+            [new FiscalPaymentRequest(command.Method.ToString(), recorded.RefundTotal)], cashier, sale.CustomerName,
+            command.SaleId, "S-" + command.SaleId.ToString("N")[..8].ToUpperInvariant());
     }
 
     private static BusinessEvent Refunded(RefundSaleCommand command, RefundOutcome done)

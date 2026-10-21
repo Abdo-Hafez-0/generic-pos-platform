@@ -58,6 +58,9 @@ namespace Fiscal.Application.Abstractions
 
         /// <summary>MISS-11a-3: asks the authority for its answer on documents handed over earlier (Sent). One outcome per document.</summary>
         Task<IReadOnlyList<FiscalSendOutcome>> CheckAsync(FiscalSendInput input, CancellationToken cancellationToken = default);
+
+        /// <summary>MISS-11c: when a sale must name its buyer (Egypt: a person's name and national ID above a total); null = never.</summary>
+        Fiscal.Contracts.Models.FiscalBuyerRule? BuyerRule => null;
     }
 
     /// <summary>MISS-11a-3: documents to send or to check, with the seller and this till.</summary>
@@ -92,7 +95,14 @@ namespace Fiscal.Application.Abstractions
     /// <see cref="LineCodes"/> the authority's codes of each line's product (by product id; what the shop has not set is null).
     /// </summary>
     public sealed record FiscalBuildInput(Fiscal.Contracts.Models.FiscalDocumentRequest Request, FiscalSettings Settings, Guid TillId, string TillName,
-        long Number, string? PreviousHash, IReadOnlyDictionary<Guid, FiscalLineCodes>? LineCodes = null);
+        long Number, string? PreviousHash, IReadOnlyDictionary<Guid, FiscalLineCodes>? LineCodes = null, FiscalOriginalDocument? Original = null,
+        string? DeviceSerial = null);
+
+    /// <summary>
+    /// MISS-11c: a return's sale as its fiscal document recorded it (Egypt: the return carries the sale's UUID as referenceUUID and its buyer);
+    /// null when the sale has no document (sold before receipts were on) or it was not built.
+    /// </summary>
+    public sealed record FiscalOriginalDocument(Guid DocumentId, string Hash, string Payload, DateTime IssuedAt);
 
     /// <summary>MISS-11a-2: the authority's document as built: its content, its hash (the chain's next link) and what the QR code holds.</summary>
     public sealed record FiscalBuiltDocument(string Payload, string Hash, string? QrPayload);
@@ -164,10 +174,10 @@ namespace Fiscal.Application.DTOs
     /// is issued yet) and whether the country is locked (documents exist).
     /// </summary>
     public sealed record FiscalSetupDto(
-        FiscalCountry Country, string? TaxNumber, string? BranchCode, string? ActivityCode, string? SellerNameArabic, string? AddressArabic,
+        FiscalCountry Country, string? TaxNumber, string? BranchCode, string? ActivityCode, string? SellerNameArabic, FiscalAddress Address,
         DateTime? UpdatedAt, string? UpdatedBy,
         string TillName, FiscalTillRegistration TillRegistration, long NextNumber, bool CountryLocked,
-        IReadOnlyList<FiscalCountry> InstalledCountryParts)
+        IReadOnlyList<FiscalCountry> InstalledCountryParts, string? DeviceSerial = null)
     {
         public bool IsOn => Country != FiscalCountry.None;
 
@@ -199,9 +209,9 @@ namespace Fiscal.Application.Queries
             var saved = settings is not null;
             settings ??= FiscalSettings.Default();
             return Result.Success(new FiscalSetupDto(settings.Country, settings.TaxNumber, settings.BranchCode, settings.ActivityCode,
-                settings.SellerNameArabic, settings.AddressArabic, saved ? settings.UpdatedAt : null, settings.UpdatedBy,
+                settings.SellerNameArabic, settings.Address, saved ? settings.UpdatedAt : null, settings.UpdatedBy,
                 till.Name, till.Registration, till.Counter + 1, till.HasIssued,
-                (countryParts ?? []).Select(p => p.Country).Distinct().ToList()));
+                (countryParts ?? []).Select(p => p.Country).Distinct().ToList(), till.DeviceSerial));
         }
     }
 
@@ -211,7 +221,11 @@ namespace Fiscal.Application.Queries
         public static async Task<FiscalTill> GetOrCreateAsync(IFiscalSetupRepository repository, IFiscalUnitOfWork unitOfWork, TimeProvider? timeProvider,
             CancellationToken cancellationToken)
         {
-            if (await repository.GetTillAsync(cancellationToken) is { } till) return till;
+            if (await repository.GetTillAsync(cancellationToken) is { } till)
+            {
+                if (till.EnsureDeviceSerial()) await unitOfWork.SaveChangesAsync(cancellationToken);   // MISS-11c: a till made before its serial
+                return till;
+            }
 
             till = FiscalTill.Create(Environment.MachineName, (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime);
             await repository.AddTillAsync(till, cancellationToken);
@@ -233,7 +247,7 @@ namespace Fiscal.Application.Commands
 
     /// <summary>MISS-11a: the country and the shop's tax details.</summary>
     public sealed record SaveFiscalSettingsCommand(FiscalCountry Country, string? TaxNumber, string? BranchCode, string? ActivityCode,
-        string? SellerNameArabic, string? AddressArabic);
+        string? SellerNameArabic, FiscalAddress? Address);
 
     /// <summary>
     /// MISS-11a: saves the fiscal settings (fiscal.manage, audited). The country cannot change once this till has issued a document (owner's
@@ -254,7 +268,7 @@ namespace Fiscal.Application.Commands
             var before = settings.Country;
 
             var updated = settings.Update(command.Country, command.TaxNumber, command.BranchCode, command.ActivityCode, command.SellerNameArabic,
-                command.AddressArabic, till.HasIssued, currentUser is { IsAuthenticated: true } me ? me.UserName : null,
+                command.Address, till.HasIssued, currentUser is { IsAuthenticated: true } me ? me.UserName : null,
                 (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime);
             if (updated.IsFailure) return updated;
 
@@ -284,7 +298,7 @@ namespace Fiscal.Application.Commands
         {
             var settings = await setup.GetSettingsAsync(cancellationToken);
             if (settings is not { IsOn: true }) return FiscalDocumentResult.NothingToIssue();
-            var part = (countryParts ?? []).FirstOrDefault(p => p.Country == settings.Country);
+            var part = (countryParts ?? []).LastOrDefault(p => p.Country == settings.Country);   // the last registered wins (a host may replace a part)
             if (part is null) return FiscalDocumentResult.NothingToIssue();
 
             var kind = (FiscalDocumentKind)(int)request.Kind;
@@ -297,12 +311,20 @@ namespace Fiscal.Application.Commands
             var till = await FiscalTillAccess.GetOrCreateAsync(setup, unitOfWork, timeProvider, cancellationToken);
             var issuedAt = DateTime.SpecifyKind(request.IssuedAtUtc, DateTimeKind.Utc);
 
+            // MISS-11c: a return names its sale's document (Egypt: referenceUUID)
+            FiscalOriginalDocument? original = null;
+            if (kind == FiscalDocumentKind.Return && request.OriginalSourceId is { } saleId
+                && await documents.FindBySourceAsync(FiscalDocumentKind.Sale, saleId, cancellationToken) is { Hash: { } saleHash, Payload: { } salePayload } sale
+                && sale.State != FiscalDocumentState.NotBuilt)
+                original = new FiscalOriginalDocument(sale.Id, saleHash, salePayload, sale.IssuedAt);
+
             Result<FiscalBuiltDocument> built;
             try
             {
                 var lineCodes = codeBook is null ? null
                     : await codeBook.ForProductsAsync(request.Lines.Select(l => l.ProductId).Distinct().ToList(), cancellationToken);   // MISS-11b
-                built = part.Build(new FiscalBuildInput(request, settings, till.Id, till.Name, till.Counter + 1, till.LastDocumentHash, lineCodes));
+                built = part.Build(new FiscalBuildInput(request, settings, till.Id, till.Name, till.Counter + 1, till.LastDocumentHash, lineCodes,
+                    original, till.DeviceSerial));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -360,7 +382,7 @@ namespace Fiscal.Application.Commands
         {
             var settings = await setup.GetSettingsAsync(cancellationToken);
             if (settings is not { IsOn: true }) return FiscalSendSummary.NothingToDo;
-            var part = (countryParts ?? []).FirstOrDefault(p => p.Country == settings.Country);
+            var part = (countryParts ?? []).LastOrDefault(p => p.Country == settings.Country);   // the last registered wins (a host may replace a part)
             if (part is null) return FiscalSendSummary.NothingToDo;
 
             var now = (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;

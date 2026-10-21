@@ -25,12 +25,21 @@ internal sealed class EfFiscalSetupRepository(FiscalDbContext dbContext) : IFisc
 }
 
 /// <summary>Implements Fiscal.Contracts' setup reader (no permission: other modules only learn whether receipts are on, and for which country).</summary>
-internal sealed class FiscalSetupReader(FiscalDbContext dbContext) : IFiscalSetupReader
+internal sealed class FiscalSetupReader(FiscalDbContext dbContext, IEnumerable<Fiscal.Application.Abstractions.IFiscalCountryPart>? countryParts = null)
+    : IFiscalSetupReader
 {
     public async Task<FiscalCountryContract> GetCountryAsync(CancellationToken cancellationToken = default)
     {
         var settings = await dbContext.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Id == FiscalSettings.SingletonId, cancellationToken);
         return settings is null ? FiscalCountryContract.None : (FiscalCountryContract)(int)settings.Country;
+    }
+
+    /// <summary>MISS-11c: the chosen country's part says when a sale must name its buyer.</summary>
+    public async Task<FiscalBuyerRule?> GetBuyerRuleAsync(CancellationToken cancellationToken = default)
+    {
+        var country = await GetCountryAsync(cancellationToken);
+        if (country == FiscalCountryContract.None) return null;
+        return (countryParts ?? []).LastOrDefault(p => (int)p.Country == (int)country)?.BuyerRule;
     }
 }
 

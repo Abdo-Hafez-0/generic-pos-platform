@@ -174,3 +174,11 @@ building number, optional fields) and the Egypt part's Build - the receipt JSON,
 code, the buyer at the till above the threshold - tested against the SDK's rules and samples; **11c-2** the QR encoder and the QR on the
 printed and on-screen receipt; **11c-3** the till's registration (the window, DPAPI, the environment), the token, the batch submission
 and reading back its status; **11c-4** Late documents and "Send late receipts", and "Correct and resend".
+
+11c-1 (2026-10-21, owner's choice from drawn options: the buyer's boxes in the payment area, shown only when needed). Built as described;
+notes *(to confirm with the ETA's pre-production environment and the tax adviser)*: numbers are written with 2 to 5 decimals and hashed as
+written; Matjar's prices include tax, so each line's net unit price and net amount are worked back with 5 decimals and the tax is the rest
+(every total is exactly what was charged); the governorate is sent by its Arabic name; the QR's date is the receipt's dateTimeIssued
+(yyyy-MM-ddTHH:mm:ssZ); the portal in the QR is the production one until 11c-3 ties it to the till's environment; the till's serial number
+is Matjar's own (MTJ-XXXX-XXXX-XXXX), to be registered on the ETA portal as the POS serial; a return of a sale that has no receipt (sold
+before receipts were on) is not built - the "Return Receipt Without Reference" type is for 11e.

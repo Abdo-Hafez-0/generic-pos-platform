@@ -35,6 +35,10 @@ internal sealed class FakeTill
     public IReadOnlyList<POSHardwareNotice>? RefundHardwareNotices { get; set; }
     public POSFiscalNotice? FiscalNotice { get; set; }
 
+    // MISS-11c: when a sale must name its buyer, and the buyer the till sent
+    public POSFiscalBuyerRule? BuyerRule { get; set; }
+    public POSBuyer? LastBuyer { get; set; }
+
     public POSReturnableSale AddReturnableSale(params (string Name, decimal Sold, decimal Returned, decimal LineTotal, decimal Refunded)[] lines)
     {
         var id = Guid.NewGuid();
@@ -158,10 +162,12 @@ internal sealed class FakePosService : IPOSService, IPOSReader
         return Task.FromResult(POSOperationResult.Success());
     }
 
-    public Task<POSCheckoutResult> CheckoutAsync(Guid cartId, string? transactionReference = null, POSPaymentRequest? payment = null, CancellationToken cancellationToken = default)
+    public Task<POSCheckoutResult> CheckoutAsync(Guid cartId, string? transactionReference = null, POSPaymentRequest? payment = null, CancellationToken cancellationToken = default,
+        POSBuyer? buyer = null)
     {
         Enter("checkout");
         _till.LastPayment = payment;
+        _till.LastBuyer = buyer;
         if (_till.CheckoutRefusal is { } refusal)
             return Task.FromResult(POSCheckoutResult.Failure("POS.Checkout.Refused", refusal));
 
@@ -184,10 +190,12 @@ internal sealed class FakePosService : IPOSService, IPOSReader
         return Task.FromResult(POSOperationResult.Success());
     }
 
-    public Task<POSCheckoutResult> CheckoutWithPaymentsAsync(Guid cartId, IReadOnlyList<POSPaymentRequest> payments, string? transactionReference = null, CancellationToken cancellationToken = default)
+    public Task<POSCheckoutResult> CheckoutWithPaymentsAsync(Guid cartId, IReadOnlyList<POSPaymentRequest> payments, string? transactionReference = null, CancellationToken cancellationToken = default,
+        POSBuyer? buyer = null)
     {
         Enter("checkout");
         _till.LastPayments = payments;
+        _till.LastBuyer = buyer;
         if (_till.CheckoutRefusal is { } refusal)
             return Task.FromResult(POSCheckoutResult.Failure("POS.Checkout.Refused", refusal));
 
@@ -207,6 +215,8 @@ internal sealed class FakePosService : IPOSService, IPOSReader
     }
 
     public Task<POSFiscalNotice?> GetFiscalNoticeAsync(CancellationToken cancellationToken = default) => Task.FromResult(_till.FiscalNotice);
+
+    public Task<POSFiscalBuyerRule?> GetFiscalBuyerRuleAsync(CancellationToken cancellationToken = default) => Task.FromResult(_till.BuyerRule);
 
     public Task<POSReturnableSale?> GetReturnableSaleAsync(Guid saleId, CancellationToken cancellationToken = default)
     {

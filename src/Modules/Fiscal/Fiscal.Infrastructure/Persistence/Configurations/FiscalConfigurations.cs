@@ -16,9 +16,19 @@ internal sealed class FiscalSettingsConfiguration : IEntityTypeConfiguration<Fis
         builder.Property(s => s.BranchCode).HasMaxLength(20);
         builder.Property(s => s.ActivityCode).HasMaxLength(10);
         builder.Property(s => s.SellerNameArabic).HasMaxLength(200);
-        builder.Property(s => s.AddressArabic).HasMaxLength(400);
+        // MISS-11c: the branch address in the authority's fields (the lengths of Egypt's seller.branchAddress)
+        builder.Property(s => s.Governorate).HasMaxLength(100);
+        builder.Property(s => s.City).HasMaxLength(100);
+        builder.Property(s => s.Street).HasMaxLength(200);
+        builder.Property(s => s.BuildingNumber).HasMaxLength(100);
+        builder.Property(s => s.PostalCode).HasMaxLength(30);
+        builder.Property(s => s.Floor).HasMaxLength(100);
+        builder.Property(s => s.Room).HasMaxLength(100);
+        builder.Property(s => s.Landmark).HasMaxLength(500);
+        builder.Property(s => s.AdditionalInformation).HasMaxLength(500);
         builder.Property(s => s.UpdatedBy).HasMaxLength(100);
         builder.Ignore(s => s.IsOn);
+        builder.Ignore(s => s.Address);
     }
 }
 
@@ -31,6 +41,7 @@ internal sealed class FiscalTillConfiguration : IEntityTypeConfiguration<FiscalT
         builder.Property(t => t.Id).ValueGeneratedNever();
         builder.Property(t => t.Name).HasMaxLength(100).IsRequired();
         builder.Property(t => t.LastDocumentHash).HasMaxLength(128);
+        builder.Property(t => t.DeviceSerial).HasMaxLength(100);   // MISS-11c
         builder.Property(t => t.Registration).HasConversion<int>().IsRequired();
         // the chain's counter must not be taken twice: a concurrent update fails instead of reusing a number
         builder.Property(t => t.Counter).IsConcurrencyToken();

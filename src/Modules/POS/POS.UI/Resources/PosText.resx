@@ -354,4 +354,19 @@
   <data name="FiscalOverdue" xml:space="preserve">
     <value>{0} electronic receipt(s) have waited more than {1} hours to reach the tax authority. Tell the person who manages electronic receipts.</value>
   </data>
+  <data name="BuyerNeeded" xml:space="preserve">
+    <value>{0:N0} or more: the electronic receipt must name the buyer.</value>
+  </data>
+  <data name="BuyerName" xml:space="preserve">
+    <value>Buyer's name</value>
+  </data>
+  <data name="BuyerNationalId" xml:space="preserve">
+    <value>National ID</value>
+  </data>
+  <data name="BuyerNationalIdHint" xml:space="preserve">
+    <value>14 digits</value>
+  </data>
+  <data name="BuyerMissing" xml:space="preserve">
+    <value>Give the buyer's name and {0}-digit national ID for the electronic receipt.</value>
+  </data>
 </root>

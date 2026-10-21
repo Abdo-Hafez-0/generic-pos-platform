@@ -29,4 +29,7 @@ public interface IPOSReader
 
     /// <summary>MISS-11a-3: the till's line about electronic receipts waiting too long (null when none, or without the Fiscal module).</summary>
     Task<POSFiscalNotice?> GetFiscalNoticeAsync(CancellationToken cancellationToken = default) => Task.FromResult<POSFiscalNotice?>(null);
+
+    /// <summary>MISS-11c: when a sale must name its buyer for the electronic receipt (null when never, or without the Fiscal module).</summary>
+    Task<POSFiscalBuyerRule?> GetFiscalBuyerRuleAsync(CancellationToken cancellationToken = default) => Task.FromResult<POSFiscalBuyerRule?>(null);
 }

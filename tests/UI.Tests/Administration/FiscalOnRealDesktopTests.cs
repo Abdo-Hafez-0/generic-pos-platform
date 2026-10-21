@@ -37,7 +37,7 @@ public sealed class FiscalOnRealDesktopTests
         Assert.True(vm.CanChooseCountry);
         Assert.True(vm.HasNoDocuments);                                                   // MISS-11a-3
         Assert.Equal(string.Empty, vm.AlertsText);
-        Assert.False(vm.CanSendNow);                                                      // nothing is issued without a country part
+        Assert.False(vm.CanSendNow);                                                      // receipts are off: nothing is issued
         Assert.Equal(4, vm.Filters.Count);
 
         vm.Country = vm.Countries.Single(c => c.Country == FiscalCountry.Egypt);
@@ -48,13 +48,26 @@ public sealed class FiscalOnRealDesktopTests
 
         vm.TaxNumber = "123456789";
         await Run(vm, vm.SaveCommand);
+        Assert.Equal("Choose the governorate of the shop's branch.", vm.ErrorMessage);   // MISS-11c: the branch address in the ETA's fields
+
+        Assert.Equal(27, vm.Governorates.Count);
+        (vm.Governorate, vm.City, vm.Street) = ("الجيزة", "الدقي", "شارع التحرير");
+        await Run(vm, vm.SaveCommand);
+        Assert.Equal("Give the branch's city, street and building number, as registered with the tax authority.", vm.ErrorMessage);
+
+        (vm.BuildingNumber, vm.Floor) = ("7", "3");
+        await Run(vm, vm.SaveCommand);
         Assert.Null(vm.ErrorMessage);
         Assert.Equal(FiscalText.Saved, vm.StatusMessage);
-        Assert.Equal(string.Format(FiscalText.StateNoPart, vm.Countries.Single(c => c.Country == FiscalCountry.Egypt).Text), vm.IssuingText);
+        Assert.Matches("^MTJ-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}$", vm.DeviceSerial);
+        Assert.Equal(string.Format(FiscalText.StateIssuing, vm.Countries.Single(c => c.Country == FiscalCountry.Egypt).Text), vm.IssuingText);   // MISS-11c: Egypt's part is installed
+        Assert.True(vm.CanSendNow);
 
         var again = new FiscalViewModel(new UiActionRunner(desktop.Services.GetRequiredService<IServiceScopeFactory>(), NullLogger<UiActionRunner>.Instance));
         await again.OnNavigatedToAsync();
         Assert.Equal((FiscalCountry.Egypt, "123456789", "0", "4711", "متجر"), (again.Country.Country, again.TaxNumber, again.BranchCode, again.ActivityCode, again.SellerNameArabic));
+        Assert.Equal(("الجيزة", "الدقي", "شارع التحرير", "7", "3", ""), (again.Governorate, again.City, again.Street, again.BuildingNumber, again.Floor, again.Room));
+        Assert.Equal(vm.DeviceSerial, again.DeviceSerial);
     }
 
     private static async Task RunPanel(FiscalCodesPanel panel, ICommand command)
@@ -77,6 +90,7 @@ public sealed class FiscalOnRealDesktopTests
 
         vm.Country = vm.Countries.Single(c => c.Country == FiscalCountry.Egypt);
         (vm.TaxNumber, vm.BranchCode, vm.ActivityCode, vm.SellerNameArabic) = ("123456789", "0", "4711", "متجر");
+        (vm.Governorate, vm.City, vm.Street, vm.BuildingNumber) = ("القاهرة", "مدينة نصر", "شارع عباس العقاد", "12");
         await Run(vm, vm.SaveCommand);
         Assert.True(vm.Codes.IsShown && vm.Codes.IsEgypt && vm.Codes.ShowsProducts);
         var row = Assert.Single(vm.Codes.Products);

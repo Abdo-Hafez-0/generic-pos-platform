@@ -17,7 +17,18 @@
   <data name="BranchCode" xml:space="preserve"><value>رمز الفرع</value></data>
   <data name="ActivityCode" xml:space="preserve"><value>رمز النشاط</value></data>
   <data name="SellerNameArabic" xml:space="preserve"><value>الاسم القانوني بالعربية</value></data>
-  <data name="AddressArabic" xml:space="preserve"><value>العنوان بالعربية</value></data>
+  <data name="AddressArabic" xml:space="preserve"><value>عنوان الفرع (بالعربية كما هو مسجّل)</value></data>
+  <data name="Governorate" xml:space="preserve"><value>المحافظة</value></data>
+  <data name="City" xml:space="preserve"><value>المدينة</value></data>
+  <data name="Street" xml:space="preserve"><value>الشارع</value></data>
+  <data name="BuildingNumber" xml:space="preserve"><value>رقم المبنى</value></data>
+  <data name="PostalCode" xml:space="preserve"><value>الرمز البريدي</value></data>
+  <data name="Floor" xml:space="preserve"><value>الدور</value></data>
+  <data name="Room" xml:space="preserve"><value>المكتب / الغرفة</value></data>
+  <data name="Landmark" xml:space="preserve"><value>علامة مميزة</value></data>
+  <data name="AdditionalInformation" xml:space="preserve"><value>تفاصيل أخرى</value></data>
+  <data name="DeviceSerial" xml:space="preserve"><value>الرقم التسلسلي لنقطة البيع</value></data>
+  <data name="DeviceSerialHint" xml:space="preserve"><value>سجّل هذا الرقم التسلسلي لنقطة البيع على بوابة مصلحة الضرائب.</value></data>
   <data name="Save" xml:space="preserve"><value>حفظ</value></data>
   <data name="Saved" xml:space="preserve"><value>تم حفظ إعدادات الإيصالات الإلكترونية.</value></data>
   <data name="TillTitle" xml:space="preserve"><value>نقطة البيع هذه</value></data>

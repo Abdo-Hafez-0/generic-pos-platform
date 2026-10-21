@@ -60,7 +60,7 @@ public sealed class FiscalIntegrationTests
         var part = new StandInPart();
         var host = await IntegrationHost.StartAllAsync(extra: [new PartModule(part)]);
         var saved = await InScopeAsync(host.Services, sp => sp.GetRequiredService<SaveFiscalSettingsCommandHandler>()
-            .HandleAsync(new SaveFiscalSettingsCommand(FiscalCountry.Egypt, "123456789", "0", "4711", "متجر", null)));
+            .HandleAsync(new SaveFiscalSettingsCommand(FiscalCountry.Egypt, "123456789", "0", "4711", "متجر", new Fiscal.Domain.Entities.FiscalAddress("القاهرة", "مدينة نصر", "شارع عباس العقاد", "12"))));
         Assert.True(saved.IsSuccess, saved.IsFailure ? saved.Error.Description : null);
         return (host, part);
     }

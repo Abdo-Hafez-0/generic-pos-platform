@@ -36,7 +36,7 @@ public sealed class FiscalSetupTests
             more?.Invoke(s);
         });
 
-    private static SaveFiscalSettingsCommand Egypt(string tax = "123456789") => new(FiscalCountry.Egypt, tax, "0", "4711", "متجر التجربة", "القاهرة");
+    private static SaveFiscalSettingsCommand Egypt(string tax = "123456789") => new(FiscalCountry.Egypt, tax, "0", "4711", "متجر التجربة", new Fiscal.Domain.Entities.FiscalAddress("القاهرة", "مدينة نصر", "شارع عباس العقاد", "12"));
 
     [Fact]
     public async Task Before_anything_is_saved_receipts_are_off_and_the_till_is_created_once_named_after_the_computer()
@@ -90,7 +90,7 @@ public sealed class FiscalSetupTests
         await using var db = await DatabaseAsync();
 
         var refused = await db.InScopeAsync(sp => sp.GetRequiredService<SaveFiscalSettingsCommandHandler>()
-            .HandleAsync(new SaveFiscalSettingsCommand(country, tax, branch, activity, "متجر", null)));
+            .HandleAsync(new SaveFiscalSettingsCommand(country, tax, branch, activity, "متجر", new Fiscal.Domain.Entities.FiscalAddress("القاهرة", "مدينة نصر", "شارع عباس العقاد", "12"))));
 
         Assert.Equal(code, refused.Error.Code);
         Assert.Null(await db.InScopeAsync(sp => Task.FromResult(sp.GetRequiredService<FiscalDbContext>().Settings.FirstOrDefault())));

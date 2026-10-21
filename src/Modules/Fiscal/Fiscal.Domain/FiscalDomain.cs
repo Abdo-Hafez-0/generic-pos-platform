@@ -69,8 +69,19 @@ namespace Fiscal.Domain.Entities
         /// <summary>The seller's legal name in Arabic, as registered with the authority.</summary>
         public string? SellerNameArabic { get; private set; }
 
-        /// <summary>The seller's address in Arabic, as registered with the authority.</summary>
-        public string? AddressArabic { get; private set; }
+        // MISS-11c: the seller's branch address in Arabic, as registered with the authority, in the fields Egypt's receipt carries
+        // (seller.branchAddress); 11a kept one line, now the street.
+        public string? Governorate { get; private set; }
+        public string? City { get; private set; }
+        public string? Street { get; private set; }
+        public string? BuildingNumber { get; private set; }
+        public string? PostalCode { get; private set; }
+        public string? Floor { get; private set; }
+        public string? Room { get; private set; }
+        public string? Landmark { get; private set; }
+        public string? AdditionalInformation { get; private set; }
+
+        public FiscalAddress Address => new(Governorate, City, Street, BuildingNumber, PostalCode, Floor, Room, Landmark, AdditionalInformation);
 
         public DateTime UpdatedAt { get; private set; }
         public string? UpdatedBy { get; private set; }
@@ -83,7 +94,7 @@ namespace Fiscal.Domain.Entities
         /// Changes the settings. A country other than None needs its tax number in the authority's form; <paramref name="countryLocked"/>
         /// (documents were issued) refuses any change of country.
         /// </summary>
-        public Result Update(FiscalCountry country, string? taxNumber, string? branchCode, string? activityCode, string? sellerNameArabic, string? addressArabic,
+        public Result Update(FiscalCountry country, string? taxNumber, string? branchCode, string? activityCode, string? sellerNameArabic, FiscalAddress? address,
             bool countryLocked, string? updatedBy, DateTime nowUtc)
         {
             if (!Enum.IsDefined(country))
@@ -116,18 +127,52 @@ namespace Fiscal.Domain.Entities
             if (country != FiscalCountry.None && Clean(sellerNameArabic) is null)
                 return Error.Validation("Fiscal.Settings.NameRequired", "Give the shop's legal name in Arabic, as registered with the tax authority.");
 
+            var where = (address ?? FiscalAddress.Empty).Cleaned();
+            if (country == FiscalCountry.Egypt)   // MISS-11c: Egypt's receipt carries the branch address in these fields
+            {
+                if (where.Governorate is null || !FiscalAddress.EgyptGovernorates.Contains(where.Governorate))
+                    return Error.Validation("Fiscal.Settings.GovernorateRequired", "Choose the governorate of the shop's branch.");
+                if (where.City is null || where.Street is null || where.BuildingNumber is null)
+                    return Error.Validation("Fiscal.Settings.AddressRequired",
+                        "Give the branch's city, street and building number, as registered with the tax authority.");
+            }
+
             Country = country;
             TaxNumber = tax;
             BranchCode = branch;
             ActivityCode = activity;
             SellerNameArabic = Clean(sellerNameArabic);
-            AddressArabic = Clean(addressArabic);
+            (Governorate, City, Street, BuildingNumber, PostalCode) = (where.Governorate, where.City, where.Street, where.BuildingNumber, where.PostalCode);
+            (Floor, Room, Landmark, AdditionalInformation) = (where.Floor, where.Room, where.Landmark, where.AdditionalInformation);
             UpdatedBy = Clean(updatedBy);
             UpdatedAt = nowUtc;
             return Result.Success();
         }
 
         private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    /// <summary>
+    /// MISS-11c: the seller's branch address in the fields the authority's documents carry (Egypt: governorate, city, street and building
+    /// number required; the rest optional). In Arabic, as registered with the authority.
+    /// </summary>
+    public sealed record FiscalAddress(string? Governorate, string? City, string? Street, string? BuildingNumber, string? PostalCode = null,
+        string? Floor = null, string? Room = null, string? Landmark = null, string? AdditionalInformation = null)
+    {
+        public static FiscalAddress Empty { get; } = new(null, null, null, null);
+
+        /// <summary>Egypt's 27 governorates, as the branch address names them *(to confirm: the ETA accepts the Arabic names)*.</summary>
+        public static IReadOnlyList<string> EgyptGovernorates { get; } =
+        [
+            "القاهرة", "الجيزة", "الإسكندرية", "القليوبية", "الشرقية", "الدقهلية", "البحيرة", "الغربية", "المنوفية", "كفر الشيخ", "دمياط", "بورسعيد",
+            "الإسماعيلية", "السويس", "الفيوم", "بني سويف", "المنيا", "أسيوط", "سوهاج", "قنا", "الأقصر", "أسوان", "البحر الأحمر", "الوادي الجديد", "مطروح",
+            "شمال سيناء", "جنوب سيناء",
+        ];
+
+        /// <summary>Blank fields become null; the rest is trimmed.</summary>
+        public FiscalAddress Cleaned() => new(C(Governorate), C(City), C(Street), C(BuildingNumber), C(PostalCode), C(Floor), C(Room), C(Landmark), C(AdditionalInformation));
+
+        private static string? C(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     /// <summary>
@@ -154,11 +199,31 @@ namespace Fiscal.Domain.Entities
 
         public FiscalTillRegistration Registration { get; private set; }
 
+        /// <summary>
+        /// MISS-11c: the till's serial number as the authority knows the device (Egypt: the POS serial registered on the ETA portal, carried by
+        /// every receipt). Matjar gives each till one at its first use (MTJ-XXXX-XXXX-XXXX from its id); it never changes once a document was
+        /// issued.
+        /// </summary>
+        public string? DeviceSerial { get; private set; }
+
         /// <summary>A document was issued: the country can no longer change.</summary>
         public bool HasIssued => Counter > 0;
 
         public static FiscalTill Create(string name, DateTime nowUtc)
-            => new() { Id = Guid.NewGuid(), Name = string.IsNullOrWhiteSpace(name) ? "Till" : name.Trim(), CreatedAt = nowUtc };
+        {
+            var till = new FiscalTill { Id = Guid.NewGuid(), Name = string.IsNullOrWhiteSpace(name) ? "Till" : name.Trim(), CreatedAt = nowUtc };
+            till.EnsureDeviceSerial();
+            return till;
+        }
+
+        /// <summary>Gives a till made before MISS-11c its serial number. True when it was given now (to be saved).</summary>
+        public bool EnsureDeviceSerial()
+        {
+            if (!string.IsNullOrWhiteSpace(DeviceSerial)) return false;
+            var hex = Id.ToString("N").ToUpperInvariant();
+            DeviceSerial = $"MTJ-{hex[..4]}-{hex[4..8]}-{hex[8..12]}";
+            return true;
+        }
 
         /// <summary>Takes the next number of the chain for a new document and records its hash as the chain's last link.</summary>
         public long Chain(string documentHash)

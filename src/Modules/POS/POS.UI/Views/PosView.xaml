@@ -273,6 +273,15 @@
                     <!-- FIX-10: how the customer pays - one or more parts; none = the whole total in cash -->
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,16,0,0" Focusable="False">
                     <StackPanel x:Name="PaymentPanel">
+                        <!-- MISS-11c (owner's choice: in the payment area, only when needed): the buyer of a large sale for the electronic receipt -->
+                        <StackPanel x:Name="BuyerPanel" Margin="0,0,0,12" Visibility="{Binding NeedsBuyer, Converter={StaticResource VisibleWhenTrue}}">
+                            <TextBlock x:Name="BuyerNoticeText" Text="{Binding BuyerNotice}" Foreground="{DynamicResource Brush.Warning}" TextWrapping="Wrap" FontSize="14" Margin="0,0,0,6"/>
+                            <TextBox x:Name="BuyerNameBox" Text="{Binding BuyerName, UpdateSourceTrigger=PropertyChanged}" Tag="{x:Static res:PosText.BuyerName}"
+                                     AutomationProperties.Name="{x:Static res:PosText.BuyerName}" Margin="0,0,0,6"/>
+                            <TextBox x:Name="BuyerNationalIdBox" Text="{Binding BuyerNationalId, UpdateSourceTrigger=PropertyChanged}" Tag="{x:Static res:PosText.BuyerNationalId}"
+                                     ToolTip="{x:Static res:PosText.BuyerNationalIdHint}" FlowDirection="LeftToRight" MaxLength="14" InputScope="Number"
+                                     AutomationProperties.Name="{x:Static res:PosText.BuyerNationalId}"/>
+                        </StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>

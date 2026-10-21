@@ -121,12 +121,13 @@ internal sealed class POSService(
     }
 
     public Task<POSCheckoutResult> CheckoutAsync(
-        Guid cartId, string? transactionReference = null, POSPaymentRequest? payment = null, CancellationToken cancellationToken = default)
-        => CheckoutAsync(new CheckoutCartCommand(cartId, transactionReference, payment), cancellationToken);
+        Guid cartId, string? transactionReference = null, POSPaymentRequest? payment = null, CancellationToken cancellationToken = default, POSBuyer? buyer = null)
+        => CheckoutAsync(new CheckoutCartCommand(cartId, transactionReference, payment, Buyer: buyer), cancellationToken);
 
     public Task<POSCheckoutResult> CheckoutWithPaymentsAsync(
-        Guid cartId, IReadOnlyList<POSPaymentRequest> payments, string? transactionReference = null, CancellationToken cancellationToken = default)
-        => CheckoutAsync(new CheckoutCartCommand(cartId, transactionReference, Payments: payments ?? []), cancellationToken);
+        Guid cartId, IReadOnlyList<POSPaymentRequest> payments, string? transactionReference = null, CancellationToken cancellationToken = default,
+        POSBuyer? buyer = null)
+        => CheckoutAsync(new CheckoutCartCommand(cartId, transactionReference, Payments: payments ?? [], Buyer: buyer), cancellationToken);
 
     private async Task<POSCheckoutResult> CheckoutAsync(CheckoutCartCommand command, CancellationToken cancellationToken)
     {
@@ -179,8 +180,14 @@ internal sealed class POSReader(
     GetOpenSessionForCashierQueryHandler openSessionHandler,
     GetSaleWarehousesQueryHandler warehousesHandler,
     ReturnableSaleQueryHandler returnableHandler,
-    Fiscal.Contracts.Interfaces.IFiscalNotices? fiscalNotices = null) : IPOSReader
+    Fiscal.Contracts.Interfaces.IFiscalNotices? fiscalNotices = null,
+    Fiscal.Contracts.Interfaces.IFiscalSetupReader? fiscalSetup = null) : IPOSReader
 {
+    public async Task<POSFiscalBuyerRule?> GetFiscalBuyerRuleAsync(CancellationToken cancellationToken = default)
+        => fiscalSetup is not null && await fiscalSetup.GetBuyerRuleAsync(cancellationToken) is { } rule
+            ? new POSFiscalBuyerRule(rule.Threshold, rule.NationalIdLength)
+            : null;
+
     public async Task<POSFiscalNotice?> GetFiscalNoticeAsync(CancellationToken cancellationToken = default)
         => fiscalNotices is not null && await fiscalNotices.GetTillNoticeAsync(cancellationToken) is { } notice
             ? new POSFiscalNotice(notice.OverdueCount, notice.OldestAtUtc, notice.LimitHours)

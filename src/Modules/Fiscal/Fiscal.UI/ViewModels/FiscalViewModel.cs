@@ -31,7 +31,10 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
 {
     private readonly IUiActionRunner _runner;
     private CountryChoice _country;
-    private string _taxNumber = string.Empty, _branchCode = string.Empty, _activityCode = string.Empty, _sellerName = string.Empty, _address = string.Empty;
+    private string _taxNumber = string.Empty, _branchCode = string.Empty, _activityCode = string.Empty, _sellerName = string.Empty;
+    private string? _governorate;
+    private string _city = string.Empty, _street = string.Empty, _building = string.Empty, _postalCode = string.Empty, _floor = string.Empty, _room = string.Empty,
+        _landmark = string.Empty, _moreDetails = string.Empty;
     private FiscalSetupDto? _setup;
     private DocumentFilter _filter;
     private string _alertsText = string.Empty;
@@ -142,7 +145,21 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
     public string BranchCode { get => _branchCode; set => Set(ref _branchCode, value); }
     public string ActivityCode { get => _activityCode; set => Set(ref _activityCode, value); }
     public string SellerNameArabic { get => _sellerName; set => Set(ref _sellerName, value); }
-    public string AddressArabic { get => _address; set => Set(ref _address, value); }
+
+    // MISS-11c: the branch address in the authority's fields
+    public IReadOnlyList<string> Governorates { get; } = Fiscal.Domain.Entities.FiscalAddress.EgyptGovernorates;
+    public string? Governorate { get => _governorate; set => Set(ref _governorate, value); }
+    public string City { get => _city; set => Set(ref _city, value); }
+    public string Street { get => _street; set => Set(ref _street, value); }
+    public string BuildingNumber { get => _building; set => Set(ref _building, value); }
+    public string PostalCode { get => _postalCode; set => Set(ref _postalCode, value); }
+    public string Floor { get => _floor; set => Set(ref _floor, value); }
+    public string Room { get => _room; set => Set(ref _room, value); }
+    public string Landmark { get => _landmark; set => Set(ref _landmark, value); }
+    public string AdditionalInformation { get => _moreDetails; set => Set(ref _moreDetails, value); }
+
+    /// <summary>MISS-11c: the till's serial number, to register on the authority's portal.</summary>
+    public string DeviceSerial => _setup?.DeviceSerial ?? string.Empty;
 
     /// <summary>Egypt's receipts carry the branch and the activity code.</summary>
     public bool IsEgypt => Country.Country == FiscalCountry.Egypt;
@@ -193,14 +210,19 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
         Codes.TaxNumber = setup.TaxNumber;
         Country = Countries.First(c => c.Country == setup.Country);
         (TaxNumber, BranchCode, ActivityCode) = (setup.TaxNumber ?? string.Empty, setup.BranchCode ?? string.Empty, setup.ActivityCode ?? string.Empty);
-        (SellerNameArabic, AddressArabic) = (setup.SellerNameArabic ?? string.Empty, setup.AddressArabic ?? string.Empty);
-        foreach (var name in new[] { nameof(IsCountryLocked), nameof(CanChooseCountry), nameof(TillName), nameof(TillRegistrationText), nameof(NextNumberText), nameof(IssuingText), nameof(CanSendNow) })
+        SellerNameArabic = setup.SellerNameArabic ?? string.Empty;
+        var a = setup.Address;
+        Governorate = a.Governorate is { } g && Governorates.Contains(g) ? g : null;
+        (City, Street, BuildingNumber, PostalCode) = (a.City ?? string.Empty, a.Street ?? string.Empty, a.BuildingNumber ?? string.Empty, a.PostalCode ?? string.Empty);
+        (Floor, Room, Landmark, AdditionalInformation) = (a.Floor ?? string.Empty, a.Room ?? string.Empty, a.Landmark ?? string.Empty, a.AdditionalInformation ?? string.Empty);
+        foreach (var name in new[] { nameof(IsCountryLocked), nameof(CanChooseCountry), nameof(TillName), nameof(TillRegistrationText), nameof(NextNumberText), nameof(IssuingText), nameof(CanSendNow), nameof(DeviceSerial) })
             Raise(name);
     }
 
     private async Task SaveAsync()
     {
-        var command = new SaveFiscalSettingsCommand(Country.Country, TaxNumber, BranchCode, ActivityCode, SellerNameArabic, AddressArabic);
+        var address = new Fiscal.Domain.Entities.FiscalAddress(IsEgypt ? Governorate : null, City, Street, BuildingNumber, PostalCode, Floor, Room, Landmark, AdditionalInformation);
+        var command = new SaveFiscalSettingsCommand(Country.Country, TaxNumber, BranchCode, ActivityCode, SellerNameArabic, address);
         var saved = await _runner.RunAsync((scope, ct) => scope.Get<SaveFiscalSettingsCommandHandler>().HandleAsync(command, ct));
         if (!Accept(saved)) return;
 

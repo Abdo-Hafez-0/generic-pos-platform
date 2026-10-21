@@ -41,6 +41,12 @@ public static class FiscalServicesExtensions
         configuration.GetSection(Fiscal.Infrastructure.Services.FiscalSenderOptions.SectionName).Bind(sender);
         services.AddSingleton(sender);
 
+        // MISS-11c: the country parts (the one of the chosen country issues; the others stay off)
+        var egypt = new Fiscal.Egypt.EgyptReceiptOptions();
+        configuration.GetSection(Fiscal.Egypt.EgyptReceiptOptions.SectionName).Bind(egypt);
+        services.AddSingleton(egypt);
+        services.AddSingleton<Fiscal.Application.Abstractions.IFiscalCountryPart, Fiscal.Egypt.EgyptCountryPart>();
+
         services.AddSingleton<IModule, FiscalModule>();
         services.AddHostedService<FiscalDatabaseInitializer>();
         services.AddHostedService<Fiscal.Infrastructure.Services.FiscalOutboxService>();

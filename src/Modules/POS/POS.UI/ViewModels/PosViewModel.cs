@@ -67,6 +67,8 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
     private string _refundNote = string.Empty;
     private string _returnReason = string.Empty;
     private string? _fiscalNotice;
+    private POSFiscalBuyerRule? _buyerRule;   // MISS-11c
+    private string _buyerName = string.Empty, _buyerNationalId = string.Empty;
 
     public PosViewModel(IUiActionRunner runner, ICurrentUser currentUser, IPOSBarcodeInput? scanner = null)
     {
@@ -435,8 +437,23 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
     public decimal Total
     {
         get => _total;
-        private set => Set(ref _total, value);
+        private set { if (Set(ref _total, value)) Raise(nameof(NeedsBuyer)); }
     }
+
+    // ---- MISS-11c (owner's choice: in the payment area, shown only when needed): the buyer of a large sale for the electronic receipt
+
+    /// <summary>The sale's total reaches the electronic receipt's threshold: the buyer's name and national ID are asked for.</summary>
+    public bool NeedsBuyer => _buyerRule?.Applies(Total) == true && Total > 0m;
+
+    /// <summary>"Over 150,000: the tax authority needs the buyer's name and national ID."</summary>
+    public string BuyerNotice => _buyerRule is { } rule ? string.Format(CultureInfo.CurrentCulture, PosText.BuyerNeeded, rule.Threshold) : string.Empty;
+
+    public string BuyerName { get => _buyerName; set => Set(ref _buyerName, value); }
+
+    public string BuyerNationalId { get => _buyerNationalId; set => Set(ref _buyerNationalId, value); }
+
+    /// <summary>The buyer to send with the sale (null when the sale needs none).</summary>
+    private POSBuyer? Buyer => NeedsBuyer ? new POSBuyer(BuyerName.Trim(), BuyerNationalId.Trim()) : null;
 
     /// <summary>The tax contained in <see cref="Total"/> (prices include tax - FIX-08b).</summary>
     public decimal TaxTotal
@@ -490,10 +507,18 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
 
     private async Task RefreshFiscalNoticeAsync(CancellationToken cancellationToken)
     {
-        var notice = await _runner.QueryAsync((scope, ct) => scope.Get<IPOSReader>().GetFiscalNoticeAsync(ct), cancellationToken);
-        FiscalNotice = notice is { IsSuccess: true, Value: { } n }
+        // one scope: the till's line (MISS-11a-3) and when a sale must name its buyer (MISS-11c)
+        var read = await _runner.QueryAsync(async (scope, ct) =>
+        {
+            var reader = scope.Get<IPOSReader>();
+            return (Notice: await reader.GetFiscalNoticeAsync(ct), Rule: await reader.GetFiscalBuyerRuleAsync(ct));
+        }, cancellationToken);
+        FiscalNotice = read is { IsSuccess: true, Value.Notice: { } n }
             ? string.Format(CultureInfo.CurrentCulture, PosText.FiscalOverdue, n.OverdueCount, n.LimitHours)
             : null;
+        _buyerRule = read.IsSuccess ? read.Value.Rule : null;
+        Raise(nameof(NeedsBuyer));
+        Raise(nameof(BuyerNotice));
     }
 
     /// <summary>The screen is left (another screen, or sign-out): scans no longer reach this cart.</summary>
@@ -708,14 +733,21 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
 
     private async Task SellAsync(Guid cartId, Guid sessionId, decimal total)
     {
+        var buyer = Buyer;
+        if (NeedsBuyer && !_buyerRule!.IsSatisfiedBy(buyer))
+        {
+            Fail(string.Format(CultureInfo.CurrentCulture, PosText.BuyerMissing, _buyerRule.NationalIdLength));
+            return;
+        }
+
         var parts = Payments.Select(p => p.Request).ToList();
         var checkedOut = await _runner.QueryAsync(async (scope, ct) =>
         {
             var service = scope.Get<IPOSService>();
             // FIX-10: the parts entered on the screen; none = the whole total in cash (FIX-04)
             var result = parts.Count == 0
-                ? await service.CheckoutAsync(cartId, payment: CashPayment, cancellationToken: ct)
-                : await service.CheckoutWithPaymentsAsync(cartId, parts, cancellationToken: ct);
+                ? await service.CheckoutAsync(cartId, payment: CashPayment, cancellationToken: ct, buyer: buyer)
+                : await service.CheckoutWithPaymentsAsync(cartId, parts, cancellationToken: ct, buyer: buyer);
             if (!result.IsSuccess)
                 return new CheckoutOutcome(result, null);
 
@@ -738,6 +770,7 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
         Raise(nameof(HasLastSale));
         _cartId = nextCart?.CartId;
         ClearPayments();
+        (BuyerName, BuyerNationalId) = (string.Empty, string.Empty);
         ShowCart(nextCart);
         await RefreshFiscalNoticeAsync(CancellationToken.None);
         StatusMessage = sale.ChangeDue > 0m
@@ -865,6 +898,7 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
         TaxTotal = cart?.TaxTotal ?? 0m;
         DiscountTotal = cart?.DiscountTotal ?? 0m;
         CustomerText = cart?.CustomerId is null ? null : $"{cart.CustomerCode} {cart.CustomerName}";
+        if (NeedsBuyer && BuyerName.Length == 0 && cart?.CustomerName is { Length: > 0 } customer) BuyerName = customer;   // the customer chosen
         SelectedItem = SelectedItem is { } chosen ? Items.FirstOrDefault(i => i.ProductId == chosen.ProductId) : null;
         RaisePayments();
         BindScanner();

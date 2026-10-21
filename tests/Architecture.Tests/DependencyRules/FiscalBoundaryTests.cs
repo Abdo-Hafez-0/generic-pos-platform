@@ -6,7 +6,7 @@ using Tests.Common;
 namespace Architecture.Tests.DependencyRules;
 
 /// <summary>
-/// Architecture tests for the Fiscal module. ARCH-FIS-001 .. ARCH-FIS-016.
+/// Architecture tests for the Fiscal module. ARCH-FIS-001 .. ARCH-FIS-018.
 /// Protects: layering (Domain/Application/Contracts/Infrastructure/UI), Contracts-only cross-module communication,
 /// no reverse dependencies from Platform or other modules, no HTTP, no licensing/update coupling, offline operation.
 /// </summary>
@@ -159,5 +159,24 @@ public sealed class FiscalBoundaryTests
         Assert.DoesNotContain("Fiscal.Domain", csproj);
         Assert.DoesNotContain("EntityFramework", csproj);
         Assert.DoesNotContain("Microsoft.Data.Sqlite", csproj);
+    }
+
+    [Fact(DisplayName = "ARCH-FIS-017: A country part (Fiscal.Egypt) knows the Fiscal core's Domain, Application and Contracts only - no Infrastructure, UI, EF Core or WPF")]
+    public void CountryPart_StaysInsideTheCore()
+    {
+        AssertNoDep(Assemblies.FiscalEgypt, "Fiscal.Infrastructure", "A country part is plugged in by the infrastructure, never the other way round.");
+        AssertNoDep(Assemblies.FiscalEgypt, "Fiscal.UI", "A country part is UI-free.");
+        AssertNoDep(Assemblies.FiscalEgypt, "Microsoft.EntityFrameworkCore", "A country part builds and sends documents; the core stores them.");
+        AssertNoDep(Assemblies.FiscalEgypt, "System.Windows", "A country part is UI-free.");
+        Assert.All(Refs(Assemblies.FiscalEgypt).Where(n => n.StartsWith("Fiscal.", StringComparison.Ordinal)),
+            n => Assert.Contains(n, new[] { "Fiscal.Domain", "Fiscal.Application", "Fiscal.Contracts" }));
+    }
+
+    [Fact(DisplayName = "ARCH-FIS-018: The Fiscal core never depends on a country part; only Fiscal.Infrastructure plugs it in")]
+    public void Core_DoesNotDependOnCountryParts()
+    {
+        foreach (var assembly in new[] { Assemblies.FiscalDomain, Assemblies.FiscalContracts, Assemblies.FiscalApplication })
+            AssertNoDep(assembly, "Fiscal.Egypt", "The core works for every country; the parts depend on it.");
+        Assert.Contains("Fiscal.Egypt", Refs(Assemblies.FiscalInfrastructure));
     }
 }

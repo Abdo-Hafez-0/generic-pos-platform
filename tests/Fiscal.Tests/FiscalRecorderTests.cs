@@ -76,7 +76,7 @@ public sealed class FiscalRecorderTests
 
     private static async Task SwitchOnEgyptAsync(TestModuleDatabase<FiscalDbContext> db)
         => Assert.True((await db.InScopeAsync(sp => sp.GetRequiredService<SaveFiscalSettingsCommandHandler>()
-            .HandleAsync(new SaveFiscalSettingsCommand(FiscalCountry.Egypt, "123456789", "0", "4711", "متجر", null)))).IsSuccess);
+            .HandleAsync(new SaveFiscalSettingsCommand(FiscalCountry.Egypt, "123456789", "0", "4711", "متجر", new Fiscal.Domain.Entities.FiscalAddress("القاهرة", "مدينة نصر", "شارع عباس العقاد", "12"))))).IsSuccess);
 
     private static FiscalDocumentRequest Sale(Guid? id = null, decimal total = 10m)
     {

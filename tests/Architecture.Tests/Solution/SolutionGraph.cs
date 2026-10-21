@@ -88,6 +88,9 @@ internal sealed record ProjectNode(
 {
     public static readonly string[] ModuleLayers = ["Domain", "Application", "Contracts", "Infrastructure", "UI"];
 
+    /// <summary>MISS-11c: a module's country parts (Fiscal.Egypt, later Fiscal.Saudi) - their own layer, "CountryPart" (ARCH-FIS-017/018).</summary>
+    public static readonly string[] CountryParts = ["Egypt", "Saudi"];
+
     public string Directory => Path.GetDirectoryName(RelativePath)!;
 
     public static ProjectNode Parse(string root, string path)
@@ -115,7 +118,8 @@ internal sealed record ProjectNode(
         {
             module = parts[2];
             var suffix = name.StartsWith(module + ".", StringComparison.Ordinal) ? name[(module.Length + 1)..] : null;
-            layer = suffix is not null && ModuleLayers.Contains(suffix) ? suffix : "Unknown";
+            layer = suffix is not null && ModuleLayers.Contains(suffix) ? suffix
+                : suffix is not null && CountryParts.Contains(suffix) ? "CountryPart" : "Unknown";
         }
 
         return new ProjectNode(name, relative, references, Items("PackageReference"), frameworks, usesWpf, module, layer);

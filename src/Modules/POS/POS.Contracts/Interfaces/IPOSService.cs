@@ -48,13 +48,16 @@ public interface IPOSService
     /// Creates, confirms and completes the sale in Sales and issues stock from Inventory. If <paramref name="payment"/> is given,
     /// the payment for the cart total is recorded through the optional Payments module between confirming the sale and issuing stock.
     /// </summary>
-    Task<POSCheckoutResult> CheckoutAsync(Guid cartId, string? transactionReference = null, POSPaymentRequest? payment = null, CancellationToken cancellationToken = default);
+    /// MISS-11c: <paramref name="buyer"/> names the buyer when the electronic receipt needs it (see IPOSReader.GetFiscalBuyerRuleAsync).
+    Task<POSCheckoutResult> CheckoutAsync(Guid cartId, string? transactionReference = null, POSPaymentRequest? payment = null, CancellationToken cancellationToken = default,
+        POSBuyer? buyer = null);
 
     /// <summary>
     /// FIX-10: checks out with a split payment - several parts (cash, card, other), each naming its amount; the amounts add up to the cart
     /// total, only cash may be tendered above its amount (the change). Every part is recorded in the same transaction as the sale.
     /// </summary>
-    Task<POSCheckoutResult> CheckoutWithPaymentsAsync(Guid cartId, IReadOnlyList<POSPaymentRequest> payments, string? transactionReference = null, CancellationToken cancellationToken = default);
+    Task<POSCheckoutResult> CheckoutWithPaymentsAsync(Guid cartId, IReadOnlyList<POSPaymentRequest> payments, string? transactionReference = null, CancellationToken cancellationToken = default,
+        POSBuyer? buyer = null);
 
     /// <summary>
     /// MISS-10: takes items of a completed sale back and gives the money back the way the cashier chose (cash from this till's drawer, card,

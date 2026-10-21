@@ -90,9 +90,70 @@
                             <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.SellerNameArabic}"/>
                             <TextBox x:Name="SellerNameBox" Text="{Binding SellerNameArabic, UpdateSourceTrigger=PropertyChanged}" FlowDirection="RightToLeft"
                                      AutomationProperties.Name="{x:Static res:FiscalText.SellerNameArabic}"/>
-                            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.AddressArabic}"/>
-                            <TextBox x:Name="AddressBox" Text="{Binding AddressArabic, UpdateSourceTrigger=PropertyChanged}" FlowDirection="RightToLeft" TextWrapping="Wrap"
-                                     MinHeight="56" VerticalContentAlignment="Top" AutomationProperties.Name="{x:Static res:FiscalText.AddressArabic}"/>
+                            <!-- MISS-11c: the branch address in the authority's fields -->
+                            <TextBlock Text="{x:Static res:FiscalText.AddressArabic}" FontWeight="SemiBold" Margin="0,14,0,0"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <StackPanel Visibility="{Binding IsEgypt, Converter={StaticResource VisibleWhenTrue}}">
+                                        <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.Governorate}"/>
+                                        <ComboBox x:Name="GovernorateBox" ItemsSource="{Binding Governorates}" SelectedItem="{Binding Governorate}" FlowDirection="RightToLeft"
+                                                  AutomationProperties.Name="{x:Static res:FiscalText.Governorate}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.City}"/>
+                                    <TextBox x:Name="CityBox" Text="{Binding City, UpdateSourceTrigger=PropertyChanged}" FlowDirection="RightToLeft"
+                                             AutomationProperties.Name="{x:Static res:FiscalText.City}"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.Street}"/>
+                            <TextBox x:Name="StreetBox" Text="{Binding Street, UpdateSourceTrigger=PropertyChanged}" FlowDirection="RightToLeft"
+                                     AutomationProperties.Name="{x:Static res:FiscalText.Street}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.BuildingNumber}"/>
+                                    <TextBox x:Name="BuildingNumberBox" Text="{Binding BuildingNumber, UpdateSourceTrigger=PropertyChanged}" FlowDirection="RightToLeft"
+                                             AutomationProperties.Name="{x:Static res:FiscalText.BuildingNumber}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.PostalCode}"/>
+                                    <TextBox x:Name="PostalCodeBox" Text="{Binding PostalCode, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight"
+                                             AutomationProperties.Name="{x:Static res:FiscalText.PostalCode}"/>
+                                </StackPanel>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.Floor}"/>
+                                    <TextBox x:Name="FloorBox" Text="{Binding Floor, UpdateSourceTrigger=PropertyChanged}" FlowDirection="RightToLeft"
+                                             AutomationProperties.Name="{x:Static res:FiscalText.Floor}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.Room}"/>
+                                    <TextBox x:Name="RoomBox" Text="{Binding Room, UpdateSourceTrigger=PropertyChanged}" FlowDirection="RightToLeft"
+                                             AutomationProperties.Name="{x:Static res:FiscalText.Room}"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.Landmark}"/>
+                            <TextBox x:Name="LandmarkBox" Text="{Binding Landmark, UpdateSourceTrigger=PropertyChanged}" FlowDirection="RightToLeft"
+                                     AutomationProperties.Name="{x:Static res:FiscalText.Landmark}"/>
+                            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.AdditionalInformation}"/>
+                            <TextBox x:Name="MoreDetailsBox" Text="{Binding AdditionalInformation, UpdateSourceTrigger=PropertyChanged}" FlowDirection="RightToLeft"
+                                     AutomationProperties.Name="{x:Static res:FiscalText.AdditionalInformation}"/>
                         </StackPanel>
                         <Button x:Name="SaveFiscalButton" Content="{x:Static res:FiscalText.Save}" Command="{Binding SaveCommand}" HorizontalAlignment="Left" Margin="0,14,0,0"/>
                     </StackPanel>
@@ -111,6 +172,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.TillName}"/>
                             <TextBlock Grid.Row="0" Grid.Column="1" x:Name="TillNameText" Text="{Binding TillName}" FontWeight="SemiBold"/>
@@ -118,6 +180,9 @@
                             <TextBlock Grid.Row="1" Grid.Column="1" x:Name="TillRegistrationText" Text="{Binding TillRegistrationText}"/>
                             <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.NextNumber}"/>
                             <TextBlock Grid.Row="2" Grid.Column="1" x:Name="NextNumberText" Text="{Binding NextNumberText}"/>
+                            <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.DeviceSerial}"/>
+                            <TextBox Grid.Row="3" Grid.Column="1" x:Name="DeviceSerialText" Text="{Binding DeviceSerial, Mode=OneWay}" IsReadOnly="True" FlowDirection="LeftToRight"
+                                     HorizontalAlignment="Left" MinWidth="180" ToolTip="{x:Static res:FiscalText.DeviceSerialHint}" AutomationProperties.Name="{x:Static res:FiscalText.DeviceSerial}"/>
                         </Grid>
                         <TextBlock x:Name="IssuingText" Text="{Binding IssuingText}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="12" Margin="0,10,0,0"/>
                     </StackPanel>

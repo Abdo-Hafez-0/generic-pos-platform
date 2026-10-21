@@ -43,6 +43,21 @@ public sealed record POSFindReturnResult(bool IsSuccess, POSReturnableSale? Sale
 /// </summary>
 public sealed record POSFiscalNotice(int OverdueCount, DateTime OldestAtUtc, double LimitHours);
 
+/// <summary>
+/// MISS-11c (owner's decision: asked at the till): a sale whose total is at or above <see cref="Threshold"/> must name its buyer - a name and a
+/// national ID of <see cref="NationalIdLength"/> digits (Egypt's e-receipt: 150,000 EGP, 14 digits).
+/// </summary>
+public sealed record POSFiscalBuyerRule(decimal Threshold, int NationalIdLength)
+{
+    public bool Applies(decimal total) => total >= Threshold;
+
+    public bool IsSatisfiedBy(POSBuyer? buyer)
+        => buyer is not null && !string.IsNullOrWhiteSpace(buyer.Name) && buyer.NationalId?.Trim() is { } id && id.Length == NationalIdLength && id.All(char.IsAsciiDigit);
+}
+
+/// <summary>MISS-11c: the buyer of a sale as the tax authority's receipt names them.</summary>
+public sealed record POSBuyer(string Name, string NationalId);
+
 /// <summary>MISS-10b: one line to give back: the sale line, the units, and whether they go back on the shelf (false = damaged).</summary>
 public sealed record POSRefundLineRequest(Guid SaleItemId, decimal Quantity, bool BackToStock = true);
 

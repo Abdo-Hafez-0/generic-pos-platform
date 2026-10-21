@@ -122,6 +122,7 @@
     <ProjectReference Include="..\..\src\Modules\Fiscal\Fiscal.Contracts\Fiscal.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Fiscal\Fiscal.Application\Fiscal.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Fiscal\Fiscal.Infrastructure\Fiscal.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Fiscal\Fiscal.Egypt\Fiscal.Egypt.csproj" />
     <!-- Reporting module assemblies (Stage 8) - Reporting.UI excluded (net10.0-windows) -->
     <ProjectReference Include="..\..\src\Modules\Reporting\Reporting.Domain\Reporting.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reporting\Reporting.Contracts\Reporting.Contracts.csproj" />

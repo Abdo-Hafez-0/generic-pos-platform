@@ -354,4 +354,19 @@
   <data name="FiscalOverdue" xml:space="preserve">
     <value>{0} من الإيصالات الإلكترونية تنتظر أكثر من {1} ساعة للوصول إلى مصلحة الضرائب. أبلغ المسؤول عن الإيصالات الإلكترونية.</value>
   </data>
+  <data name="BuyerNeeded" xml:space="preserve">
+    <value>{0:N0} أو أكثر: يجب أن يذكر الإيصال الإلكتروني اسم المشتري.</value>
+  </data>
+  <data name="BuyerName" xml:space="preserve">
+    <value>اسم المشتري</value>
+  </data>
+  <data name="BuyerNationalId" xml:space="preserve">
+    <value>الرقم القومي</value>
+  </data>
+  <data name="BuyerNationalIdHint" xml:space="preserve">
+    <value>14 رقمًا</value>
+  </data>
+  <data name="BuyerMissing" xml:space="preserve">
+    <value>اكتب اسم المشتري ورقمه القومي ({0} رقمًا) للإيصال الإلكتروني.</value>
+  </data>
 </root>

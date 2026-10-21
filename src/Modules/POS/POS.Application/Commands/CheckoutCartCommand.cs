@@ -60,8 +60,9 @@ namespace POS.Application.Commands;
 /// Checks out a cart. <see cref="Payment"/> is a single payment for the whole total (its Amount may be left out); <see cref="Payments"/>
 /// (FIX-10) is a split payment - every part names its amount and the amounts add up to the total. Give one or the other.
 /// </summary>
+/// MISS-11c: <see cref="Buyer"/> names the buyer when the electronic receipt needs it (Egypt: at or above 150,000 EGP).
 public sealed record CheckoutCartCommand(Guid CartId, string? TransactionReference = null, POSPaymentRequest? Payment = null,
-    IReadOnlyList<POSPaymentRequest>? Payments = null);
+    IReadOnlyList<POSPaymentRequest>? Payments = null, POSBuyer? Buyer = null);
 
 /// <summary>A successful checkout: the sale, and the payment/change when a payment was recorded.</summary>
 public sealed record CheckoutOutcome(Guid SaleId, Guid? PaymentId, decimal ChangeDue, IReadOnlyList<POSHardwareNotice>? HardwareNotices = null,
@@ -85,7 +86,8 @@ public sealed class CheckoutCartCommandHandler(
     ICashSessionReader? cashShifts = null,
     PosCashOptions? cashOptions = null,
     IBusinessEventSink? businessEvents = null,
-    IFiscalRecorder? fiscalRecorder = null)
+    IFiscalRecorder? fiscalRecorder = null,
+    IFiscalSetupReader? fiscalSetup = null)
 {
     /// <summary>What a committed checkout leaves behind for the peripherals step.</summary>
     private sealed record Committed(PosCart Cart, PosSession Session, Guid SaleId, IReadOnlyList<Guid> PaymentIds, decimal ChangeDue,
@@ -158,6 +160,12 @@ public sealed class CheckoutCartCommandHandler(
             var checkedParts = CheckParts(parts, cart.Total.Amount);
             if (checkedParts.IsFailure) return Result.Failure<Committed>(checkedParts.Error);
         }
+
+        // 1b'. MISS-11c (owner's decision: asked at the till): the electronic receipt of a large sale names its buyer - refused before anything is written
+        if (fiscalSetup is not null && await fiscalSetup.GetBuyerRuleAsync(cancellationToken) is { } buyerRule && buyerRule.Applies(cart.Total.Amount)
+            && !new POSFiscalBuyerRule(buyerRule.Threshold, buyerRule.NationalIdLength).IsSatisfiedBy(command.Buyer))
+            return Result.Failure<Committed>(Error.Validation("POS.Checkout.BuyerRequired",
+                $"A sale of {Money(buyerRule.Threshold)} or more must name its buyer for the electronic receipt: the buyer's name and {buyerRule.NationalIdLength}-digit national ID."));
 
         // 1c. Cash goes into an open drawer shift (FIX-04): without one the cash sale is refused before anything is written.
         Guid? cashShiftId = null;
@@ -309,7 +317,7 @@ public sealed class CheckoutCartCommandHandler(
         string? fiscalNotBuilt = null;
         if (fiscalRecorder is not null)
         {
-            var fiscal = await fiscalRecorder.RecordAsync(FiscalSale(cart, session, saleId, parts), cancellationToken);
+            var fiscal = await fiscalRecorder.RecordAsync(FiscalSale(cart, session, saleId, parts, command.Buyer), cancellationToken);
             if (!fiscal.IsSuccess)
             {
                 if (!Transactional)
@@ -343,7 +351,7 @@ public sealed class CheckoutCartCommandHandler(
     }
 
     /// <summary>MISS-11a-2: the sale as the tax authority's document needs it - the priced lines (tax included), the total, how it was paid.</summary>
-    private FiscalDocumentRequest FiscalSale(PosCart cart, PosSession session, Guid saleId, IReadOnlyList<POSPaymentRequest> parts)
+    private FiscalDocumentRequest FiscalSale(PosCart cart, PosSession session, Guid saleId, IReadOnlyList<POSPaymentRequest> parts, POSBuyer? buyer)
     {
         var priced = cart.PricedLines;
         var paid = parts.Count > 0
@@ -353,7 +361,9 @@ public sealed class CheckoutCartCommandHandler(
             (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime,
             priced.Select(l => new FiscalLineRequest(l.Item.CatalogProductId, l.Item.ProductSku, l.Item.ProductName, l.Item.Quantity.Value, l.Item.UnitPrice.Amount,
                 l.Amounts.Discount, l.Amounts.Total, l.Item.TaxRate, l.Amounts.Tax)).ToList(),
-            cart.Total.Amount, cart.TaxTotal.Amount, paid, session.CashierReference, cart.CustomerName);
+            cart.Total.Amount, cart.TaxTotal.Amount, paid, session.CashierReference,
+            buyer is not null && !string.IsNullOrWhiteSpace(buyer.Name) ? buyer.Name.Trim() : cart.CustomerName,   // MISS-11c: the buyer named at the till
+            BuyerNationalId: string.IsNullOrWhiteSpace(buyer?.NationalId) ? null : buyer.NationalId.Trim());
     }
 
     /// <summary>The payment parts of a checkout: the split payment as given, or the single payment for the whole total.</summary>

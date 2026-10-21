@@ -42,7 +42,21 @@ namespace Fiscal.Contracts.Models
         string? Cashier = null,
         string? BuyerName = null,
         Guid? OriginalSourceId = null,
-        string? OriginalReference = null);
+        string? OriginalReference = null,
+        string? BuyerNationalId = null);   // MISS-11c: Egypt - a person buyer's national ID, asked at the till above the threshold
+
+    /// <summary>
+    /// MISS-11c (owner's decision: asked at the till): a sale whose total is at or above <see cref="Threshold"/> must name its buyer - a name
+    /// and a national ID of <see cref="NationalIdLength"/> digits (Egypt: 150,000 EGP for receipts v1.2, 14 digits).
+    /// </summary>
+    public sealed record FiscalBuyerRule(decimal Threshold, int NationalIdLength)
+    {
+        public bool Applies(decimal total) => total >= Threshold;
+
+        /// <summary>The buyer given is enough: a name and a national ID of the right number of digits.</summary>
+        public bool IsSatisfiedBy(string? name, string? nationalId)
+            => !string.IsNullOrWhiteSpace(name) && nationalId is { } id && id.Trim().Length == NationalIdLength && id.Trim().All(char.IsAsciiDigit);
+    }
 
     /// <summary>
     /// MISS-11a-2: the outcome. <see cref="IsSuccess"/> false only when the document could not be SAVED (the caller's transaction must not
@@ -81,6 +95,9 @@ namespace Fiscal.Contracts.Interfaces
     {
         /// <summary>The chosen country (None when electronic receipts are off or nothing was set up).</summary>
         Task<FiscalCountryContract> GetCountryAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>MISS-11c: when a sale must name its buyer (null when receipts are off or the chosen country asks for no buyer).</summary>
+        Task<FiscalBuyerRule?> GetBuyerRuleAsync(CancellationToken cancellationToken = default);
     }
 
     /// <summary>

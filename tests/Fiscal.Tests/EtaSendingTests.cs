@@ -129,8 +129,18 @@ public sealed class EtaSendingTests : IDisposable
         Assert.Equal((FiscalSendResult.Sent, 3), (sent.Result, _eta.TokensIssued));
     }
 
+    [Fact]
+    public async Task Late_receipts_go_with_a_fresh_sign_in_so_the_approval_reaches_the_token()
+    {
+        // MISS-11c-4: the ETA's FAQ - the token must be refreshed after a late-submission request is approved
+        var part = Part();
+        await part.SendAsync(Input([Document(1)], Connection()));
+        await part.SendAsync(Input([Document(2)], Connection()) with { FreshSignIn = true });
+        Assert.Equal(2, _eta.TokensIssued);
+    }
+
     [Theory]
-    [InlineData(422, "{\"error\":{\"code\":\"DuplicateSubmission\"}}", "same batch less than 10 minutes ago")]
+    [InlineData(422,"{\"error\":{\"code\":\"DuplicateSubmission\"}}", "same batch less than 10 minutes ago")]
     [InlineData(400, "{\"error\":{\"code\":\"BadStructure\",\"message\":\"The receipts are not valid JSON\"}}", "refused the batch (400): The receipts are not valid JSON")]
     [InlineData(500, "", "refused the batch (500).")]
     public async Task A_refused_batch_waits_with_the_reason(int status, string body, string reason)

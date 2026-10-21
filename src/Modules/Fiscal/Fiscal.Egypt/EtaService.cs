@@ -100,9 +100,11 @@ internal sealed class EtaService(EgyptReceiptOptions options, IFiscalHttpTranspo
         if (transport is null) return All(input, FiscalSendResult.NotSent, NoTransport);
 
         var outcomes = new List<FiscalSendOutcome>();
+        var fresh = input.FreshSignIn;   // MISS-11c-4: after a late request's approval, a new token carries it
         foreach (var batch in Batches(input.Documents))
         {
-            outcomes.AddRange(await SubmitBatchAsync(connection, batch, cancellationToken));
+            outcomes.AddRange(await SubmitBatchAsync(connection, batch, fresh, cancellationToken));
+            fresh = false;
             if (outcomes.Count > 0 && outcomes[^1].Result == FiscalSendResult.NotSent && outcomes.All(o => o.Result == FiscalSendResult.NotSent))
             {
                 // nothing got through (offline, refused sign-in): the rest waits for the next round
@@ -137,7 +139,7 @@ internal sealed class EtaService(EgyptReceiptOptions options, IFiscalHttpTranspo
     }
 
     private async Task<IReadOnlyList<FiscalSendOutcome>> SubmitBatchAsync(FiscalTillConnection connection, IReadOnlyList<FiscalOutgoingDocument> batch,
-        CancellationToken cancellationToken)
+        bool freshSignIn, CancellationToken cancellationToken)
     {
         // owner's decision 2026-10-21: no issuer signature yet (the ETA does not validate it; to confirm on pre-production)
         var body = "{\"receipts\":[" + string.Join(",", batch.Select(d => d.Payload)) + "]}";
@@ -146,7 +148,7 @@ internal sealed class EtaService(EgyptReceiptOptions options, IFiscalHttpTranspo
         FiscalHttpResponse? answer = null;
         for (var attempt = 0; attempt < 2; attempt++)
         {
-            var (token, problem) = await TokenAsync(connection, fresh: attempt > 0, cancellationToken);
+            var (token, problem) = await TokenAsync(connection, fresh: attempt > 0 || freshSignIn, cancellationToken);
             if (token is null) return All(batch, FiscalSendResult.NotSent, problem!);
             answer = await transport!.SendAsync(new FiscalHttpRequest("POST", url, Bearer(token), body), cancellationToken);
             if (answer.StatusCode != 401) break;   // an expired token: signed in again once

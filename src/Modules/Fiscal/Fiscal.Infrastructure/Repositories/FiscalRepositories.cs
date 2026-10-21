@@ -46,7 +46,13 @@ internal sealed class FiscalSetupReader(FiscalDbContext dbContext, IEnumerable<F
 internal sealed class EfFiscalDocumentRepository(FiscalDbContext dbContext) : IFiscalDocumentRepository
 {
     public Task<FiscalDocument?> FindBySourceAsync(Fiscal.Domain.Enums.FiscalDocumentKind kind, Guid sourceId, CancellationToken cancellationToken = default)
-        => dbContext.Documents.FirstOrDefaultAsync(d => d.Kind == kind && d.SourceId == sourceId, cancellationToken);
+        => dbContext.Documents.FirstOrDefaultAsync(d => d.Kind == kind && d.SourceId == sourceId && d.State != FiscalDocumentState.Replaced, cancellationToken);   // MISS-11c-4: the live one
+
+    public Task<FiscalDocument?> FindAsync(Guid documentId, CancellationToken cancellationToken = default)
+        => dbContext.Documents.FirstOrDefaultAsync(d => d.Id == documentId, cancellationToken);
+
+    public async Task<IReadOnlyList<FiscalDocument>> GetLateAsync(CancellationToken cancellationToken = default)
+        => await dbContext.Documents.Where(d => d.State == FiscalDocumentState.Late).OrderBy(d => d.Number).ToListAsync(cancellationToken);
 
     public async Task AddAsync(FiscalDocument document, CancellationToken cancellationToken = default)
         => await dbContext.Documents.AddAsync(document, cancellationToken);
@@ -70,13 +76,15 @@ internal sealed class EfFiscalDocumentRepository(FiscalDbContext dbContext) : IF
     {
         var rows = await dbContext.Documents.AsNoTracking()
             .Where(d => d.State == FiscalDocumentState.Waiting || d.State == FiscalDocumentState.Sent
-                        || d.State == FiscalDocumentState.NotBuilt || d.State == FiscalDocumentState.Rejected)
+                        || d.State == FiscalDocumentState.NotBuilt || d.State == FiscalDocumentState.Rejected || d.State == FiscalDocumentState.Late)
             .Select(d => new { d.State, d.CreatedAt })
             .ToListAsync(cancellationToken);
         var outstanding = rows.Where(r => r.State is FiscalDocumentState.Waiting or FiscalDocumentState.Sent).ToList();
         return new FiscalDocumentCounts(outstanding.Count, rows.Count(r => r.State == FiscalDocumentState.NotBuilt), rows.Count(r => r.State == FiscalDocumentState.Rejected),
-            outstanding.Count(r => r.CreatedAt < managerSinceUtc), outstanding.Count(r => r.CreatedAt < tillSinceUtc),
-            outstanding.Count == 0 ? null : outstanding.Min(r => r.CreatedAt));
+            outstanding.Count(r => r.CreatedAt < managerSinceUtc),
+            outstanding.Count(r => r.CreatedAt < tillSinceUtc) + rows.Count(r => r.State == FiscalDocumentState.Late),   // MISS-11c-4: late ones have waited too
+            rows.Where(r => r.State is FiscalDocumentState.Waiting or FiscalDocumentState.Sent or FiscalDocumentState.Late).Select(r => (DateTime?)r.CreatedAt).Min(),
+            rows.Count(r => r.State == FiscalDocumentState.Late));
     }
 }
 

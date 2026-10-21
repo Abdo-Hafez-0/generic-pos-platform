@@ -27,6 +27,7 @@ public sealed class FiscalShellNotice(IUiActionRunner runner) : IShellNoticeProv
         var parts = new List<string>();
         if (alerts.NotBuilt > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, FiscalText.NoticeNotBuilt, alerts.NotBuilt));
         if (alerts.Rejected > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, FiscalText.NoticeRejected, alerts.Rejected));
+        if (alerts.Late > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, FiscalText.NoticeLate, alerts.Late));   // MISS-11c-4
         if (alerts.OverLimit > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, FiscalText.NoticeOverdue, alerts.OverLimit, alerts.LimitHours));
         if (alerts.MissingProductCodes > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, FiscalText.NoticeMissingProducts, alerts.MissingProductCodes));   // MISS-11b
         if (alerts.MissingUnitCodes > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, FiscalText.NoticeMissingUnits, alerts.MissingUnitCodes));

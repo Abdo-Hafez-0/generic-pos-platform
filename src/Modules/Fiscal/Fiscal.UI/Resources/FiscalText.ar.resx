@@ -245,4 +245,13 @@
   <data name="RegistrationHint" xml:space="preserve"><value>أدخل ما تعرضه بوابة مصلحة الضرائب لنقطة البيع هذه. سجّل الرقم التسلسلي أدناه على البوابة أولاً. تُحفظ كلمة السر والمفتاح محمية بواسطة Windows على هذا الكمبيوتر، ولا تدخل في النسخ الاحتياطية أبداً.</value></data>
   <data name="EnvironmentLockedHint" xml:space="preserve"><value>وصلت إيصالات بالفعل إلى مصلحة الضرائب، لذا لا يمكن تغيير البيئة بعد الآن.</value></data>
   <data name="Cancel" xml:space="preserve"><value>إلغاء</value></data>
+  <data name="StateLate" xml:space="preserve"><value>متأخر (أكثر من 24 ساعة)</value></data>
+  <data name="StateReplaced" xml:space="preserve"><value>مستبدَل</value></data>
+  <data name="SendLate" xml:space="preserve"><value>إرسال الإيصالات المتأخرة</value></data>
+  <data name="LateLine" xml:space="preserve"><value>{0} إيصال متأخر (أكثر من 24 ساعة). قدّم طلب تقديم متأخر على بوابة مصلحة الضرائب، وبعد الموافقة أرسلها.</value></data>
+  <data name="RowCorrectAndResend" xml:space="preserve"><value>تصحيح وإعادة الإرسال</value></data>
+  <data name="RowBuildAndSend" xml:space="preserve"><value>إنشاء وإرسال</value></data>
+  <data name="Corrected" xml:space="preserve"><value>تم تصحيح الإيصال.</value></data>
+  <data name="BuiltAgain" xml:space="preserve"><value>تم إنشاء الإيصال.</value></data>
+  <data name="NoticeLate" xml:space="preserve"><value>{0} متأخر</value></data>
 </root>

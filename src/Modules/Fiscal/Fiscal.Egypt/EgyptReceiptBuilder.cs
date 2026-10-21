@@ -119,6 +119,7 @@ internal static class EgyptReceiptBuilder
             ("uuid", new EtaText(string.Empty)),
             ("previousUUID", new EtaText(input.PreviousHash ?? string.Empty)),   // empty only for the POS's first receipt
             ("referenceUUID", isReturn ? new EtaText(input.Original!.Hash) : null),
+            ("referenceOldUUID", input.ReferenceOldHash is { Length: > 0 } old ? new EtaText(old) : null),   // MISS-11c-4: the corrected copy names the refused one
             ("currency", new EtaText(options.Currency)));
 
         var a = settings.Address;

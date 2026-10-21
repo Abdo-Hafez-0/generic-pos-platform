@@ -31,7 +31,7 @@ public sealed class TestCountryPart(FiscalCountry country = FiscalCountry.Egypt)
         if (Refuse is { } reason) return Result.Failure<FiscalBuiltDocument>(Error.Validation("Test.Refused", reason));
 
         Built.Add(input);
-        var payload = $"{input.Request.Kind}|{input.Request.Reference}|{input.Number}|{input.PreviousHash}|{input.Request.Total:0.00}|{input.Settings.TaxNumber}";
+        var payload = $"{input.Request.Kind}|{input.Request.Reference}|{input.Number}|{input.PreviousHash}|{input.Request.Total:0.00}|{input.Settings.TaxNumber}|{input.ReferenceOldHash}";
         var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(payload)));
         return Result.Success(new FiscalBuiltDocument(payload, hash, $"QR:{hash}"));
     }
@@ -46,8 +46,12 @@ public sealed class TestCountryPart(FiscalCountry country = FiscalCountry.Egypt)
     public List<IReadOnlyList<FiscalOutgoingDocument>> Sends { get; } = [];
     public List<IReadOnlyList<FiscalOutgoingDocument>> Checks { get; } = [];
 
+    /// <summary>MISS-11c-4: how many sends asked for a fresh sign-in ("Send late receipts").</summary>
+    public int FreshSignIns { get; private set; }
+
     public Task<IReadOnlyList<FiscalSendOutcome>> SendAsync(FiscalSendInput input, CancellationToken cancellationToken = default)
     {
+        if (input.FreshSignIn) FreshSignIns++;
         if (SendThrows) throw new HttpRequestException("No connection to the tax authority.");
         Sends.Add(input.Documents);
         return Task.FromResult<IReadOnlyList<FiscalSendOutcome>>(input.Documents

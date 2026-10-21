@@ -92,7 +92,7 @@ namespace Fiscal.Application.Abstractions
     /// (null: not registered, or its secrets cannot be opened on this computer - nothing can be sent).
     /// </summary>
     public sealed record FiscalSendInput(IReadOnlyList<FiscalOutgoingDocument> Documents, FiscalSettings Settings, Guid TillId, string TillName,
-        FiscalTillRegistration Registration, FiscalTillConnection? Connection = null);
+        FiscalTillRegistration Registration, FiscalTillConnection? Connection = null, bool FreshSignIn = false);   // MISS-11c-4: after a late request's approval
 
     /// <summary>
     /// MISS-11c-3: everything a part needs to sign this till in: the environment, the portal's client ID and secret, the POS serial, OS
@@ -169,7 +169,8 @@ namespace Fiscal.Application.Abstractions
     /// </summary>
     public sealed record FiscalBuildInput(Fiscal.Contracts.Models.FiscalDocumentRequest Request, FiscalSettings Settings, Guid TillId, string TillName,
         long Number, string? PreviousHash, IReadOnlyDictionary<Guid, FiscalLineCodes>? LineCodes = null, FiscalOriginalDocument? Original = null,
-        string? DeviceSerial = null, FiscalEnvironment Environment = FiscalEnvironment.None);   // MISS-11c-3: Egypt's QR links to that environment's portal
+        string? DeviceSerial = null, FiscalEnvironment Environment = FiscalEnvironment.None,   // MISS-11c-3: Egypt's QR links to that environment's portal
+        string? ReferenceOldHash = null);   // MISS-11c-4: a corrected copy names the refused document (Egypt: referenceOldUUID)
 
     /// <summary>
     /// MISS-11c: a return's sale as its fiscal document recorded it (Egypt: the return carries the sale's UUID as referenceUUID and its buyer);
@@ -194,6 +195,12 @@ namespace Fiscal.Application.Repositories
         /// <summary>MISS-11a-3: Waiting documents due for an attempt (all when <paramref name="force"/>), in the order of the chain.</summary>
         Task<IReadOnlyList<FiscalDocument>> GetDueAsync(DateTime nowUtc, bool force, int take, CancellationToken cancellationToken = default);
 
+        /// <summary>MISS-11c-4: one document by its id, or null.</summary>
+        Task<FiscalDocument?> FindAsync(Guid documentId, CancellationToken cancellationToken = default);
+
+        /// <summary>MISS-11c-4: the documents held as Late, in the order of the chain.</summary>
+        Task<IReadOnlyList<FiscalDocument>> GetLateAsync(CancellationToken cancellationToken = default);
+
         /// <summary>MISS-11a-3: Sent documents whose answer is awaited, oldest first.</summary>
         Task<IReadOnlyList<FiscalDocument>> GetSentAsync(int take, CancellationToken cancellationToken = default);
 
@@ -204,8 +211,12 @@ namespace Fiscal.Application.Repositories
         Task<FiscalDocumentCounts> CountAsync(DateTime managerSinceUtc, DateTime tillSinceUtc, CancellationToken cancellationToken = default);
     }
 
-    /// <summary>MISS-11a-3: outstanding = Waiting or Sent; "over" = outstanding and created before the manager / till threshold.</summary>
-    public sealed record FiscalDocumentCounts(int Outstanding, int NotBuilt, int Rejected, int OverManagerLimit, int OverTillLimit, DateTime? OldestOutstandingAt);
+    /// <summary>
+    /// MISS-11a-3: outstanding = Waiting or Sent; "over" = outstanding and created before the manager / till threshold. MISS-11c-4: Late, held
+    /// after 24 hours (counted in the till's "over" too: they have waited).
+    /// </summary>
+    public sealed record FiscalDocumentCounts(int Outstanding, int NotBuilt, int Rejected, int OverManagerLimit, int OverTillLimit, DateTime? OldestOutstandingAt,
+        int Late = 0);
 
     public interface IFiscalSetupRepository
     {
@@ -232,9 +243,9 @@ namespace Fiscal.Application.DTOs
     /// MISS-11b: and the products, units and tax rates still without the authority's code.
     /// </summary>
     public sealed record FiscalAlertsDto(int Outstanding, int NotBuilt, int Rejected, int OverLimit, double LimitHours,
-        int MissingProductCodes = 0, int MissingUnitCodes = 0, int MissingTaxCodes = 0)
+        int MissingProductCodes = 0, int MissingUnitCodes = 0, int MissingTaxCodes = 0, int Late = 0)
     {
-        public bool NeedsAttention => NotBuilt > 0 || Rejected > 0 || OverLimit > 0 || MissingProductCodes + MissingUnitCodes + MissingTaxCodes > 0;
+        public bool NeedsAttention => NotBuilt > 0 || Rejected > 0 || OverLimit > 0 || Late > 0 || MissingProductCodes + MissingUnitCodes + MissingTaxCodes > 0;
     }
 
     /// <summary>MISS-11a-3: the outcome of a sending round.</summary>
@@ -245,7 +256,7 @@ namespace Fiscal.Application.DTOs
     public sealed record FiscalTillRegistrationDto(FiscalEnvironment Environment, string? ClientId, string? PosOsVersion, string? PosModelFramework,
         DateTime? RegisteredAt, string? RegisteredBy, bool EnvironmentLocked, bool HasSecrets, bool CanProtectSecrets, DateTime? LastSignInAt, bool? LastSignInOk);
 
-    public sealed record FiscalSendSummary(bool Ran, int Sent, int Accepted, int Rejected, int NotSent, string? LastReason)
+    public sealed record FiscalSendSummary(bool Ran, int Sent, int Accepted, int Rejected, int NotSent, string? LastReason, int Late = 0)
     {
         public static FiscalSendSummary NothingToDo { get; } = new(false, 0, 0, 0, 0, null);
     }
@@ -394,38 +405,21 @@ namespace Fiscal.Application.Commands
             var till = await FiscalTillAccess.GetOrCreateAsync(setup, unitOfWork, timeProvider, cancellationToken);
             var issuedAt = DateTime.SpecifyKind(request.IssuedAtUtc, DateTimeKind.Utc);
 
-            // MISS-11c: a return names its sale's document (Egypt: referenceUUID)
-            FiscalOriginalDocument? original = null;
-            if (kind == FiscalDocumentKind.Return && request.OriginalSourceId is { } saleId
-                && await documents.FindBySourceAsync(FiscalDocumentKind.Sale, saleId, cancellationToken) is { Hash: { } saleHash, Payload: { } salePayload } sale
-                && sale.State != FiscalDocumentState.NotBuilt)
-                original = new FiscalOriginalDocument(sale.Id, saleHash, salePayload, sale.IssuedAt);
-
-            Result<FiscalBuiltDocument> built;
-            try
-            {
-                var lineCodes = codeBook is null ? null
-                    : await codeBook.ForProductsAsync(request.Lines.Select(l => l.ProductId).Distinct().ToList(), cancellationToken);   // MISS-11b
-                built = part.Build(new FiscalBuildInput(request, settings, till.Id, till.Name, till.Counter + 1, till.LastDocumentHash, lineCodes,
-                    original, till.DeviceSerial, till.Environment));
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                built = Result.Failure<FiscalBuiltDocument>(Error.Failure("Fiscal.Build.Failed", ex.Message));
-            }
+            var built = await FiscalBuilding.BuildAsync(part, request, settings, till, till.Counter + 1, till.LastDocumentHash, documents, codeBook, null, cancellationToken);
+            var made = FiscalBuilding.Serialize(request);   // MISS-11c-4: kept, to build it again
 
             FiscalDocument document;
             if (built.IsFailure || string.IsNullOrWhiteSpace(built.Value.Hash))
             {
                 document = FiscalDocument.NotBuilt(kind, request.SourceId, request.Reference, request.OriginalSourceId, request.OriginalReference, settings.Country,
-                    till.Id, request.Total, issuedAt, built.IsFailure ? built.Error.Description : "The country part returned a document without its hash.", now);
+                    till.Id, request.Total, issuedAt, built.IsFailure ? built.Error.Description : "The country part returned a document without its hash.", now, made);
             }
             else
             {
                 var previous = till.LastDocumentHash;
                 var number = till.Chain(built.Value.Hash);
                 document = FiscalDocument.Issued(kind, request.SourceId, request.Reference, request.OriginalSourceId, request.OriginalReference, settings.Country,
-                    till.Id, number, previous, built.Value.Hash, built.Value.Payload, built.Value.QrPayload, request.Total, issuedAt, now);
+                    till.Id, number, previous, built.Value.Hash, built.Value.Payload, built.Value.QrPayload, request.Total, issuedAt, now, made);
             }
 
             await documents.AddAsync(document, cancellationToken);
@@ -437,6 +431,48 @@ namespace Fiscal.Application.Commands
     }
 
     /// <summary>
+    /// MISS-11c-4: builds a document with the country's part - the sale's codes as they are now (MISS-11b), a return's sale document
+    /// (Egypt: referenceUUID), this till's serial and environment - at a given place of the chain. A fault in the part is a failed result.
+    /// </summary>
+    internal static class FiscalBuilding
+    {
+        private static readonly System.Text.Json.JsonSerializerOptions Json = new(System.Text.Json.JsonSerializerDefaults.Web);
+
+        public static string Serialize(FiscalDocumentRequest request) => System.Text.Json.JsonSerializer.Serialize(request, Json);
+
+        public static FiscalDocumentRequest? Deserialize(string? request)
+        {
+            if (string.IsNullOrWhiteSpace(request)) return null;
+            try { return System.Text.Json.JsonSerializer.Deserialize<FiscalDocumentRequest>(request, Json); }
+            catch (System.Text.Json.JsonException) { return null; }
+        }
+
+        public static async Task<Result<FiscalBuiltDocument>> BuildAsync(IFiscalCountryPart part, FiscalDocumentRequest request, FiscalSettings settings,
+            FiscalTill till, long number, string? previousHash, IFiscalDocumentRepository documents, FiscalCodeBook? codeBook, string? referenceOldHash,
+            CancellationToken cancellationToken)
+        {
+            // MISS-11c: a return names its sale's document (Egypt: referenceUUID)
+            FiscalOriginalDocument? original = null;
+            if (request.Kind == FiscalDocumentKindContract.Return && request.OriginalSourceId is { } saleId
+                && await documents.FindBySourceAsync(FiscalDocumentKind.Sale, saleId, cancellationToken) is { Hash: { } saleHash, Payload: { } salePayload } sale
+                && sale.State != FiscalDocumentState.NotBuilt)
+                original = new FiscalOriginalDocument(sale.Id, saleHash, salePayload, sale.IssuedAt);
+
+            try
+            {
+                var lineCodes = codeBook is null ? null
+                    : await codeBook.ForProductsAsync(request.Lines.Select(l => l.ProductId).Distinct().ToList(), cancellationToken);   // MISS-11b
+                return part.Build(new FiscalBuildInput(request, settings, till.Id, till.Name, number, previousHash, lineCodes,
+                    original, till.DeviceSerial, till.Environment, referenceOldHash));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return Result.Failure<FiscalBuiltDocument>(Error.Failure("Fiscal.Build.Failed", ex.Message));
+            }
+        }
+    }
+
+    /// <summary>
     /// MISS-11a-3: one round of the outbox. Waiting documents due for an attempt go to the country part in chain order (a batch); Sent ones are
     /// checked for the authority's answer. Not handed over: tried again later with a growing pause (1, 2, 4 ... up to 30 minutes). Nothing is
     /// ever deleted. Receipts off or no country part: nothing to do. "Send now" (the screen) forces an attempt and needs fiscal.manage; the
@@ -444,7 +480,7 @@ namespace Fiscal.Application.Commands
     /// </summary>
     public sealed class SendFiscalDocumentsCommandHandler(IFiscalSetupRepository setup, IFiscalDocumentRepository documents, IFiscalUnitOfWork unitOfWork,
         IAuthorizationService authorization, IEnumerable<IFiscalCountryPart>? countryParts = null, TimeProvider? timeProvider = null,
-        IBusinessEventSink? businessEvents = null, IFiscalSecretStore? secrets = null)
+        IBusinessEventSink? businessEvents = null, IFiscalSecretStore? secrets = null, Fiscal.Application.Queries.FiscalWarningOptions? warnings = null)
     {
         public const int BatchSize = 500;   // MISS-11c-3: the ETA takes 1-500 receipts per submission
 
@@ -461,7 +497,10 @@ namespace Fiscal.Application.Commands
             return Result.Success(summary);
         }
 
-        internal async Task<FiscalSendSummary> ExecuteAsync(bool force, CancellationToken cancellationToken = default)
+        /// <summary>The words a document held as Late carries (owner's decision: the shop files a late request on the portal).</summary>
+        public const string LateReason = "More than 24 hours old: the tax authority takes it only after a late-submission request is approved on its portal. Then press \"Send late receipts\".";
+
+        internal async Task<FiscalSendSummary> ExecuteAsync(bool force, CancellationToken cancellationToken = default, bool freshSignIn = false)
         {
             var settings = await setup.GetSettingsAsync(cancellationToken);
             if (settings is not { IsOn: true }) return FiscalSendSummary.NothingToDo;
@@ -474,11 +513,20 @@ namespace Fiscal.Application.Commands
             var (sent, accepted, rejected, notSent) = (0, 0, 0, 0);
             string? lastReason = null;
 
-            // 1. what waits goes out, in the order of the chain
-            var due = await documents.GetDueAsync(now, force, BatchSize, cancellationToken);
+            // 1. what waits goes out, in the order of the chain - MISS-11c-4: but what is past the 24 hours is held as Late (owner's decision)
+            var due = (await documents.GetDueAsync(now, force, BatchSize, cancellationToken)).ToList();
+            var limit = TimeSpan.FromHours((warnings ?? new Fiscal.Application.Queries.FiscalWarningOptions()).LateHours);
+            var late = due.Where(d => d.IsOverdue(now, limit)).ToList();
+            foreach (var document in late) document.MarkLate(LateReason, now);
+            if (late.Count > 0)
+            {
+                due = due.Except(late).ToList();
+                if (due.Count == 0) await unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+
             if (due.Count > 0)
             {
-                var outcomes = await AskAsync(part.SendAsync, due, settings, till, connection, cancellationToken);
+                var outcomes = await AskAsync(part.SendAsync, due, settings, till, connection, cancellationToken, freshSignIn);
                 foreach (var document in due)
                 {
                     var outcome = outcomes.GetValueOrDefault(document.Id) ?? new FiscalSendOutcome(document.Id, FiscalSendResult.NotSent, Reason: "The country part gave no answer for this document.");
@@ -509,15 +557,15 @@ namespace Fiscal.Application.Commands
             }
 
             if (waiting.Count > 0) await unitOfWork.SaveChangesAsync(cancellationToken);
-            return new FiscalSendSummary(due.Count > 0 || waiting.Count > 0, sent, accepted, rejected, notSent, lastReason);
+            return new FiscalSendSummary(due.Count > 0 || waiting.Count > 0 || late.Count > 0, sent, accepted, rejected, notSent, lastReason, late.Count);
         }
 
         private static async Task<Dictionary<Guid, FiscalSendOutcome>> AskAsync(
             Func<FiscalSendInput, CancellationToken, Task<IReadOnlyList<FiscalSendOutcome>>> call, IReadOnlyList<FiscalDocument> batch,
-            FiscalSettings settings, FiscalTill till, FiscalTillConnection? connection, CancellationToken cancellationToken)
+            FiscalSettings settings, FiscalTill till, FiscalTillConnection? connection, CancellationToken cancellationToken, bool freshSignIn = false)
         {
             var input = new FiscalSendInput(batch.Select(d => new FiscalOutgoingDocument(d.Id, d.Kind, d.Reference, d.Number ?? 0, d.Hash ?? string.Empty,
-                d.Payload ?? string.Empty, d.IssuedAt, d.AuthorityReference)).ToList(), settings, till.Id, till.Name, till.Registration, connection);
+                d.Payload ?? string.Empty, d.IssuedAt, d.AuthorityReference)).ToList(), settings, till.Id, till.Name, till.Registration, connection, freshSignIn);
             try
             {
                 return (await call(input, cancellationToken)).GroupBy(o => o.DocumentId).ToDictionary(g => g.Key, g => g.Last());
@@ -591,7 +639,7 @@ namespace Fiscal.Application.Queries
             var country = setup is null ? FiscalCountry.None : (await setup.GetSettingsAsync(cancellationToken))?.Country ?? FiscalCountry.None;
             var missing = codeBook is null || country == FiscalCountry.None ? null : await codeBook.OverviewAsync(country, cancellationToken);
             return Result.Success<FiscalAlertsDto?>(new FiscalAlertsDto(counts.Outstanding, counts.NotBuilt, counts.Rejected, counts.OverManagerLimit,
-                (options ?? new FiscalWarningOptions()).ManagerHours, missing?.MissingProducts ?? 0, missing?.MissingUnits ?? 0, missing?.MissingTaxRates ?? 0));
+                (options ?? new FiscalWarningOptions()).ManagerHours, missing?.MissingProducts ?? 0, missing?.MissingUnits ?? 0, missing?.MissingTaxRates ?? 0, counts.Late));
         }
     }
 
@@ -605,6 +653,9 @@ namespace Fiscal.Application.Queries
 
         /// <summary>Outstanding documents older than this are also said on the till (owner's decision: 12 hours).</summary>
         public double TillHours { get; set; } = 12;
+
+        /// <summary>MISS-11c-4: a document still unsent this long after its sale is held as Late (the authorities' 24 hours).</summary>
+        public double LateHours { get; set; } = 24;
     }
 }
 
@@ -700,6 +751,111 @@ namespace Fiscal.Application.Commands
             await businessEvents.TryRecordAsync(BusinessEvent.Create(FiscalCapabilities.Module, "fiscal.sign-in-tested", "fiscal-till", till.Id.ToString(),
                 result.IsSuccess ? $"The tax authority accepted this till's sign-in ({till.Environment})." : $"The tax authority refused this till's sign-in: {result.Error.Description}"));
             return result;
+        }
+    }
+}
+
+namespace Fiscal.Application.Commands
+{
+    using Fiscal.Application.Abstractions;
+    using Fiscal.Application.DTOs;
+    using Fiscal.Application.Queries;
+    using Fiscal.Application.Repositories;
+    using Fiscal.Application.Security;
+    using Platform.Application.Abstractions.Auditing;
+
+    public sealed record SendLateFiscalDocumentsCommand;
+
+    /// <summary>
+    /// MISS-11c-4 (owner's decision): "Send late receipts" - after the authority approved the shop's late-submission request on its portal,
+    /// the documents held as Late wait again (no longer held) and go out at once with a fresh sign-in (the approval reaches a new token).
+    /// fiscal.manage, audited.
+    /// </summary>
+    public sealed class SendLateFiscalDocumentsCommandHandler(IFiscalDocumentRepository documents, IFiscalUnitOfWork unitOfWork, IAuthorizationService authorization,
+        SendFiscalDocumentsCommandHandler sender, IBusinessEventSink? businessEvents = null)
+    {
+        public async Task<Result<FiscalSendSummary>> HandleAsync(SendLateFiscalDocumentsCommand command, CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(FiscalCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<FiscalSendSummary>(allowed.Error);
+
+            var late = await documents.GetLateAsync(cancellationToken);
+            if (late.Count == 0) return Result.Failure<FiscalSendSummary>(Error.Conflict("Fiscal.Late.None", "No receipt is late."));
+            foreach (var document in late) document.ReleaseLate();
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var summary = await sender.ExecuteAsync(force: true, cancellationToken, freshSignIn: true);
+            await businessEvents.TryRecordAsync(BusinessEvent.Create(FiscalCapabilities.Module, "fiscal.late-sent", "fiscal-documents", "outbox",
+                $"{late.Count} late electronic receipt(s) sent after the late-submission request: {summary.Sent} handed over, {summary.Accepted} accepted, {summary.Rejected} refused, {summary.NotSent} not sent."));
+            return Result.Success(summary);
+        }
+    }
+
+    public sealed record CorrectFiscalDocumentCommand(Guid DocumentId);
+
+    /// <summary>
+    /// MISS-11c-4 (owner's decisions): "Correct and resend" - a refused document is built again from what it was made from, with the current
+    /// codes and shop details: a new hash at the same place in the chain with the same previous hash, naming the refused one (Egypt:
+    /// referenceOldUUID); the refused one is kept as Replaced. "Build and send" - a document that could not be built is built now at the next
+    /// place of the chain, with its sale's time. Both then wait to be sent. fiscal.manage, audited.
+    /// </summary>
+    public sealed class CorrectFiscalDocumentCommandHandler(IFiscalSetupRepository setup, IFiscalDocumentRepository documents, IFiscalUnitOfWork unitOfWork,
+        IAuthorizationService authorization, IEnumerable<IFiscalCountryPart>? countryParts = null, TimeProvider? timeProvider = null,
+        FiscalCodeBook? codeBook = null, IBusinessEventSink? businessEvents = null, Platform.Application.Abstractions.Data.IAtomicOperation? atomic = null)
+    {
+        public async Task<Result> HandleAsync(CorrectFiscalDocumentCommand command, CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(FiscalCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return allowed;
+
+            var document = await documents.FindAsync(command.DocumentId, cancellationToken);
+            if (document is not { State: FiscalDocumentState.Rejected or FiscalDocumentState.NotBuilt })
+                return Error.Conflict("Fiscal.Correct.NotNeeded", "Only a refused document or one that could not be made can be built again.");
+            var settings = await setup.GetSettingsAsync(cancellationToken);
+            var part = settings is { IsOn: true } ? (countryParts ?? []).LastOrDefault(p => p.Country == settings.Country) : null;
+            if (part is null || settings!.Country != document.Country)
+                return Error.Conflict("Fiscal.Correct.Off", "Electronic receipts are off, or this country is not supported now.");
+            if (FiscalBuilding.Deserialize(document.Request) is not { } request)
+                return Error.Conflict("Fiscal.Correct.NoContent",
+                    "This document was made before Matjar kept what is needed to build it again. Correct it on the tax authority's portal.");
+
+            var now = (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+            var till = await FiscalTillAccess.GetOrCreateAsync(setup, unitOfWork, timeProvider, cancellationToken);
+            var refused = document.State == FiscalDocumentState.Rejected;
+            var built = refused
+                ? await FiscalBuilding.BuildAsync(part, request, settings, till, document.Number!.Value, document.PreviousHash, documents, codeBook, document.Hash, cancellationToken)
+                : await FiscalBuilding.BuildAsync(part, request, settings, till, till.Counter + 1, till.LastDocumentHash, documents, codeBook, null, cancellationToken);
+            if (built.IsFailure) return Error.Validation("Fiscal.Correct.NotBuilt", built.Error.Description);
+            if (string.IsNullOrWhiteSpace(built.Value.Hash)) return Error.Failure("Fiscal.Correct.NoHash", "The country part returned a document without its hash.");
+
+            string summary;
+            if (refused)
+            {
+                var copy = FiscalDocument.Correction(document, built.Value.Hash, built.Value.Payload, built.Value.QrPayload, now);
+                async Task<Result<bool>> ReplaceAsync()
+                {
+                    document.MarkReplaced(copy.Id, now);
+                    await unitOfWork.SaveChangesAsync(cancellationToken);   // the refused one leaves the unique indexes before its copy takes its place
+                    await documents.AddAsync(copy, cancellationToken);
+                    await unitOfWork.SaveChangesAsync(cancellationToken);
+                    return Result.Success(true);
+                }
+
+                var replaced = atomic is null ? await ReplaceAsync() : await atomic.ExecuteAsync(ReplaceAsync, cancellationToken);   // both or neither
+                if (replaced.IsFailure) return replaced;
+                summary = $"The refused electronic receipt of {document.Reference} was corrected and waits to be sent again.";
+            }
+            else
+            {
+                var previous = till.LastDocumentHash;
+                document.Rebuild(till.Chain(built.Value.Hash), previous, built.Value.Hash, built.Value.Payload, built.Value.QrPayload);
+                summary = $"The electronic receipt of {document.Reference} that could not be made was built and waits to be sent.";
+            }
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await businessEvents.TryRecordAsync(BusinessEvent.Create(FiscalCapabilities.Module, refused ? "fiscal.corrected" : "fiscal.built-again",
+                "fiscal-document", document.Id.ToString(), summary));
+            return Result.Success();
         }
     }
 }

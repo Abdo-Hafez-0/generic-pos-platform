@@ -80,6 +80,18 @@ namespace Fiscal.Infrastructure.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("ReplacedByDocumentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ReplacesDocumentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Request")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("SendLate")
+                        .HasColumnType("INTEGER");
+
                     b.Property<Guid>("SourceId")
                         .HasColumnType("TEXT");
 
@@ -100,13 +112,14 @@ namespace Fiscal.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Kind", "SourceId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("State <> 7");
 
                     b.HasIndex("State", "CreatedAt");
 
                     b.HasIndex("TillId", "Number")
                         .IsUnique()
-                        .HasFilter("Number IS NOT NULL");
+                        .HasFilter("Number IS NOT NULL AND State <> 7");
 
                     b.ToTable("fis_Documents", (string)null);
                 });

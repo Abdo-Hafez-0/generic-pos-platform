@@ -245,4 +245,13 @@
   <data name="RegistrationHint" xml:space="preserve"><value>Enter what the tax authority's portal shows for this POS. Register the POS serial below on the portal first. The secret and the key are kept protected by Windows on this computer, never in backups.</value></data>
   <data name="EnvironmentLockedHint" xml:space="preserve"><value>Receipts have already reached the tax authority, so the environment can no longer change.</value></data>
   <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="StateLate" xml:space="preserve"><value>Late (over 24 hours)</value></data>
+  <data name="StateReplaced" xml:space="preserve"><value>Replaced</value></data>
+  <data name="SendLate" xml:space="preserve"><value>Send late receipts</value></data>
+  <data name="LateLine" xml:space="preserve"><value>{0} receipt(s) are late (over 24 hours). File a late-submission request on the ETA portal; once it is approved, send them.</value></data>
+  <data name="RowCorrectAndResend" xml:space="preserve"><value>Correct and resend</value></data>
+  <data name="RowBuildAndSend" xml:space="preserve"><value>Build and send</value></data>
+  <data name="Corrected" xml:space="preserve"><value>The receipt was corrected.</value></data>
+  <data name="BuiltAgain" xml:space="preserve"><value>The receipt was built.</value></data>
+  <data name="NoticeLate" xml:space="preserve"><value>{0} late</value></data>
 </root>

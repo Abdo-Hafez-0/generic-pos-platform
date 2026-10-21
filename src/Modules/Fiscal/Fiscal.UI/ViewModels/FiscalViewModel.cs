@@ -20,7 +20,13 @@ public sealed record DocumentFilter(IReadOnlyCollection<FiscalDocumentState>? St
 /// <summary>MISS-11a-3: one document as the list shows it (times in the computer's local time, kept in order in Arabic).</summary>
 public sealed record FiscalDocumentRow(FiscalDocumentDto Document, string TimeText, string KindText, string NumberText, string TotalText, string StateText)
 {
-    public bool NeedsAttention => Document.State is FiscalDocumentState.NotBuilt or FiscalDocumentState.Rejected;
+    public bool NeedsAttention => Document.State is FiscalDocumentState.NotBuilt or FiscalDocumentState.Rejected or FiscalDocumentState.Late;
+
+    /// <summary>MISS-11c-4 (owner's choice A): a refused or not-built document's "…" offers to build it again.</summary>
+    public bool CanCorrect => Document.State is FiscalDocumentState.Rejected or FiscalDocumentState.NotBuilt;
+
+    /// <summary>"Correct and resend" (refused) or "Build and send" (could not be made).</summary>
+    public string CorrectText => Document.State == FiscalDocumentState.NotBuilt ? FiscalText.RowBuildAndSend : FiscalText.RowCorrectAndResend;
 }
 
 /// <summary>
@@ -50,7 +56,7 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
         [
             new(null, FiscalText.FilterAll),
             new([FiscalDocumentState.Waiting, FiscalDocumentState.Sent], FiscalText.FilterOutstanding),
-            new([FiscalDocumentState.NotBuilt, FiscalDocumentState.Rejected], FiscalText.FilterAttention),
+            new([FiscalDocumentState.NotBuilt, FiscalDocumentState.Rejected, FiscalDocumentState.Late], FiscalText.FilterAttention),
             new([FiscalDocumentState.Accepted], FiscalText.FilterAccepted),
         ];
         _filter = Filters[0];
@@ -58,6 +64,8 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
         Codes = new FiscalCodesPanel(runner);   // MISS-11b
         ShowDocumentsCommand = Command(() => LoadDocumentsAsync(CancellationToken.None));
         TestSignInCommand = Command(TestSignInAsync, () => _setup?.Connection is { HasSecrets: true } && _setup.IsIssuing);
+        SendLateCommand = Command(SendLateAsync, () => LateCount > 0);                                     // MISS-11c-4
+        CorrectRowCommand = Command<FiscalDocumentRow>(CorrectAsync, row => row is { CanCorrect: true });
     }
 
     // ---- MISS-11c-3 (owner's choice, drawn option B): this till's registration as a summary; the details in a window
@@ -122,6 +130,40 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
     /// <summary>"3 waiting to reach the tax authority." or the warning (could not be made / refused / waiting too long).</summary>
     public string AlertsText { get => _alertsText; private set => Set(ref _alertsText, value); }
 
+    // ---- MISS-11c-4 (owner's choice A): late receipts above the list; "Correct and resend" / "Build and send" in a row's "…"
+
+    private int _lateCount;
+
+    public ICommand SendLateCommand { get; }
+    public ICommand CorrectRowCommand { get; }
+
+    public int LateCount { get => _lateCount; private set { if (Set(ref _lateCount, value)) { Raise(nameof(HasLate)); Raise(nameof(LateText)); } } }
+    public bool HasLate => LateCount > 0;
+
+    /// <summary>"3 receipts are late (over 24 hours). File a late-submission request on the ETA portal, then send them."</summary>
+    public string LateText => string.Format(CultureInfo.CurrentCulture, FiscalText.LateLine, LateCount);
+
+    private async Task SendLateAsync()
+    {
+        var sent = await _runner.RunAsync((scope, ct) => scope.Get<SendLateFiscalDocumentsCommandHandler>().HandleAsync(new SendLateFiscalDocumentsCommand(), ct));
+        if (!Accept(sent)) return;
+        await LoadDocumentsAsync(CancellationToken.None);
+        var s = sent.Value;
+        StatusMessage = string.Format(CultureInfo.CurrentCulture, FiscalText.SentNow, s.Sent, s.Accepted, s.Rejected, s.NotSent)
+            + (s.NotSent > 0 && s.LastReason is { } why ? " " + string.Format(CultureInfo.CurrentCulture, FiscalText.NotSentBecause, why) : string.Empty);
+    }
+
+    /// <summary>Builds the document again and sends what waits at once (Send now).</summary>
+    private async Task CorrectAsync(FiscalDocumentRow? row)
+    {
+        if (row is null) return;
+        var corrected = await _runner.RunAsync((scope, ct) => scope.Get<CorrectFiscalDocumentCommandHandler>().HandleAsync(new CorrectFiscalDocumentCommand(row.Document.DocumentId), ct));
+        if (!Accept(corrected)) return;
+        await LoadAsync(CancellationToken.None);   // the next number of the chain may have moved
+        await SendNowAsync();
+        if (ErrorMessage is null) StatusMessage = (row.Document.State == FiscalDocumentState.NotBuilt ? FiscalText.BuiltAgain : FiscalText.Corrected) + " " + StatusMessage;
+    }
+
     public bool AlertsNeedAttention { get => _alertsNeedAttention; private set => Set(ref _alertsNeedAttention, value); }
 
     private async Task LoadDocumentsAsync(CancellationToken cancellationToken)
@@ -135,6 +177,7 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
 
         var alerts = await _runner.RunAsync((scope, ct) => scope.Get<GetFiscalAlertsQueryHandler>().HandleAsync(new GetFiscalAlertsQuery(), ct), cancellationToken);
         if (!Accept(alerts)) return;
+        LateCount = alerts.Value?.Late ?? 0;
         (AlertsNeedAttention, AlertsText) = alerts.Value switch
         {
             null => (false, string.Empty),
@@ -166,6 +209,8 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
             FiscalDocumentState.Sent => FiscalText.StateSent,
             FiscalDocumentState.Accepted => FiscalText.StateAccepted,
             FiscalDocumentState.Rejected => FiscalText.StateRejected,
+            FiscalDocumentState.Late => FiscalText.StateLate,
+            FiscalDocumentState.Replaced => FiscalText.StateReplaced,
             _ => FiscalText.StateNotBuilt,
         });
 

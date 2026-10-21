@@ -29,6 +29,15 @@ namespace Fiscal.Domain.Enums
         Accepted = 3,
         Rejected = 4,
         NotBuilt = 5,
+
+        /// <summary>
+        /// MISS-11c-4 (owner's decision): still unsent more than 24 hours after its sale - held, no longer tried; the authority takes it only
+        /// after the shop's late-submission request is approved on its portal ("Send late receipts").
+        /// </summary>
+        Late = 6,
+
+        /// <summary>MISS-11c-4: a refused document replaced by its corrected copy ("Correct and resend"); kept, never sent again.</summary>
+        Replaced = 7,
     }
 
     /// <summary>
@@ -358,11 +367,79 @@ namespace Fiscal.Domain.Entities
         /// <summary>When the authority answered (accepted or rejected).</summary>
         public DateTime? AnsweredAt { get; private set; }
 
+        /// <summary>
+        /// MISS-11c-4: what the document was made from (the sale or return as POS described it, JSON), so it can be built again with the
+        /// current codes and details ("Correct and resend", "Build and send"). Null for documents made before 11c-4.
+        /// </summary>
+        public string? Request { get; private set; }
+
+        /// <summary>MISS-11c-4: the refused document this one corrects (Egypt: its UUID is the corrected receipt's referenceOldUUID).</summary>
+        public Guid? ReplacesDocumentId { get; private set; }
+
+        /// <summary>MISS-11c-4: the corrected copy that replaced this refused document.</summary>
+        public Guid? ReplacedByDocumentId { get; private set; }
+
+        /// <summary>MISS-11c-4: the shop asked to send it although it is late (after the authority's approval): it is no longer held.</summary>
+        public bool SendLate { get; private set; }
+
         /// <summary>Waiting or Sent: not answered by the authority yet.</summary>
         public bool IsOutstanding => State is FiscalDocumentState.Waiting or FiscalDocumentState.Sent;
 
-        /// <summary>NotBuilt or Rejected: someone must act.</summary>
-        public bool NeedsAttention => State is FiscalDocumentState.NotBuilt or FiscalDocumentState.Rejected;
+        /// <summary>NotBuilt, Rejected or Late: someone must act.</summary>
+        public bool NeedsAttention => State is FiscalDocumentState.NotBuilt or FiscalDocumentState.Rejected or FiscalDocumentState.Late;
+
+        /// <summary>
+        /// MISS-11c-4: a waiting document past the limit is held as Late - unless the shop asked to send it late, or it corrects a refused one
+        /// (the authority takes a corrected copy after the 24 hours).
+        /// </summary>
+        public bool IsOverdue(DateTime nowUtc, TimeSpan limit)
+            => State == FiscalDocumentState.Waiting && !SendLate && ReplacesDocumentId is null && IssuedAt < nowUtc - limit;
+
+        public void MarkLate(string reason, DateTime nowUtc)
+        {
+            if (State != FiscalDocumentState.Waiting) return;
+            State = FiscalDocumentState.Late;
+            StateReason = reason;
+            NextAttemptAt = null;
+            LastAttemptAt ??= nowUtc;
+        }
+
+        /// <summary>"Send late receipts" (after the authority's approval): waiting again, now allowed past the limit.</summary>
+        public void ReleaseLate()
+        {
+            if (State != FiscalDocumentState.Late) return;
+            State = FiscalDocumentState.Waiting;
+            SendLate = true;
+            StateReason = null;
+            NextAttemptAt = null;
+        }
+
+        /// <summary>A refused document was replaced by its corrected copy.</summary>
+        public void MarkReplaced(Guid correctionId, DateTime nowUtc)
+        {
+            if (State != FiscalDocumentState.Rejected) return;
+            State = FiscalDocumentState.Replaced;
+            ReplacedByDocumentId = correctionId;
+            AnsweredAt ??= nowUtc;
+        }
+
+        /// <summary>A document that could not be built at the sale, built now at the next place of the chain ("Build and send").</summary>
+        public void Rebuild(long number, string? previousHash, string hash, string payload, string? qrPayload)
+        {
+            if (State != FiscalDocumentState.NotBuilt) return;
+            (Number, PreviousHash, Hash, Payload, QrPayload) = (number, previousHash, hash, payload, qrPayload);
+            (State, StateReason, NextAttemptAt) = (FiscalDocumentState.Waiting, null, null);
+        }
+
+        /// <summary>The corrected copy of a refused document: the same sale, the same place in the chain and the same previous hash.</summary>
+        public static FiscalDocument Correction(FiscalDocument refused, string hash, string payload, string? qrPayload, DateTime nowUtc)
+            => new()
+            {
+                Id = Guid.NewGuid(), Kind = refused.Kind, SourceId = refused.SourceId, Reference = refused.Reference, OriginalSourceId = refused.OriginalSourceId,
+                OriginalReference = refused.OriginalReference, Country = refused.Country, TillId = refused.TillId, Number = refused.Number,
+                PreviousHash = refused.PreviousHash, Hash = hash, Payload = payload, QrPayload = qrPayload, Total = refused.Total, IssuedAt = refused.IssuedAt,
+                State = FiscalDocumentState.Waiting, CreatedAt = nowUtc, Request = refused.Request, ReplacesDocumentId = refused.Id,
+            };
 
         /// <summary>The longest the sender waits between two attempts.</summary>
         public static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(30);
@@ -413,21 +490,21 @@ namespace Fiscal.Domain.Entities
 
         public static FiscalDocument Issued(FiscalDocumentKind kind, Guid sourceId, string reference, Guid? originalSourceId, string? originalReference,
             FiscalCountry country, Guid tillId, long number, string? previousHash, string hash, string payload, string? qrPayload, decimal total,
-            DateTime issuedAt, DateTime nowUtc)
+            DateTime issuedAt, DateTime nowUtc, string? request = null)
             => new()
             {
                 Id = Guid.NewGuid(), Kind = kind, SourceId = sourceId, Reference = reference, OriginalSourceId = originalSourceId, OriginalReference = originalReference,
                 Country = country, TillId = tillId, Number = number, PreviousHash = previousHash, Hash = hash, Payload = payload, QrPayload = qrPayload,
-                Total = total, IssuedAt = issuedAt, State = FiscalDocumentState.Waiting, CreatedAt = nowUtc,
+                Total = total, IssuedAt = issuedAt, State = FiscalDocumentState.Waiting, CreatedAt = nowUtc, Request = request,
             };
 
         public static FiscalDocument NotBuilt(FiscalDocumentKind kind, Guid sourceId, string reference, Guid? originalSourceId, string? originalReference,
-            FiscalCountry country, Guid tillId, decimal total, DateTime issuedAt, string reason, DateTime nowUtc)
+            FiscalCountry country, Guid tillId, decimal total, DateTime issuedAt, string reason, DateTime nowUtc, string? request = null)
             => new()
             {
                 Id = Guid.NewGuid(), Kind = kind, SourceId = sourceId, Reference = reference, OriginalSourceId = originalSourceId, OriginalReference = originalReference,
                 Country = country, TillId = tillId, Total = total, IssuedAt = issuedAt, State = FiscalDocumentState.NotBuilt,
-                StateReason = string.IsNullOrWhiteSpace(reason) ? "The document could not be built." : reason.Trim(), CreatedAt = nowUtc,
+                StateReason = string.IsNullOrWhiteSpace(reason) ? "The document could not be built." : reason.Trim(), CreatedAt = nowUtc, Request = request,
             };
     }
 }

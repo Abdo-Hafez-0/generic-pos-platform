@@ -194,3 +194,10 @@ fresh installation). The ETA's addresses (SDK FAQ): pre-production id.preprod.et
 preprod.invoicing.eta.gov.eg; production id.eta.gov.eg / api.invoicing.eta.gov.eg / invoicing.eta.gov.eg. *(to confirm on
 pre-production: the receipts accepted without a signature; the POS serial format the portal takes; that a submission's details list each
 receipt's uuid and status as read)*.
+
+11c-4 (2026-10-21), owner's choices: drawn option A (the late line with "Send late receipts" above the documents, "Correct and resend" in a
+refused row's "..." menu) and "Build and send" for documents that could not be made (built at the end of the chain with their sale's
+time). A corrected copy keeps the refused one's place in the chain and its previousUUID and names it as referenceOldUUID; it is not held
+by the 24 hours (the ETA takes a resubmission with the old UUID) *(to confirm: the 96-hour amendment window the FAQ mentions)*. Late ones
+are held; later receipts still go out *(to confirm on pre-production: that the ETA takes a receipt whose previous one is held)*.
+**MISS-11c is complete**; the run on the ETA's pre-production environment is part of 11f.

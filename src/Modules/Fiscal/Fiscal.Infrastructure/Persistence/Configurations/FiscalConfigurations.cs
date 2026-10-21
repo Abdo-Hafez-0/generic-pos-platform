@@ -77,8 +77,9 @@ internal sealed class FiscalDocumentConfiguration : IEntityTypeConfiguration<Fis
         builder.Ignore(d => d.NeedsAttention);
 
         // one document per sale and per return; one document per place in a till's chain
-        builder.HasIndex(d => new { d.Kind, d.SourceId }).IsUnique();
-        builder.HasIndex(d => new { d.TillId, d.Number }).IsUnique().HasFilter("Number IS NOT NULL");
+        // MISS-11c-4: one live document per sale or return and per place in the chain - a replaced (corrected) one stays beside its copy
+        builder.HasIndex(d => new { d.Kind, d.SourceId }).IsUnique().HasFilter("State <> 7");
+        builder.HasIndex(d => new { d.TillId, d.Number }).IsUnique().HasFilter("Number IS NOT NULL AND State <> 7");
         builder.HasIndex(d => new { d.State, d.CreatedAt });
     }
 }

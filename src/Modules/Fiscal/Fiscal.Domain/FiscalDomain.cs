@@ -31,6 +31,17 @@ namespace Fiscal.Domain.Enums
         NotBuilt = 5,
     }
 
+    /// <summary>
+    /// MISS-11c-3: which of the authority's systems this till talks to - its pre-production (test) environment or production. Owner's decision:
+    /// it can change only until a document has been handed to the authority.
+    /// </summary>
+    public enum FiscalEnvironment
+    {
+        None = 0,
+        PreProduction = 1,
+        Production = 2,
+    }
+
     /// <summary>Whether this till is registered with the authority (Egypt: a POS device with its client ID; Saudi Arabia: an onboarded unit).</summary>
     public enum FiscalTillRegistration
     {
@@ -215,6 +226,59 @@ namespace Fiscal.Domain.Entities
             till.EnsureDeviceSerial();
             return till;
         }
+
+        // ---- MISS-11c-3: the registration with the authority (Egypt: the POS registered on the ETA portal). The client secret and the
+        // pre-shared key are NOT here: they are kept protected by Windows outside the database (never in backups or logs).
+
+        public FiscalEnvironment Environment { get; private set; }
+
+        /// <summary>Egypt: the client ID the ETA portal gave this POS.</summary>
+        public string? ClientId { get; private set; }
+
+        /// <summary>Egypt: the POS's operating system version and model framework, as registered on the portal.</summary>
+        public string? PosOsVersion { get; private set; }
+        public string? PosModelFramework { get; private set; }
+
+        public DateTime? RegisteredAt { get; private set; }
+        public string? RegisteredBy { get; private set; }
+
+        /// <summary>When a document was first handed to the authority (from then on the environment is locked).</summary>
+        public DateTime? FirstSentAt { get; private set; }
+
+        /// <summary>The last test of the sign-in: when, and whether the authority accepted it.</summary>
+        public DateTime? LastSignInAt { get; private set; }
+        public bool? LastSignInOk { get; private set; }
+
+        public bool EnvironmentLocked => FirstSentAt is not null;
+
+        /// <summary>
+        /// Records the till's registration. The environment cannot change once a document has been handed over (owner's decision 2026-10-21:
+        /// test receipts never mix with real ones in one chain).
+        /// </summary>
+        public Result Register(FiscalEnvironment environment, string? clientId, string? osVersion, string? modelFramework, string? by, DateTime nowUtc)
+        {
+            if (environment is not (FiscalEnvironment.PreProduction or FiscalEnvironment.Production))
+                return Error.Validation("Fiscal.Till.EnvironmentRequired", "Choose the tax authority's environment: pre-production (testing) or production.");
+            if (EnvironmentLocked && Environment != FiscalEnvironment.None && environment != Environment)
+                return Error.Conflict("Fiscal.Till.EnvironmentLocked",
+                    "Receipts from this till have already reached the tax authority, so its environment can no longer change. Use a new installation.");
+            var id = clientId?.Trim();
+            if (string.IsNullOrEmpty(id) || id.Length > 100) return Error.Validation("Fiscal.Till.ClientIdInvalid", "Give the client ID from the tax authority's portal (up to 100 characters).");
+            var os = osVersion?.Trim();
+            if (string.IsNullOrEmpty(os) || os.Length > 50) return Error.Validation("Fiscal.Till.OsVersionInvalid", "Give the POS's operating system version as registered (up to 50 characters).");
+            var model = modelFramework?.Trim();
+            if (string.IsNullOrEmpty(model) || model.Length > 10) return Error.Validation("Fiscal.Till.ModelInvalid", "Give the POS model framework as registered (up to 10 characters).");
+
+            (Environment, ClientId, PosOsVersion, PosModelFramework) = (environment, id, os, model);
+            (RegisteredAt, RegisteredBy, Registration) = (nowUtc, string.IsNullOrWhiteSpace(by) ? null : by.Trim(), FiscalTillRegistration.Registered);
+            (LastSignInAt, LastSignInOk) = (null, null);
+            return Result.Success();
+        }
+
+        /// <summary>A document was handed to the authority: from now on the environment is locked.</summary>
+        public void MarkSent(DateTime nowUtc) => FirstSentAt ??= nowUtc;
+
+        public void RecordSignIn(bool ok, DateTime nowUtc) => (LastSignInAt, LastSignInOk) = (nowUtc, ok);
 
         /// <summary>Gives a till made before MISS-11c its serial number. True when it was given now (to be saved).</summary>
         public bool EnsureDeviceSerial()

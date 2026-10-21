@@ -1,4 +1,5 @@
 using Fiscal.Application.Abstractions;
+using Fiscal.Contracts.Interfaces;
 using Fiscal.Contracts.Models;
 using Fiscal.Domain.Enums;
 using Platform.Core.Results;
@@ -6,13 +7,15 @@ using Platform.Core.Results;
 namespace Fiscal.Egypt;
 
 /// <summary>
-/// MISS-11c: Egypt's part of the Fiscal module - the Egyptian Tax Authority's B2C e-receipt. 11c-1 builds the receipts (JSON, UUID chain,
-/// QR); handing them to the ETA needs the till's registration (11c-3), so until then every document waits in the queue (owner's decision:
-/// keep selling).
+/// MISS-11c: Egypt's part of the Fiscal module - the Egyptian Tax Authority's B2C e-receipt. It builds the receipts (JSON, UUID chain, QR;
+/// 11c-1, 11c-2) and - MISS-11c-3 - signs the registered till in and hands them over in batches, then reads each submission back, through the
+/// client's HTTP transport (without one, or before the till is registered, every document waits in the queue: owner's decision, keep selling).
 /// </summary>
-public sealed class EgyptCountryPart(EgyptReceiptOptions? options = null) : IFiscalCountryPart
+public sealed class EgyptCountryPart(EgyptReceiptOptions? options = null, IFiscalHttpTransport? transport = null, TimeProvider? timeProvider = null)
+    : IFiscalCountryPart
 {
     private readonly EgyptReceiptOptions _options = options ?? new EgyptReceiptOptions();
+    private readonly EtaService _eta = new(options ?? new EgyptReceiptOptions(), transport, timeProvider);
 
     public FiscalCountry Country => FiscalCountry.Egypt;
 
@@ -33,12 +36,13 @@ public sealed class EgyptCountryPart(EgyptReceiptOptions? options = null) : IFis
     }
 
     public Task<IReadOnlyList<FiscalSendOutcome>> SendAsync(FiscalSendInput input, CancellationToken cancellationToken = default)
-        => Task.FromResult<IReadOnlyList<FiscalSendOutcome>>(input.Documents
-            .Select(d => new FiscalSendOutcome(d.DocumentId, FiscalSendResult.NotSent, Reason: NotRegistered)).ToList());
+        => _eta.SubmitAsync(input, cancellationToken);
 
     public Task<IReadOnlyList<FiscalSendOutcome>> CheckAsync(FiscalSendInput input, CancellationToken cancellationToken = default)
-        => Task.FromResult<IReadOnlyList<FiscalSendOutcome>>(input.Documents
-            .Select(d => new FiscalSendOutcome(d.DocumentId, FiscalSendResult.StillWaiting)).ToList());
+        => _eta.CheckAsync(input, cancellationToken);
+
+    public Task<Result> TestSignInAsync(FiscalTillConnection connection, CancellationToken cancellationToken = default)
+        => _eta.TestSignInAsync(connection, cancellationToken);
 
     internal const string NotRegistered = "This till is not registered with the Egyptian Tax Authority yet.";
 }

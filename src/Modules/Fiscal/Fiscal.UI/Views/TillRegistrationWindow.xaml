@@ -1,0 +1,83 @@
+<Window x:Class="Fiscal.UI.Views.TillRegistrationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:res="clr-namespace:Fiscal.UI.Resources"
+        xmlns:vm="clr-namespace:Fiscal.UI.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:TillRegistrationViewModel}"
+        Title="{x:Static res:FiscalText.RegistrationTitle}" Width="520" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Background="{DynamicResource Brush.Page}"
+        AutomationProperties.AutomationId="TillRegistrationWindow">
+
+    <!-- MISS-11c-3 (owner's choice, drawn option B): this till's registration with the tax authority. The secrets are typed in password
+         boxes and never shown again. -->
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"/>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinWidth" Value="90"/>
+        </Style>
+    </Window.Resources>
+
+    <Border Style="{StaticResource Box}" Margin="16">
+        <StackPanel>
+            <TextBlock Text="{x:Static res:FiscalText.RegistrationHint}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="12" Margin="0,0,0,8"/>
+
+            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.Environment}"/>
+            <ComboBox x:Name="EnvironmentBox" ItemsSource="{Binding Environments}" SelectedItem="{Binding Environment}" DisplayMemberPath="Text"
+                      IsEnabled="{Binding CanChooseEnvironment}" AutomationProperties.Name="{x:Static res:FiscalText.Environment}"/>
+            <TextBlock x:Name="EnvironmentLockedText" Text="{x:Static res:FiscalText.EnvironmentLockedHint}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="12"
+                       Margin="0,4,0,0" Visibility="{Binding EnvironmentLocked, Converter={StaticResource VisibleWhenTrue}}"/>
+
+            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.DeviceSerial}"/>
+            <TextBox x:Name="RegistrationSerialBox" Text="{Binding DeviceSerial, Mode=OneWay}" IsReadOnly="True" FlowDirection="LeftToRight"
+                     ToolTip="{x:Static res:FiscalText.DeviceSerialHint}" AutomationProperties.Name="{x:Static res:FiscalText.DeviceSerial}"/>
+
+            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.ClientId}"/>
+            <TextBox x:Name="ClientIdBox" Text="{Binding ClientId, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight"
+                     AutomationProperties.Name="{x:Static res:FiscalText.ClientId}"/>
+
+            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.ClientSecret}"/>
+            <PasswordBox x:Name="ClientSecretBox" FlowDirection="LeftToRight" AutomationProperties.Name="{x:Static res:FiscalText.ClientSecret}"/>
+            <TextBlock Text="{Binding SecretHint}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="12" Margin="0,2,0,0"
+                       Visibility="{Binding HasSecrets, Converter={StaticResource VisibleWhenTrue}}"/>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.PosOsVersion}"/>
+                    <TextBox x:Name="OsVersionBox" Text="{Binding PosOsVersion, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight"
+                             AutomationProperties.Name="{x:Static res:FiscalText.PosOsVersion}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.PosModelFramework}"/>
+                    <TextBox x:Name="ModelFrameworkBox" Text="{Binding PosModelFramework, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight"
+                             AutomationProperties.Name="{x:Static res:FiscalText.PosModelFramework}"/>
+                </StackPanel>
+            </Grid>
+
+            <TextBlock Style="{StaticResource Label.Field}" Text="{x:Static res:FiscalText.PresharedKey}"/>
+            <PasswordBox x:Name="PresharedKeyBox" FlowDirection="LeftToRight" AutomationProperties.Name="{x:Static res:FiscalText.PresharedKey}"/>
+            <TextBlock Text="{Binding SecretHint}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="12" Margin="0,2,0,0"
+                       Visibility="{Binding HasSecrets, Converter={StaticResource VisibleWhenTrue}}"/>
+
+            <TextBlock x:Name="RegistrationErrorText" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Danger}" Margin="0,10,0,0"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+                <Button x:Name="SaveRegistrationButton" Content="{x:Static res:FiscalText.Save}" Style="{StaticResource Button.Primary}" Click="OnSave" IsDefault="True" Margin="0,0,8,0"/>
+                <Button x:Name="CancelRegistrationButton" Content="{x:Static res:FiscalText.Cancel}" IsCancel="True"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

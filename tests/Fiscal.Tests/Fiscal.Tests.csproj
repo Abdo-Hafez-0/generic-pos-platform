@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\src\Modules\Fiscal\Fiscal.Infrastructure\Fiscal.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Fiscal\Fiscal.Contracts\Fiscal.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Fiscal\Fiscal.Egypt\Fiscal.Egypt.csproj" />
+    <ProjectReference Include="..\..\src\Client\Client.Fiscal.Http\Client.Fiscal.Http.csproj" />
     <ProjectReference Include="..\..\src\Platform\Platform.Infrastructure\Platform.Infrastructure.csproj" />
     <ProjectReference Include="..\Tests.Common\Tests.Common.csproj" />
   </ItemGroup>

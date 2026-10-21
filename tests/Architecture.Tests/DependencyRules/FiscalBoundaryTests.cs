@@ -6,7 +6,7 @@ using Tests.Common;
 namespace Architecture.Tests.DependencyRules;
 
 /// <summary>
-/// Architecture tests for the Fiscal module. ARCH-FIS-001 .. ARCH-FIS-018.
+/// Architecture tests for the Fiscal module. ARCH-FIS-001 .. ARCH-FIS-019.
 /// Protects: layering (Domain/Application/Contracts/Infrastructure/UI), Contracts-only cross-module communication,
 /// no reverse dependencies from Platform or other modules, no HTTP, no licensing/update coupling, offline operation.
 /// </summary>
@@ -172,7 +172,21 @@ public sealed class FiscalBoundaryTests
             n => Assert.Contains(n, new[] { "Fiscal.Domain", "Fiscal.Application", "Fiscal.Contracts" }));
     }
 
-    [Fact(DisplayName = "ARCH-FIS-018: The Fiscal core never depends on a country part; only Fiscal.Infrastructure plugs it in")]
+    [Fact(DisplayName = "ARCH-FIS-019: Only Client.Fiscal.Http reaches HTTP for the Fiscal module, through Fiscal.Contracts alone")]
+    public void TheHttpTransport_IsTheOnlyFiscalNetworkProject()
+    {
+        // MISS-11c-3: the module and its country parts never reach the network; the client's transport carries their calls
+        var csproj = File.ReadAllText(Path.Combine(RepoPaths.Root(), "src", "Client", "Client.Fiscal.Http", "Client.Fiscal.Http.csproj"));
+        Assert.Contains("Fiscal.Contracts", csproj);
+        foreach (var layer in new[] { "Fiscal.Domain", "Fiscal.Application", "Fiscal.Infrastructure", "Fiscal.Egypt", "Fiscal.UI" })
+            Assert.DoesNotContain(layer, csproj);
+        foreach (var assembly in Assemblies.AllFiscalAssemblies)
+            Assert.DoesNotContain(Refs(assembly), n => n == "Client.Fiscal.Http");
+        var desktop = File.ReadAllText(Path.Combine(RepoPaths.Root(), "src", "Client", "Client.Desktop", "DesktopComposition.cs"));
+        Assert.Contains("new FiscalHttpHostingModule()", desktop);
+    }
+
+    [Fact(DisplayName = "ARCH-FIS-018:The Fiscal core never depends on a country part; only Fiscal.Infrastructure plugs it in")]
     public void Core_DoesNotDependOnCountryParts()
     {
         foreach (var assembly in new[] { Assemblies.FiscalDomain, Assemblies.FiscalContracts, Assemblies.FiscalApplication })

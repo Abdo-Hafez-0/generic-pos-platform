@@ -11,8 +11,8 @@ public sealed class FiscalSenderOptions
 {
     public const string SectionName = "Fiscal:Sender";
 
-    /// <summary>Seconds between two rounds (the first round waits one interval after the start).</summary>
-    public int IntervalSeconds { get; set; } = 60;
+    /// <summary>Seconds between two rounds (the first round waits one interval after the start). MISS-11c-3 (owner's decision): every 5 minutes.</summary>
+    public int IntervalSeconds { get; set; } = 300;
 
     /// <summary>False stops the background sender (documents are still made and can be sent with "Send now").</summary>
     public bool Enabled { get; set; } = true;

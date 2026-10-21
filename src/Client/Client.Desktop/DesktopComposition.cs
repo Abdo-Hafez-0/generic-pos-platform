@@ -6,6 +6,7 @@ using Client.Desktop.Shell;
 using Client.Backup.Infrastructure;
 using Client.Diagnostics;
 using Client.CloudBackup.Http;
+using Client.Fiscal.Http;
 using CloudBackup.Infrastructure;
 using Client.Hardware;
 using Client.Hardware.Scanner;
@@ -57,6 +58,7 @@ public static class DesktopComposition
         new ReportingHostingModule(),       // Stage 8: Reporting module
         new CashManagementHostingModule(),  // Stage 8: CashManagement module
         new FiscalHostingModule(),          // MISS-11: electronic receipts for the tax authority
+        new FiscalHttpHostingModule(),      // MISS-11c-3: HTTPS transport to the tax authority
         new AuditHostingModule(),           // Stage 8: Audit module
         new UsersHostingModule(),           // Stage 8: Users module
         new PaymentsHostingModule(),        // Stage 8: Payments module

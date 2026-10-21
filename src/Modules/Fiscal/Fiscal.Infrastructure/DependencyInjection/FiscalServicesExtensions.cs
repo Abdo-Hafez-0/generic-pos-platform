@@ -33,6 +33,12 @@ public static class FiscalServicesExtensions
 
         services.AddFiscalCore();
 
+        // MISS-11c-3: the till's secrets, protected by Windows, in the Fiscal folder next to the database (never in it)
+        var secretsPath = Path.Combine(Path.GetDirectoryName(dbOptions.ResolveDatabasePath())!, "Fiscal", "till-secrets.bin");
+        services.AddSingleton<Fiscal.Application.Abstractions.IFiscalSecretStore>(sp => new Fiscal.Infrastructure.Services.ProtectedFiscalSecretStore(secretsPath,
+            sp.GetService<Platform.Application.Abstractions.Security.ISecretProtector>(),
+            sp.GetService<Microsoft.Extensions.Logging.ILogger<Fiscal.Infrastructure.Services.ProtectedFiscalSecretStore>>()));
+
         // MISS-11a-3: the warning limits and the background sender
         var warnings = new Fiscal.Application.Queries.FiscalWarningOptions();
         configuration.GetSection(Fiscal.Application.Queries.FiscalWarningOptions.SectionName).Bind(warnings);
@@ -76,6 +82,8 @@ public static class FiscalServicesExtensions
         services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Fiscal.Application.Security.FiscalCapabilityProvider>();
         services.AddTransient<Fiscal.Application.Queries.GetFiscalSetupQueryHandler>();
         services.AddTransient<Fiscal.Application.Commands.SaveFiscalSettingsCommandHandler>();
+        services.AddTransient<Fiscal.Application.Commands.SaveTillRegistrationCommandHandler>();   // MISS-11c-3
+        services.AddTransient<Fiscal.Application.Commands.TestFiscalSignInCommandHandler>();
         return services;
     }
 }

@@ -42,6 +42,12 @@ internal sealed class FiscalTillConfiguration : IEntityTypeConfiguration<FiscalT
         builder.Property(t => t.Name).HasMaxLength(100).IsRequired();
         builder.Property(t => t.LastDocumentHash).HasMaxLength(128);
         builder.Property(t => t.DeviceSerial).HasMaxLength(100);   // MISS-11c
+        builder.Property(t => t.Environment).HasConversion<int>().IsRequired();   // MISS-11c-3: the registration (no secrets)
+        builder.Property(t => t.ClientId).HasMaxLength(100);
+        builder.Property(t => t.PosOsVersion).HasMaxLength(50);
+        builder.Property(t => t.PosModelFramework).HasMaxLength(10);
+        builder.Property(t => t.RegisteredBy).HasMaxLength(100);
+        builder.Ignore(t => t.EnvironmentLocked);
         builder.Property(t => t.Registration).HasConversion<int>().IsRequired();
         // the chain's counter must not be taken twice: a concurrent update fails instead of reusing a number
         builder.Property(t => t.Counter).IsConcurrencyToken();

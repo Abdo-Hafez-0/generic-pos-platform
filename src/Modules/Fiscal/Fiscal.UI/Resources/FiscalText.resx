@@ -225,4 +225,24 @@
   <data name="NoticeMissingTaxRates" xml:space="preserve">
     <value>{0} tax rate(s) not classified</value>
   </data>
+  <data name="TillRegister" xml:space="preserve"><value>Register this till...</value></data>
+  <data name="TillTestSignIn" xml:space="preserve"><value>Test sign-in</value></data>
+  <data name="Environment" xml:space="preserve"><value>Environment</value></data>
+  <data name="EnvironmentPreProduction" xml:space="preserve"><value>Pre-production (testing)</value></data>
+  <data name="EnvironmentProduction" xml:space="preserve"><value>Production</value></data>
+  <data name="ClientId" xml:space="preserve"><value>Client ID</value></data>
+  <data name="ClientSecret" xml:space="preserve"><value>Client secret</value></data>
+  <data name="PosOsVersion" xml:space="preserve"><value>OS version</value></data>
+  <data name="PosModelFramework" xml:space="preserve"><value>Model framework</value></data>
+  <data name="PresharedKey" xml:space="preserve"><value>Pre-shared key</value></data>
+  <data name="LastSignIn" xml:space="preserve"><value>Last sign-in</value></data>
+  <data name="SignInAccepted" xml:space="preserve"><value>accepted</value></data>
+  <data name="SignInRefused" xml:space="preserve"><value>refused</value></data>
+  <data name="SignInWorked" xml:space="preserve"><value>The tax authority accepted this till's sign-in.</value></data>
+  <data name="TillSaved" xml:space="preserve"><value>This till's registration was saved.</value></data>
+  <data name="SecretKept" xml:space="preserve"><value>Kept safely on this computer. Leave empty to keep it.</value></data>
+  <data name="RegistrationTitle" xml:space="preserve"><value>Register this till with the tax authority</value></data>
+  <data name="RegistrationHint" xml:space="preserve"><value>Enter what the tax authority's portal shows for this POS. Register the POS serial below on the portal first. The secret and the key are kept protected by Windows on this computer, never in backups.</value></data>
+  <data name="EnvironmentLockedHint" xml:space="preserve"><value>Receipts have already reached the tax authority, so the environment can no longer change.</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
 </root>

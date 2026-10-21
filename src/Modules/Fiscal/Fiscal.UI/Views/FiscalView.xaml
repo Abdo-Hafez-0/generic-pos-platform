@@ -173,6 +173,9 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.TillName}"/>
                             <TextBlock Grid.Row="0" Grid.Column="1" x:Name="TillNameText" Text="{Binding TillName}" FontWeight="SemiBold"/>
@@ -183,8 +186,19 @@
                             <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.DeviceSerial}"/>
                             <TextBox Grid.Row="3" Grid.Column="1" x:Name="DeviceSerialText" Text="{Binding DeviceSerial, Mode=OneWay}" IsReadOnly="True" FlowDirection="LeftToRight"
                                      HorizontalAlignment="Left" MinWidth="180" ToolTip="{x:Static res:FiscalText.DeviceSerialHint}" AutomationProperties.Name="{x:Static res:FiscalText.DeviceSerial}"/>
+                            <!-- MISS-11c-3 (owner's choice, drawn option B): the registration as a summary; the details in a window -->
+                            <TextBlock Grid.Row="4" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.Environment}"/>
+                            <TextBlock Grid.Row="4" Grid.Column="1" x:Name="EnvironmentText" Text="{Binding EnvironmentText}"/>
+                            <TextBlock Grid.Row="5" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.ClientId}"/>
+                            <TextBlock Grid.Row="5" Grid.Column="1" x:Name="ClientIdText" Text="{Binding ClientIdText}" FlowDirection="LeftToRight" HorizontalAlignment="Left"/>
+                            <TextBlock Grid.Row="6" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.LastSignIn}"/>
+                            <TextBlock Grid.Row="6" Grid.Column="1" x:Name="LastSignInText" Text="{Binding LastSignInText}"/>
                         </Grid>
                         <TextBlock x:Name="IssuingText" Text="{Binding IssuingText}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="12" Margin="0,10,0,0"/>
+                        <WrapPanel Margin="0,12,0,0" Visibility="{Binding IsEgypt, Converter={StaticResource VisibleWhenTrue}}">
+                            <Button x:Name="RegisterTillButton" Content="{x:Static res:FiscalText.TillRegister}" Click="OnRegisterTill" Margin="0,0,8,0" Padding="12,4"/>
+                            <Button x:Name="TestSignInButton" Content="{x:Static res:FiscalText.TillTestSignIn}" Command="{Binding TestSignInCommand}" Padding="12,4"/>
+                        </WrapPanel>
                     </StackPanel>
                 </Border>
             </Grid>

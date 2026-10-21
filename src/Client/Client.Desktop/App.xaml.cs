@@ -44,6 +44,9 @@ public partial class App : Application
             Shutdown);
         _crashes.Attach(Dispatcher);
 
+        // MISS-11c-3: a module's own window (the till's registration) gets the dark title bar in the dark theme too
+        Platform.Presentation.Screens.OwnedWindows.Decorate = window => { if (window is Window w) Themes.TitleBar.Follow(w); };
+
         try
         {
             // MISS-04d: after "Restart now" (a confirmed restore) wait until the previous copy has ended, so the data files are free.

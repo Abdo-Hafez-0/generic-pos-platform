@@ -68,6 +68,27 @@ public sealed class FiscalOnRealDesktopTests
         Assert.Equal((FiscalCountry.Egypt, "123456789", "0", "4711", "متجر"), (again.Country.Country, again.TaxNumber, again.BranchCode, again.ActivityCode, again.SellerNameArabic));
         Assert.Equal(("الجيزة", "الدقي", "شارع التحرير", "7", "3", ""), (again.Governorate, again.City, again.Street, again.BuildingNumber, again.Floor, again.Room));
         Assert.Equal(vm.DeviceSerial, again.DeviceSerial);
+
+        // MISS-11c-3 (owner's choice, drawn option B): the till's registration in its window, the summary in the box
+        Assert.Equal(("–", "–", "–", false), (again.EnvironmentText, again.ClientIdText, again.LastSignInText, again.TestSignInCommand.CanExecute(null)));
+        var window = again.CreateRegistration();
+        Assert.Equal((again.DeviceSerial, false, false), (window.DeviceSerial, window.HasSecrets, window.EnvironmentLocked));
+        Assert.StartsWith("Windows ", window.PosOsVersion);
+        window.Environment = window.Environments.Single(e => e.Environment == FiscalEnvironment.PreProduction);
+        (window.ClientId, window.PosModelFramework) = ("0a1b2c3d-client-9f", "1");
+        Assert.False(await window.SaveAsync("", ""));
+        Assert.Equal("Give the client secret from the tax authority's portal (up to 100 characters).", window.ErrorMessage);
+        Assert.True(await window.SaveAsync("portal-secret", "portal-key"));   // kept by Windows (DPAPI) on this computer
+
+        await again.RegisteredAsync();
+        Assert.Equal((FiscalText.TillSaved, FiscalText.EnvironmentPreProduction, "0a1b…9f", FiscalText.TillRegistered),
+            (again.StatusMessage, again.EnvironmentText, again.ClientIdText, again.TillRegistrationText));
+        Assert.True(again.CreateRegistration().HasSecrets);
+
+        // the shop's internet is down: the sign-in test says so and the box shows it was refused
+        await Run(again, again.TestSignInCommand);
+        Assert.Contains("could not be reached", again.ErrorMessage);
+        Assert.EndsWith(FiscalText.SignInRefused, again.LastSignInText);
     }
 
     private static async Task RunPanel(FiscalCodesPanel panel, ICommand command)

@@ -124,6 +124,7 @@ internal sealed class OfflineDesktop : IAsyncDisposable
                 [
                     new ClientSecurityHostingModule(), .. licenses.HostModules(), new LicenseHttpHostingModule(),
                     new UpdaterHostingModule(), new UpdateHttpHostingModule(), new ClientBackupHostingModule(),
+                    new Client.Fiscal.Http.FiscalHttpHostingModule(),   // MISS-11c-3: the tax authority's transport, on the offline network
                     new OfflineNetworkModule(network), new FakeHardwareHostingModule(printer, drawer), .. extra ?? []
                 ]);
             host.KeepFiles = keepFiles;

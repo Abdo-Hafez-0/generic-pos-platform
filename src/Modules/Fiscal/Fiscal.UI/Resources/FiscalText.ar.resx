@@ -225,4 +225,24 @@
   <data name="NoticeMissingTaxRates" xml:space="preserve">
     <value>{0} نسبة ضريبة غير مصنفة</value>
   </data>
+  <data name="TillRegister" xml:space="preserve"><value>تسجيل نقطة البيع...</value></data>
+  <data name="TillTestSignIn" xml:space="preserve"><value>تجربة تسجيل الدخول</value></data>
+  <data name="Environment" xml:space="preserve"><value>البيئة</value></data>
+  <data name="EnvironmentPreProduction" xml:space="preserve"><value>ما قبل الإنتاج (تجريبي)</value></data>
+  <data name="EnvironmentProduction" xml:space="preserve"><value>الإنتاج</value></data>
+  <data name="ClientId" xml:space="preserve"><value>معرّف العميل</value></data>
+  <data name="ClientSecret" xml:space="preserve"><value>كلمة سر العميل</value></data>
+  <data name="PosOsVersion" xml:space="preserve"><value>إصدار نظام التشغيل</value></data>
+  <data name="PosModelFramework" xml:space="preserve"><value>إطار الطراز</value></data>
+  <data name="PresharedKey" xml:space="preserve"><value>المفتاح المشترك</value></data>
+  <data name="LastSignIn" xml:space="preserve"><value>آخر تسجيل دخول</value></data>
+  <data name="SignInAccepted" xml:space="preserve"><value>مقبول</value></data>
+  <data name="SignInRefused" xml:space="preserve"><value>مرفوض</value></data>
+  <data name="SignInWorked" xml:space="preserve"><value>قبلت مصلحة الضرائب تسجيل دخول نقطة البيع هذه.</value></data>
+  <data name="TillSaved" xml:space="preserve"><value>تم حفظ تسجيل نقطة البيع هذه.</value></data>
+  <data name="SecretKept" xml:space="preserve"><value>محفوظة بأمان على هذا الكمبيوتر. اتركها فارغة للإبقاء عليها.</value></data>
+  <data name="RegistrationTitle" xml:space="preserve"><value>تسجيل نقطة البيع لدى مصلحة الضرائب</value></data>
+  <data name="RegistrationHint" xml:space="preserve"><value>أدخل ما تعرضه بوابة مصلحة الضرائب لنقطة البيع هذه. سجّل الرقم التسلسلي أدناه على البوابة أولاً. تُحفظ كلمة السر والمفتاح محمية بواسطة Windows على هذا الكمبيوتر، ولا تدخل في النسخ الاحتياطية أبداً.</value></data>
+  <data name="EnvironmentLockedHint" xml:space="preserve"><value>وصلت إيصالات بالفعل إلى مصلحة الضرائب، لذا لا يمكن تغيير البيئة بعد الآن.</value></data>
+  <data name="Cancel" xml:space="preserve"><value>إلغاء</value></data>
 </root>

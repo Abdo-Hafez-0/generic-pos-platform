@@ -246,6 +246,10 @@ namespace Fiscal.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ClientId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<long>("Counter")
                         .IsConcurrencyToken()
                         .HasColumnType("INTEGER");
@@ -257,12 +261,39 @@ namespace Fiscal.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Environment")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FirstSentAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("LastDocumentHash")
                         .HasMaxLength(128)
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("LastSignInAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool?>("LastSignInOk")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PosModelFramework")
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PosOsVersion")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RegisteredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RegisteredBy")
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 

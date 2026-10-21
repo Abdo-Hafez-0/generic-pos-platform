@@ -62,6 +62,13 @@ namespace Fiscal.Application.Abstractions
         /// <summary>MISS-11c: when a sale must name its buyer (Egypt: a person's name and national ID above a total); null = never.</summary>
         Fiscal.Contracts.Models.FiscalBuyerRule? BuyerRule => null;
 
+        /// <summary>
+        /// MISS-11c-3: tries the till's sign-in with the authority (Egypt: asks for a token). A failed result says why (the authority's
+        /// words, or no connection); never an exception.
+        /// </summary>
+        Task<Result> TestSignInAsync(FiscalTillConnection connection, CancellationToken cancellationToken = default)
+            => Task.FromResult(Result.Failure(Error.Conflict("Fiscal.SignIn.NotSupported", "This country's part has no sign-in to test.")));
+
         /// <summary>MISS-11c-2: what the printed receipt carries under its QR code (default: "Electronic receipt" and the short hash).</summary>
         Fiscal.Contracts.Models.FiscalReceiptMark Mark(string hash, string qrPayload) => new(qrPayload, "Electronic receipt", FiscalMarks.Short(hash));
     }
@@ -80,9 +87,58 @@ namespace Fiscal.Application.Abstractions
                 : null;
     }
 
-    /// <summary>MISS-11a-3: documents to send or to check, with the seller and this till.</summary>
+    /// <summary>
+    /// MISS-11a-3: documents to send or to check, with the seller and this till. MISS-11c-3: <see cref="Connection"/> how this till signs in
+    /// (null: not registered, or its secrets cannot be opened on this computer - nothing can be sent).
+    /// </summary>
     public sealed record FiscalSendInput(IReadOnlyList<FiscalOutgoingDocument> Documents, FiscalSettings Settings, Guid TillId, string TillName,
-        FiscalTillRegistration Registration);
+        FiscalTillRegistration Registration, FiscalTillConnection? Connection = null);
+
+    /// <summary>
+    /// MISS-11c-3: everything a part needs to sign this till in: the environment, the portal's client ID and secret, the POS serial, OS
+    /// version, model framework and pre-shared key. Built for each round from the till's record and the protected secrets; never stored or
+    /// logged as a whole.
+    /// </summary>
+    public sealed record FiscalTillConnection(FiscalEnvironment Environment, string ClientId, string ClientSecret, string PosSerial, string PosOsVersion,
+        string PosModelFramework, string PresharedKey)
+    {
+        public override string ToString() => $"{Environment} {ClientId} {PosSerial}";   // the secrets never reach a log line
+    }
+
+    /// <summary>MISS-11c-3: the till's secrets - the client secret and the pre-shared key the authority's portal gave.</summary>
+    public sealed record FiscalTillSecrets(string ClientSecret, string PresharedKey)
+    {
+        public override string ToString() => "(secrets)";
+    }
+
+    /// <summary>
+    /// MISS-11c-3: keeps the till's secrets protected by Windows (DPAPI, this Windows user) in a file of their own - never in the database,
+    /// so never in a backup, and never logged.
+    /// </summary>
+    public interface IFiscalSecretStore
+    {
+        /// <summary>False when this computer cannot protect secrets (they are then never written).</summary>
+        bool CanProtect { get; }
+
+        /// <summary>The secrets, or null when none were saved or they cannot be opened here (another computer or Windows user).</summary>
+        Task<FiscalTillSecrets?> ReadAsync(CancellationToken cancellationToken = default);
+
+        Task WriteAsync(FiscalTillSecrets secrets, CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>MISS-11c-3: the till's connection when it is registered and its secrets open; null otherwise.</summary>
+    public static class FiscalConnections
+    {
+        public static async Task<FiscalTillConnection?> ReadAsync(FiscalTill till, IFiscalSecretStore? secrets, CancellationToken cancellationToken)
+        {
+            if (till is not { Registration: FiscalTillRegistration.Registered, ClientId: { } clientId, PosOsVersion: { } os, PosModelFramework: { } model, DeviceSerial: { } serial }
+                || till.Environment == FiscalEnvironment.None || secrets is null)
+                return null;
+            return await secrets.ReadAsync(cancellationToken) is { } open
+                ? new FiscalTillConnection(till.Environment, clientId, open.ClientSecret, serial, os, model, open.PresharedKey)
+                : null;
+        }
+    }
 
     /// <summary>MISS-11a-3: a document as the sender hands it to a country part.</summary>
     public sealed record FiscalOutgoingDocument(Guid DocumentId, FiscalDocumentKind Kind, string Reference, long Number, string Hash, string Payload,
@@ -113,7 +169,7 @@ namespace Fiscal.Application.Abstractions
     /// </summary>
     public sealed record FiscalBuildInput(Fiscal.Contracts.Models.FiscalDocumentRequest Request, FiscalSettings Settings, Guid TillId, string TillName,
         long Number, string? PreviousHash, IReadOnlyDictionary<Guid, FiscalLineCodes>? LineCodes = null, FiscalOriginalDocument? Original = null,
-        string? DeviceSerial = null);
+        string? DeviceSerial = null, FiscalEnvironment Environment = FiscalEnvironment.None);   // MISS-11c-3: Egypt's QR links to that environment's portal
 
     /// <summary>
     /// MISS-11c: a return's sale as its fiscal document recorded it (Egypt: the return carries the sale's UUID as referenceUUID and its buyer);
@@ -182,6 +238,13 @@ namespace Fiscal.Application.DTOs
     }
 
     /// <summary>MISS-11a-3: the outcome of a sending round.</summary>
+    /// <summary>
+    /// MISS-11c-3: this till's registration for the screen (owner's choice: a summary box and a window) - never the secrets, only whether
+    /// they are kept.
+    /// </summary>
+    public sealed record FiscalTillRegistrationDto(FiscalEnvironment Environment, string? ClientId, string? PosOsVersion, string? PosModelFramework,
+        DateTime? RegisteredAt, string? RegisteredBy, bool EnvironmentLocked, bool HasSecrets, bool CanProtectSecrets, DateTime? LastSignInAt, bool? LastSignInOk);
+
     public sealed record FiscalSendSummary(bool Ran, int Sent, int Accepted, int Rejected, int NotSent, string? LastReason)
     {
         public static FiscalSendSummary NothingToDo { get; } = new(false, 0, 0, 0, 0, null);
@@ -194,7 +257,7 @@ namespace Fiscal.Application.DTOs
         FiscalCountry Country, string? TaxNumber, string? BranchCode, string? ActivityCode, string? SellerNameArabic, FiscalAddress Address,
         DateTime? UpdatedAt, string? UpdatedBy,
         string TillName, FiscalTillRegistration TillRegistration, long NextNumber, bool CountryLocked,
-        IReadOnlyList<FiscalCountry> InstalledCountryParts, string? DeviceSerial = null)
+        IReadOnlyList<FiscalCountry> InstalledCountryParts, string? DeviceSerial = null, FiscalTillRegistrationDto? Connection = null)
     {
         public bool IsOn => Country != FiscalCountry.None;
 
@@ -214,7 +277,7 @@ namespace Fiscal.Application.Queries
 
     /// <summary>MISS-11a: the setup for the Fiscal screen (fiscal.manage). Creates this till's record on first use.</summary>
     public sealed class GetFiscalSetupQueryHandler(IFiscalSetupRepository repository, IFiscalUnitOfWork unitOfWork, IAuthorizationService authorization,
-        IEnumerable<IFiscalCountryPart>? countryParts = null, TimeProvider? timeProvider = null)
+        IEnumerable<IFiscalCountryPart>? countryParts = null, TimeProvider? timeProvider = null, IFiscalSecretStore? secrets = null)
     {
         public async Task<Result<FiscalSetupDto>> HandleAsync(GetFiscalSetupQuery query, CancellationToken cancellationToken = default)
         {
@@ -228,7 +291,10 @@ namespace Fiscal.Application.Queries
             return Result.Success(new FiscalSetupDto(settings.Country, settings.TaxNumber, settings.BranchCode, settings.ActivityCode,
                 settings.SellerNameArabic, settings.Address, saved ? settings.UpdatedAt : null, settings.UpdatedBy,
                 till.Name, till.Registration, till.Counter + 1, till.HasIssued,
-                (countryParts ?? []).Select(p => p.Country).Distinct().ToList(), till.DeviceSerial));
+                (countryParts ?? []).Select(p => p.Country).Distinct().ToList(), till.DeviceSerial,
+                new FiscalTillRegistrationDto(till.Environment, till.ClientId, till.PosOsVersion, till.PosModelFramework, till.RegisteredAt, till.RegisteredBy,
+                    till.EnvironmentLocked, secrets is not null && await secrets.ReadAsync(cancellationToken) is not null, secrets?.CanProtect == true,
+                    till.LastSignInAt, till.LastSignInOk)));
         }
     }
 
@@ -341,7 +407,7 @@ namespace Fiscal.Application.Commands
                 var lineCodes = codeBook is null ? null
                     : await codeBook.ForProductsAsync(request.Lines.Select(l => l.ProductId).Distinct().ToList(), cancellationToken);   // MISS-11b
                 built = part.Build(new FiscalBuildInput(request, settings, till.Id, till.Name, till.Counter + 1, till.LastDocumentHash, lineCodes,
-                    original, till.DeviceSerial));
+                    original, till.DeviceSerial, till.Environment));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -378,9 +444,9 @@ namespace Fiscal.Application.Commands
     /// </summary>
     public sealed class SendFiscalDocumentsCommandHandler(IFiscalSetupRepository setup, IFiscalDocumentRepository documents, IFiscalUnitOfWork unitOfWork,
         IAuthorizationService authorization, IEnumerable<IFiscalCountryPart>? countryParts = null, TimeProvider? timeProvider = null,
-        IBusinessEventSink? businessEvents = null)
+        IBusinessEventSink? businessEvents = null, IFiscalSecretStore? secrets = null)
     {
-        public const int BatchSize = 100;
+        public const int BatchSize = 500;   // MISS-11c-3: the ETA takes 1-500 receipts per submission
 
         /// <summary>"Send now" on the Fiscal screen (fiscal.manage, audited).</summary>
         public async Task<Result<FiscalSendSummary>> HandleAsync(CancellationToken cancellationToken = default)
@@ -404,6 +470,7 @@ namespace Fiscal.Application.Commands
 
             var now = (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;
             var till = await FiscalTillAccess.GetOrCreateAsync(setup, unitOfWork, timeProvider, cancellationToken);
+            var connection = await FiscalConnections.ReadAsync(till, secrets, cancellationToken);   // MISS-11c-3: null = nothing can be sent yet
             var (sent, accepted, rejected, notSent) = (0, 0, 0, 0);
             string? lastReason = null;
 
@@ -411,7 +478,7 @@ namespace Fiscal.Application.Commands
             var due = await documents.GetDueAsync(now, force, BatchSize, cancellationToken);
             if (due.Count > 0)
             {
-                var outcomes = await AskAsync(part.SendAsync, due, settings, till, cancellationToken);
+                var outcomes = await AskAsync(part.SendAsync, due, settings, till, connection, cancellationToken);
                 foreach (var document in due)
                 {
                     var outcome = outcomes.GetValueOrDefault(document.Id) ?? new FiscalSendOutcome(document.Id, FiscalSendResult.NotSent, Reason: "The country part gave no answer for this document.");
@@ -424,6 +491,7 @@ namespace Fiscal.Application.Commands
                     }
                 }
 
+                if (sent + accepted + rejected > 0) till.MarkSent(now);   // MISS-11c-3: documents reached the authority - the environment is locked
                 await unitOfWork.SaveChangesAsync(cancellationToken);   // what was handed over is kept even if checking fails
             }
 
@@ -431,7 +499,7 @@ namespace Fiscal.Application.Commands
             var waiting = await documents.GetSentAsync(BatchSize, cancellationToken);
             if (waiting.Count > 0)
             {
-                var outcomes = await AskAsync(part.CheckAsync, waiting, settings, till, cancellationToken);
+                var outcomes = await AskAsync(part.CheckAsync, waiting, settings, till, connection, cancellationToken);
                 foreach (var document in waiting)
                 {
                     if (outcomes.GetValueOrDefault(document.Id) is not { } outcome) continue;
@@ -446,10 +514,10 @@ namespace Fiscal.Application.Commands
 
         private static async Task<Dictionary<Guid, FiscalSendOutcome>> AskAsync(
             Func<FiscalSendInput, CancellationToken, Task<IReadOnlyList<FiscalSendOutcome>>> call, IReadOnlyList<FiscalDocument> batch,
-            FiscalSettings settings, FiscalTill till, CancellationToken cancellationToken)
+            FiscalSettings settings, FiscalTill till, FiscalTillConnection? connection, CancellationToken cancellationToken)
         {
             var input = new FiscalSendInput(batch.Select(d => new FiscalOutgoingDocument(d.Id, d.Kind, d.Reference, d.Number ?? 0, d.Hash ?? string.Empty,
-                d.Payload ?? string.Empty, d.IssuedAt, d.AuthorityReference)).ToList(), settings, till.Id, till.Name, till.Registration);
+                d.Payload ?? string.Empty, d.IssuedAt, d.AuthorityReference)).ToList(), settings, till.Id, till.Name, till.Registration, connection);
             try
             {
                 return (await call(input, cancellationToken)).GroupBy(o => o.DocumentId).ToDictionary(g => g.Key, g => g.Last());
@@ -537,5 +605,101 @@ namespace Fiscal.Application.Queries
 
         /// <summary>Outstanding documents older than this are also said on the till (owner's decision: 12 hours).</summary>
         public double TillHours { get; set; } = 12;
+    }
+}
+
+namespace Fiscal.Application.Commands
+{
+    using Fiscal.Application.Abstractions;
+    using Fiscal.Application.Queries;
+    using Fiscal.Application.Repositories;
+    using Fiscal.Application.Security;
+    using Platform.Application.Abstractions.Auditing;
+
+    /// <summary>
+    /// MISS-11c-3: this till's registration with the authority (owner's choice: entered in a window). <see cref="ClientSecret"/> and
+    /// <see cref="PresharedKey"/> null = keep the ones already kept.
+    /// </summary>
+    public sealed record SaveTillRegistrationCommand(FiscalEnvironment Environment, string? ClientId, string? ClientSecret, string? PosOsVersion,
+        string? PosModelFramework, string? PresharedKey)
+    {
+        public override string ToString() => $"{Environment} {ClientId}";   // the secrets never reach a log line
+    }
+
+    /// <summary>
+    /// MISS-11c-3: saves the registration (fiscal.manage, audited without the secrets). The secrets go to the protected store (DPAPI), never
+    /// to the database; a computer that cannot protect them refuses. The environment is locked once documents reached the authority.
+    /// </summary>
+    public sealed class SaveTillRegistrationCommandHandler(IFiscalSetupRepository setup, IFiscalUnitOfWork unitOfWork, IAuthorizationService authorization,
+        IFiscalSecretStore? secrets = null, ICurrentUser? currentUser = null, TimeProvider? timeProvider = null, IBusinessEventSink? businessEvents = null)
+    {
+        public async Task<Result> HandleAsync(SaveTillRegistrationCommand command, CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(FiscalCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return allowed;
+            if (secrets is not { CanProtect: true })
+                return Error.Conflict("Fiscal.Till.SecretsUnprotected", "This computer cannot keep the client secret protected, so the till cannot be registered here.");
+
+            var kept = await secrets.ReadAsync(cancellationToken);
+            var secret = string.IsNullOrWhiteSpace(command.ClientSecret) ? kept?.ClientSecret : command.ClientSecret.Trim();
+            var key = string.IsNullOrWhiteSpace(command.PresharedKey) ? kept?.PresharedKey : command.PresharedKey.Trim();
+            if (string.IsNullOrEmpty(secret) || secret.Length > 100)
+                return Error.Validation("Fiscal.Till.SecretRequired", "Give the client secret from the tax authority's portal (up to 100 characters).");
+            if (string.IsNullOrEmpty(key) || key.Length > 200)
+                return Error.Validation("Fiscal.Till.KeyRequired", "Give the pre-shared key from the tax authority's portal (up to 200 characters).");
+
+            var till = await FiscalTillAccess.GetOrCreateAsync(setup, unitOfWork, timeProvider, cancellationToken);
+            var before = till.Environment;
+            var registered = till.Register(command.Environment, command.ClientId, command.PosOsVersion, command.PosModelFramework,
+                currentUser is { IsAuthenticated: true } me ? me.UserName : null, (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime);
+            if (registered.IsFailure) return registered;
+
+            await secrets.WriteAsync(new FiscalTillSecrets(secret, key), cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            var changed = !string.IsNullOrWhiteSpace(command.ClientSecret) || !string.IsNullOrWhiteSpace(command.PresharedKey);
+            await businessEvents.TryRecordAsync(BusinessEvent.Create(FiscalCapabilities.Module, "fiscal.till-registered", "fiscal-till", till.Id.ToString(),
+                before == till.Environment
+                    ? $"This till's registration with the tax authority was saved ({till.Environment})."
+                    : $"This till's registration with the tax authority was saved; its environment changed from {before} to {till.Environment}.",
+                $"clientId={till.ClientId};serial={till.DeviceSerial};secretsChanged={(changed ? "true" : "false")}"));
+            return Result.Success();
+        }
+    }
+
+    public sealed record TestFiscalSignInCommand;
+
+    /// <summary>MISS-11c-3: "Test sign-in" (fiscal.manage, audited): asks the country's part to sign this till in; the result is kept on the till.</summary>
+    public sealed class TestFiscalSignInCommandHandler(IFiscalSetupRepository setup, IFiscalUnitOfWork unitOfWork, IAuthorizationService authorization,
+        IEnumerable<IFiscalCountryPart>? countryParts = null, IFiscalSecretStore? secrets = null, TimeProvider? timeProvider = null,
+        IBusinessEventSink? businessEvents = null)
+    {
+        public async Task<Result> HandleAsync(TestFiscalSignInCommand command, CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(FiscalCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return allowed;
+
+            var settings = await setup.GetSettingsAsync(cancellationToken);
+            var part = settings is { IsOn: true } ? (countryParts ?? []).LastOrDefault(p => p.Country == settings.Country) : null;
+            if (part is null) return Error.Conflict("Fiscal.SignIn.Off", "Electronic receipts are off, or this country is not supported yet.");
+            var till = await FiscalTillAccess.GetOrCreateAsync(setup, unitOfWork, timeProvider, cancellationToken);
+            if (await FiscalConnections.ReadAsync(till, secrets, cancellationToken) is not { } connection)
+                return Error.Conflict("Fiscal.SignIn.NotRegistered", "Register this till first (its client ID, secret and pre-shared key from the tax authority's portal).");
+
+            Result result;
+            try
+            {
+                result = await part.TestSignInAsync(connection, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                result = Error.Failure("Fiscal.SignIn.Failed", ex.Message);
+            }
+
+            till.RecordSignIn(result.IsSuccess, (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await businessEvents.TryRecordAsync(BusinessEvent.Create(FiscalCapabilities.Module, "fiscal.sign-in-tested", "fiscal-till", till.Id.ToString(),
+                result.IsSuccess ? $"The tax authority accepted this till's sign-in ({till.Environment})." : $"The tax authority refused this till's sign-in: {result.Error.Description}"));
+            return result;
+        }
     }
 }

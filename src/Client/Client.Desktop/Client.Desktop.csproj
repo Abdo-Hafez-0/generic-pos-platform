@@ -28,6 +28,7 @@
     <!-- CloudBackup module (MISS-04e2): encrypted copies of the backups in the vendor's cloud + its HTTP transport -->
     <ProjectReference Include="..\..\Modules\CloudBackup\CloudBackup.Infrastructure\CloudBackup.Infrastructure.csproj" />
     <ProjectReference Include="..\Client.CloudBackup.Http\Client.CloudBackup.Http.csproj" />
+    <ProjectReference Include="..\Client.Fiscal.Http\Client.Fiscal.Http.csproj" />
     <!-- POS module (Stage 5D) - POSHostingModule lives in POS.Infrastructure -->
     <ProjectReference Include="..\..\Modules\POS\POS.Infrastructure\POS.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\POS\POS.UI\POS.UI.csproj" />

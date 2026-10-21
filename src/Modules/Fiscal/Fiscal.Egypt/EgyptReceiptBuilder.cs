@@ -13,13 +13,33 @@ public sealed class EgyptReceiptOptions
 {
     public const string SectionName = "Fiscal:Egypt";
 
-    /// <summary>The ETA portal the receipt's QR code links to *(to confirm: the pre-production portal for test receipts; 11c-3 ties it to the till's environment)*.</summary>
-    public string PortalUrl { get; set; } = "https://invoicing.eta.gov.eg";
+    /// <summary>MISS-11c-3: the ETA's addresses in its pre-production (test) environment (ETA SDK, 2026-10-21).</summary>
+    public EtaHosts PreProduction { get; set; } = new()
+    {
+        Identity = "https://id.preprod.eta.gov.eg", Api = "https://api.preprod.invoicing.eta.gov.eg", Portal = "https://preprod.invoicing.eta.gov.eg",
+    };
+
+    /// <summary>MISS-11c-3: the ETA's addresses in production.</summary>
+    public EtaHosts Production { get; set; } = new()
+    {
+        Identity = "https://id.eta.gov.eg", Api = "https://api.invoicing.eta.gov.eg", Portal = "https://invoicing.eta.gov.eg",
+    };
+
+    /// <summary>The addresses of an environment (none chosen yet: production - the receipt's QR links to the real portal).</summary>
+    public EtaHosts Hosts(FiscalEnvironment environment) => environment == FiscalEnvironment.PreProduction ? PreProduction : Production;
 
     /// <summary>A person buyer's name and national ID are required at or above this total (150,000 EGP for receipts v1.2).</summary>
     public decimal BuyerIdThreshold { get; set; } = 150_000m;
 
     public string Currency { get; set; } = "EGP";
+}
+
+/// <summary>MISS-11c-3: one ETA environment's addresses: the identity service (sign-in), the API and the portal (the QR's link).</summary>
+public sealed class EtaHosts
+{
+    public string Identity { get; set; } = string.Empty;
+    public string Api { get; set; } = string.Empty;
+    public string Portal { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -141,7 +161,7 @@ internal static class EgyptReceiptBuilder
         // the UUID: the serialized receipt with an empty uuid (it holds the previous receipt's UUID - the chain)
         var uuid = EtaJson.Hash(document);
         var final = document.With(["header", "uuid"], new EtaText(uuid));
-        var qr = $"{options.PortalUrl.TrimEnd('/')}/receipts/search/{uuid}/share/{issuedText}#Total:{EtaNumber.Format(sums.Total)},IssuerRIN:{settings.TaxNumber}";
+        var qr = $"{options.Hosts(input.Environment).Portal.TrimEnd('/')}/receipts/search/{uuid}/share/{issuedText}#Total:{EtaNumber.Format(sums.Total)},IssuerRIN:{settings.TaxNumber}";
         return Result.Success(new Built(EtaJson.Write(final), uuid, qr, final));
     }
 

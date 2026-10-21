@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    MISS-11c-3: HTTPS transport to the tax authorities' web services for the optional Fiscal module. The ONLY fiscal project that uses
+    HttpClient (business modules never reach HTTP). Implements IFiscalHttpTransport from Fiscal.Contracts; the module never references
+    this project. It only carries what a country part asks for: the addresses and the shapes are the part's.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.11" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\Fiscal\Fiscal.Contracts\Fiscal.Contracts.csproj" />
+    <ProjectReference Include="..\Client.Host\Client.Host.csproj" />
+  </ItemGroup>
+</Project>

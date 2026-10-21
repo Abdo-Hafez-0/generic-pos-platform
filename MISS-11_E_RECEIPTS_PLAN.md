@@ -186,3 +186,11 @@ before receipts were on) is not built - the "Return Receipt Without Reference" t
 11c-2 (2026-10-21): the QR printed with Matjar's own encoder (level M, byte mode), about 30 mm (whole dots per module), centred after
 the payments, with "إيصال إلكتروني" and "UUID first-8...last-8" under it, on the sale receipt, its copy and the return receipt *(to confirm with the tax
 adviser: a minimum printed size, and whether the title and UUID are wanted)*. A sale whose document was not built prints no QR.
+
+11c-3 (2026-10-21), owner's decisions: **no issuer signature for now** (the submit API lists one as required but says its validation is
+not deployed; to confirm on pre-production, signing with a certificate becomes a LATER item if required); **send every 5 minutes** (up to
+500 receipts per batch, "Send now" any time); **the environment is locked after the first send** (a tested till moves to production with a
+fresh installation). The ETA's addresses (SDK FAQ): pre-production id.preprod.eta.gov.eg / api.preprod.invoicing.eta.gov.eg /
+preprod.invoicing.eta.gov.eg; production id.eta.gov.eg / api.invoicing.eta.gov.eg / invoicing.eta.gov.eg. *(to confirm on
+pre-production: the receipts accepted without a signature; the POS serial format the portal takes; that a submission's details list each
+receipt's uuid and status as read)*.

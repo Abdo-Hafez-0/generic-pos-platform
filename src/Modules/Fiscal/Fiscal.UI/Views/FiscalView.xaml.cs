@@ -18,4 +18,12 @@ public partial class FiscalView : UserControl
         var dialog = new SaveFileDialog { Title = FiscalText.CodesExport, FileName = "egs-codes.csv", Filter = "CSV (*.csv)|*.csv", AddExtension = true };
         if (dialog.ShowDialog(Window.GetWindow(this)) == true) await vm.Codes.ExportAsync(dialog.FileName);
     }
+
+    /// <summary>MISS-11c-3: "Register this till..." opens the registration window; after a save the summary is read again.</summary>
+    private async void OnRegisterTill(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not FiscalViewModel vm) return;
+        var window = new TillRegistrationWindow(vm.CreateRegistration()) { Owner = Window.GetWindow(this) };
+        if (window.ShowDialog() == true) await vm.RegisteredAsync();
+    }
 }

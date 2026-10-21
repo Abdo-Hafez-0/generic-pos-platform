@@ -76,6 +76,23 @@ namespace Fiscal.Contracts.Models
     /// </summary>
     public sealed record FiscalReceiptMark(string QrPayload, string Title, string Caption);
 
+    /// <summary>
+    /// MISS-11c-3: one call to a tax authority's web service, as a country part asks for it (the part knows the authority's addresses and
+    /// shapes; the transport only carries it). <see cref="Body"/> is sent as <see cref="ContentType"/> (form or JSON); null for a GET.
+    /// </summary>
+    public sealed record FiscalHttpRequest(string Method, string Url, IReadOnlyDictionary<string, string> Headers, string? Body = null,
+        string ContentType = "application/json");
+
+    /// <summary>
+    /// MISS-11c-3: the authority's answer. <see cref="StatusCode"/> 0 = no answer at all (no connection, a timeout) with the reason in
+    /// <see cref="Body"/>; <see cref="RetryAfter"/> when the authority asked to wait.
+    /// </summary>
+    public sealed record FiscalHttpResponse(int StatusCode, string Body, TimeSpan? RetryAfter = null)
+    {
+        public bool Answered => StatusCode > 0;
+        public bool IsSuccess => StatusCode is >= 200 and < 300;
+    }
+
     public sealed record FiscalDocumentResult(bool IsSuccess, bool IsIssued, Guid? DocumentId, long? Number, string? QrPayload,
         string? NotBuiltReason, string? ErrorCode, string? ErrorMessage)
     {
@@ -125,6 +142,16 @@ namespace Fiscal.Contracts.Interfaces
     public interface IFiscalReceiptMarks
     {
         Task<FiscalReceiptMark?> GetMarkAsync(FiscalDocumentKindContract kind, Guid sourceId, CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// MISS-11c-3: carries the country parts' calls to the tax authority over HTTPS. Implemented outside the business module (the client's
+    /// HTTP transport project), so the Fiscal module itself never reaches the network and works offline; without it nothing is sent.
+    /// Never throws for a network problem: the answer says so (status 0).
+    /// </summary>
+    public interface IFiscalHttpTransport
+    {
+        Task<FiscalHttpResponse> SendAsync(FiscalHttpRequest request, CancellationToken cancellationToken = default);
     }
 
     /// <summary>MISS-11a-3: the till's short warning (null when nothing has waited longer than the till's limit, or receipts are off).</summary>

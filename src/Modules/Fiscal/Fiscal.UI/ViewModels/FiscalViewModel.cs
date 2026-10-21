@@ -57,6 +57,50 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
         SendNowCommand = Command(SendNowAsync, () => _setup is { IsIssuing: true });
         Codes = new FiscalCodesPanel(runner);   // MISS-11b
         ShowDocumentsCommand = Command(() => LoadDocumentsAsync(CancellationToken.None));
+        TestSignInCommand = Command(TestSignInAsync, () => _setup?.Connection is { HasSecrets: true } && _setup.IsIssuing);
+    }
+
+    // ---- MISS-11c-3 (owner's choice, drawn option B): this till's registration as a summary; the details in a window
+
+    public ICommand TestSignInCommand { get; }
+
+    public FiscalTillRegistrationDto? Registration => _setup?.Connection;
+
+    public bool IsRegistered => _setup?.TillRegistration == FiscalTillRegistration.Registered;
+
+    public string EnvironmentText => Registration?.Environment switch
+    {
+        FiscalEnvironment.PreProduction => FiscalText.EnvironmentPreProduction,
+        FiscalEnvironment.Production => FiscalText.EnvironmentProduction,
+        _ => "–",
+    };
+
+    /// <summary>Part of the client ID ("a1b2…9f"): enough to recognise it, not to copy it.</summary>
+    public string ClientIdText => Registration?.ClientId is { Length: > 0 } id ? (id.Length <= 8 ? id : id[..4] + "…" + id[^2..]) : "–";
+
+    /// <summary>"today 10:42 - accepted" / "refused", or "–" before the first test.</summary>
+    public string LastSignInText => Registration is { LastSignInAt: { } at } r
+        ? "‎" + DateTime.SpecifyKind(at, DateTimeKind.Utc).ToLocalTime().ToString("g", CultureInfo.CurrentCulture) + "‎ – "
+          + (r.LastSignInOk == true ? FiscalText.SignInAccepted : FiscalText.SignInRefused)
+        : "–";
+
+    /// <summary>The registration window's view model, filled with what is kept (never the secrets).</summary>
+    public TillRegistrationViewModel CreateRegistration() => new(_runner, Registration, _setup?.DeviceSerial);
+
+    /// <summary>After the window saved: the summary again.</summary>
+    public Task RegisteredAsync() => BusyAsync(async () =>
+    {
+        await LoadAsync(CancellationToken.None);
+        if (ErrorMessage is null) StatusMessage = FiscalText.TillSaved;
+    });
+
+    private async Task TestSignInAsync()
+    {
+        var tested = await _runner.RunAsync((scope, ct) => scope.Get<TestFiscalSignInCommandHandler>().HandleAsync(new TestFiscalSignInCommand(), ct));
+        var ok = Accept(tested);
+        await LoadAsync(CancellationToken.None);
+        if (ok && ErrorMessage is null) StatusMessage = FiscalText.SignInWorked;
+        else if (!ok) ErrorMessage = tested.Error.Description;
     }
 
     /// <summary>MISS-11b: the Codes box (the tax authority's codes for products, units and tax rates).</summary>
@@ -215,7 +259,8 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
         Governorate = a.Governorate is { } g && Governorates.Contains(g) ? g : null;
         (City, Street, BuildingNumber, PostalCode) = (a.City ?? string.Empty, a.Street ?? string.Empty, a.BuildingNumber ?? string.Empty, a.PostalCode ?? string.Empty);
         (Floor, Room, Landmark, AdditionalInformation) = (a.Floor ?? string.Empty, a.Room ?? string.Empty, a.Landmark ?? string.Empty, a.AdditionalInformation ?? string.Empty);
-        foreach (var name in new[] { nameof(IsCountryLocked), nameof(CanChooseCountry), nameof(TillName), nameof(TillRegistrationText), nameof(NextNumberText), nameof(IssuingText), nameof(CanSendNow), nameof(DeviceSerial) })
+        foreach (var name in new[] { nameof(IsCountryLocked), nameof(CanChooseCountry), nameof(TillName), nameof(TillRegistrationText), nameof(NextNumberText), nameof(IssuingText), nameof(CanSendNow), nameof(DeviceSerial),
+                     nameof(Registration), nameof(IsRegistered), nameof(EnvironmentText), nameof(ClientIdText), nameof(LastSignInText) })
             Raise(name);
     }
 

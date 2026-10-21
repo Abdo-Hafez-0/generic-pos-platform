@@ -42,18 +42,33 @@ public sealed class WpfReceiptImageRenderer : IReceiptImageRenderer
         var fontSize = width / 24.0;                     // 24 dots on 576 (80 mm): readable, about 42 characters a line
         var lineHeight = Math.Ceiling(fontSize * 1.3);
         var margin = 4.0;
-        var height = (int)Math.Max(1, Math.Ceiling(lines.Count * lineHeight + 2 * margin));
+
+        // MISS-11c-2: a QR line is as tall as its code (whole dots per module, so the code stays sharp)
+        var codes = lines.Select(l => l.QrPayload is { } qr ? Platform.Core.Codes.QrCode.Encode(qr) : null).ToList();
+        double Height(int i) => codes[i] is { } code ? (code.Size + 8) * ReceiptImageLine.QrModuleDots(code.Size, width) : lineHeight;
+        var height = (int)Math.Max(1, Math.Ceiling(Enumerable.Range(0, lines.Count).Sum(Height) + 2 * margin));
 
         var visual = new DrawingVisual();
         TextOptions.SetTextRenderingMode(visual, TextRenderingMode.Aliased);   // crisp edges: the picture becomes pure black and white
         TextOptions.SetTextFormattingMode(visual, TextFormattingMode.Display);
+        RenderOptions.SetEdgeMode(visual, EdgeMode.Aliased);                    // the QR's modules: whole dots, no grey edges
         using (var dc = visual.RenderOpen())
         {
             dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, width, height));
-            var y = margin;
-            foreach (var line in lines)
+            var y = Math.Floor(margin);
+            for (var i = 0; i < lines.Count; i++)
             {
-                if (line.Rule)
+                var line = lines[i];
+                if (codes[i] is { } code)
+                {
+                    var dot = ReceiptImageLine.QrModuleDots(code.Size, width);
+                    var left = Math.Floor((width - (code.Size + 8) * dot) / 2.0) + 4 * dot;
+                    for (var row = 0; row < code.Size; row++)
+                        for (var column = 0; column < code.Size; column++)
+                            if (code[row, column])
+                                dc.DrawRectangle(Brushes.Black, null, new Rect(left + column * dot, y + (row + 4) * dot, dot, dot));
+                }
+                else if (line.Rule)
                 {
                     dc.DrawRectangle(Brushes.Black, null, new Rect(margin, y + lineHeight / 2 - 1, width - 2 * margin, 2));
                 }
@@ -72,7 +87,7 @@ public sealed class WpfReceiptImageRenderer : IReceiptImageRenderer
                     if (right is not null) dc.DrawText(right, new Point(width - margin - right.Width, y));
                 }
 
-                y += lineHeight;
+                y += Height(i);
             }
         }
 

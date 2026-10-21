@@ -120,4 +120,28 @@ public sealed class FiscalEgyptSetupTests
         Assert.Null(orphanInput.Original);   // a sale from before receipts were on: the part decides (Egypt refuses)
         Assert.All(part.Built, b => Assert.Matches("^MTJ-", b.DeviceSerial));
     }
+
+    [Fact]
+    public async Task The_receipt_mark_comes_with_the_document_and_is_read_back_for_a_copy()
+    {
+        // MISS-11c-2: the QR code's text, a title and the short hash under it; none for a document that could not be built
+        var part = new TestCountryPart();
+        await using var db = await DatabaseAsync(part);
+        Assert.True((await SaveAsync(db, FiscalCountry.Egypt, Cairo)).IsSuccess);
+        FiscalDocumentRequest Sale() => new(FiscalDocumentKindContract.Sale, Guid.NewGuid(), "S-0000AAAA", DateTime.UtcNow,
+            [new FiscalLineRequest(Guid.NewGuid(), "COLA", "Cola", 1m, 10m, 0m, 10m, 0.14m, 1.23m)], 10m, 1.23m, [new FiscalPaymentRequest("Cash", 10m)]);
+
+        var sale = Sale();
+        var issued = await db.InScopeAsync(sp => sp.GetRequiredService<IFiscalRecorder>().RecordAsync(sale));
+        var hash = await db.InScopeAsync(sp => sp.GetRequiredService<FiscalDbContext>().Documents.AsNoTracking().Select(d => d.Hash).SingleAsync());
+        Assert.Equal(new FiscalReceiptMark("QR:" + hash, "Electronic receipt", hash![..8] + "..." + hash[^8..]), issued.Mark);
+        Assert.Equal(issued.Mark, await db.InScopeAsync(sp => sp.GetRequiredService<IFiscalReceiptMarks>().GetMarkAsync(FiscalDocumentKindContract.Sale, sale.SourceId)));
+        Assert.Equal(issued.Mark, (await db.InScopeAsync(sp => sp.GetRequiredService<IFiscalRecorder>().RecordAsync(sale))).Mark);   // asked again
+
+        part.Refuse = "no item code";
+        var refused = Sale();
+        Assert.Null((await db.InScopeAsync(sp => sp.GetRequiredService<IFiscalRecorder>().RecordAsync(refused))).Mark);
+        Assert.Null(await db.InScopeAsync(sp => sp.GetRequiredService<IFiscalReceiptMarks>().GetMarkAsync(FiscalDocumentKindContract.Sale, refused.SourceId)));
+        Assert.Null(await db.InScopeAsync(sp => sp.GetRequiredService<IFiscalReceiptMarks>().GetMarkAsync(FiscalDocumentKindContract.Sale, Guid.NewGuid())));
+    }
 }

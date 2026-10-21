@@ -182,3 +182,7 @@ written; Matjar's prices include tax, so each line's net unit price and net amou
 (yyyy-MM-ddTHH:mm:ssZ); the portal in the QR is the production one until 11c-3 ties it to the till's environment; the till's serial number
 is Matjar's own (MTJ-XXXX-XXXX-XXXX), to be registered on the ETA portal as the POS serial; a return of a sale that has no receipt (sold
 before receipts were on) is not built - the "Return Receipt Without Reference" type is for 11e.
+
+11c-2 (2026-10-21): the QR printed with Matjar's own encoder (level M, byte mode), about 30 mm (whole dots per module), centred after
+the payments, with "إيصال إلكتروني" and "UUID first-8...last-8" under it, on the sale receipt, its copy and the return receipt *(to confirm with the tax
+adviser: a minimum printed size, and whether the title and UUID are wanted)*. A sale whose document was not built prints no QR.

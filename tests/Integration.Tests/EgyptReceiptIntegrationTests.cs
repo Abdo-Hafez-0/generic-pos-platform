@@ -97,6 +97,17 @@ public sealed class EgyptReceiptIntegrationTests
         Assert.Equal((saleDoc.Hash, saleDoc.Hash, returnDoc.Hash), (returnHeader.GetProperty("referenceUUID").GetString(),
             returnHeader.GetProperty("previousUUID").GetString(), returnHeader.GetProperty("uuid").GetString()));
         Assert.Equal("11.40", returnJson.RootElement.GetProperty("totalAmount").GetRawText());
+
+        // MISS-11c-2: the paper's mark - the QR, "إيصال إلكتروني" and the short UUID - for a copy of the sale and on the return receipt
+        var mark = await InScopeAsync(host.Services, sp => sp.GetRequiredService<Fiscal.Contracts.Interfaces.IFiscalReceiptMarks>()
+            .GetMarkAsync(Fiscal.Contracts.Models.FiscalDocumentKindContract.Sale, sale.SaleId));
+        Assert.Equal(new Fiscal.Contracts.Models.FiscalReceiptMark(saleDoc.Qr!, "إيصال إلكتروني", "UUID " + saleDoc.Hash![..8] + "..." + saleDoc.Hash[^8..]), mark);
+        Assert.Equal(returnDoc.Qr, refund.Value.FiscalMark?.QrPayload);
+        var paper = await InScopeAsync(host.Services, sp => Task.FromResult(sp.GetRequiredService<RefundSaleCommandHandler>()
+            .ReturnReceipt(new RefundSaleCommand(sale.SaleId, [new RefundLine(line.SaleItemId, 1m)], "Changed mind", POSPaymentMethod.Cash), refund.Value,
+                new POS.Application.Devices.PosReceiptOptions())));
+        Assert.Equal(returnDoc.Qr, paper.Fiscal?.QrPayload);
+        Assert.Equal("إيصال إلكتروني", paper.Fiscal?.Title);
     }
 
     [Fact]

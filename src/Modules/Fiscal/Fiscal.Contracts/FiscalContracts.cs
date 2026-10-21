@@ -70,9 +70,18 @@ namespace Fiscal.Contracts.Models
     /// </summary>
     public sealed record FiscalTillNotice(int OverdueCount, DateTime OldestAtUtc, double LimitHours);
 
+    /// <summary>
+    /// MISS-11c-2: the tax authority's mark on a printed receipt: the QR code's text, a title and a caption printed under it (Egypt:
+    /// "إيصال إلكتروني" and "UUID 68e656b2...f368f320").
+    /// </summary>
+    public sealed record FiscalReceiptMark(string QrPayload, string Title, string Caption);
+
     public sealed record FiscalDocumentResult(bool IsSuccess, bool IsIssued, Guid? DocumentId, long? Number, string? QrPayload,
         string? NotBuiltReason, string? ErrorCode, string? ErrorMessage)
     {
+        /// <summary>MISS-11c-2: what the printed receipt carries for the authority (issued documents only).</summary>
+        public FiscalReceiptMark? Mark { get; init; }
+
         public static FiscalDocumentResult NothingToIssue() => new(true, false, null, null, null, null, null, null);
 
         public static FiscalDocumentResult Issued(Guid documentId, long number, string? qrPayload) => new(true, true, documentId, number, qrPayload, null, null, null);
@@ -107,6 +116,15 @@ namespace Fiscal.Contracts.Interfaces
     public interface IFiscalRecorder
     {
         Task<FiscalDocumentResult> RecordAsync(FiscalDocumentRequest request, CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// MISS-11c-2: the mark of a sale's or a return's electronic receipt, to print it again (null when it has none: receipts off, made before
+    /// they were on, or not built). Called inside an operation the user was authorized for (a reprint). Optional module: resolved as optional.
+    /// </summary>
+    public interface IFiscalReceiptMarks
+    {
+        Task<FiscalReceiptMark?> GetMarkAsync(FiscalDocumentKindContract kind, Guid sourceId, CancellationToken cancellationToken = default);
     }
 
     /// <summary>MISS-11a-3: the till's short warning (null when nothing has waited longer than the till's limit, or receipts are off).</summary>

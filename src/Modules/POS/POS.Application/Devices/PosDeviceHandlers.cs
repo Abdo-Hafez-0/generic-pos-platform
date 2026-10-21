@@ -95,6 +95,10 @@ public static class PosReceiptFactory
             payments.Count > 1 ? payments : null);
     }
 
+    /// <summary>MISS-11c-2: the electronic receipt's mark as the receipt prints it (null: none).</summary>
+    public static ReceiptFiscal? ToReceiptFiscal(Fiscal.Contracts.Models.FiscalReceiptMark? mark)
+        => mark is null ? null : new ReceiptFiscal(mark.QrPayload, mark.Title, mark.Caption);
+
     public static ReceiptPayment ToReceiptPayment(POSPaymentRequest payment, decimal total, decimal changeDue)
         => new(payment.Method.ToString(), total, payment.TenderedAmount, payment.Method == POSPaymentMethod.Cash ? changeDue : null);
 
@@ -124,7 +128,8 @@ public sealed class PrintReceiptCommandHandler(
     IAuthorizationService authorization,
     IReceiptPrinter? printer = null,
     IPaymentReader? payments = null,
-    IBusinessEventSink? events = null)
+    IBusinessEventSink? events = null,
+    Fiscal.Contracts.Interfaces.IFiscalReceiptMarks? fiscalMarks = null)   // MISS-11c-2: the copy carries the electronic receipt's QR
 {
     public async Task<Result> HandleAsync(PrintReceiptCommand command, CancellationToken cancellationToken = default)
     {
@@ -150,6 +155,8 @@ public sealed class PrintReceiptCommandHandler(
                 ? PosReceiptFactory.CreateWithPayments(cart, session, saleId, parts, options, timeProvider.GetUtcNow(), timeProvider.LocalTimeZone)
                 : PosReceiptFactory.Create(cart, session, saleId, command.Payment, options, timeProvider.GetUtcNow(), timeProvider.LocalTimeZone))
             with { IsCopy = true };
+        if (fiscalMarks is not null)
+            receipt = receipt with { Fiscal = PosReceiptFactory.ToReceiptFiscal(await fiscalMarks.GetMarkAsync(Fiscal.Contracts.Models.FiscalDocumentKindContract.Sale, saleId, cancellationToken)) };
         var printed = await HardwareGuard.RunAsync("receipt printer", () => printer.PrintAsync(receipt, cancellationToken));
 
         await events.TryRecordAsync(BusinessEvent.Create(POS.Application.Security.POSCapabilities.Module, "receipt.reprinted", "sale", saleId.ToString(),

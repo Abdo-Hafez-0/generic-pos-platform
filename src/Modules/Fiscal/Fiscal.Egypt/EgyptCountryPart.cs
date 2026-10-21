@@ -19,6 +19,11 @@ public sealed class EgyptCountryPart(EgyptReceiptOptions? options = null) : IFis
     /// <summary>Owner's decision: the till asks for a person's name and national ID at or above the threshold.</summary>
     public FiscalBuyerRule? BuyerRule => new(_options.BuyerIdThreshold, EgyptReceiptBuilder.NationalIdLength);
 
+    /// <summary>Owner's choice (drawn option A): "إيصال إلكتروني" and the short UUID under the QR code.</summary>
+    public FiscalReceiptMark Mark(string hash, string qrPayload) => new(qrPayload, ReceiptTitle, "UUID " + FiscalMarks.Short(hash));
+
+    internal const string ReceiptTitle = "إيصال إلكتروني";
+
     public Result<FiscalBuiltDocument> Build(FiscalBuildInput input)
     {
         var built = EgyptReceiptBuilder.Build(input, _options);

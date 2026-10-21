@@ -74,6 +74,29 @@ public sealed class WpfReceiptImageRendererTests
         Assert.True(rule.Left <= 4 && rule.Right >= 384 - 5, $"the rule spans {rule}");
     }
 
+    [Fact]
+    public void A_QR_line_draws_the_code_in_whole_dots_centred_under_the_text_above_it()
+    {
+        // MISS-11c-2 (owner's choice: large and centred): the picture of an Arabic receipt carries the electronic receipt's QR code
+        const string qr = "https://invoicing.eta.gov.eg/receipts/search/095621f0df4130b0f8b5d65bf47f34727afed7721bb4b4987150af33ccda5f21/share/2026-10-21T11:47:44Z#Total:1.00,IssuerRIN:123456789";
+        var image = Renderer.Render([new ReceiptImageLine("TOTAL", "1.00", Bold: true), new ReceiptImageLine("", Center: true, QrPayload: qr),
+            new ReceiptImageLine("إيصال إلكتروني", Bold: true, Center: true)], 576);
+
+        var code = Platform.Core.Codes.QrCode.Encode(qr);
+        var dot = ReceiptImageLine.QrModuleDots(code.Size, 576);
+        var top = 4 + LineHeight(576);
+        var left = (576 - (code.Size + 8) * dot) / 2 + 4 * dot;
+        Assert.Equal(4 + 2 * LineHeight(576) + (code.Size + 8) * dot + 4, image.Height, tolerance: 1);
+        for (var y = 0; y < code.Size; y++)
+            for (var x = 0; x < code.Size; x++)
+            {
+                var (row, column) = (top + (y + 4) * dot + dot / 2, left + x * dot + dot / 2);
+                Assert.True(code[y, x] == ((image.Rows[row * 72 + column / 8] & (0x80 >> (column % 8))) != 0), $"module ({y},{x})");
+            }
+
+        Assert.NotNull(Ink(image, top + (code.Size + 8) * dot, image.Height));   // the title under the code
+    }
+
     [Theory]
     [InlineData("مياه", true)]
     [InlineData("123 مياه", true)]

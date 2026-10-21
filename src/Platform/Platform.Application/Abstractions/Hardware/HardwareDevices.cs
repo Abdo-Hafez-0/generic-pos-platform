@@ -41,6 +41,12 @@ public sealed record ReceiptReturn(string OriginalReference, string Reason);
 /// <summary>The tax contained in the receipt total for one rate (prices include tax - FIX-08b), e.g. Rate 0.14, Amount 0.61.</summary>
 public sealed record ReceiptTax(decimal Rate, decimal Amount);
 
+/// <summary>
+/// MISS-11c-2: the tax authority's mark on a receipt - the QR code of its electronic receipt (printed offline, owner's choice: large and
+/// centred under the totals) with a title and a caption under it (Egypt: "إيصال إلكتروني" and the short UUID).
+/// </summary>
+public sealed record ReceiptFiscal(string QrPayload, string Title, string Caption);
+
 /// <summary>How the sale was paid, when known.</summary>
 public sealed record ReceiptPayment(string Method, decimal Amount, decimal? Tendered = null, decimal? Change = null);
 
@@ -58,7 +64,8 @@ public sealed record ReceiptDocument(
     IReadOnlyList<ReceiptTax>? Taxes = null,
     IReadOnlyList<ReceiptPayment>? Payments = null,
     bool IsCopy = false,   // MISS-07c: a reprint says so on the paper
-    ReceiptReturn? Return = null)   // MISS-10c: a return receipt (Lines are what came back, Total the refund, Payments how it was given)
+    ReceiptReturn? Return = null,   // MISS-10c: a return receipt (Lines are what came back, Total the refund, Payments how it was given)
+    ReceiptFiscal? Fiscal = null)   // MISS-11c-2: the electronic receipt's QR code
 {
     /// <summary>Every payment to print (FIX-10: a split payment has several; a single one may come as <see cref="Payment"/>).</summary>
     public IReadOnlyList<ReceiptPayment> AllPayments => Payments is { Count: > 0 } several ? several : Payment is { } one ? [one] : [];
@@ -68,7 +75,23 @@ public sealed record ReceiptDocument(
 /// One line of a receipt laid out for printing (FIX-13a): <see cref="Left"/> starts the line, <see cref="Right"/> (an amount) ends it,
 /// <see cref="Center"/> centres <see cref="Left"/> alone; <see cref="Rule"/> is a separator line. Texts may be in any script.
 /// </summary>
-public sealed record ReceiptImageLine(string Left, string Right = "", bool Bold = false, bool Center = false, bool Rule = false);
+/// MISS-11c-2: a line with <see cref="QrPayload"/> is the QR code of that text, centred, <see cref="QrDots"/> dots wide with its quiet zone.
+public sealed record ReceiptImageLine(string Left, string Right = "", bool Bold = false, bool Center = false, bool Rule = false, string? QrPayload = null)
+{
+    /// <summary>The QR code's size on paper: 240 dots, 30 mm on a 203 dpi (8 dots/mm) receipt printer.</summary>
+    public const int QrDots = 240;
+
+    /// <summary>
+    /// Dots per module for a code of <paramref name="size"/> modules with its 4-module quiet zone on each side: the whole number nearest to
+    /// <see cref="QrDots"/> wide (owner's choice: about 30 mm), never wider than the paper, at least 1 - so every module is whole dots.
+    /// </summary>
+    public static int QrModuleDots(int size, int availableDots)
+    {
+        var dot = (int)Math.Round((double)QrDots / (size + 8), MidpointRounding.AwayFromZero);
+        while (dot > 1 && (size + 8) * dot > availableDots) dot--;
+        return Math.Max(1, dot);
+    }
+}
 
 /// <summary>A black-and-white picture: <see cref="Rows"/> holds <see cref="Height"/> rows of <see cref="Width"/>/8 bytes, most significant bit = leftmost dot, 1 = black.</summary>
 public sealed record MonochromeImage(int Width, int Height, byte[] Rows);

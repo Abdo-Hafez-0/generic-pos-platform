@@ -51,7 +51,7 @@ public static class EscPosReceiptFormatter
         if (asImage)
             output.AddRange(Raster(renderer!.Render(lines, Math.Max(8, dotsPerLine / 8 * 8))));
         else
-            output.AddRange(Text(lines, width));
+            output.AddRange(Text(lines, width, Math.Max(8, dotsPerLine / 8 * 8)));
 
         output.AddRange([0x0A, 0x0A]);
         if (cutPaper) output.AddRange([Gs, 0x56, 0x42, 0x00]);    // feed and partial cut
@@ -125,6 +125,15 @@ public static class EscPosReceiptFormatter
             lines.Add(new ReceiptImageLine(new string('_', width)));
         }
 
+        // MISS-11c-2 (owner's choice: large and centred under the totals): the electronic receipt's QR code, its title and caption
+        if (receipt.Fiscal is { } fiscal && !string.IsNullOrWhiteSpace(fiscal.QrPayload))
+        {
+            Rule();
+            lines.Add(new ReceiptImageLine("", Center: true, QrPayload: fiscal.QrPayload));
+            foreach (var l in Wrap(fiscal.Title, width)) lines.Add(new ReceiptImageLine(l, Bold: true, Center: true));
+            foreach (var l in Wrap(fiscal.Caption, width)) lines.Add(new ReceiptImageLine(l, Center: true));
+        }
+
         foreach (var footer in receipt.FooterLines ?? [])
             foreach (var l in Wrap(footer, width)) lines.Add(new ReceiptImageLine(l, Center: true));
 
@@ -142,12 +151,18 @@ public static class EscPosReceiptFormatter
     /// <summary>True when every character is printable ASCII (what a printer's basic character set prints the same everywhere).</summary>
     public static bool IsPlainAscii(string text) => text.All(c => c is >= ' ' and <= '~');
 
-    private static IEnumerable<byte> Text(IReadOnlyList<ReceiptImageLine> lines, int width)
+    private static IEnumerable<byte> Text(IReadOnlyList<ReceiptImageLine> lines, int width, int dotsPerLine)
     {
         var output = new List<byte>();
         var (center, bold) = (false, false);
         foreach (var line in lines)
         {
+            if (line.QrPayload is { } qr)   // MISS-11c-2: the QR code as a picture between the text lines
+            {
+                output.AddRange(Raster(QrRaster.Draw(qr, dotsPerLine)));
+                continue;
+            }
+
             if (line.Center != center) { output.AddRange([Esc, 0x61, line.Center ? (byte)1 : (byte)0]); center = line.Center; }   // 1 centre, 0 left
             if (line.Bold != bold) { output.AddRange([Esc, 0x45, line.Bold ? (byte)1 : (byte)0]); bold = line.Bold; }
             var text = line.Rule ? new string('-', width) : Pair(line.Left, line.Right, width);
@@ -201,6 +216,36 @@ public static class EscPosReceiptFormatter
         }
 
         yield return text;
+    }
+}
+
+/// <summary>
+/// MISS-11c-2: a QR code as printer dots - Matjar's own encoder (Platform.Core QrCode), each module a square of whole dots so the code stays
+/// sharp, about <see cref="ReceiptImageLine.QrDots"/> wide with its quiet zone, centred on the paper.
+/// </summary>
+public static class QrRaster
+{
+    public static MonochromeImage Draw(string payload, int widthDots)
+    {
+        var code = Platform.Core.Codes.QrCode.Encode(payload);
+        var width = Math.Max(8, widthDots / 8 * 8);
+        var dot = ReceiptImageLine.QrModuleDots(code.Size, width);
+        var side = (code.Size + 8) * dot;
+        var left = Math.Max(0, (width - side) / 2) + 4 * dot;
+        var rows = new byte[width / 8 * side];
+        for (var y = 0; y < code.Size; y++)
+            for (var x = 0; x < code.Size; x++)
+            {
+                if (!code[y, x]) continue;
+                for (var dy = 0; dy < dot; dy++)
+                    for (var dx = 0; dx < dot; dx++)
+                    {
+                        var (row, column) = ((y + 4) * dot + dy, left + x * dot + dx);
+                        if (column < width) rows[row * (width / 8) + column / 8] |= (byte)(0x80 >> (column % 8));
+                    }
+            }
+
+        return new MonochromeImage(width, side, rows);
     }
 }
 

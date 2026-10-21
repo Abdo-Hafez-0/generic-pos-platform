@@ -103,6 +103,16 @@ internal sealed class FiscalRecorder(Fiscal.Application.Commands.RecordFiscalDoc
 }
 
 /// <summary>MISS-11a-3: implements the till's notice from the alert counts.</summary>
+/// <summary>MISS-11c-2: the mark of a sale's or a return's electronic receipt, for a reprint.</summary>
+internal sealed class FiscalReceiptMarks(IFiscalDocumentRepository documents, IEnumerable<Fiscal.Application.Abstractions.IFiscalCountryPart>? countryParts = null)
+    : IFiscalReceiptMarks
+{
+    public async Task<FiscalReceiptMark?> GetMarkAsync(FiscalDocumentKindContract kind, Guid sourceId, CancellationToken cancellationToken = default)
+        => await documents.FindBySourceAsync((Fiscal.Domain.Enums.FiscalDocumentKind)(int)kind, sourceId, cancellationToken) is { } document
+            ? Fiscal.Application.Abstractions.FiscalMarks.Of(document, countryParts)
+            : null;
+}
+
 internal sealed class FiscalNotices(Fiscal.Application.Queries.FiscalAlertsReader alerts, Fiscal.Application.Queries.FiscalWarningOptions? options = null) : IFiscalNotices
 {
     public async Task<FiscalTillNotice?> GetTillNoticeAsync(CancellationToken cancellationToken = default)

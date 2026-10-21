@@ -30,7 +30,8 @@ public sealed record RefundSaleCommand(Guid SaleId, IReadOnlyList<RefundLine> Li
 
 /// <summary>A completed refund: the return, the money given back and how; MISS-10c: what the printer or the drawer could not do.</summary>
 public sealed record RefundOutcome(Guid ReturnId, Guid SaleId, decimal RefundTotal, POSPaymentMethod Method, IReadOnlyList<ReturnedLineResult> Lines,
-    Guid? RefundPaymentId, IReadOnlyList<POSHardwareNotice>? HardwareNotices = null, string? FiscalNotBuilt = null);
+    Guid? RefundPaymentId, IReadOnlyList<POSHardwareNotice>? HardwareNotices = null, string? FiscalNotBuilt = null,
+    Fiscal.Contracts.Models.FiscalReceiptMark? FiscalMark = null);   // MISS-11c-2: the electronic receipt's QR on the return receipt
 
 /// <summary>
 /// MISS-10 - returns and refunds (owner's decisions 2026-10-19).
@@ -158,7 +159,8 @@ public sealed class RefundSaleCommandHandler(
             done.RefundTotal,
             new ReceiptPayment(method, done.RefundTotal),
             options.FooterLines ?? [],
-            Return: new ReceiptReturn("S-" + done.SaleId.ToString("N")[..8].ToUpperInvariant(), command.Reason.Trim()));
+            Return: new ReceiptReturn("S-" + done.SaleId.ToString("N")[..8].ToUpperInvariant(), command.Reason.Trim()),
+            Fiscal: PosReceiptFactory.ToReceiptFiscal(done.FiscalMark));
     }
 
     private static async Task NoticeIfFailedAsync(List<POSHardwareNotice> notices, string device, string what, Func<Task<Result>> call)
@@ -229,6 +231,7 @@ public sealed class RefundSaleCommandHandler(
 
         // 6. MISS-11a-2: the fiscal return document (it names the sale's), in the same transaction (the Fiscal module is optional)
         string? fiscalNotBuilt = null;
+        Fiscal.Contracts.Models.FiscalReceiptMark? fiscalMark = null;
         if (fiscalRecorder is not null)
         {
             var fiscal = await fiscalRecorder.RecordAsync(FiscalReturn(command, sale, recorded, by), cancellationToken);
@@ -236,10 +239,11 @@ public sealed class RefundSaleCommandHandler(
                 return Result.Failure<RefundOutcome>(Error.Failure("POS.Refund.FiscalFailed",
                     $"The electronic receipt of the return could not be saved: {fiscal.ErrorMessage} Nothing was saved."));
             fiscalNotBuilt = fiscal.NotBuiltReason;
+            fiscalMark = fiscal.Mark;
         }
 
         return Result.Success(new RefundOutcome(recorded.ReturnId, command.SaleId, recorded.RefundTotal, command.Method, recorded.Lines, refundId,
-            FiscalNotBuilt: fiscalNotBuilt));
+            FiscalNotBuilt: fiscalNotBuilt, FiscalMark: fiscalMark));
     }
 
     /// <summary>MISS-11a-2: the return as the tax authority's document needs it - what came back, the money given back (tax included) and how.</summary>

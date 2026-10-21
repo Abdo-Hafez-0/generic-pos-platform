@@ -72,6 +72,7 @@ public static class FiscalServicesExtensions
         services.AddTransient<Fiscal.Application.Queries.ExportEgsCodesQueryHandler>();
         services.AddTransient<Fiscal.Application.Commands.SaveFiscalCodesCommandHandler>();
         services.AddScoped<Fiscal.Contracts.Interfaces.IFiscalNotices, Fiscal.Infrastructure.Repositories.FiscalNotices>();
+        services.AddScoped<Fiscal.Contracts.Interfaces.IFiscalReceiptMarks, Fiscal.Infrastructure.Repositories.FiscalReceiptMarks>();   // MISS-11c-2
         services.AddSingleton<Platform.Application.Abstractions.Authorization.ICapabilityProvider, Fiscal.Application.Security.FiscalCapabilityProvider>();
         services.AddTransient<Fiscal.Application.Queries.GetFiscalSetupQueryHandler>();
         services.AddTransient<Fiscal.Application.Commands.SaveFiscalSettingsCommandHandler>();

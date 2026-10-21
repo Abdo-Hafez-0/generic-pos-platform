@@ -91,7 +91,7 @@ public sealed class CheckoutCartCommandHandler(
 {
     /// <summary>What a committed checkout leaves behind for the peripherals step.</summary>
     private sealed record Committed(PosCart Cart, PosSession Session, Guid SaleId, IReadOnlyList<Guid> PaymentIds, decimal ChangeDue,
-        IReadOnlyList<POSPaymentRequest> Parts, string? FiscalNotBuilt = null)
+        IReadOnlyList<POSPaymentRequest> Parts, string? FiscalNotBuilt = null, FiscalReceiptMark? FiscalMark = null)
     {
         public Guid? PaymentId => PaymentIds.Count > 0 ? PaymentIds[0] : null;
     }
@@ -315,6 +315,7 @@ public sealed class CheckoutCartCommandHandler(
 
         // 6c. MISS-11a-2: the fiscal document, in the same transaction as the sale (the Fiscal module is optional). Not saved = no sale.
         string? fiscalNotBuilt = null;
+        FiscalReceiptMark? fiscalMark = null;
         if (fiscalRecorder is not null)
         {
             var fiscal = await fiscalRecorder.RecordAsync(FiscalSale(cart, session, saleId, parts, command.Buyer), cancellationToken);
@@ -329,6 +330,7 @@ public sealed class CheckoutCartCommandHandler(
             }
 
             fiscalNotBuilt = fiscal.NotBuiltReason;
+            fiscalMark = fiscal.Mark;   // MISS-11c-2: the QR printed on the receipt
         }
 
         // 7. Complete the sale
@@ -347,7 +349,7 @@ public sealed class CheckoutCartCommandHandler(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result.Success(new Committed(cart, session, saleId, paymentIds, changeDue, parts, fiscalNotBuilt));
+        return Result.Success(new Committed(cart, session, saleId, paymentIds, changeDue, parts, fiscalNotBuilt, fiscalMark));
     }
 
     /// <summary>MISS-11a-2: the sale as the tax authority's document needs it - the priced lines (tax included), the total, how it was paid.</summary>
@@ -420,7 +422,8 @@ public sealed class CheckoutCartCommandHandler(
         {
             var payments = done.Parts.Select(PosReceiptFactory.ToReceiptPayment).ToList();
             var clock = timeProvider ?? TimeProvider.System;
-            var receipt = PosReceiptFactory.CreateWithPayments(done.Cart, done.Session, done.SaleId, payments, options, clock.GetUtcNow(), clock.LocalTimeZone);
+            var receipt = PosReceiptFactory.CreateWithPayments(done.Cart, done.Session, done.SaleId, payments, options, clock.GetUtcNow(), clock.LocalTimeZone)
+                with { Fiscal = PosReceiptFactory.ToReceiptFiscal(done.FiscalMark) };
             await NoticeIfFailedAsync(notices, "receipt printer", "the receipt could not be printed",
                 () => receiptPrinter.PrintAsync(receipt, CancellationToken.None));
         }

@@ -285,7 +285,15 @@ public sealed class EgyptReceiptTests
     }
 
     [Fact]
-    public void The_part_builds_and_waits_for_the_tills_registration_before_sending()
+    public void Egypts_mark_is_the_QR_with_the_Arabic_title_and_the_short_UUID()
+    {
+        // MISS-11c-2 (owner's choice, drawn option A)
+        var uuid = "68e656b2" + new string('0', 48) + "f368f320";
+        Assert.Equal(new FiscalReceiptMark("qr", "إيصال إلكتروني", "UUID 68e656b2...f368f320"), new EgyptCountryPart().Mark(uuid, "qr"));
+    }
+
+    [Fact]
+    public async Task The_part_builds_and_waits_for_the_tills_registration_before_sending()
     {
         var part = new EgyptCountryPart();
         var built = part.Build(Input(Sale()));
@@ -293,7 +301,7 @@ public sealed class EgyptReceiptTests
         Assert.StartsWith("https://invoicing.eta.gov.eg/receipts/search/" + built.Value.Hash, built.Value.QrPayload);
 
         var outgoing = new FiscalOutgoingDocument(Guid.NewGuid(), FiscalDocumentKind.Sale, "S-1", 1, built.Value.Hash, built.Value.Payload, IssuedAt, null);
-        var sent = Assert.Single(part.SendAsync(new FiscalSendInput([outgoing], Settings(), Guid.NewGuid(), "SHOP-PC", FiscalTillRegistration.NotRegistered)).Result);
+        var sent = Assert.Single(await part.SendAsync(new FiscalSendInput([outgoing], Settings(), Guid.NewGuid(), "SHOP-PC", FiscalTillRegistration.NotRegistered)));
         Assert.Equal((FiscalSendResult.NotSent, EgyptCountryPart.NotRegistered), (sent.Result, sent.Reason));
     }
 }

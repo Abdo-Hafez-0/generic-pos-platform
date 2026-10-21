@@ -61,6 +61,23 @@ namespace Fiscal.Application.Abstractions
 
         /// <summary>MISS-11c: when a sale must name its buyer (Egypt: a person's name and national ID above a total); null = never.</summary>
         Fiscal.Contracts.Models.FiscalBuyerRule? BuyerRule => null;
+
+        /// <summary>MISS-11c-2: what the printed receipt carries under its QR code (default: "Electronic receipt" and the short hash).</summary>
+        Fiscal.Contracts.Models.FiscalReceiptMark Mark(string hash, string qrPayload) => new(qrPayload, "Electronic receipt", FiscalMarks.Short(hash));
+    }
+
+    /// <summary>MISS-11c-2: the marks' shared pieces.</summary>
+    public static class FiscalMarks
+    {
+        /// <summary>A long hash shortened for the paper: its first and last 8 characters ("68e656b2...f368f320").</summary>
+        public static string Short(string hash) => hash.Length <= 19 ? hash : hash[..8] + "..." + hash[^8..];
+
+        /// <summary>The mark of a document that was built and has a QR code, from its country's part; null otherwise.</summary>
+        public static Fiscal.Contracts.Models.FiscalReceiptMark? Of(FiscalDocument document, IEnumerable<IFiscalCountryPart>? parts)
+            => document is { State: not FiscalDocumentState.NotBuilt, Hash: { } hash, QrPayload: { Length: > 0 } qr }
+               && (parts ?? []).LastOrDefault(p => p.Country == document.Country) is { } part
+                ? part.Mark(hash, qr)
+                : null;
     }
 
     /// <summary>MISS-11a-3: documents to send or to check, with the seller and this till.</summary>
@@ -305,7 +322,7 @@ namespace Fiscal.Application.Commands
             if (await documents.FindBySourceAsync(kind, request.SourceId, cancellationToken) is { } existing)
                 return existing.State == FiscalDocumentState.NotBuilt
                     ? FiscalDocumentResult.NotBuilt(existing.Id, existing.StateReason ?? string.Empty)
-                    : FiscalDocumentResult.Issued(existing.Id, existing.Number!.Value, existing.QrPayload);
+                    : FiscalDocumentResult.Issued(existing.Id, existing.Number!.Value, existing.QrPayload) with { Mark = FiscalMarks.Of(existing, countryParts) };
 
             var now = (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;
             var till = await FiscalTillAccess.GetOrCreateAsync(setup, unitOfWork, timeProvider, cancellationToken);
@@ -349,7 +366,7 @@ namespace Fiscal.Application.Commands
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return document.State == FiscalDocumentState.NotBuilt
                 ? FiscalDocumentResult.NotBuilt(document.Id, document.StateReason!)
-                : FiscalDocumentResult.Issued(document.Id, document.Number!.Value, document.QrPayload);
+                : FiscalDocumentResult.Issued(document.Id, document.Number!.Value, document.QrPayload) with { Mark = FiscalMarks.Of(document, countryParts) };
         }
     }
 

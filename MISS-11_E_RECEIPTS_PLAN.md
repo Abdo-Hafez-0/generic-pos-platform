@@ -124,3 +124,53 @@ ETA's unit table) and taxableItems (taxType + subType, e.g. T1 / V009 for the ge
 Arabia's simplified invoice needs each tax rate's VAT category (S, Z, E, O) and, for Z / E / O, the exemption reason code and text; no
 product codes. Noted for 11c: Egypt's seller block needs a structured branch address (governorate, city, street, building number) - the
 11a settings keep a single address line, to be split then.
+
+## 7. Owner's decisions for 11c (2026-10-21)
+
+1. **The general Receipt type**: sales are `receiptType` "s" (Receipt v1.2), returns "r" (Return Receipt v1.2, `referenceUUID` of the
+   sale in the header). The type is defined in one place *(to confirm with the tax adviser: a shop selling goods may have to use the
+   Retail Receipt "SR" instead)*.
+2. **A split payment sends the code of its largest payment**: Cash "C", Card "V", Other "O" (ETA's payment method codes); one payment
+   sends its own code.
+3. **The buyer is asked at the till**: a sale at or above the threshold (150,000 EGP for v1.2, a setting) asks for the buyer's name and
+   14-digit national ID before it can finish (buyer type "P"); below it the buyer is "P" without an ID.
+4. **Late documents are held**: a document still unsent 24 hours after issue moves to a new state Late and is no longer retried; the
+   warning tells the owner to file a late-submission request on the ETA portal (yearly quota); after approval "Send late receipts"
+   (fiscal.manage, audited) takes a fresh token and sends them.
+5. **"Correct and resend" in 11c**: a rejected receipt is rebuilt from its stored content with the current codes - a new UUID, the same
+   `previousUUID`, `referenceOldUUID` = the rejected one - and sent; the rejected one is kept, marked Replaced.
+6. **Our own QR encoder** (byte mode, error level M) drawn into the receipt image; the QRCoder library (MIT) is used only in the tests as
+   a reference. No new package in the app.
+7. **"This till" box = a summary + a window** (drawn option B): the box shows the status, environment, POS serial, part of the client
+   ID and the last sign-in; "Register this till..." opens a window with the environment (pre-production / production), client ID,
+   client secret, POS serial, OS version, model framework and pre-shared key. The secret and the key are kept with Windows DPAPI, never
+   shown again, never in backups or logs; the token lives in memory only.
+8. **The QR large and centred** under the totals (drawn option A, about 30 mm), with "إيصال إلكتروني" and a short UUID below it.
+
+Facts checked on the ETA SDK (2026-10-21):
+- Receipt v1.2: `header` (dateTimeIssued UTC, receiptNumber, uuid, previousUUID - "" only for the POS's first receipt -,
+  referenceOldUUID, currency, exchangeRate), `documentType` (receiptType, typeVersion "1.2"), `seller` (rin, companyTradeName,
+  branchCode, `branchAddress` {country "EG", governate, regionCity, street, buildingNumber; postalCode, floor, room, landmark,
+  additionalInformation optional}, deviceSerialNumber, activityCode), `buyer` (type B / P / F, id, name, mobileNumber), `itemData`
+  (internalCode, description, itemType, itemCode, unitType, quantity, unitPrice, netSale, totalSale, total, discounts, taxableItems
+  {taxType, amount, subType, rate}), totalSales, netAmount, totalAmount, taxTotals, paymentMethod; feesAmount and adjustment only 0.
+- The UUID: the receipt with an empty uuid, serialized (property names in invariant upper case and quoted, values quoted as they are
+  in the JSON - numbers are not reformatted -, an array's name before the array and again before each element), SHA-256, 64 hex
+  characters. So Matjar writes each number in one fixed form and hashes exactly the text it sends.
+- The QR: `{portal}/receipts/search/{uuid}/share/{dateTimeIssued UTC}#Total:{totalAmount},IssuerRIN:{rin}`.
+- Sign-in: `POST {identity}/connect/token`, form grant_type=client_credentials, client_id, client_secret; headers posserial,
+  pososversion, posmodelframework, presharedkey; a Bearer token for 3600 s.
+- Submission: `POST /api/v1/receiptsubmissions` {receipts, signatures}; 1-500 receipts, at most 1.5 MB, 300 lines each; answer 202
+  with submissionUUID, acceptedDocuments, rejectedDocuments; 422 DuplicateSubmission (same batch within 10 minutes, Retry-After).
+  Status: `GET /api/v1/receiptsubmissions/{submissionUuid}/details?PageNo&PageSize` - submission InProgress / Valid / Invalid,
+  each receipt Valid / Invalid / Cancelled with its errors.
+- *(to confirm)*: the issuer's CAdES-BES signature in `signatures` ("signature validation is not yet deployed" - 11c sends none); the
+  pre-production and production host names of the identity service, the API and the portal; the rounding tolerance ETA allows between
+  a line's tax and netSale x rate (Matjar's prices include tax: the net is worked back with 5 decimals and the line total kept exact);
+  the late-submission request (made on the portal; no API found).
+
+How 11c is built (each step tested and committed): **11c-1** the seller's structured address (governorate from a list, city, street,
+building number, optional fields) and the Egypt part's Build - the receipt JSON, serialization, the UUID chain, the QR text, the payment
+code, the buyer at the till above the threshold - tested against the SDK's rules and samples; **11c-2** the QR encoder and the QR on the
+printed and on-screen receipt; **11c-3** the till's registration (the window, DPAPI, the environment), the token, the batch submission
+and reading back its status; **11c-4** Late documents and "Send late receipts", and "Correct and resend".

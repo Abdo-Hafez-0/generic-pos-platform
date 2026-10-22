@@ -93,6 +93,8 @@ public static class FiscalServicesExtensions
         services.AddTransient<Fiscal.Application.Commands.TestFiscalSignInCommandHandler>();
         services.AddTransient<Fiscal.Application.Commands.SendLateFiscalDocumentsCommandHandler>();   // MISS-11c-4
         services.AddTransient<Fiscal.Application.Commands.CorrectFiscalDocumentCommandHandler>();
+        services.AddTransient<Fiscal.Application.Commands.OnboardTillCommandHandler>();   // MISS-11d-3
+        services.AddTransient<Fiscal.Application.Commands.RenewTillCertificateCommandHandler>();
         return services;
     }
 }

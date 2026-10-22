@@ -123,6 +123,49 @@ public sealed class FiscalOnRealDesktopTests
         Assert.Equal(((string?)null, ""), (again.Governorate, again.Floor));
     }
 
+    [Fact]
+    public async Task For_Saudi_Arabia_the_onboarding_window_ticks_its_steps_and_says_where_it_stopped()
+    {
+        // MISS-11d-3 (owner's choices: one button with the steps ticked; simulation or production): the offline desktop cannot reach ZATCA
+        await using var desktop = await OfflineDesktop.StartAsync();
+        var vm = new FiscalViewModel(new UiActionRunner(desktop.Services.GetRequiredService<IServiceScopeFactory>(), NullLogger<UiActionRunner>.Instance));
+        await vm.OnNavigatedToAsync();
+        vm.Country = vm.Countries.Single(c => c.Country == FiscalCountry.SaudiArabia);
+        (vm.TaxNumber, vm.SellerNameArabic, vm.SellerId) = ("300000000000003", "متجر النور", "1010010000");
+        (vm.BuildingNumber, vm.Street, vm.District, vm.City, vm.PostalCode) = ("2322", "طريق الملك فهد", "العليا", "الرياض", "12214");
+        await Run(vm, vm.SaveCommand);
+        Assert.Null(vm.ErrorMessage);
+        Assert.Equal((FiscalText.TillNotOnboarded, FiscalText.TillOnboard, "–", "–"), (vm.TillRegistrationText, vm.OnboardText, vm.UnitText, vm.CertificateText));
+
+        var window = vm.CreateOnboarding();
+        Assert.False(window.IsRenewal);
+        Assert.Equal((FiscalText.OnboardingTitle, FiscalText.Onboard, Environment.MachineName, "2322 طريق الملك فهد العليا الرياض"),
+            (window.Title, window.ActionText, window.UnitName, window.Location));
+        Assert.Equal([FiscalText.EnvironmentSimulation, FiscalText.EnvironmentProduction], window.Environments.Select(e => e.Text));
+        Assert.Equal(6, window.Steps.Count);
+        Assert.All(window.Steps, s => Assert.Equal("○", s.Mark));
+
+        var keys = desktop.Services.GetService<Fiscal.Saudi.IZatcaKeyStore>();
+        try
+        {
+            window.Environment = window.Environments[0];
+            (window.Otp, window.Branch, window.Industry) = ("123456", "Olaya branch", "Retail");
+            Assert.False(await window.RunAsync());
+            await Task.Delay(100);   // the last ticks are posted to this thread
+
+            Assert.Contains("could not be reached", window.ErrorMessage);
+            Assert.Equal(["✓", "✓", "✗", "○", "○", "○"], window.Steps.Select(s => s.Mark));
+            Assert.Contains("could not be reached", window.Steps[2].Detail);
+            Assert.False(window.Finished);
+            await vm.OnNavigatedToAsync();
+            Assert.Equal(FiscalText.TillNotOnboarded, vm.TillRegistrationText);
+        }
+        finally
+        {
+            keys?.Delete();   // the key this test made in the Windows key store
+        }
+    }
+
     private static async Task RunPanel(FiscalCodesPanel panel, ICommand command)
     {
         Assert.True(command.CanExecute(null), "the command was not executable");

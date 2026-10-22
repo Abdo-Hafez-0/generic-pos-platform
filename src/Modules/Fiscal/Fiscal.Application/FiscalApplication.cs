@@ -75,11 +75,61 @@ namespace Fiscal.Application.Abstractions
         Task<Result> TestSignInAsync(FiscalTillConnection connection, CancellationToken cancellationToken = default)
             => Task.FromResult(Result.Failure(Error.Conflict("Fiscal.SignIn.NotSupported", "This country's part has no sign-in to test.")));
 
+        /// <summary>
+        /// MISS-11d-3: onboards this till with the authority (Saudi Arabia: the key, the CSR, the compliance CSID and checks, the production
+        /// CSID), reporting each step. A failure says why (the authority's words); never an exception.
+        /// </summary>
+        Task<Result<FiscalOnboarded>> OnboardAsync(FiscalOnboardingInput input, IProgress<FiscalOnboardingProgress>? progress, CancellationToken cancellationToken = default)
+            => Task.FromResult(Result.Failure<FiscalOnboarded>(Error.Conflict("Fiscal.Onboarding.NotSupported", "This country's part has no onboarding.")));
+
+        /// <summary>MISS-11d-3: renews this till's certificate with the portal's new OTP (<paramref name="current"/>: what onboarding gave).</summary>
+        Task<Result<FiscalOnboarded>> RenewAsync(FiscalOnboardingInput input, FiscalOnboarded current, CancellationToken cancellationToken = default)
+            => Task.FromResult(Result.Failure<FiscalOnboarded>(Error.Conflict("Fiscal.Onboarding.NotSupported", "This country's part has no onboarding.")));
+
+        /// <summary>
+        /// MISS-11d-3: signs a document made before the till could sign (Saudi Arabia: before onboarding) with <paramref name="certificate"/> -
+        /// the same hash, the content and QR with the signature; null when it needs no signing (or the part signs nothing).
+        /// </summary>
+        Result<FiscalBuiltDocument>? Stamp(string payload, string certificate, DateTime nowUtc) => null;
+
         /// <summary>MISS-11c-2: what the printed receipt carries under its QR code (default: "Electronic receipt" and the short hash).</summary>
         Fiscal.Contracts.Models.FiscalReceiptMark Mark(string hash, string qrPayload) => new(qrPayload, "Electronic receipt", FiscalMarks.Short(hash));
 
-        /// <summary>MISS-11d-2: the mark of a sale's or a return's document (Saudi Arabia: an invoice or a credit note); default: the same.</summary>
-        Fiscal.Contracts.Models.FiscalReceiptMark Mark(string hash, string qrPayload, FiscalDocumentKind kind) => Mark(hash, qrPayload);
+        /// <summary>
+        /// MISS-11d-2: the mark of a sale's or a return's document (Saudi Arabia: an invoice or a credit note, with the totals read from the
+        /// document itself, <paramref name="payload"/>); default: the same as without.
+        /// </summary>
+        Fiscal.Contracts.Models.FiscalReceiptMark Mark(string hash, string qrPayload, FiscalDocumentKind kind, string? payload = null) => Mark(hash, qrPayload);
+    }
+
+    /// <summary>MISS-11d-3 (owner's choice A: one button, the steps ticked): the onboarding steps, in order.</summary>
+    public enum FiscalOnboardingStep
+    {
+        Key = 1,
+        Request = 2,
+        ComplianceCertificate = 3,
+        ComplianceChecks = 4,
+        ProductionCertificate = 5,
+        EarlierInvoices = 6,
+    }
+
+    /// <summary>MISS-11d-3: a step started (Done false), done, or failed (<see cref="Failure"/>, the authority's words).</summary>
+    public sealed record FiscalOnboardingProgress(FiscalOnboardingStep Step, bool Done, string? Failure = null, string? Detail = null);
+
+    /// <summary>
+    /// MISS-11d-3: what onboarding needs: the environment, the portal's OTP, the unit as the certificate names it, the seller and the till's
+    /// serial number.
+    /// </summary>
+    public sealed record FiscalOnboardingInput(FiscalEnvironment Environment, string Otp, string UnitName, string Branch, string Industry, string Location,
+        FiscalSettings Settings, string DeviceSerial)
+    {
+        public override string ToString() => $"{Environment} {UnitName}";   // the OTP never reaches a log line
+    }
+
+    /// <summary>MISS-11d-3: what onboarding gave: the certificate (DER, Base64), when it expires, and the API's secret (kept protected).</summary>
+    public sealed record FiscalOnboarded(string Certificate, DateTime ExpiresAtUtc, string Secret)
+    {
+        public override string ToString() => $"certificate until {ExpiresAtUtc:u}";   // the secret never reaches a log line
     }
 
     /// <summary>MISS-11c-2: the marks' shared pieces.</summary>
@@ -92,7 +142,7 @@ namespace Fiscal.Application.Abstractions
         public static Fiscal.Contracts.Models.FiscalReceiptMark? Of(FiscalDocument document, IEnumerable<IFiscalCountryPart>? parts)
             => document is { State: not FiscalDocumentState.NotBuilt, Hash: { } hash, QrPayload: { Length: > 0 } qr }
                && (parts ?? []).LastOrDefault(p => p.Country == document.Country) is { } part
-                ? part.Mark(hash, qr, document.Kind)
+                ? part.Mark(hash, qr, document.Kind, document.Payload)
                 : null;
     }
 
@@ -179,7 +229,8 @@ namespace Fiscal.Application.Abstractions
     public sealed record FiscalBuildInput(Fiscal.Contracts.Models.FiscalDocumentRequest Request, FiscalSettings Settings, Guid TillId, string TillName,
         long Number, string? PreviousHash, IReadOnlyDictionary<Guid, FiscalLineCodes>? LineCodes = null, FiscalOriginalDocument? Original = null,
         string? DeviceSerial = null, FiscalEnvironment Environment = FiscalEnvironment.None,   // MISS-11c-3: Egypt's QR links to that environment's portal
-        string? ReferenceOldHash = null);   // MISS-11c-4: a corrected copy names the refused document (Egypt: referenceOldUUID)
+        string? ReferenceOldHash = null,   // MISS-11c-4: a corrected copy names the refused document (Egypt: referenceOldUUID)
+        string? Certificate = null);       // MISS-11d-3: Saudi Arabia - the till's ZATCA certificate once onboarded (the invoice is signed at once)
 
     /// <summary>
     /// MISS-11c: a return's sale as its fiscal document recorded it (Egypt: the return carries the sale's UUID as referenceUUID and its buyer);
@@ -209,6 +260,9 @@ namespace Fiscal.Application.Repositories
 
         /// <summary>MISS-11c-4: the documents held as Late, in the order of the chain.</summary>
         Task<IReadOnlyList<FiscalDocument>> GetLateAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>MISS-11d-3: the built documents not answered for good (Waiting, Sent, Late, Rejected), in the order of the chain - to sign them.</summary>
+        Task<IReadOnlyList<FiscalDocument>> GetBuiltOpenAsync(CancellationToken cancellationToken = default);
 
         /// <summary>MISS-11a-3: Sent documents whose answer is awaited, oldest first.</summary>
         Task<IReadOnlyList<FiscalDocument>> GetSentAsync(int take, CancellationToken cancellationToken = default);
@@ -254,7 +308,11 @@ namespace Fiscal.Application.DTOs
     public sealed record FiscalAlertsDto(int Outstanding, int NotBuilt, int Rejected, int OverLimit, double LimitHours,
         int MissingProductCodes = 0, int MissingUnitCodes = 0, int MissingTaxCodes = 0, int Late = 0)
     {
-        public bool NeedsAttention => NotBuilt > 0 || Rejected > 0 || OverLimit > 0 || Late > 0 || MissingProductCodes + MissingUnitCodes + MissingTaxCodes > 0;
+        /// <summary>MISS-11d-3: when the till's certificate expires, given only within the managers' warning (30 days) or after it.</summary>
+        public DateTime? CertificateExpiresAt { get; init; }
+
+        public bool NeedsAttention => NotBuilt > 0 || Rejected > 0 || OverLimit > 0 || Late > 0 || MissingProductCodes + MissingUnitCodes + MissingTaxCodes > 0
+            || CertificateExpiresAt is not null;
     }
 
     /// <summary>MISS-11a-3: the outcome of a sending round.</summary>
@@ -263,7 +321,8 @@ namespace Fiscal.Application.DTOs
     /// they are kept.
     /// </summary>
     public sealed record FiscalTillRegistrationDto(FiscalEnvironment Environment, string? ClientId, string? PosOsVersion, string? PosModelFramework,
-        DateTime? RegisteredAt, string? RegisteredBy, bool EnvironmentLocked, bool HasSecrets, bool CanProtectSecrets, DateTime? LastSignInAt, bool? LastSignInOk);
+        DateTime? RegisteredAt, string? RegisteredBy, bool EnvironmentLocked, bool HasSecrets, bool CanProtectSecrets, DateTime? LastSignInAt, bool? LastSignInOk,
+        string? UnitName = null, string? UnitBranch = null, string? UnitIndustry = null, string? UnitLocation = null, DateTime? CertificateExpiresAt = null);   // MISS-11d-3
 
     public sealed record FiscalSendSummary(bool Ran, int Sent, int Accepted, int Rejected, int NotSent, string? LastReason, int Late = 0)
     {
@@ -315,7 +374,8 @@ namespace Fiscal.Application.Queries
                 (countryParts ?? []).Select(p => p.Country).Distinct().ToList(), till.DeviceSerial,
                 new FiscalTillRegistrationDto(till.Environment, till.ClientId, till.PosOsVersion, till.PosModelFramework, till.RegisteredAt, till.RegisteredBy,
                     till.EnvironmentLocked, secrets is not null && await secrets.ReadAsync(cancellationToken) is not null, secrets?.CanProtect == true,
-                    till.LastSignInAt, till.LastSignInOk), settings.SellerIdScheme, settings.SellerId));
+                    till.LastSignInAt, till.LastSignInOk, till.UnitName, till.UnitBranch, till.UnitIndustry, till.UnitLocation, till.CertificateExpiresAt),
+                settings.SellerIdScheme, settings.SellerId));
         }
     }
 
@@ -473,7 +533,7 @@ namespace Fiscal.Application.Commands
                 var lineCodes = codeBook is null ? null
                     : await codeBook.ForProductsAsync(request.Lines.Select(l => l.ProductId).Distinct().ToList(), cancellationToken);   // MISS-11b
                 return part.Build(new FiscalBuildInput(request, settings, till.Id, till.Name, number, previousHash, lineCodes,
-                    original, till.DeviceSerial, till.Environment, referenceOldHash));
+                    original, till.DeviceSerial, till.Environment, referenceOldHash, till.Certificate));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -635,7 +695,7 @@ namespace Fiscal.Application.Queries
 
     /// <summary>MISS-11a-3: the alert counts for the Fiscal screen and the status bar (fiscal.manage); null when receipts are off.</summary>
     public sealed class GetFiscalAlertsQueryHandler(FiscalAlertsReader alerts, IAuthorizationService authorization, FiscalWarningOptions? options = null,
-        IFiscalSetupRepository? setup = null, Fiscal.Application.Abstractions.FiscalCodeBook? codeBook = null)
+        IFiscalSetupRepository? setup = null, Fiscal.Application.Abstractions.FiscalCodeBook? codeBook = null, TimeProvider? timeProvider = null)
     {
         public async Task<Result<FiscalAlertsDto?>> HandleAsync(GetFiscalAlertsQuery query, CancellationToken cancellationToken = default)
         {
@@ -648,8 +708,16 @@ namespace Fiscal.Application.Queries
             // MISS-11b (owner's decision: missing codes in the status bar too)
             var country = setup is null ? FiscalCountry.None : (await setup.GetSettingsAsync(cancellationToken))?.Country ?? FiscalCountry.None;
             var missing = codeBook is null || country == FiscalCountry.None ? null : await codeBook.OverviewAsync(country, cancellationToken);
+            // MISS-11d-3 (owner's decision): the certificate's expiry, from 30 days before
+            var limits = options ?? new FiscalWarningOptions();
+            var expires = setup is null ? null : (await setup.GetTillAsync(cancellationToken))?.CertificateExpiresAt;
+            var now = (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+            var expiring = expires is { } at && at <= now.AddDays(limits.CertificateManagerDays) ? at : (DateTime?)null;
             return Result.Success<FiscalAlertsDto?>(new FiscalAlertsDto(counts.Outstanding, counts.NotBuilt, counts.Rejected, counts.OverManagerLimit,
-                (options ?? new FiscalWarningOptions()).ManagerHours, missing?.MissingProducts ?? 0, missing?.MissingUnits ?? 0, missing?.MissingTaxRates ?? 0, counts.Late));
+                limits.ManagerHours, missing?.MissingProducts ?? 0, missing?.MissingUnits ?? 0, missing?.MissingTaxRates ?? 0, counts.Late)
+            {
+                CertificateExpiresAt = expiring,
+            });
         }
     }
 
@@ -666,6 +734,12 @@ namespace Fiscal.Application.Queries
 
         /// <summary>MISS-11c-4: a document still unsent this long after its sale is held as Late (the authorities' 24 hours).</summary>
         public double LateHours { get; set; } = 24;
+
+        /// <summary>MISS-11d-3 (owner's decision): the managers are warned this many days before the till's certificate expires.</summary>
+        public double CertificateManagerDays { get; set; } = 30;
+
+        /// <summary>MISS-11d-3 (owner's decision): the till's line says it in the last days and after.</summary>
+        public double CertificateTillDays { get; set; } = 7;
     }
 }
 
@@ -724,6 +798,163 @@ namespace Fiscal.Application.Commands
                     : $"This till's registration with the tax authority was saved; its environment changed from {before} to {till.Environment}.",
                 $"clientId={till.ClientId};serial={till.DeviceSerial};secretsChanged={(changed ? "true" : "false")}"));
             return Result.Success();
+        }
+    }
+
+    /// <summary>MISS-11d-3: onboard this till (owner's choice A: one button in a window, the steps ticked).</summary>
+    public sealed record OnboardTillCommand(FiscalEnvironment Environment, string? Otp, string? UnitName, string? Branch, string? Industry, string? Location)
+    {
+        public override string ToString() => $"{Environment} {UnitName}";   // the OTP never reaches a log line
+    }
+
+    /// <summary>MISS-11d-3: onboarding's outcome: when the certificate expires and how many earlier documents were signed.</summary>
+    public sealed record FiscalOnboardingSummary(DateTime CertificateExpiresAtUtc, int EarlierSigned);
+
+    /// <summary>
+    /// MISS-11d-3: onboards this till with the authority (fiscal.manage, audited without the OTP or the secret): the country's part does the
+    /// steps; the certificate is kept on the till, its secret in the protected store (DPAPI); then (owner's decision) the documents made
+    /// before are signed at their place in the chain, oldest first. A computer that cannot protect the secret refuses before anything starts.
+    /// </summary>
+    public sealed class OnboardTillCommandHandler(IFiscalSetupRepository setup, IFiscalDocumentRepository documents, IFiscalUnitOfWork unitOfWork,
+        IAuthorizationService authorization, IEnumerable<IFiscalCountryPart>? countryParts = null, IFiscalSecretStore? secrets = null, ICurrentUser? currentUser = null,
+        TimeProvider? timeProvider = null, IBusinessEventSink? businessEvents = null)
+    {
+        public const int MaxField = 100;
+
+        public async Task<Result<FiscalOnboardingSummary>> HandleAsync(OnboardTillCommand command, IProgress<FiscalOnboardingProgress>? progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(FiscalCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<FiscalOnboardingSummary>(allowed.Error);
+            var settings = await setup.GetSettingsAsync(cancellationToken);
+            var part = settings is { IsOn: true } ? (countryParts ?? []).LastOrDefault(p => p.Country == settings.Country) : null;
+            if (part is null) return Result.Failure<FiscalOnboardingSummary>(Error.Conflict("Fiscal.Onboarding.Off", "Electronic receipts are off, or this country is not supported yet."));
+            if (secrets is not { CanProtect: true })
+                return Result.Failure<FiscalOnboardingSummary>(Error.Conflict("Fiscal.Till.SecretsUnprotected", "This computer cannot keep ZATCA's secret protected, so the till cannot be onboarded here."));
+
+            var (otp, unit, branch, industry, location) = (Clean(command.Otp), Clean(command.UnitName), Clean(command.Branch), Clean(command.Industry), Clean(command.Location));
+            if (otp is null || otp.Length > 20 || !otp.All(char.IsAsciiDigit))
+                return Result.Failure<FiscalOnboardingSummary>(Error.Validation("Fiscal.Onboarding.OtpRequired", "Give the OTP from the Fatoora portal (digits)."));
+            foreach (var (value, what) in new[] { (unit, "the unit's name"), (branch, "the branch's name"), (industry, "the industry"), (location, "the location") })
+                if (value is null || value.Length > MaxField)
+                    return Result.Failure<FiscalOnboardingSummary>(Error.Validation("Fiscal.Onboarding.FieldRequired", $"Give {what} (up to {MaxField} characters)."));
+
+            var till = await FiscalTillAccess.GetOrCreateAsync(setup, unitOfWork, timeProvider, cancellationToken);
+            if (till.EnvironmentLocked && till.Environment != FiscalEnvironment.None && command.Environment != till.Environment)
+                return Result.Failure<FiscalOnboardingSummary>(Error.Conflict("Fiscal.Till.EnvironmentLocked",
+                    "Invoices from this till have already reached ZATCA, so its environment can no longer change. Use a new installation."));
+
+            var input = new FiscalOnboardingInput(command.Environment, otp, unit!, branch!, industry!, location!, settings!, till.DeviceSerial ?? string.Empty);
+            Result<FiscalOnboarded> onboarded;
+            try
+            {
+                onboarded = await part.OnboardAsync(input, progress, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                onboarded = Result.Failure<FiscalOnboarded>(Error.Failure("Fiscal.Onboarding.Failed", ex.Message));
+            }
+
+            var now = (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+            if (onboarded.IsFailure)
+            {
+                await businessEvents.TryRecordAsync(BusinessEvent.Create(FiscalCapabilities.Module, "fiscal.till-onboarding-failed", "fiscal-till", till.Id.ToString(),
+                    $"Onboarding this till with the tax authority failed ({command.Environment}): {onboarded.Error.Description}"));
+                return Result.Failure<FiscalOnboardingSummary>(onboarded.Error);
+            }
+
+            var done = till.Onboard(command.Environment, unit!, branch!, industry!, location!, onboarded.Value.Certificate, onboarded.Value.ExpiresAtUtc,
+                currentUser is { IsAuthenticated: true } me ? me.UserName : null, now);
+            if (done.IsFailure) return Result.Failure<FiscalOnboardingSummary>(done.Error);
+            await secrets.WriteAsync(new FiscalTillSecrets(onboarded.Value.Secret, string.Empty), cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // owner's decision: the documents made before are signed now, oldest first
+            progress?.Report(new(FiscalOnboardingStep.EarlierInvoices, false));
+            var signed = await StampEarlierAsync(part, documents, unitOfWork, till.Certificate!, now, cancellationToken);
+            progress?.Report(new(FiscalOnboardingStep.EarlierInvoices, true, Detail: signed.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+
+            await businessEvents.TryRecordAsync(BusinessEvent.Create(FiscalCapabilities.Module, "fiscal.till-onboarded", "fiscal-till", till.Id.ToString(),
+                $"This till was onboarded with the tax authority ({command.Environment}); its certificate is valid until {onboarded.Value.ExpiresAtUtc:yyyy-MM-dd}. {signed} earlier document(s) signed.",
+                $"unit={unit};branch={branch};serial={till.DeviceSerial}"));
+            return Result.Success(new FiscalOnboardingSummary(onboarded.Value.ExpiresAtUtc, signed));
+        }
+
+        /// <summary>Signs the built documents that are not signed yet (made before onboarding), in the order of the chain.</summary>
+        internal static async Task<int> StampEarlierAsync(IFiscalCountryPart part, IFiscalDocumentRepository documents, IFiscalUnitOfWork unitOfWork, string certificate,
+            DateTime nowUtc, CancellationToken cancellationToken)
+        {
+            var built = await documents.GetBuiltOpenAsync(cancellationToken);
+            var signed = 0;
+            foreach (var document in built)
+            {
+                if (part.Stamp(document.Payload!, certificate, nowUtc) is not { IsSuccess: true } stamped) continue;
+                document.Restamp(stamped.Value.Hash, stamped.Value.Payload, stamped.Value.QrPayload);
+                signed++;
+            }
+
+            if (signed > 0) await unitOfWork.SaveChangesAsync(cancellationToken);
+            return signed;
+        }
+
+        private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    /// <summary>MISS-11d-3: renew this till's certificate with the portal's new OTP.</summary>
+    public sealed record RenewTillCertificateCommand(string? Otp)
+    {
+        public override string ToString() => "renew";   // the OTP never reaches a log line
+    }
+
+    /// <summary>
+    /// MISS-11d-3 (owner's decision: "Renew..." in the same window with a new OTP): asks the authority for a new certificate for this till
+    /// (fiscal.manage, audited); the new secret replaces the kept one.
+    /// </summary>
+    public sealed class RenewTillCertificateCommandHandler(IFiscalSetupRepository setup, IFiscalUnitOfWork unitOfWork, IAuthorizationService authorization,
+        IEnumerable<IFiscalCountryPart>? countryParts = null, IFiscalSecretStore? secrets = null, ICurrentUser? currentUser = null, TimeProvider? timeProvider = null,
+        IBusinessEventSink? businessEvents = null)
+    {
+        public async Task<Result<DateTime>> HandleAsync(RenewTillCertificateCommand command, CancellationToken cancellationToken = default)
+        {
+            var allowed = await authorization.AuthorizeAsync(FiscalCapabilities.Manage, cancellationToken);
+            if (allowed.IsFailure) return Result.Failure<DateTime>(allowed.Error);
+            var settings = await setup.GetSettingsAsync(cancellationToken);
+            var part = settings is { IsOn: true } ? (countryParts ?? []).LastOrDefault(p => p.Country == settings.Country) : null;
+            if (part is null) return Result.Failure<DateTime>(Error.Conflict("Fiscal.Onboarding.Off", "Electronic receipts are off, or this country is not supported yet."));
+            var otp = command.Otp?.Trim();
+            if (string.IsNullOrEmpty(otp) || otp.Length > 20 || !otp.All(char.IsAsciiDigit))
+                return Result.Failure<DateTime>(Error.Validation("Fiscal.Onboarding.OtpRequired", "Give the OTP from the Fatoora portal (digits)."));
+
+            var till = await FiscalTillAccess.GetOrCreateAsync(setup, unitOfWork, timeProvider, cancellationToken);
+            if (till is not { Certificate: { } certificate, UnitName: { } unit, UnitBranch: { } branch, UnitIndustry: { } industry, UnitLocation: { } location, CertificateExpiresAt: { } expires }
+                || secrets is null || await secrets.ReadAsync(cancellationToken) is not { } kept)
+                return Result.Failure<DateTime>(Error.Conflict("Fiscal.Onboarding.NotOnboarded", "Onboard this till first."));
+
+            var input = new FiscalOnboardingInput(till.Environment, otp, unit, branch, industry, location, settings!, till.DeviceSerial ?? string.Empty);
+            Result<FiscalOnboarded> renewed;
+            try
+            {
+                renewed = await part.RenewAsync(input, new FiscalOnboarded(certificate, expires, kept.ClientSecret), cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                renewed = Result.Failure<FiscalOnboarded>(Error.Failure("Fiscal.Onboarding.Failed", ex.Message));
+            }
+
+            if (renewed.IsFailure)
+            {
+                await businessEvents.TryRecordAsync(BusinessEvent.Create(FiscalCapabilities.Module, "fiscal.certificate-renewal-failed", "fiscal-till", till.Id.ToString(),
+                    $"Renewing this till's certificate failed: {renewed.Error.Description}"));
+                return Result.Failure<DateTime>(renewed.Error);
+            }
+
+            till.Renewed(renewed.Value.Certificate, renewed.Value.ExpiresAtUtc, currentUser is { IsAuthenticated: true } me ? me.UserName : null,
+                (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime);
+            await secrets.WriteAsync(new FiscalTillSecrets(renewed.Value.Secret, string.Empty), cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await businessEvents.TryRecordAsync(BusinessEvent.Create(FiscalCapabilities.Module, "fiscal.certificate-renewed", "fiscal-till", till.Id.ToString(),
+                $"This till's certificate was renewed; valid until {renewed.Value.ExpiresAtUtc:yyyy-MM-dd}."));
+            return Result.Success(renewed.Value.ExpiresAtUtc);
         }
     }
 

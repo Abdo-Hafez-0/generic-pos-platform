@@ -369,4 +369,6 @@
   <data name="BuyerMissing" xml:space="preserve">
     <value>اكتب اسم المشتري ورقمه القومي ({0} رقمًا) للإيصال الإلكتروني.</value>
   </data>
+  <data name="FiscalCertificateExpiring" xml:space="preserve"><value>تنتهي شهادة الفوترة الإلكترونية لنقطة البيع في {0} - أبلغ مسؤول الإيصالات الإلكترونية لتجديدها.</value></data>
+  <data name="FiscalCertificateExpired" xml:space="preserve"><value>انتهت شهادة الفوترة الإلكترونية لنقطة البيع في {0} - أبلغ مسؤول الإيصالات الإلكترونية لتجديدها.</value></data>
 </root>

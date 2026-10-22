@@ -69,7 +69,11 @@ namespace Fiscal.Contracts.Models
     /// MISS-11a-3: what the till says about electronic receipts (owner's decision: a short line on the till): how many have waited longer than
     /// the till's limit (12 hours) to reach the authority, and since when.
     /// </summary>
-    public sealed record FiscalTillNotice(int OverdueCount, DateTime OldestAtUtc, double LimitHours);
+    public sealed record FiscalTillNotice(int OverdueCount, DateTime OldestAtUtc, double LimitHours)
+    {
+        /// <summary>MISS-11d-3 (owner's decision): the till's certificate expires within the till's days (7) or has expired.</summary>
+        public DateTime? CertificateExpiresAtUtc { get; init; }
+    }
 
     /// <summary>
     /// MISS-11c-2: the tax authority's mark on a printed receipt: the QR code's text, a title and a caption printed under it (Egypt:

@@ -513,12 +513,21 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
             var reader = scope.Get<IPOSReader>();
             return (Notice: await reader.GetFiscalNoticeAsync(ct), Rule: await reader.GetFiscalBuyerRuleAsync(ct));
         }, cancellationToken);
-        FiscalNotice = read is { IsSuccess: true, Value.Notice: { } n }
-            ? string.Format(CultureInfo.CurrentCulture, PosText.FiscalOverdue, n.OverdueCount, n.LimitHours)
-            : null;
+        FiscalNotice = read is { IsSuccess: true, Value.Notice: { } n } ? FiscalLine(n) : null;
         _buyerRule = read.IsSuccess ? read.Value.Rule : null;
         Raise(nameof(NeedsBuyer));
         Raise(nameof(BuyerNotice));
+    }
+
+    /// <summary>The till's line: what has waited too long and (MISS-11d-3) the e-invoicing certificate about to expire or expired.</summary>
+    private string? FiscalLine(POSFiscalNotice notice)
+    {
+        var parts = new List<string>();
+        if (notice.OverdueCount > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, PosText.FiscalOverdue, notice.OverdueCount, notice.LimitHours));
+        if (notice.CertificateExpiresAtUtc is { } expires)
+            parts.Add(string.Format(CultureInfo.CurrentCulture, expires <= DateTime.UtcNow ? PosText.FiscalCertificateExpired : PosText.FiscalCertificateExpiring,
+                "‎" + expires.ToLocalTime().ToString("d", CultureInfo.CurrentCulture) + "‎"));
+        return parts.Count == 0 ? null : string.Join(" ", parts);
     }
 
     /// <summary>The screen is left (another screen, or sign-out): scans no longer reach this cart.</summary>

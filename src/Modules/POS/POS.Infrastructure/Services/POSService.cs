@@ -190,7 +190,7 @@ internal sealed class POSReader(
 
     public async Task<POSFiscalNotice?> GetFiscalNoticeAsync(CancellationToken cancellationToken = default)
         => fiscalNotices is not null && await fiscalNotices.GetTillNoticeAsync(cancellationToken) is { } notice
-            ? new POSFiscalNotice(notice.OverdueCount, notice.OldestAtUtc, notice.LimitHours)
+            ? new POSFiscalNotice(notice.OverdueCount, notice.OldestAtUtc, notice.LimitHours, notice.CertificateExpiresAtUtc)
             : null;
 
     public Task<POSReturnableSale?> GetReturnableSaleAsync(Guid saleId, CancellationToken cancellationToken = default)

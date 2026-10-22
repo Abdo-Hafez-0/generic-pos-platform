@@ -33,7 +33,8 @@ public sealed class ProtectedFiscalSecretStore(string path, ISecretProtector? pr
         try
         {
             var stored = JsonSerializer.Deserialize<Stored>(plain);
-            return Task.FromResult(stored is { ClientSecret.Length: > 0, PresharedKey.Length: > 0 } ? new FiscalTillSecrets(stored.ClientSecret, stored.PresharedKey) : null);
+            // MISS-11d-3: Saudi Arabia keeps ZATCA's API secret alone (no pre-shared key); Egypt's registration requires its key itself
+            return Task.FromResult(stored is { ClientSecret.Length: > 0 } ? new FiscalTillSecrets(stored.ClientSecret, stored.PresharedKey ?? string.Empty) : null);
         }
         catch (JsonException)
         {

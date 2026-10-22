@@ -51,6 +51,11 @@ internal sealed class FiscalTillConfiguration : IEntityTypeConfiguration<FiscalT
         builder.Property(t => t.PosOsVersion).HasMaxLength(50);
         builder.Property(t => t.PosModelFramework).HasMaxLength(10);
         builder.Property(t => t.RegisteredBy).HasMaxLength(100);
+        builder.Property(t => t.UnitName).HasMaxLength(100);   // MISS-11d-3: Saudi Arabia - the unit and ZATCA's certificate (public; no secrets)
+        builder.Property(t => t.UnitBranch).HasMaxLength(100);
+        builder.Property(t => t.UnitIndustry).HasMaxLength(100);
+        builder.Property(t => t.UnitLocation).HasMaxLength(100);
+        builder.Property(t => t.Certificate).HasMaxLength(8000);
         builder.Ignore(t => t.EnvironmentLocked);
         builder.Property(t => t.Registration).HasConversion<int>().IsRequired();
         // the chain's counter must not be taken twice: a concurrent update fails instead of reusing a number

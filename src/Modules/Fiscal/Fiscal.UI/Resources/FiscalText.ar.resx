@@ -265,4 +265,35 @@
   <data name="NationalAddress" xml:space="preserve"><value>العنوان الوطني (بالعربية كما هو مسجّل)</value></data>
   <data name="District" xml:space="preserve"><value>الحي</value></data>
   <data name="AdditionalNumber" xml:space="preserve"><value>الرقم الإضافي</value></data>
+  <data name="NoticeCertificateExpiring" xml:space="preserve"><value>تنتهي شهادة الهيئة لنقطة البيع في {0} (جدّدها)</value></data>
+  <data name="NoticeCertificateExpired" xml:space="preserve"><value>انتهت شهادة الهيئة لنقطة البيع في {0} (جدّدها)</value></data>
+  <data name="TillOnboard" xml:space="preserve"><value>ربط نقطة البيع بالهيئة...</value></data>
+  <data name="TillRenew" xml:space="preserve"><value>تجديد...</value></data>
+  <data name="TillOnboarded" xml:space="preserve"><value>مربوطة</value></data>
+  <data name="TillNotOnboarded" xml:space="preserve"><value>غير مربوطة بعد</value></data>
+  <data name="EnvironmentSimulation" xml:space="preserve"><value>المحاكاة (للتجربة)</value></data>
+  <data name="Unit" xml:space="preserve"><value>الوحدة</value></data>
+  <data name="Certificate" xml:space="preserve"><value>الشهادة</value></data>
+  <data name="CertificateUntil" xml:space="preserve"><value>سارية حتى {0}</value></data>
+  <data name="OnboardingTitle" xml:space="preserve"><value>ربط نقطة البيع بهيئة الزكاة والضريبة والجمارك</value></data>
+  <data name="RenewTitle" xml:space="preserve"><value>تجديد شهادة الهيئة لنقطة البيع</value></data>
+  <data name="OnboardingHint" xml:space="preserve"><value>أنشئ رمز تحقق (OTP) لهذه الوحدة في بوابة فاتورة (صالح لمدة ساعة)، ثم اضغط "ربط". ينشئ متجر مفتاح التوقيع على هذا الجهاز (ولا يغادره أبدًا)، ويثبت صحة نقطة البيع بثلاث فواتير نموذجية، ثم يستلم شهادة الهيئة.</value></data>
+  <data name="RenewHint" xml:space="preserve"><value>أنشئ رمز تحقق جديدًا في بوابة فاتورة، ثم اضغط "تجديد". تحتفظ نقطة البيع بمفتاحها.</value></data>
+  <data name="Otp" xml:space="preserve"><value>رمز التحقق (OTP) من بوابة فاتورة</value></data>
+  <data name="UnitName" xml:space="preserve"><value>اسم الوحدة (أو رقم الأصل)</value></data>
+  <data name="UnitBranch" xml:space="preserve"><value>اسم الفرع</value></data>
+  <data name="UnitIndustry" xml:space="preserve"><value>النشاط</value></data>
+  <data name="UnitLocation" xml:space="preserve"><value>الموقع (العنوان الوطني المختصر)</value></data>
+  <data name="Onboard" xml:space="preserve"><value>ربط</value></data>
+  <data name="Renew" xml:space="preserve"><value>تجديد</value></data>
+  <data name="Close" xml:space="preserve"><value>إغلاق</value></data>
+  <data name="StepKey" xml:space="preserve"><value>إنشاء مفتاح التوقيع على هذا الجهاز</value></data>
+  <data name="StepRequest" xml:space="preserve"><value>طلب الشهادة (CSR)</value></data>
+  <data name="StepComplianceCertificate" xml:space="preserve"><value>شهادة الامتثال</value></data>
+  <data name="StepComplianceChecks" xml:space="preserve"><value>فحوص الامتثال (3 فواتير نموذجية)</value></data>
+  <data name="StepProductionCertificate" xml:space="preserve"><value>شهادة الإنتاج</value></data>
+  <data name="StepEarlierInvoices" xml:space="preserve"><value>توقيع الفواتير السابقة</value></data>
+  <data name="OnboardingDone" xml:space="preserve"><value>تم ربط نقطة البيع. شهادتها سارية حتى {0}؛ وقُّعت {1} فاتورة سابقة.</value></data>
+  <data name="RenewDone" xml:space="preserve"><value>جُدّدت الشهادة. وهي سارية حتى {0}.</value></data>
+  <data name="TillOnboardedSaved" xml:space="preserve"><value>نقطة البيع مربوطة بهيئة الزكاة والضريبة والجمارك.</value></data>
 </root>

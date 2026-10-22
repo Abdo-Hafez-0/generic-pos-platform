@@ -52,9 +52,23 @@ public sealed class SaudiStampTests
         => new(FiscalDocumentKindContract.Sale, Guid.NewGuid(), "S-1A2B3C4D", IssuedAt,
             [new FiscalLineRequest(Water, "WATER", "مياه 500 مل", 2m, 1.15m, 0m, 2.30m, 0.15m, 0.30m)], 2.30m, 0.30m, [new FiscalPaymentRequest("Cash", 2.30m)]);
 
-    private sealed class Credentials(Func<ZatcaSigner?> open) : IZatcaCredentials
+    /// <summary>A key store holding a test key (or none): each Open gives a fresh copy, as the Windows key store does.</summary>
+    internal sealed class TestKeyStore(ECDsa? key) : IZatcaKeyStore
     {
-        public ZatcaSigner? Open() => open();
+        private ECParameters? _key = key?.ExportParameters(true);
+
+        public bool Exists() => _key is not null;
+
+        public ECDsa Create()
+        {
+            using var made = ECDsa.Create(ECCurve.CreateFromFriendlyName("secP256k1"));
+            _key = made.ExportParameters(true);
+            return ECDsa.Create(_key.Value);
+        }
+
+        public ECDsa? Open() => _key is { } k ? ECDsa.Create(k) : null;
+
+        public void Delete() => _key = null;
     }
 
     private static (ZatcaInvoiceBuilder.Built Unstamped, ZatcaStamp.Stamped Stamped, ZatcaSigner Signer) Stamp()
@@ -166,16 +180,19 @@ public sealed class SaudiStampTests
     [Fact]
     public void The_Saudi_part_stamps_at_the_sale_when_onboarded_and_keeps_the_short_QR_before()
     {
-        var part = new SaudiCountryPart(credentials: new Credentials(TestSigner));
+        using var signer = TestSigner();
+        var part = new SaudiCountryPart(keys: new TestKeyStore(signer.Key));
         var sale = Sale();
-        var stamped = part.Build(Input(sale)).Value;
-        var waiting = new SaudiCountryPart(credentials: new Credentials(() => null)).Build(Input(sale)).Value;
+        var stamped = part.Build(Input(sale) with { Certificate = Convert.ToBase64String(signer.Certificate.RawData) }).Value;
+        var waiting = part.Build(Input(sale)).Value;                                                        // no certificate yet
+        var noKey = new SaudiCountryPart(keys: new TestKeyStore(null)).Build(Input(sale) with { Certificate = Convert.ToBase64String(signer.Certificate.RawData) }).Value;
 
         Assert.Equal(9, ZatcaQr.Decode(stamped.QrPayload!).Count);
         Assert.Contains("<ext:UBLExtensions>", stamped.Payload);
         Assert.Equal(5, ZatcaQr.Decode(waiting.QrPayload!).Count);
         Assert.DoesNotContain("UBLExtensions", waiting.Payload);
         Assert.Equal(waiting.Hash, stamped.Hash);   // the chain does not depend on when it is stamped
+        Assert.Equal(5, ZatcaQr.Decode(noKey.QrPayload!).Count);   // the key is not on this computer: it waits
     }
 
     [Fact]

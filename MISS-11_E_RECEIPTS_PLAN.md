@@ -279,3 +279,14 @@ against the SDK's signed samples and validator, and on ZATCA's simulation)*: the
 (not of SignedInfo); the certificate's and the signed properties' digests are Base64 of the SHA-256's lowercase hex; the signed properties
 are digested in their exclusive canonical form; the QR's tags 6 and 7 hold the Base64 text, 8 the public key's DER, 9 the CA's signature;
 SigningTime in Riyadh time without a zone.
+
+11d-3 (2026-10-22), owner's choices: **tested against ZATCA's public developer sandbox** (no account, its fixed OTP, ZATCA's test VAT
+number and a made-up shop; opt-in tests); **simulation and production** in the onboarding window (the sandbox is a hidden setting,
+Fiscal:Saudi:UseDeveloperSandbox); **the till box as a summary with "Onboard this till..." / "Renew..."** (drawn option A); **the invoices made
+before onboarding are signed at its end**, oldest first. Built: the CSR, ZATCA's onboarding API (compliance CSID, three compliance checks -
+invoice, credit note, debit note -, production CSID, renewal), the certificate on the till and its secret protected, the expiry warnings.
+**Confirmed on ZATCA's sandbox** (its compliance checks validate the XML, the hash, the stamp and the QR): onboarding and renewal pass, and
+Matjar's invoices pass with no warning in the edge cases (a halala of rounding, zero-rated with an exemption, a buyer's name, weighed and
+discounted lines, a credit note, several lines) - so the 11d-1 and 11d-2 details marked *(to confirm)* about the hash, the stamp, the QR's
+bytes, the times without a zone, the rounding amount and the buyer's name are settled. One fix came from it: QR tag 4 is the amount due
+(BT-115). Still *(to confirm in 11f)*: the same on the simulation with a real account, and production.

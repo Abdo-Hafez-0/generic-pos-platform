@@ -275,6 +275,13 @@ namespace Fiscal.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Certificate")
+                        .HasMaxLength(8000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CertificateExpiresAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ClientId")
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
@@ -328,6 +335,22 @@ namespace Fiscal.Infrastructure.Migrations
 
                     b.Property<int>("Registration")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("UnitBranch")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UnitIndustry")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UnitLocation")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UnitName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 

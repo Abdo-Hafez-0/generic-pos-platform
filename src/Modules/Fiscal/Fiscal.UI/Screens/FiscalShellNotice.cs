@@ -32,6 +32,9 @@ public sealed class FiscalShellNotice(IUiActionRunner runner) : IShellNoticeProv
         if (alerts.MissingProductCodes > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, FiscalText.NoticeMissingProducts, alerts.MissingProductCodes));   // MISS-11b
         if (alerts.MissingUnitCodes > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, FiscalText.NoticeMissingUnits, alerts.MissingUnitCodes));
         if (alerts.MissingTaxCodes > 0) parts.Add(string.Format(CultureInfo.CurrentCulture, FiscalText.NoticeMissingTaxRates, alerts.MissingTaxCodes));
+        if (alerts.CertificateExpiresAt is { } expires)   // MISS-11d-3 (owner's decision: from 30 days before)
+            parts.Add(string.Format(CultureInfo.CurrentCulture, expires <= DateTime.UtcNow ? FiscalText.NoticeCertificateExpired : FiscalText.NoticeCertificateExpiring,
+                DateTime.SpecifyKind(expires, DateTimeKind.Utc).ToLocalTime().ToString("d", CultureInfo.CurrentCulture)));
         return FiscalText.NoticePrefix + " " + string.Join(FiscalText.ListSeparator, parts);
     }
 }

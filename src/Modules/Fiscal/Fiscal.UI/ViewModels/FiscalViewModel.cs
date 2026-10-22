@@ -88,6 +88,7 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
 
     public string EnvironmentText => Registration?.Environment switch
     {
+        FiscalEnvironment.PreProduction when IsSaudi => FiscalText.EnvironmentSimulation,   // MISS-11d-3: ZATCA's simulation
         FiscalEnvironment.PreProduction => FiscalText.EnvironmentPreProduction,
         FiscalEnvironment.Production => FiscalText.EnvironmentProduction,
         _ => "–",
@@ -101,6 +102,34 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
         ? "‎" + DateTime.SpecifyKind(at, DateTimeKind.Utc).ToLocalTime().ToString("g", CultureInfo.CurrentCulture) + "‎ – "
           + (r.LastSignInOk == true ? FiscalText.SignInAccepted : FiscalText.SignInRefused)
         : "–";
+
+    // ---- MISS-11d-3 (owner's choice A: a summary and buttons): Saudi Arabia - the unit, the certificate's expiry, "Onboard this till..." / "Renew..."
+
+    /// <summary>"Till 1 · Olaya branch", or "–" before onboarding.</summary>
+    public string UnitText => Registration?.UnitName is { } unit ? unit + (Registration.UnitBranch is { } branch ? " · " + branch : string.Empty) : "–";
+
+    /// <summary>"valid until 22/10/2031", or "–" before onboarding.</summary>
+    public string CertificateText => Registration?.CertificateExpiresAt is { } until
+        ? string.Format(CultureInfo.CurrentCulture, FiscalText.CertificateUntil, "‎" + DateTime.SpecifyKind(until, DateTimeKind.Utc).ToLocalTime().ToString("d", CultureInfo.CurrentCulture) + "‎")
+        : "–";
+
+    /// <summary>The button: "Onboard this till..." or, once onboarded, "Renew...".</summary>
+    public string OnboardText => IsRegistered ? FiscalText.TillRenew : FiscalText.TillOnboard;
+
+    /// <summary>The onboarding (or renewal) window's view model: the unit as kept, the location suggested from the national address.</summary>
+    public OnboardingViewModel CreateOnboarding()
+    {
+        var parts = new[] { BuildingNumber, Street, District, City }.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim());
+        return new OnboardingViewModel(_runner, Registration, IsRegistered, string.Join(" ", parts) is { Length: > 0 } where ? (where.Length > 100 ? where[..100] : where) : null, TillName);
+    }
+
+    /// <summary>After the window onboarded (or renewed): the summary and the documents again (earlier invoices were signed).</summary>
+    public Task OnboardedAsync() => BusyAsync(async () =>
+    {
+        await LoadAsync(CancellationToken.None);
+        if (ErrorMessage is null) await LoadDocumentsAsync(CancellationToken.None);
+        if (ErrorMessage is null) StatusMessage = FiscalText.TillOnboardedSaved;
+    });
 
     /// <summary>The registration window's view model, filled with what is kept (never the secrets).</summary>
     public TillRegistrationViewModel CreateRegistration() => new(_runner, Registration, _setup?.DeviceSerial);
@@ -236,6 +265,8 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
             if (!Set(ref _country, value)) return;
             Raise(nameof(IsEgypt));
             Raise(nameof(IsSaudi));
+            Raise(nameof(TillRegistrationText));
+            Raise(nameof(EnvironmentText));
             Raise(nameof(NeedsDetails));
             Raise(nameof(TaxNumberHint));
         }
@@ -288,7 +319,13 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
     /// <summary>"Send now" shows when this till issues documents (a country part is installed).</summary>
     public bool CanSendNow => _setup is { IsIssuing: true };
 
-    public string TillRegistrationText => _setup?.TillRegistration == FiscalTillRegistration.Registered ? FiscalText.TillRegistered : FiscalText.TillNotRegistered;
+    public string TillRegistrationText => (_setup?.TillRegistration == FiscalTillRegistration.Registered, IsSaudi) switch
+    {
+        (true, true) => FiscalText.TillOnboarded,          // MISS-11d-3
+        (false, true) => FiscalText.TillNotOnboarded,
+        (true, false) => FiscalText.TillRegistered,
+        _ => FiscalText.TillNotRegistered,
+    };
 
     public string NextNumberText => (_setup?.NextNumber ?? 1).ToString(CultureInfo.CurrentCulture);
 
@@ -328,7 +365,8 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
         (District, AdditionalNumber, SellerId) = (a.District ?? string.Empty, a.AdditionalNumber ?? string.Empty, setup.SellerId ?? string.Empty);
         SellerIdType = SellerIdTypes.FirstOrDefault(t => t.Scheme == setup.SellerIdScheme) ?? SellerIdTypes[0];
         foreach (var name in new[] { nameof(IsCountryLocked), nameof(CanChooseCountry), nameof(TillName), nameof(TillRegistrationText), nameof(NextNumberText), nameof(IssuingText), nameof(CanSendNow), nameof(DeviceSerial),
-                     nameof(Registration), nameof(IsRegistered), nameof(EnvironmentText), nameof(ClientIdText), nameof(LastSignInText) })
+                     nameof(Registration), nameof(IsRegistered), nameof(EnvironmentText), nameof(ClientIdText), nameof(LastSignInText),
+                     nameof(UnitText), nameof(CertificateText), nameof(OnboardText) })
             Raise(name);
     }
 

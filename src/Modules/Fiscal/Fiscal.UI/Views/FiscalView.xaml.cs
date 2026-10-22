@@ -19,6 +19,14 @@ public partial class FiscalView : UserControl
         if (dialog.ShowDialog(Window.GetWindow(this)) == true) await vm.Codes.ExportAsync(dialog.FileName);
     }
 
+    /// <summary>MISS-11d-3: "Onboard this till..." / "Renew..." opens the onboarding window; once done the summary and documents are read again.</summary>
+    private async void OnOnboardTill(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not FiscalViewModel vm) return;
+        var window = new OnboardingWindow(vm.CreateOnboarding()) { Owner = Window.GetWindow(this) };
+        if (window.ShowDialog() == true) await vm.OnboardedAsync();
+    }
+
     /// <summary>MISS-11c-3: "Register this till..." opens the registration window; after a save the summary is read again.</summary>
     private async void OnRegisterTill(object sender, RoutedEventArgs e)
     {

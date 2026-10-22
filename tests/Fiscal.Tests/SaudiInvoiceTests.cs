@@ -334,7 +334,8 @@ public sealed class SaudiInvoiceTests
 
         var fields = ZatcaQr.Decode(built.Qr);
         Assert.Equal(new byte[] { 1, 2, 3, 4, 5 }, fields.Select(f => f.Tag));
-        Assert.Equal(["متجر النور & شركاه", "300000000000003", "2026-10-22T12:30:15", "4.34", "0.57"], fields.Select(f => Encoding.UTF8.GetString(f.Value)));
+        // tag 4 is the amount due (BT-115, what was charged - 4.33), not the total with VAT (4.34): ZATCA's sandbox asks for it (MISS-11d-3)
+        Assert.Equal(["متجر النور & شركاه", "300000000000003", "2026-10-22T12:30:15", "4.33", "0.57"], fields.Select(f => Encoding.UTF8.GetString(f.Value)));
         Assert.Equal(Encoding.UTF8.GetByteCount("متجر النور & شركاه"), fields[0].Value.Length);   // the length is in bytes, not characters
         Assert.True(built.Qr.Length <= ZatcaQr.MaxLength);
         Assert.DoesNotContain(Root(built).Elements(Cac + "AdditionalDocumentReference"), r => (string?)r.Element(Cbc + "ID") == "QR");   // the full QR comes with the stamp

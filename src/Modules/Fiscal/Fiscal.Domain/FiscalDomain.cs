@@ -327,6 +327,44 @@ namespace Fiscal.Domain.Entities
 
         public void RecordSignIn(bool ok, DateTime nowUtc) => (LastSignInAt, LastSignInOk) = (nowUtc, ok);
 
+        // ---- MISS-11d-3: Saudi Arabia - the unit as ZATCA's certificate names it, and the certificate (the production CSID) onboarding gave.
+        // The certificate is public (it is in every invoice); its API secret is kept protected by Windows, the private key in the Windows key
+        // store - neither is here.
+
+        public string? UnitName { get; private set; }
+        public string? UnitBranch { get; private set; }
+        public string? UnitIndustry { get; private set; }
+        public string? UnitLocation { get; private set; }
+
+        /// <summary>ZATCA's certificate for this till (DER, Base64).</summary>
+        public string? Certificate { get; private set; }
+
+        public DateTime? CertificateExpiresAt { get; private set; }
+
+        /// <summary>
+        /// MISS-11d-3: this till was onboarded with ZATCA (the environment as for Egypt's registration: locked once a document reached the
+        /// authority).
+        /// </summary>
+        public Result Onboard(FiscalEnvironment environment, string unitName, string branch, string industry, string location, string certificate,
+            DateTime expiresAtUtc, string? by, DateTime nowUtc)
+        {
+            if (environment is not (FiscalEnvironment.PreProduction or FiscalEnvironment.Production))
+                return Error.Validation("Fiscal.Till.EnvironmentRequired", "Choose ZATCA's environment: simulation (testing) or production.");
+            if (EnvironmentLocked && Environment != FiscalEnvironment.None && environment != Environment)
+                return Error.Conflict("Fiscal.Till.EnvironmentLocked",
+                    "Invoices from this till have already reached ZATCA, so its environment can no longer change. Use a new installation.");
+            if (string.IsNullOrWhiteSpace(certificate)) return Error.Validation("Fiscal.Till.CertificateRequired", "ZATCA gave no certificate.");
+
+            (Environment, UnitName, UnitBranch, UnitIndustry, UnitLocation) = (environment, unitName.Trim(), branch.Trim(), industry.Trim(), location.Trim());
+            (Certificate, CertificateExpiresAt) = (certificate, expiresAtUtc);
+            (RegisteredAt, RegisteredBy, Registration) = (nowUtc, string.IsNullOrWhiteSpace(by) ? null : by.Trim(), FiscalTillRegistration.Registered);
+            return Result.Success();
+        }
+
+        /// <summary>MISS-11d-3: the certificate was renewed (a new production CSID for the same key).</summary>
+        public void Renewed(string certificate, DateTime expiresAtUtc, string? by, DateTime nowUtc)
+            => (Certificate, CertificateExpiresAt, RegisteredAt, RegisteredBy) = (certificate, expiresAtUtc, nowUtc, string.IsNullOrWhiteSpace(by) ? RegisteredBy : by.Trim());
+
         /// <summary>Gives a till made before MISS-11c its serial number. True when it was given now (to be saved).</summary>
         public bool EnsureDeviceSerial()
         {
@@ -459,6 +497,16 @@ namespace Fiscal.Domain.Entities
             State = FiscalDocumentState.Replaced;
             ReplacedByDocumentId = correctionId;
             AnsweredAt ??= nowUtc;
+        }
+
+        /// <summary>
+        /// MISS-11d-3: a document made before the till could sign (Saudi Arabia, before onboarding), signed now: the same hash, place and chain;
+        /// the content and the QR with the signature.
+        /// </summary>
+        public void Restamp(string hash, string payload, string? qrPayload)
+        {
+            if (State == FiscalDocumentState.NotBuilt || Hash != hash) throw new InvalidOperationException("Only a built document can be signed, and its hash cannot change.");
+            (Payload, QrPayload) = (payload, qrPayload);
         }
 
         /// <summary>A document that could not be built at the sale, built now at the next place of the chain ("Build and send").</summary>

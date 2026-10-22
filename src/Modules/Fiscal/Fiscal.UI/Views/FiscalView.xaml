@@ -242,15 +242,24 @@
                             <!-- MISS-11c-3 (owner's choice, drawn option B): the registration as a summary; the details in a window -->
                             <TextBlock Grid.Row="4" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.Environment}"/>
                             <TextBlock Grid.Row="4" Grid.Column="1" x:Name="EnvironmentText" Text="{Binding EnvironmentText}"/>
-                            <TextBlock Grid.Row="5" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.ClientId}"/>
-                            <TextBlock Grid.Row="5" Grid.Column="1" x:Name="ClientIdText" Text="{Binding ClientIdText}" FlowDirection="LeftToRight" HorizontalAlignment="Left"/>
-                            <TextBlock Grid.Row="6" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.LastSignIn}"/>
-                            <TextBlock Grid.Row="6" Grid.Column="1" x:Name="LastSignInText" Text="{Binding LastSignInText}"/>
+                            <TextBlock Grid.Row="5" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.ClientId}" Visibility="{Binding IsEgypt, Converter={StaticResource VisibleWhenTrue}}"/>
+                            <TextBlock Grid.Row="5" Grid.Column="1" x:Name="ClientIdText" Text="{Binding ClientIdText}" FlowDirection="LeftToRight" HorizontalAlignment="Left"
+                                       Visibility="{Binding IsEgypt, Converter={StaticResource VisibleWhenTrue}}"/>
+                            <TextBlock Grid.Row="6" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.LastSignIn}" Visibility="{Binding IsEgypt, Converter={StaticResource VisibleWhenTrue}}"/>
+                            <TextBlock Grid.Row="6" Grid.Column="1" x:Name="LastSignInText" Text="{Binding LastSignInText}" Visibility="{Binding IsEgypt, Converter={StaticResource VisibleWhenTrue}}"/>
+                            <!-- MISS-11d-3 (owner's choice A): Saudi Arabia - the unit and the certificate's expiry -->
+                            <TextBlock Grid.Row="5" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.Unit}" Visibility="{Binding IsSaudi, Converter={StaticResource VisibleWhenTrue}}"/>
+                            <TextBlock Grid.Row="5" Grid.Column="1" x:Name="UnitText" Text="{Binding UnitText}" Visibility="{Binding IsSaudi, Converter={StaticResource VisibleWhenTrue}}"/>
+                            <TextBlock Grid.Row="6" Style="{StaticResource Label}" Text="{x:Static res:FiscalText.Certificate}" Visibility="{Binding IsSaudi, Converter={StaticResource VisibleWhenTrue}}"/>
+                            <TextBlock Grid.Row="6" Grid.Column="1" x:Name="CertificateText" Text="{Binding CertificateText}" Visibility="{Binding IsSaudi, Converter={StaticResource VisibleWhenTrue}}"/>
                         </Grid>
                         <TextBlock x:Name="IssuingText" Text="{Binding IssuingText}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="12" Margin="0,10,0,0"/>
                         <WrapPanel Margin="0,12,0,0" Visibility="{Binding IsEgypt, Converter={StaticResource VisibleWhenTrue}}">
                             <Button x:Name="RegisterTillButton" Content="{x:Static res:FiscalText.TillRegister}" Click="OnRegisterTill" Margin="0,0,8,0" Padding="12,4"/>
                             <Button x:Name="TestSignInButton" Content="{x:Static res:FiscalText.TillTestSignIn}" Command="{Binding TestSignInCommand}" Padding="12,4"/>
+                        </WrapPanel>
+                        <WrapPanel Margin="0,12,0,0" Visibility="{Binding IsSaudi, Converter={StaticResource VisibleWhenTrue}}">
+                            <Button x:Name="OnboardTillButton" Content="{Binding OnboardText}" Click="OnOnboardTill" Padding="12,4"/>
                         </WrapPanel>
                     </StackPanel>
                 </Border>

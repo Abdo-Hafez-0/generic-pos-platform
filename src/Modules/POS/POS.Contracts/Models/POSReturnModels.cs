@@ -41,7 +41,7 @@ public sealed record POSFindReturnResult(bool IsSuccess, POSReturnableSale? Sale
 /// MISS-11a-3 (owner's decision: a short line on the till): electronic receipts that have waited longer than the till's limit to reach the tax
 /// authority - how many, since when, and the limit.
 /// </summary>
-public sealed record POSFiscalNotice(int OverdueCount, DateTime OldestAtUtc, double LimitHours);
+public sealed record POSFiscalNotice(int OverdueCount, DateTime OldestAtUtc, double LimitHours, DateTime? CertificateExpiresAtUtc = null);   // MISS-11d-3
 
 /// <summary>
 /// MISS-11c (owner's decision: asked at the till): a sale whose total is at or above <see cref="Threshold"/> must name its buyer - a name and a

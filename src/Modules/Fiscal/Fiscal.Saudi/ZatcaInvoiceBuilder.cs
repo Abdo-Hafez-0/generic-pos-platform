@@ -18,6 +18,22 @@ public sealed class SaudiInvoiceOptions
 
     /// <summary>The invoice's issue date and time are the shop's local time - Saudi Arabia, UTC+3, no daylight saving.</summary>
     public double UtcOffsetHours { get; set; } = 3;
+
+    /// <summary>MISS-11d-3: ZATCA's simulation (the pre-production environment a shop tries with its own portal OTP).</summary>
+    public ZatcaHost Simulation { get; set; } = new() { Api = "https://gw-fatoora.zatca.gov.sa/e-invoicing/simulation", Template = "PREZATCA-Code-Signing" };
+
+    /// <summary>MISS-11d-3: ZATCA's production ("core").</summary>
+    public ZatcaHost Production { get; set; } = new() { Api = "https://gw-fatoora.zatca.gov.sa/e-invoicing/core", Template = "ZATCA-Code-Signing" };
+
+    /// <summary>MISS-11d-3: ZATCA's public developer sandbox (no account, a fixed OTP) - a hidden setting for Matjar's own tests (owner's decision).</summary>
+    public ZatcaHost Sandbox { get; set; } = new() { Api = "https://gw-fatoora.zatca.gov.sa/e-invoicing/developer-portal", Template = "TSTZATCA-Code-Signing" };
+
+    /// <summary>Use the developer sandbox in place of the simulation (Fiscal:Saudi:UseDeveloperSandbox).</summary>
+    public bool UseDeveloperSandbox { get; set; }
+
+    /// <summary>The host of an environment (the pre-production one is the simulation, or the sandbox when asked).</summary>
+    public ZatcaHost Host(Fiscal.Domain.Enums.FiscalEnvironment environment)
+        => environment == Fiscal.Domain.Enums.FiscalEnvironment.Production ? Production : UseDeveloperSandbox ? Sandbox : Simulation;
 }
 
 /// <summary>
@@ -41,6 +57,9 @@ internal static class ZatcaInvoiceBuilder
     public const string InvoiceType = "388";
     public const string CreditNoteType = "381";
 
+    /// <summary>MISS-11d-3: a debit note - only among the compliance checks' samples (Matjar issues none).</summary>
+    public const string DebitNoteType = "383";
+
     /// <summary>The transaction's kind (KSA-2): "02" a simplified invoice, then no third party, nominal, export, summary or self-billing.</summary>
     public const string SimplifiedName = "0200000";
 
@@ -55,11 +74,11 @@ internal static class ZatcaInvoiceBuilder
     /// <summary>The invoice's totals as ZATCA reads them (BT-106, BT-109, BT-110, BT-112, BT-114, BT-115).</summary>
     public sealed record ZatcaTotals(decimal LineExtension, decimal TaxExclusive, decimal Tax, decimal TaxInclusive, decimal Rounding, decimal Payable);
 
-    public static Result<Built> Build(FiscalBuildInput input, SaudiInvoiceOptions options)
+    public static Result<Built> Build(FiscalBuildInput input, SaudiInvoiceOptions options, bool debitNote = false)
     {
         var request = input.Request;
         var settings = input.Settings;
-        var isReturn = request.Kind == FiscalDocumentKindContract.Return;
+        var isReturn = request.Kind == FiscalDocumentKindContract.Return || debitNote;   // a note names its invoice and gives its reason
 
         var problem = CheckSeller(settings);
         if (problem is not null) return Fail("Fiscal.Saudi.SellerIncomplete", problem);
@@ -122,7 +141,7 @@ internal static class ZatcaInvoiceBuilder
             new XElement(cbc + "UUID", uuid),
             new XElement(cbc + "IssueDate", date),
             new XElement(cbc + "IssueTime", time),
-            new XElement(cbc + "InvoiceTypeCode", new XAttribute("name", SimplifiedName), isReturn ? CreditNoteType : InvoiceType),
+            new XElement(cbc + "InvoiceTypeCode", new XAttribute("name", SimplifiedName), debitNote ? DebitNoteType : isReturn ? CreditNoteType : InvoiceType),
             new XElement(cbc + "DocumentCurrencyCode", currency),
             new XElement(cbc + "TaxCurrencyCode", currency),
             isReturn ? new XElement(cac + "BillingReference", new XElement(cac + "InvoiceDocumentReference",
@@ -175,15 +194,15 @@ internal static class ZatcaInvoiceBuilder
     }
 
     /// <summary>
-    /// Owner's decision (before onboarding): the QR's first five fields - the seller's name, the VAT number, the invoice's time, the total
-    /// with VAT and the VAT total (tags 1-5).
+    /// Owner's decision (before onboarding): the QR's first five fields - the seller's name, the VAT number, the invoice's time, the amount
+    /// due (BT-115: ZATCA's sandbox asks tag 4 to be it, which differs from the total with VAT by the rounding amount) and the VAT total.
     /// </summary>
     public static string ShortQr(FiscalSettings settings, string date, string time, ZatcaTotals totals)
         => ZatcaQr.Encode([
             ZatcaQr.Text(1, settings.SellerNameArabic!.Trim()),
             ZatcaQr.Text(2, settings.TaxNumber!),
             ZatcaQr.Text(3, date + "T" + time),
-            ZatcaQr.Text(4, Money(totals.TaxInclusive)),
+            ZatcaQr.Text(4, Money(totals.Payable)),
             ZatcaQr.Text(5, Money(totals.Tax)),
         ]);
 

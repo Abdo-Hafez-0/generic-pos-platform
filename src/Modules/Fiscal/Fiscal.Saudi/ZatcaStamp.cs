@@ -24,12 +24,6 @@ public sealed class ZatcaSigner(ECDsa key, X509Certificate2 certificate) : IDisp
     }
 }
 
-/// <summary>MISS-11d-2: this till's signer when it has one (onboarded: a key and ZATCA's certificate), or null - the invoice then waits to be signed.</summary>
-public interface IZatcaCredentials
-{
-    ZatcaSigner? Open();
-}
-
 /// <summary>
 /// MISS-11d-2 (owner's decision: in the Windows key store, non-exportable, this Windows user): the till's ECDSA key on ZATCA's curve
 /// (secp256k1). Implemented by Fiscal.Infrastructure with Windows CNG.
@@ -76,6 +70,10 @@ internal static class ZatcaStamp
 
     /// <summary>Stamps an invoice built by <see cref="ZatcaInvoiceBuilder"/> (unstamped) with the till's key and certificate at <paramref name="signedAtUtc"/>.</summary>
     public static Stamped Apply(string xml, ZatcaSigner signer, DateTime signedAtUtc, SaudiInvoiceOptions options)
+        => Apply(xml, signer.Key, signer.Certificate, signedAtUtc, options);
+
+    /// <summary>Stamps with a key and a certificate the caller keeps (onboarding's compliance checks).</summary>
+    public static Stamped Apply(string xml, ECDsa key, X509Certificate2 certificate, DateTime signedAtUtc, SaudiInvoiceOptions options)
     {
         var document = ZatcaXml.Read(xml);
         var root = document.Root!;
@@ -83,8 +81,7 @@ internal static class ZatcaStamp
         XNamespace cac = ZatcaXml.Cac, cbc = ZatcaXml.Cbc;
 
         var hash = ZatcaXml.Hash(document);
-        var signature = Convert.ToBase64String(signer.Key.SignData(Convert.FromBase64String(hash), HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence));
-        var certificate = signer.Certificate;
+        var signature = Convert.ToBase64String(key.SignData(Convert.FromBase64String(hash), HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence));
         var signingTime = DateTime.SpecifyKind(signedAtUtc, DateTimeKind.Utc).AddHours(options.UtcOffsetHours)
             .ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
 
@@ -160,7 +157,7 @@ internal static class ZatcaStamp
             ZatcaQr.Text(1, party.Element(cac + "PartyLegalEntity")!.Element(cbc + "RegistrationName")!.Value),
             ZatcaQr.Text(2, party.Element(cac + "PartyTaxScheme")!.Element(cbc + "CompanyID")!.Value),
             ZatcaQr.Text(3, invoice.Element(cbc + "IssueDate")!.Value + "T" + invoice.Element(cbc + "IssueTime")!.Value),
-            ZatcaQr.Text(4, invoice.Element(cac + "LegalMonetaryTotal")!.Element(cbc + "TaxInclusiveAmount")!.Value),
+            ZatcaQr.Text(4, invoice.Element(cac + "LegalMonetaryTotal")!.Element(cbc + "PayableAmount")!.Value),   // the amount due (BT-115)
             ZatcaQr.Text(5, invoice.Elements(cac + "TaxTotal").First().Element(cbc + "TaxAmount")!.Value),
             ZatcaQr.Text(6, hash),
             ZatcaQr.Text(7, signature),

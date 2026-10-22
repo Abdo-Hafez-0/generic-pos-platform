@@ -265,4 +265,35 @@
   <data name="NationalAddress" xml:space="preserve"><value>National address (in Arabic, as registered)</value></data>
   <data name="District" xml:space="preserve"><value>District</value></data>
   <data name="AdditionalNumber" xml:space="preserve"><value>Additional no.</value></data>
+  <data name="NoticeCertificateExpiring" xml:space="preserve"><value>the till's ZATCA certificate expires on {0} (renew it)</value></data>
+  <data name="NoticeCertificateExpired" xml:space="preserve"><value>the till's ZATCA certificate expired on {0} (renew it)</value></data>
+  <data name="TillOnboard" xml:space="preserve"><value>Onboard this till...</value></data>
+  <data name="TillRenew" xml:space="preserve"><value>Renew...</value></data>
+  <data name="TillOnboarded" xml:space="preserve"><value>Onboarded</value></data>
+  <data name="TillNotOnboarded" xml:space="preserve"><value>Not onboarded yet</value></data>
+  <data name="EnvironmentSimulation" xml:space="preserve"><value>Simulation (testing)</value></data>
+  <data name="Unit" xml:space="preserve"><value>Unit</value></data>
+  <data name="Certificate" xml:space="preserve"><value>Certificate</value></data>
+  <data name="CertificateUntil" xml:space="preserve"><value>valid until {0}</value></data>
+  <data name="OnboardingTitle" xml:space="preserve"><value>Onboard this till with ZATCA</value></data>
+  <data name="RenewTitle" xml:space="preserve"><value>Renew this till's ZATCA certificate</value></data>
+  <data name="OnboardingHint" xml:space="preserve"><value>Create an OTP for this unit on the Fatoora portal (it is valid for one hour), then press Onboard. Matjar makes the signing key on this computer (it never leaves it), proves the till with three sample invoices and receives ZATCA's certificate.</value></data>
+  <data name="RenewHint" xml:space="preserve"><value>Create a new OTP on the Fatoora portal, then press Renew. The till keeps its key.</value></data>
+  <data name="Otp" xml:space="preserve"><value>OTP from the Fatoora portal</value></data>
+  <data name="UnitName" xml:space="preserve"><value>Unit name (or asset number)</value></data>
+  <data name="UnitBranch" xml:space="preserve"><value>Branch name</value></data>
+  <data name="UnitIndustry" xml:space="preserve"><value>Industry</value></data>
+  <data name="UnitLocation" xml:space="preserve"><value>Location (national short address)</value></data>
+  <data name="Onboard" xml:space="preserve"><value>Onboard</value></data>
+  <data name="Renew" xml:space="preserve"><value>Renew</value></data>
+  <data name="Close" xml:space="preserve"><value>Close</value></data>
+  <data name="StepKey" xml:space="preserve"><value>Signing key made on this computer</value></data>
+  <data name="StepRequest" xml:space="preserve"><value>Certificate request (CSR)</value></data>
+  <data name="StepComplianceCertificate" xml:space="preserve"><value>Compliance certificate</value></data>
+  <data name="StepComplianceChecks" xml:space="preserve"><value>Compliance checks (3 sample invoices)</value></data>
+  <data name="StepProductionCertificate" xml:space="preserve"><value>Production certificate</value></data>
+  <data name="StepEarlierInvoices" xml:space="preserve"><value>Earlier invoices signed</value></data>
+  <data name="OnboardingDone" xml:space="preserve"><value>This till is onboarded. Its certificate is valid until {0}; {1} earlier invoice(s) signed.</value></data>
+  <data name="RenewDone" xml:space="preserve"><value>The certificate was renewed. It is valid until {0}.</value></data>
+  <data name="TillOnboardedSaved" xml:space="preserve"><value>This till is onboarded with ZATCA.</value></data>
 </root>

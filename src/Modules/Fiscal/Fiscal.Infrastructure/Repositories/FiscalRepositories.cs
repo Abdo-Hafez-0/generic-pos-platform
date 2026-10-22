@@ -62,6 +62,12 @@ internal sealed class EfFiscalDocumentRepository(FiscalDbContext dbContext) : IF
             .Where(d => d.State == FiscalDocumentState.Waiting && (force || d.NextAttemptAt == null || d.NextAttemptAt <= nowUtc))
             .OrderBy(d => d.Number).Take(take).ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<FiscalDocument>> GetBuiltOpenAsync(CancellationToken cancellationToken = default)
+        => await dbContext.Documents
+            .Where(d => d.Payload != null && d.Hash != null
+                && (d.State == FiscalDocumentState.Waiting || d.State == FiscalDocumentState.Sent || d.State == FiscalDocumentState.Late || d.State == FiscalDocumentState.Rejected))
+            .OrderBy(d => d.Number).ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<FiscalDocument>> GetSentAsync(int take, CancellationToken cancellationToken = default)
         => await dbContext.Documents.Where(d => d.State == FiscalDocumentState.Sent).OrderBy(d => d.Number).Take(take).ToListAsync(cancellationToken);
 
@@ -121,12 +127,23 @@ internal sealed class FiscalReceiptMarks(IFiscalDocumentRepository documents, IE
             : null;
 }
 
-internal sealed class FiscalNotices(Fiscal.Application.Queries.FiscalAlertsReader alerts, Fiscal.Application.Queries.FiscalWarningOptions? options = null) : IFiscalNotices
+internal sealed class FiscalNotices(Fiscal.Application.Queries.FiscalAlertsReader alerts, Fiscal.Application.Queries.FiscalWarningOptions? options = null,
+    IFiscalSetupRepository? setup = null, TimeProvider? timeProvider = null) : IFiscalNotices
 {
     public async Task<FiscalTillNotice?> GetTillNoticeAsync(CancellationToken cancellationToken = default)
-        => await alerts.ReadAsync(cancellationToken) is { OverTillLimit: > 0, OldestOutstandingAt: { } oldest } counts
-            ? new FiscalTillNotice(counts.OverTillLimit, DateTime.SpecifyKind(oldest, DateTimeKind.Utc), (options ?? new()).TillHours)
-            : null;
+    {
+        if (await alerts.ReadAsync(cancellationToken) is not { } counts) return null;
+        var limits = options ?? new();
+
+        // MISS-11d-3 (owner's decision): the till says it in the certificate's last days and after
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+        var expires = setup is null ? null : (await setup.GetTillAsync(cancellationToken))?.CertificateExpiresAt;
+        var expiring = expires is { } at && at <= now.AddDays(limits.CertificateTillDays) ? DateTime.SpecifyKind(at, DateTimeKind.Utc) : (DateTime?)null;
+
+        if (counts is { OverTillLimit: > 0, OldestOutstandingAt: { } oldest })
+            return new FiscalTillNotice(counts.OverTillLimit, DateTime.SpecifyKind(oldest, DateTimeKind.Utc), limits.TillHours) { CertificateExpiresAtUtc = expiring };
+        return expiring is null ? null : new FiscalTillNotice(0, now, limits.TillHours) { CertificateExpiresAtUtc = expiring };
+    }
 }
 
 /// <summary>MISS-11b: the authority's codes for products, units and tax rates.</summary>

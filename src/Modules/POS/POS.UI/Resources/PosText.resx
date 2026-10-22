@@ -369,4 +369,6 @@
   <data name="BuyerMissing" xml:space="preserve">
     <value>Give the buyer's name and {0}-digit national ID for the electronic receipt.</value>
   </data>
+  <data name="FiscalCertificateExpiring" xml:space="preserve"><value>The till's e-invoicing certificate expires on {0} - tell the person who manages e-receipts to renew it.</value></data>
+  <data name="FiscalCertificateExpired" xml:space="preserve"><value>The till's e-invoicing certificate expired on {0} - tell the person who manages e-receipts to renew it.</value></data>
 </root>

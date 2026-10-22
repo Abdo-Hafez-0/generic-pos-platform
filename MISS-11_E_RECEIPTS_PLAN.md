@@ -259,3 +259,13 @@ the Windows key store) and the 9-tag QR, the printed receipt (title, VAT number,
 CSR, the compliance CSID, the compliance checks, the production CSID, the secret, renewal and the expiry warnings), and signing the
 invoices made before it; **11d-4** reporting (right after each sale and every 5 minutes, the answers, "Correct and resend" at the end of
 the chain).
+
+11d-1 (2026-10-22), owner's choices: the seller's identification as a type (CRN, MOM, MLS, 700, SAG, OTH; CRN first) and a number, and
+the national address (drawn option A); **returns get their simplified credit note now** (381, naming the sale's invoice, the return's
+reason as the reason for issuance) - 11e keeps what is left (a return without a recorded sale); **ZATCA's SDK is downloaded by the owner**
+(its terms accepted on zatca.gov.sa) into D:\ZatcaSdk; its samples become test cases when it is there. Built: the simplified invoice in
+UBL 2.1 (ProfileID reporting:1.0, InvoiceTypeCode 388/381 name 0200000, ICV, PIH - the first ZATCA's fixed value), the hash (canonical XML
+without the stamp and the QR, SHA-256, Base64; Matjar writes no indentation, so the stamp added later leaves it unchanged), the QR's tags
+1-5 before onboarding, amounts net of VAT *(to confirm with ZATCA's validator: each category's VAT = its taxable amount x rate, the
+payable amount = what was charged with PayableRoundingAmount for a halala; the issue time and the QR's time in Riyadh time without a zone;
+the buyer's name alone on a simplified invoice; PCE as the unit when none is set)*. Saudi invoices are not held as Late.

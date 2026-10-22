@@ -52,6 +52,10 @@ public static class FiscalServicesExtensions
         configuration.GetSection(Fiscal.Egypt.EgyptReceiptOptions.SectionName).Bind(egypt);
         services.AddSingleton(egypt);
         services.AddSingleton<Fiscal.Application.Abstractions.IFiscalCountryPart, Fiscal.Egypt.EgyptCountryPart>();
+        var saudi = new Fiscal.Saudi.SaudiInvoiceOptions();   // MISS-11d
+        configuration.GetSection(Fiscal.Saudi.SaudiInvoiceOptions.SectionName).Bind(saudi);
+        services.AddSingleton(saudi);
+        services.AddSingleton<Fiscal.Application.Abstractions.IFiscalCountryPart, Fiscal.Saudi.SaudiCountryPart>();
 
         services.AddSingleton<IModule, FiscalModule>();
         services.AddHostedService<FiscalDatabaseInitializer>();

@@ -254,4 +254,15 @@
   <data name="Corrected" xml:space="preserve"><value>تم تصحيح الإيصال.</value></data>
   <data name="BuiltAgain" xml:space="preserve"><value>تم إنشاء الإيصال.</value></data>
   <data name="NoticeLate" xml:space="preserve"><value>{0} متأخر</value></data>
+  <data name="SellerIdType" xml:space="preserve"><value>نوع الهوية</value></data>
+  <data name="SellerId" xml:space="preserve"><value>رقم هوية المنشأة</value></data>
+  <data name="SellerIdCrn" xml:space="preserve"><value>CRN - السجل التجاري</value></data>
+  <data name="SellerIdMom" xml:space="preserve"><value>MOM - رخصة وزارة الشؤون البلدية</value></data>
+  <data name="SellerIdMls" xml:space="preserve"><value>MLS - رخصة وزارة الموارد البشرية</value></data>
+  <data name="SellerId700" xml:space="preserve"><value>700 - الرقم الموحد</value></data>
+  <data name="SellerIdSag" xml:space="preserve"><value>SAG - رخصة وزارة الاستثمار</value></data>
+  <data name="SellerIdOth" xml:space="preserve"><value>OTH - هوية أخرى</value></data>
+  <data name="NationalAddress" xml:space="preserve"><value>العنوان الوطني (بالعربية كما هو مسجّل)</value></data>
+  <data name="District" xml:space="preserve"><value>الحي</value></data>
+  <data name="AdditionalNumber" xml:space="preserve"><value>الرقم الإضافي</value></data>
 </root>

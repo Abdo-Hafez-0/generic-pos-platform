@@ -63,7 +63,7 @@ public sealed class FiscalCodesTests
     private static async Task SwitchOnAsync(TestModuleDatabase<FiscalDbContext> db, FiscalCountry country = FiscalCountry.Egypt)
         => Assert.True((await db.InScopeAsync(sp => sp.GetRequiredService<SaveFiscalSettingsCommandHandler>().HandleAsync(country == FiscalCountry.Egypt
             ? new SaveFiscalSettingsCommand(country, "123456789", "0", "4711", "متجر", new Fiscal.Domain.Entities.FiscalAddress("القاهرة", "مدينة نصر", "شارع عباس العقاد", "12"))
-            : new SaveFiscalSettingsCommand(country, "300000000000003", null, null, "متجر", null)))).IsSuccess);
+            : new SaveFiscalSettingsCommand(country, "300000000000003", null, null, "متجر", new Fiscal.Domain.Entities.FiscalAddress(null, "الرياض", "طريق الملك فهد", "2322", "12214", District: "العليا"), "CRN", "1010010000")))).IsSuccess);
 
     private static Task<FiscalCodesDto> CodesAsync(TestModuleDatabase<FiscalDbContext> db)
         => db.InScopeAsync(async sp => (await sp.GetRequiredService<GetFiscalCodesQueryHandler>().HandleAsync(new GetFiscalCodesQuery())).Value);

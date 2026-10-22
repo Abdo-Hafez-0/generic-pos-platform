@@ -59,6 +59,12 @@ namespace Fiscal.Application.Abstractions
         /// <summary>MISS-11a-3: asks the authority for its answer on documents handed over earlier (Sent). One outcome per document.</summary>
         Task<IReadOnlyList<FiscalSendOutcome>> CheckAsync(FiscalSendInput input, CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// MISS-11c-4: whether a document still unsent 24 hours after its sale is held as Late until the shop's late request is approved (Egypt).
+        /// MISS-11d: Saudi Arabia does not hold them - ZATCA takes a late simplified invoice with a warning (BR-KSA-98).
+        /// </summary>
+        bool HoldsLateDocuments => true;
+
         /// <summary>MISS-11c: when a sale must name its buyer (Egypt: a person's name and national ID above a total); null = never.</summary>
         Fiscal.Contracts.Models.FiscalBuyerRule? BuyerRule => null;
 
@@ -268,7 +274,8 @@ namespace Fiscal.Application.DTOs
         FiscalCountry Country, string? TaxNumber, string? BranchCode, string? ActivityCode, string? SellerNameArabic, FiscalAddress Address,
         DateTime? UpdatedAt, string? UpdatedBy,
         string TillName, FiscalTillRegistration TillRegistration, long NextNumber, bool CountryLocked,
-        IReadOnlyList<FiscalCountry> InstalledCountryParts, string? DeviceSerial = null, FiscalTillRegistrationDto? Connection = null)
+        IReadOnlyList<FiscalCountry> InstalledCountryParts, string? DeviceSerial = null, FiscalTillRegistrationDto? Connection = null,
+        string? SellerIdScheme = null, string? SellerId = null)   // MISS-11d
     {
         public bool IsOn => Country != FiscalCountry.None;
 
@@ -305,7 +312,7 @@ namespace Fiscal.Application.Queries
                 (countryParts ?? []).Select(p => p.Country).Distinct().ToList(), till.DeviceSerial,
                 new FiscalTillRegistrationDto(till.Environment, till.ClientId, till.PosOsVersion, till.PosModelFramework, till.RegisteredAt, till.RegisteredBy,
                     till.EnvironmentLocked, secrets is not null && await secrets.ReadAsync(cancellationToken) is not null, secrets?.CanProtect == true,
-                    till.LastSignInAt, till.LastSignInOk)));
+                    till.LastSignInAt, till.LastSignInOk), settings.SellerIdScheme, settings.SellerId));
         }
     }
 
@@ -341,7 +348,7 @@ namespace Fiscal.Application.Commands
 
     /// <summary>MISS-11a: the country and the shop's tax details.</summary>
     public sealed record SaveFiscalSettingsCommand(FiscalCountry Country, string? TaxNumber, string? BranchCode, string? ActivityCode,
-        string? SellerNameArabic, FiscalAddress? Address);
+        string? SellerNameArabic, FiscalAddress? Address, string? SellerIdScheme = null, string? SellerId = null);   // MISS-11d: Saudi Arabia's seller ID
 
     /// <summary>
     /// MISS-11a: saves the fiscal settings (fiscal.manage, audited). The country cannot change once this till has issued a document (owner's
@@ -363,7 +370,7 @@ namespace Fiscal.Application.Commands
 
             var updated = settings.Update(command.Country, command.TaxNumber, command.BranchCode, command.ActivityCode, command.SellerNameArabic,
                 command.Address, till.HasIssued, currentUser is { IsAuthenticated: true } me ? me.UserName : null,
-                (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime);
+                (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime, command.SellerIdScheme, command.SellerId);
             if (updated.IsFailure) return updated;
 
             if (isNew) await repository.AddSettingsAsync(settings, cancellationToken);
@@ -516,7 +523,7 @@ namespace Fiscal.Application.Commands
             // 1. what waits goes out, in the order of the chain - MISS-11c-4: but what is past the 24 hours is held as Late (owner's decision)
             var due = (await documents.GetDueAsync(now, force, BatchSize, cancellationToken)).ToList();
             var limit = TimeSpan.FromHours((warnings ?? new Fiscal.Application.Queries.FiscalWarningOptions()).LateHours);
-            var late = due.Where(d => d.IsOverdue(now, limit)).ToList();
+            var late = part.HoldsLateDocuments ? due.Where(d => d.IsOverdue(now, limit)).ToList() : [];   // MISS-11d: ZATCA takes late ones
             foreach (var document in late) document.MarkLate(LateReason, now);
             if (late.Count > 0)
             {

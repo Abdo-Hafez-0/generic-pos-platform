@@ -254,4 +254,15 @@
   <data name="Corrected" xml:space="preserve"><value>The receipt was corrected.</value></data>
   <data name="BuiltAgain" xml:space="preserve"><value>The receipt was built.</value></data>
   <data name="NoticeLate" xml:space="preserve"><value>{0} late</value></data>
+  <data name="SellerIdType" xml:space="preserve"><value>Identification type</value></data>
+  <data name="SellerId" xml:space="preserve"><value>Shop's identification number</value></data>
+  <data name="SellerIdCrn" xml:space="preserve"><value>CRN - commercial registration</value></data>
+  <data name="SellerIdMom" xml:space="preserve"><value>MOM - municipal (MOMRA) licence</value></data>
+  <data name="SellerIdMls" xml:space="preserve"><value>MLS - MHRSD licence</value></data>
+  <data name="SellerId700" xml:space="preserve"><value>700 - unified number</value></data>
+  <data name="SellerIdSag" xml:space="preserve"><value>SAG - investment (MISA) licence</value></data>
+  <data name="SellerIdOth" xml:space="preserve"><value>OTH - other identification</value></data>
+  <data name="NationalAddress" xml:space="preserve"><value>National address (in Arabic, as registered)</value></data>
+  <data name="District" xml:space="preserve"><value>District</value></data>
+  <data name="AdditionalNumber" xml:space="preserve"><value>Additional no.</value></data>
 </root>

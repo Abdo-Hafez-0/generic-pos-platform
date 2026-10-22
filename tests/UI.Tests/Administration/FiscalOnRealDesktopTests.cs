@@ -91,6 +91,38 @@ public sealed class FiscalOnRealDesktopTests
         Assert.EndsWith(FiscalText.SignInRefused, again.LastSignInText);
     }
 
+    [Fact]
+    public async Task The_owner_switches_on_Saudi_invoices_with_the_sellers_identification_and_the_national_address()
+    {
+        // MISS-11d-1 (owner's choice, drawn option A): the identification's type (CRN first) and number, the national address
+        await using var desktop = await OfflineDesktop.StartAsync();
+        var vm = new FiscalViewModel(new UiActionRunner(desktop.Services.GetRequiredService<IServiceScopeFactory>(), NullLogger<UiActionRunner>.Instance));
+        await vm.OnNavigatedToAsync();
+
+        vm.Country = vm.Countries.Single(c => c.Country == FiscalCountry.SaudiArabia);
+        Assert.True(vm.IsSaudi && !vm.IsEgypt && vm.NeedsDetails);
+        Assert.Equal(["CRN", "MOM", "MLS", "700", "SAG", "OTH"], vm.SellerIdTypes.Select(t => t.Scheme));
+        Assert.Equal(("CRN", FiscalText.SellerIdCrn), (vm.SellerIdType.Scheme, vm.SellerIdType.Text));
+        (vm.TaxNumber, vm.SellerNameArabic, vm.SellerId) = ("300000000000003", "متجر النور", "1010010000");
+        (vm.Governorate, vm.Floor) = ("القاهرة", "3");   // left from Egypt's fields: not sent for Saudi Arabia
+        (vm.BuildingNumber, vm.Street, vm.District, vm.City, vm.PostalCode) = ("232", "طريق الملك فهد", "العليا", "الرياض", "12214");
+        await Run(vm, vm.SaveCommand);
+        Assert.Equal("The national address's building number is 4 digits.", vm.ErrorMessage);
+
+        (vm.BuildingNumber, vm.AdditionalNumber) = ("2322", "7788");
+        vm.SellerIdType = vm.SellerIdTypes.Single(t => t.Scheme == "700");
+        await Run(vm, vm.SaveCommand);
+        Assert.Null(vm.ErrorMessage);
+        Assert.Equal(string.Format(FiscalText.StateIssuing, vm.Countries.Single(c => c.Country == FiscalCountry.SaudiArabia).Text), vm.IssuingText);   // Saudi Arabia's part is installed
+
+        var again = new FiscalViewModel(new UiActionRunner(desktop.Services.GetRequiredService<IServiceScopeFactory>(), NullLogger<UiActionRunner>.Instance));
+        await again.OnNavigatedToAsync();
+        Assert.Equal((FiscalCountry.SaudiArabia, "700", "1010010000"), (again.Country.Country, again.SellerIdType.Scheme, again.SellerId));
+        Assert.Equal(("2322", "7788", "طريق الملك فهد", "العليا", "الرياض", "12214"),
+            (again.BuildingNumber, again.AdditionalNumber, again.Street, again.District, again.City, again.PostalCode));
+        Assert.Equal(((string?)null, ""), (again.Governorate, again.Floor));
+    }
+
     private static async Task RunPanel(FiscalCodesPanel panel, ICommand command)
     {
         Assert.True(command.CanExecute(null), "the command was not executable");

@@ -463,8 +463,10 @@ internal static class Assemblies
     internal static readonly Assembly FiscalInfrastructure = typeof(Fiscal.Infrastructure.FiscalInfrastructureAssemblyMarker).Assembly;
 
     internal static readonly Assembly FiscalEgypt = typeof(Fiscal.Egypt.EgyptCountryPart).Assembly;   // MISS-11c: Egypt's part
+    internal static readonly Assembly FiscalSaudi = typeof(Fiscal.Saudi.SaudiCountryPart).Assembly;   // MISS-11d: Saudi Arabia's part
+    internal static IReadOnlyList<Assembly> FiscalCountryParts => [FiscalEgypt, FiscalSaudi];
 
-    internal static IReadOnlyList<Assembly> AllFiscalAssemblies => [FiscalDomain, FiscalContracts, FiscalApplication, FiscalInfrastructure, FiscalEgypt];
+    internal static IReadOnlyList<Assembly> AllFiscalAssemblies => [FiscalDomain, FiscalContracts, FiscalApplication, FiscalInfrastructure, FiscalEgypt, FiscalSaudi];
 
     // CashManagement module assemblies (Stage 8)
     // Note: CashManagement.UI is net10.0-windows and cannot be referenced here (TFM gap).

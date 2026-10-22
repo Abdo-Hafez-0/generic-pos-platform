@@ -101,7 +101,21 @@ namespace Fiscal.Domain.Entities
         public string? Landmark { get; private set; }
         public string? AdditionalInformation { get; private set; }
 
-        public FiscalAddress Address => new(Governorate, City, Street, BuildingNumber, PostalCode, Floor, Room, Landmark, AdditionalInformation);
+        // MISS-11d: Saudi Arabia's national address adds the district and the additional number
+        public string? District { get; private set; }
+        public string? AdditionalNumber { get; private set; }
+
+        public FiscalAddress Address => new(Governorate, City, Street, BuildingNumber, PostalCode, Floor, Room, Landmark, AdditionalInformation, District, AdditionalNumber);
+
+        /// <summary>
+        /// MISS-11d: Saudi Arabia - the seller's identification and its type (owner's choice, drawn option A: a list, CRN by default): CRN
+        /// commercial registration, MOM, MLS, 700, SAG or OTH (ZATCA's schemeID).
+        /// </summary>
+        public string? SellerIdScheme { get; private set; }
+        public string? SellerId { get; private set; }
+
+        /// <summary>MISS-11d: ZATCA's seller identification types (schemeID), CRN first.</summary>
+        public static IReadOnlyList<string> SaudiSellerIdSchemes { get; } = ["CRN", "MOM", "MLS", "700", "SAG", "OTH"];
 
         public DateTime UpdatedAt { get; private set; }
         public string? UpdatedBy { get; private set; }
@@ -115,7 +129,7 @@ namespace Fiscal.Domain.Entities
         /// (documents were issued) refuses any change of country.
         /// </summary>
         public Result Update(FiscalCountry country, string? taxNumber, string? branchCode, string? activityCode, string? sellerNameArabic, FiscalAddress? address,
-            bool countryLocked, string? updatedBy, DateTime nowUtc)
+            bool countryLocked, string? updatedBy, DateTime nowUtc, string? sellerIdScheme = null, string? sellerId = null)
         {
             if (!Enum.IsDefined(country))
                 return Error.Validation("Fiscal.Settings.CountryInvalid", "Choose the country of the tax authority.");
@@ -148,6 +162,26 @@ namespace Fiscal.Domain.Entities
                 return Error.Validation("Fiscal.Settings.NameRequired", "Give the shop's legal name in Arabic, as registered with the tax authority.");
 
             var where = (address ?? FiscalAddress.Empty).Cleaned();
+            var (scheme, id) = (Clean(sellerIdScheme)?.ToUpperInvariant(), Clean(sellerId));
+            if (country == FiscalCountry.SaudiArabia)   // MISS-11d: ZATCA's simplified invoice carries the seller's ID and national address
+            {
+                if (scheme is null || !SaudiSellerIdSchemes.Contains(scheme))
+                    return Error.Validation("Fiscal.Settings.SellerIdTypeRequired", "Choose the type of the shop's identification (CRN for the commercial registration).");
+                if (id is null || id.Length > 50 || !id.All(char.IsAsciiLetterOrDigit))
+                    return Error.Validation("Fiscal.Settings.SellerIdInvalid", "Give the shop's identification number (letters and digits, for example the 10-digit CRN).");
+                if (where.Street is null || where.District is null || where.City is null)
+                    return Error.Validation("Fiscal.Settings.AddressRequired", "Give the national address's street, district and city, as registered.");
+                if (where.BuildingNumber is not { Length: 4 } building || !building.All(char.IsAsciiDigit))
+                    return Error.Validation("Fiscal.Settings.BuildingNumberInvalid", "The national address's building number is 4 digits.");
+                if (where.PostalCode is not { Length: 5 } postal || !postal.All(char.IsAsciiDigit))
+                    return Error.Validation("Fiscal.Settings.PostalCodeInvalid", "The national address's postal code is 5 digits.");
+                if (where.AdditionalNumber is { } extra && (extra.Length != 4 || !extra.All(char.IsAsciiDigit)))
+                    return Error.Validation("Fiscal.Settings.AdditionalNumberInvalid", "The national address's additional number is 4 digits (or leave it empty).");
+            }
+            else
+            {
+                (scheme, id) = (null, null);
+            }
             if (country == FiscalCountry.Egypt)   // MISS-11c: Egypt's receipt carries the branch address in these fields
             {
                 if (where.Governorate is null || !FiscalAddress.EgyptGovernorates.Contains(where.Governorate))
@@ -164,6 +198,7 @@ namespace Fiscal.Domain.Entities
             SellerNameArabic = Clean(sellerNameArabic);
             (Governorate, City, Street, BuildingNumber, PostalCode) = (where.Governorate, where.City, where.Street, where.BuildingNumber, where.PostalCode);
             (Floor, Room, Landmark, AdditionalInformation) = (where.Floor, where.Room, where.Landmark, where.AdditionalInformation);
+            (District, AdditionalNumber, SellerIdScheme, SellerId) = (where.District, where.AdditionalNumber, scheme, id);
             UpdatedBy = Clean(updatedBy);
             UpdatedAt = nowUtc;
             return Result.Success();
@@ -174,10 +209,12 @@ namespace Fiscal.Domain.Entities
 
     /// <summary>
     /// MISS-11c: the seller's branch address in the fields the authority's documents carry (Egypt: governorate, city, street and building
-    /// number required; the rest optional). In Arabic, as registered with the authority.
+    /// number required; the rest optional). In Arabic, as registered with the authority. MISS-11d: Saudi Arabia's national address - street,
+    /// building number (4 digits), district, city, postal code (5 digits) and the optional additional number (4 digits).
     /// </summary>
     public sealed record FiscalAddress(string? Governorate, string? City, string? Street, string? BuildingNumber, string? PostalCode = null,
-        string? Floor = null, string? Room = null, string? Landmark = null, string? AdditionalInformation = null)
+        string? Floor = null, string? Room = null, string? Landmark = null, string? AdditionalInformation = null, string? District = null,
+        string? AdditionalNumber = null)
     {
         public static FiscalAddress Empty { get; } = new(null, null, null, null);
 
@@ -190,7 +227,8 @@ namespace Fiscal.Domain.Entities
         ];
 
         /// <summary>Blank fields become null; the rest is trimmed.</summary>
-        public FiscalAddress Cleaned() => new(C(Governorate), C(City), C(Street), C(BuildingNumber), C(PostalCode), C(Floor), C(Room), C(Landmark), C(AdditionalInformation));
+        public FiscalAddress Cleaned() => new(C(Governorate), C(City), C(Street), C(BuildingNumber), C(PostalCode), C(Floor), C(Room), C(Landmark), C(AdditionalInformation),
+            C(District), C(AdditionalNumber));
 
         private static string? C(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }

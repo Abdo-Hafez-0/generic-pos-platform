@@ -14,6 +14,9 @@ namespace Fiscal.UI.ViewModels;
 /// <summary>A country the screen offers, with its words.</summary>
 public sealed record CountryChoice(FiscalCountry Country, string Text);
 
+/// <summary>MISS-11d: a type of the seller's identification ZATCA takes (schemeID), with its words.</summary>
+public sealed record SellerIdChoice(string Scheme, string Text);
+
 /// <summary>MISS-11a-3: which documents the list shows.</summary>
 public sealed record DocumentFilter(IReadOnlyCollection<FiscalDocumentState>? States, string Text);
 
@@ -40,7 +43,8 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
     private string _taxNumber = string.Empty, _branchCode = string.Empty, _activityCode = string.Empty, _sellerName = string.Empty;
     private string? _governorate;
     private string _city = string.Empty, _street = string.Empty, _building = string.Empty, _postalCode = string.Empty, _floor = string.Empty, _room = string.Empty,
-        _landmark = string.Empty, _moreDetails = string.Empty;
+        _landmark = string.Empty, _moreDetails = string.Empty, _district = string.Empty, _additionalNumber = string.Empty, _sellerId = string.Empty;
+    private SellerIdChoice _sellerIdType;
     private FiscalSetupDto? _setup;
     private DocumentFilter _filter;
     private string _alertsText = string.Empty;
@@ -51,6 +55,12 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
         _runner = runner;
         Countries = [new(FiscalCountry.None, FiscalText.CountryNone), new(FiscalCountry.Egypt, FiscalText.CountryEgypt), new(FiscalCountry.SaudiArabia, FiscalText.CountrySaudi)];
         _country = Countries[0];
+        SellerIdTypes =
+        [
+            new("CRN", FiscalText.SellerIdCrn), new("MOM", FiscalText.SellerIdMom), new("MLS", FiscalText.SellerIdMls),
+            new("700", FiscalText.SellerId700), new("SAG", FiscalText.SellerIdSag), new("OTH", FiscalText.SellerIdOth),
+        ];
+        _sellerIdType = SellerIdTypes[0];
         SaveCommand = Command(SaveAsync, () => _setup is not null);
         Filters =
         [
@@ -225,6 +235,7 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
         {
             if (!Set(ref _country, value)) return;
             Raise(nameof(IsEgypt));
+            Raise(nameof(IsSaudi));
             Raise(nameof(NeedsDetails));
             Raise(nameof(TaxNumberHint));
         }
@@ -246,6 +257,16 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
     public string Room { get => _room; set => Set(ref _room, value); }
     public string Landmark { get => _landmark; set => Set(ref _landmark, value); }
     public string AdditionalInformation { get => _moreDetails; set => Set(ref _moreDetails, value); }
+
+    // MISS-11d (owner's choice, drawn option A): Saudi Arabia - the seller's identification with its type (CRN first) and the national address
+    public IReadOnlyList<SellerIdChoice> SellerIdTypes { get; }
+    public SellerIdChoice SellerIdType { get => _sellerIdType; set => Set(ref _sellerIdType, value ?? SellerIdTypes[0]); }
+    public string SellerId { get => _sellerId; set => Set(ref _sellerId, value); }
+    public string District { get => _district; set => Set(ref _district, value); }
+    public string AdditionalNumber { get => _additionalNumber; set => Set(ref _additionalNumber, value); }
+
+    /// <summary>ZATCA's invoices carry the seller's identification and the national address.</summary>
+    public bool IsSaudi => Country.Country == FiscalCountry.SaudiArabia;
 
     /// <summary>MISS-11c: the till's serial number, to register on the authority's portal.</summary>
     public string DeviceSerial => _setup?.DeviceSerial ?? string.Empty;
@@ -304,6 +325,8 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
         Governorate = a.Governorate is { } g && Governorates.Contains(g) ? g : null;
         (City, Street, BuildingNumber, PostalCode) = (a.City ?? string.Empty, a.Street ?? string.Empty, a.BuildingNumber ?? string.Empty, a.PostalCode ?? string.Empty);
         (Floor, Room, Landmark, AdditionalInformation) = (a.Floor ?? string.Empty, a.Room ?? string.Empty, a.Landmark ?? string.Empty, a.AdditionalInformation ?? string.Empty);
+        (District, AdditionalNumber, SellerId) = (a.District ?? string.Empty, a.AdditionalNumber ?? string.Empty, setup.SellerId ?? string.Empty);
+        SellerIdType = SellerIdTypes.FirstOrDefault(t => t.Scheme == setup.SellerIdScheme) ?? SellerIdTypes[0];
         foreach (var name in new[] { nameof(IsCountryLocked), nameof(CanChooseCountry), nameof(TillName), nameof(TillRegistrationText), nameof(NextNumberText), nameof(IssuingText), nameof(CanSendNow), nameof(DeviceSerial),
                      nameof(Registration), nameof(IsRegistered), nameof(EnvironmentText), nameof(ClientIdText), nameof(LastSignInText) })
             Raise(name);
@@ -311,8 +334,12 @@ public sealed class FiscalViewModel : ViewModelBase, INavigationAware
 
     private async Task SaveAsync()
     {
-        var address = new Fiscal.Domain.Entities.FiscalAddress(IsEgypt ? Governorate : null, City, Street, BuildingNumber, PostalCode, Floor, Room, Landmark, AdditionalInformation);
-        var command = new SaveFiscalSettingsCommand(Country.Country, TaxNumber, BranchCode, ActivityCode, SellerNameArabic, address);
+        // each country keeps only its own fields (the hidden ones are not sent)
+        var address = IsSaudi
+            ? new Fiscal.Domain.Entities.FiscalAddress(null, City, Street, BuildingNumber, PostalCode, District: District, AdditionalNumber: AdditionalNumber)
+            : new Fiscal.Domain.Entities.FiscalAddress(IsEgypt ? Governorate : null, City, Street, BuildingNumber, PostalCode, Floor, Room, Landmark, AdditionalInformation);
+        var command = new SaveFiscalSettingsCommand(Country.Country, TaxNumber, BranchCode, ActivityCode, SellerNameArabic, address,
+            IsSaudi ? SellerIdType.Scheme : null, IsSaudi ? SellerId : null);
         var saved = await _runner.RunAsync((scope, ct) => scope.Get<SaveFiscalSettingsCommandHandler>().HandleAsync(command, ct));
         if (!Accept(saved)) return;
 

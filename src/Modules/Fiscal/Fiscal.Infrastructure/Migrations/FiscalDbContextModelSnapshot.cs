@@ -162,6 +162,10 @@ namespace Fiscal.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AdditionalNumber")
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("BranchCode")
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
@@ -176,6 +180,10 @@ namespace Fiscal.Infrastructure.Migrations
 
                     b.Property<int>("Country")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("District")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Floor")
                         .HasMaxLength(100)
@@ -195,6 +203,14 @@ namespace Fiscal.Infrastructure.Migrations
 
                     b.Property<string>("Room")
                         .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SellerId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SellerIdScheme")
+                        .HasMaxLength(10)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("SellerNameArabic")

@@ -161,15 +161,18 @@ public sealed class FiscalBoundaryTests
         Assert.DoesNotContain("Microsoft.Data.Sqlite", csproj);
     }
 
-    [Fact(DisplayName = "ARCH-FIS-017: A country part (Fiscal.Egypt) knows the Fiscal core's Domain, Application and Contracts only - no Infrastructure, UI, EF Core or WPF")]
+    [Fact(DisplayName = "ARCH-FIS-017: A country part (Fiscal.Egypt, Fiscal.Saudi) knows the Fiscal core's Domain, Application and Contracts only - no Infrastructure, UI, EF Core, WPF or another country")]
     public void CountryPart_StaysInsideTheCore()
     {
-        AssertNoDep(Assemblies.FiscalEgypt, "Fiscal.Infrastructure", "A country part is plugged in by the infrastructure, never the other way round.");
-        AssertNoDep(Assemblies.FiscalEgypt, "Fiscal.UI", "A country part is UI-free.");
-        AssertNoDep(Assemblies.FiscalEgypt, "Microsoft.EntityFrameworkCore", "A country part builds and sends documents; the core stores them.");
-        AssertNoDep(Assemblies.FiscalEgypt, "System.Windows", "A country part is UI-free.");
-        Assert.All(Refs(Assemblies.FiscalEgypt).Where(n => n.StartsWith("Fiscal.", StringComparison.Ordinal)),
-            n => Assert.Contains(n, new[] { "Fiscal.Domain", "Fiscal.Application", "Fiscal.Contracts" }));
+        foreach (var part in Assemblies.FiscalCountryParts)
+        {
+            AssertNoDep(part, "Fiscal.Infrastructure", "A country part is plugged in by the infrastructure, never the other way round.");
+            AssertNoDep(part, "Fiscal.UI", "A country part is UI-free.");
+            AssertNoDep(part, "Microsoft.EntityFrameworkCore", "A country part builds and sends documents; the core stores them.");
+            AssertNoDep(part, "System.Windows", "A country part is UI-free.");
+            Assert.All(Refs(part).Where(n => n.StartsWith("Fiscal.", StringComparison.Ordinal)),
+                n => Assert.Contains(n, new[] { "Fiscal.Domain", "Fiscal.Application", "Fiscal.Contracts" }));   // MISS-11d: never another country's part
+        }
     }
 
     [Fact(DisplayName = "ARCH-FIS-019: Only Client.Fiscal.Http reaches HTTP for the Fiscal module, through Fiscal.Contracts alone")]
@@ -178,7 +181,7 @@ public sealed class FiscalBoundaryTests
         // MISS-11c-3: the module and its country parts never reach the network; the client's transport carries their calls
         var csproj = File.ReadAllText(Path.Combine(RepoPaths.Root(), "src", "Client", "Client.Fiscal.Http", "Client.Fiscal.Http.csproj"));
         Assert.Contains("Fiscal.Contracts", csproj);
-        foreach (var layer in new[] { "Fiscal.Domain", "Fiscal.Application", "Fiscal.Infrastructure", "Fiscal.Egypt", "Fiscal.UI" })
+        foreach (var layer in new[] { "Fiscal.Domain", "Fiscal.Application", "Fiscal.Infrastructure", "Fiscal.Egypt", "Fiscal.Saudi", "Fiscal.UI" })
             Assert.DoesNotContain(layer, csproj);
         foreach (var assembly in Assemblies.AllFiscalAssemblies)
             Assert.DoesNotContain(Refs(assembly), n => n == "Client.Fiscal.Http");
@@ -190,7 +193,9 @@ public sealed class FiscalBoundaryTests
     public void Core_DoesNotDependOnCountryParts()
     {
         foreach (var assembly in new[] { Assemblies.FiscalDomain, Assemblies.FiscalContracts, Assemblies.FiscalApplication })
-            AssertNoDep(assembly, "Fiscal.Egypt", "The core works for every country; the parts depend on it.");
+            foreach (var part in new[] { "Fiscal.Egypt", "Fiscal.Saudi" })
+                AssertNoDep(assembly, part, "The core works for every country; the parts depend on it.");
         Assert.Contains("Fiscal.Egypt", Refs(Assemblies.FiscalInfrastructure));
+        Assert.Contains("Fiscal.Saudi", Refs(Assemblies.FiscalInfrastructure));   // MISS-11d
     }
 }

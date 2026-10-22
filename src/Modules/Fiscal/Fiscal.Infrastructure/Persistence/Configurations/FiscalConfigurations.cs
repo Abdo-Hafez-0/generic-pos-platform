@@ -26,6 +26,10 @@ internal sealed class FiscalSettingsConfiguration : IEntityTypeConfiguration<Fis
         builder.Property(s => s.Room).HasMaxLength(100);
         builder.Property(s => s.Landmark).HasMaxLength(500);
         builder.Property(s => s.AdditionalInformation).HasMaxLength(500);
+        builder.Property(s => s.District).HasMaxLength(100);   // MISS-11d: Saudi Arabia's national address and seller ID
+        builder.Property(s => s.AdditionalNumber).HasMaxLength(10);
+        builder.Property(s => s.SellerIdScheme).HasMaxLength(10);
+        builder.Property(s => s.SellerId).HasMaxLength(50);
         builder.Property(s => s.UpdatedBy).HasMaxLength(100);
         builder.Ignore(s => s.IsOn);
         builder.Ignore(s => s.Address);

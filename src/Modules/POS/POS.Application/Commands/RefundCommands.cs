@@ -260,7 +260,7 @@ public sealed class RefundSaleCommandHandler(
         return new FiscalDocumentRequest(FiscalDocumentKindContract.Return, recorded.ReturnId, "R-" + recorded.ReturnId.ToString("N")[..8].ToUpperInvariant(),
             (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime, lines, recorded.RefundTotal, lines.Sum(l => l.Tax),
             [new FiscalPaymentRequest(command.Method.ToString(), recorded.RefundTotal)], cashier, sale.CustomerName,
-            command.SaleId, "S-" + command.SaleId.ToString("N")[..8].ToUpperInvariant());
+            command.SaleId, "S-" + command.SaleId.ToString("N")[..8].ToUpperInvariant(), Reason: command.Reason.Trim());   // MISS-11d: the credit note's reason
     }
 
     private static BusinessEvent Refunded(RefundSaleCommand command, RefundOutcome done)

@@ -43,7 +43,8 @@ namespace Fiscal.Contracts.Models
         string? BuyerName = null,
         Guid? OriginalSourceId = null,
         string? OriginalReference = null,
-        string? BuyerNationalId = null);   // MISS-11c: Egypt - a person buyer's national ID, asked at the till above the threshold
+        string? BuyerNationalId = null,   // MISS-11c: Egypt - a person buyer's national ID, asked at the till above the threshold
+        string? Reason = null);           // MISS-11d: a return's reason (Saudi Arabia: the credit note's reason for issuance)
 
     /// <summary>
     /// MISS-11c (owner's decision: asked at the till): a sale whose total is at or above <see cref="Threshold"/> must name its buyer - a name

@@ -42,7 +42,7 @@ public sealed class FiscalEgyptSetupTests
         Assert.Equal("Fiscal.Settings.GovernorateRequired", (await SaveAsync(db, FiscalCountry.Egypt, Cairo with { Governorate = "Cairo" })).Error.Code);
         Assert.Equal("Fiscal.Settings.AddressRequired", (await SaveAsync(db, FiscalCountry.Egypt, Cairo with { BuildingNumber = " " })).Error.Code);
         Assert.Equal("Fiscal.Settings.GovernorateRequired", (await SaveAsync(db, FiscalCountry.Egypt, null)).Error.Code);
-        Assert.True((await SaveAsync(db, FiscalCountry.SaudiArabia, null)).IsSuccess);   // Saudi Arabia's address comes with 11d
+        Assert.Equal("Fiscal.Settings.SellerIdTypeRequired", (await SaveAsync(db, FiscalCountry.SaudiArabia, null)).Error.Code);   // MISS-11d: its own fields
 
         Assert.True((await SaveAsync(db, FiscalCountry.Egypt, Cairo with { City = "  مدينة نصر  ", Room = "" })).IsSuccess);
         var setup = (await db.InScopeAsync(sp => sp.GetRequiredService<GetFiscalSetupQueryHandler>().HandleAsync(new GetFiscalSetupQuery()))).Value;

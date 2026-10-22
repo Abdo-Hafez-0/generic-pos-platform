@@ -104,7 +104,7 @@ public sealed class FiscalSetupTests
         var noName = await db.InScopeAsync(sp => sp.GetRequiredService<SaveFiscalSettingsCommandHandler>()
             .HandleAsync(new SaveFiscalSettingsCommand(FiscalCountry.SaudiArabia, "300000000000003", null, null, " ", null)));
         var saved = await db.InScopeAsync(sp => sp.GetRequiredService<SaveFiscalSettingsCommandHandler>()
-            .HandleAsync(new SaveFiscalSettingsCommand(FiscalCountry.SaudiArabia, " 300000000000003 ", "7", "1234", "متجر", null)));
+            .HandleAsync(new SaveFiscalSettingsCommand(FiscalCountry.SaudiArabia, " 300000000000003 ", "7", "1234", "متجر", new Fiscal.Domain.Entities.FiscalAddress(null, "الرياض", "طريق الملك فهد", "2322", "12214", District: "العليا"), "CRN", "1010010000")));
 
         Assert.Equal("Fiscal.Settings.NameRequired", noName.Error.Code);
         Assert.True(saved.IsSuccess);

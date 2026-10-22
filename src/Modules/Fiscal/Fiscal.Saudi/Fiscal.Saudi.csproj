@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Fiscal.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- MISS-11d: Saudi Arabia's part of the Fiscal module (ZATCA phase 2, simplified invoices); registered by Fiscal.Infrastructure -->
+    <ProjectReference Include="..\Fiscal.Domain\Fiscal.Domain.csproj" />
+    <ProjectReference Include="..\Fiscal.Application\Fiscal.Application.csproj" />
+    <ProjectReference Include="..\Fiscal.Contracts\Fiscal.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Platform.Core\Platform.Core.csproj" />
+  </ItemGroup>
+</Project>

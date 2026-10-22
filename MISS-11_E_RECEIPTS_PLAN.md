@@ -201,3 +201,61 @@ time). A corrected copy keeps the refused one's place in the chain and its previ
 by the 24 hours (the ETA takes a resubmission with the old UUID) *(to confirm: the 96-hour amendment window the FAQ mentions)*. Late ones
 are held; later receipts still go out *(to confirm on pre-production: that the ETA takes a receipt whose previous one is held)*.
 **MISS-11c is complete**; the run on the ETA's pre-production environment is part of 11f.
+
+## 8. Owner's decisions for 11d (2026-10-22)
+
+1. **Before the till is onboarded: a short QR now, signed later**: a sale made while the till has no certificate prints a QR with
+   tags 1-5 only (seller's name, VAT number, time, total with VAT, VAT total); the invoice is signed, put in the chain in sale order
+   (ICV, PIH) and reported once the till is onboarded. The shop never stops (11a).
+2. **The signing key in Windows' key store, non-exportable** (ZATCA's security standard, requirement 6): made on the till in the
+   Windows key store (CNG), never written to a file, never in backups or logs. A reinstalled Windows loses it: the till is onboarded
+   again with a new OTP and the chain carries on. The production CSID's secret is kept with DPAPI like the ETA secret.
+3. **Onboarding = one button, steps ticked** (drawn option A): "Onboard this till..." opens a window with the environment, the OTP from
+   the Fatoora portal, the unit's name, the branch name and the industry; Onboard makes the key, the CSR, asks for the compliance CSID,
+   passes the compliance checks with Matjar's own sample documents (simplified invoice, credit note, debit note), and asks for the
+   production CSID, ticking each step.
+4. **"Correct and resend" makes a corrected copy at the end of the chain**: a refused (NOT_REPORTED) invoice is rebuilt with the current
+   codes as a new invoice (new UUID, the next ICV, the chain's last hash) and reported; the refused one stays in the chain, marked
+   Replaced *(to confirm with the tax adviser: ZATCA's forum also mentions cancelling it with a credit note and issuing a new invoice)*.
+5. **The receipt: title on top, QR under the totals** (drawn option A): "فاتورة ضريبية مبسطة / Simplified Tax Invoice" and the VAT number
+   under the shop's name; the QR large and centred under the totals (about 32 mm - it holds more than Egypt's).
+6. **The certificate's expiry**: the managers' status bar warns from 30 days before, the till's line in the last 7 days and after it;
+   "Renew..." in the same window takes a new OTP and a new CSR.
+7. **Reported right after each sale**: each invoice is reported in the background a moment after the sale (ZATCA takes them one at a
+   time); what waits is retried every 5 minutes; "Send now" as before.
+8. **ZATCA's SDK may be downloaded for the tests** (its sample invoices and validator; kept outside the repository, the file named and
+   sized before download, its terms accepted by the owner if asked).
+
+Facts checked (2026-10-22; ZATCA's Security Features Implementation Standards v1.2, 2023-05-19, and the developer community):
+- The stamp: ECDSA with SHA-256, a 256-bit key *(the standard says P-256; ZATCA's SDK and every working integration use secp256k1 - to
+  confirm with the compliance CSID)*; a PKCS#10 CSR signed with the key, its subject: CN = the unit's name, organizationIdentifier = the
+  VAT number (15 digits, starting and ending with 3), OU = the branch name, O = the taxpayer's name, C = SA; the SAN directory name: SN
+  "1-Matjar|2-{version}|3-{till serial}", UID = the VAT number, title = the functions "0100" (simplified only), registeredAddress =
+  the branch's address (preferably the national short address), businessCategory = the industry; the certificate template name
+  ZATCA-Code-Signing (production) or PREZATCA-Code-Signing (simulation) *(to confirm: the sandbox's TSTZATCA)*.
+- The signature: XAdES baseline B-B, enveloped in the UBL extensions; the invoice's hash is SHA-256 of the canonical XML (C14N 1.1)
+  without the UBLExtensions, cac:Signature and the QR's AdditionalDocumentReference; the second reference covers SignedProperties
+  (SigningTime, SigningCertificateV2 / cert digest); the key's certificate is in KeyInfo. The previous invoice hash (PIH) is the
+  previous invoice's hash; the first one uses the SDK's fixed value (SHA-256 of "0") *(to confirm against the SDK)*.
+- The QR: TLV (1 byte tag, 1 byte length, UTF-8 value), Base64, up to 700 characters; tags 1 seller's name, 2 VAT number, 3 time (ISO
+  8601), 4 total with VAT, 5 VAT total (BT-110), 6 the invoice's hash, 7 the ECDSA signature, 8 the public key, 9 for simplified invoices
+  the certificate's signature by ZATCA's CA.
+- The APIs (`https://gw-fatoora.zatca.gov.sa/e-invoicing/{core | simulation | developer-portal}`): POST /compliance (OTP header, the
+  CSR) -> the compliance CSID (binarySecurityToken, secret, requestID); POST /compliance/invoices (the samples); POST /production/csids
+  (compliance_request_id) -> the production CSID; PATCH /production/csids (OTP, a new CSR) to renew; POST /invoices/reporting/single
+  {invoiceHash, uuid, invoice (Base64)} with Basic authentication (the CSID's token and secret) and Accept-Version V2 -> 200 REPORTED,
+  202 REPORTED with warnings, 400 NOT_REPORTED with errorMessages, 401, 500/503 to retry.
+- Reporting is within 24 hours, but a late one is not refused: it is reported with the warning BR-KSA-98 (ZATCA checks lateness later).
+  So Saudi invoices are not held as Late (Egypt's 11c-4); the warnings still show what waits too long.
+- The certificate is valid up to 5 years (the profile); the CA's CRLs are valid 7 days; the compliance CSID is short-lived (24 hours,
+  one source).
+- The waves: wave 24 (taxable revenue above SAR 375,000 in 2022-2024) by 30 June 2026; wave 25 (above SAR 187,500, 2022-2025) by
+  1 February 2027 *(one secondary source)*.
+
+How 11d is built (each step tested and committed): **11d-1** the Saudi part's Build - the seller's Saudi details (CRN, the national
+address: street, building number, district, city, postal code, additional number), the UBL XML of a simplified invoice, its hash, ICV and
+PIH, the short QR before onboarding - tested against the published rules and the SDK's samples; **11d-2** signing (XAdES with a key in
+the Windows key store) and the 9-tag QR, the printed receipt (title, VAT number, the larger QR); **11d-3** onboarding (the window, the
+CSR, the compliance CSID, the compliance checks, the production CSID, the secret, renewal and the expiry warnings), and signing the
+invoices made before it; **11d-4** reporting (right after each sale and every 5 minutes, the answers, "Correct and resend" at the end of
+the chain).

@@ -2822,7 +2822,8 @@ FIX-13 decisions (user, 2026-10-09): every screen text in Arabic with right-to-l
     - Each document now keeps what it was made from (`FiscalDocument.Request`, the sale or return as POS described it). `CorrectFiscalDocumentCommand` (fiscal.manage, audited): a Rejected document is built again with the current codes and shop details at the same place of the chain with the same previous hash, naming the refused one (Egypt: `referenceOldUUID`); the refused one is kept as `Replaced` (both saved in one transaction); a NotBuilt one is built at the end of the chain with its sale's time. The screen then sends at once. A copy of the receipt prints the corrected document's QR. Documents made before 11c-4 have no stored content: the screen says to correct them on the portal. Migration `AddFiscalLateAndCorrections` (Request, ReplacesDocumentId, ReplacedByDocumentId, SendLate; the unique indexes leave Replaced documents out).
     - Tests: Fiscal.Tests +7 (held as late and the others still sent, warnings and the till's line, send late with a fresh sign-in, correct and resend at the same place, build and send at the end of the chain, no stored content, Egypt's referenceOldUUID and the environment's portal; the ETA part's fresh sign-in), UI.Tests +1 (the late line and the row menu on the offline desktop). Checked on the real application (two demo documents marked from outside: one late, one refused).
 - **MISS-11c is complete** (built against the ETA SDK; the run on the ETA's pre-production environment is part of 11f).
-- **Next**: 11d - Saudi Arabia (ZATCA phase 2).
+- **11d decisions** (2026-10-22, plan section 8): a short QR (tags 1-5) before onboarding and the invoice signed later; the signing key non-exportable in the Windows key store; onboarding with one button and its steps ticked; "Correct and resend" as a corrected copy at the end of the chain; title and VAT number on top, QR under the totals; certificate expiry warned 30 days before (till line at 7); reported right after each sale; ZATCA's SDK for the tests.
+- **Next**: 11d-1 - the Saudi part's Build (seller's Saudi details, the UBL XML, hash, ICV/PIH, the short QR).
 
 ---
 
@@ -2903,4 +2904,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-21 - MISS-11c-4: late receipts and correct and resend; MISS-11c complete. 3146 tests + 2 opt-in skipped, 0 warnings; MISS-07 open until the device check is run; next: MISS-11d (Saudi Arabia), 11d-11f, MISS-12..18, Part C (PKG-02). Note: Backup.Tests EscrowRecoveryTests "Any_changed_lost_or_added_character..." failed once and passed on reruns (random input; a separate task).
+Last updated: 2026-10-22 - MISS-11d: the owner's decisions for Saudi Arabia (plan section 8). 3146 tests + 2 opt-in skipped, 0 warnings; MISS-07 open until the device check is run; next: MISS-11d-1 (Saudi Arabia's invoice), 11d-11f, MISS-12..18, Part C (PKG-02). Note: Backup.Tests EscrowRecoveryTests "Any_changed_lost_or_added_character..." failed once and passed on reruns (random input; a separate task).

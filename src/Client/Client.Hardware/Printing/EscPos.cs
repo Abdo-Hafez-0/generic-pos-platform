@@ -64,74 +64,110 @@ public static class EscPosReceiptFormatter
         var lines = new List<ReceiptImageLine>();
         void Rule() => lines.Add(new ReceiptImageLine("", Rule: true));
 
+        // MISS-11d-2 (owner's choice A): a Saudi invoice labels everything in Arabic and English - the English word first, so every line
+        // reads left to right with its amount on the right
+        var bilingual = receipt.Fiscal?.BilingualLabels == true;
+        string L(string english) => !bilingual || !Arabic.TryGetValue(english.Trim(), out var arabic) ? english
+            : english.StartsWith("*** ", StringComparison.Ordinal) ? english[..^4] + " " + arabic + " ***"   // *** RETURN إرجاع ***
+            : english + " " + arabic;
+
+        // a payment method ("Card (Visa)"): its first word in Arabic too
+        string Method(string method) => method.Split(' ', 2) is [var word, var rest] ? L(word) + " " + rest : L(method);
+
         if (!string.IsNullOrWhiteSpace(receipt.StoreName))
             foreach (var l in Wrap(receipt.StoreName!, width)) lines.Add(new ReceiptImageLine(l, Bold: true, Center: true));
 
         foreach (var header in receipt.HeaderLines ?? [])
             foreach (var l in Wrap(header, width)) lines.Add(new ReceiptImageLine(l, Center: true));
 
+        // MISS-11d-2 (owner's choice A): the invoice's title and the VAT number on top
+        foreach (var top in receipt.Fiscal?.TopLines ?? [])
+            foreach (var l in Wrap(top, width)) lines.Add(new ReceiptImageLine(l, Bold: true, Center: true));
+
         Rule();
-        if (receipt.IsCopy) lines.Add(new ReceiptImageLine("*** COPY ***", Bold: true, Center: true));   // MISS-07c: a reprint
+        if (receipt.IsCopy) lines.Add(new ReceiptImageLine(L("*** COPY ***"), Bold: true, Center: true));   // MISS-07c: a reprint
         if (receipt.Return is { } returned)
         {
             // MISS-10c: a return receipt - its own number and the receipt of the sale it returns
-            lines.Add(new ReceiptImageLine("*** RETURN ***", Bold: true, Center: true));
-            lines.Add(new ReceiptImageLine("Return", receipt.Reference));
-            lines.Add(new ReceiptImageLine("Of receipt", returned.OriginalReference));
+            lines.Add(new ReceiptImageLine(L("*** RETURN ***"), Bold: true, Center: true));
+            lines.Add(new ReceiptImageLine(L("Return"), receipt.Reference));
+            lines.Add(new ReceiptImageLine(L(bilingual ? "Of invoice" : "Of receipt"), returned.OriginalReference));
         }
         else
-            lines.Add(new ReceiptImageLine("Receipt", receipt.Reference));
+            lines.Add(new ReceiptImageLine(L(bilingual ? "Invoice" : "Receipt"), receipt.Reference));
         lines.Add(new ReceiptImageLine(receipt.IssuedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)));
-        if (!string.IsNullOrWhiteSpace(receipt.Cashier)) lines.Add(new ReceiptImageLine("Cashier " + receipt.Cashier));
+        if (!string.IsNullOrWhiteSpace(receipt.Cashier))
+            lines.Add(bilingual ? new ReceiptImageLine(L("Cashier"), receipt.Cashier!) : new ReceiptImageLine("Cashier " + receipt.Cashier));
         Rule();
 
         foreach (var item in receipt.Lines ?? [])
         {
-            foreach (var l in Wrap(item.WrittenOff ? item.Description + "  (damaged)" : item.Description, width)) lines.Add(new ReceiptImageLine(l));
+            foreach (var l in Wrap(item.WrittenOff ? item.Description + "  " + L("(damaged)") : item.Description, width)) lines.Add(new ReceiptImageLine(l));
             lines.Add(new ReceiptImageLine($"  {Quantity(item.Quantity)} x {Money(item.UnitPrice)}", Money(item.LineTotal + item.Discount)));
-            if (item.Discount > 0m) lines.Add(new ReceiptImageLine("  discount", "-" + Money(item.Discount)));   // FIX-08c
+            if (item.Discount > 0m) lines.Add(new ReceiptImageLine(L("  discount"), "-" + Money(item.Discount)));   // FIX-08c
         }
 
         Rule();
         var discountTotal = (receipt.Lines ?? []).Sum(l => l.Discount);
         if (discountTotal > 0m)
         {
-            lines.Add(new ReceiptImageLine("Subtotal", Money(receipt.Total + discountTotal)));
-            lines.Add(new ReceiptImageLine("Discount", "-" + Money(discountTotal)));
+            lines.Add(new ReceiptImageLine(L("Subtotal"), Money(receipt.Total + discountTotal)));
+            lines.Add(new ReceiptImageLine(L("Discount"), "-" + Money(discountTotal)));
         }
 
-        if (receipt.Return is not null)
-            lines.Add(new ReceiptImageLine("REFUND TOTAL", "-" + Money(receipt.Total), Bold: true));
+        if (receipt.Fiscal?.VatTotals is { } vat)
+        {
+            // MISS-11d-2 (owner's choice A): the invoice's own totals - excluding VAT, the VAT, including VAT - and the halala of rounding when
+            // what was charged differs from them (ZATCA's payable rounding amount)
+            var sign = receipt.Return is null ? string.Empty : "-";
+            var rate = receipt.Taxes is [{ } only] ? $" {Quantity(only.Rate * 100m)}%" : string.Empty;
+            lines.Add(new ReceiptImageLine(L("Total excl. VAT"), sign + Money(vat.TotalExcludingVat)));
+            lines.Add(new ReceiptImageLine(bilingual ? "VAT" + rate + " " + Arabic["VAT"] : "VAT" + rate, sign + Money(vat.Vat)));   // the rate next to its word
+            lines.Add(new ReceiptImageLine(L("Total incl. VAT"), sign + Money(vat.TotalIncludingVat), Bold: receipt.Total == vat.TotalIncludingVat));
+            if (receipt.Total != vat.TotalIncludingVat)
+            {
+                lines.Add(new ReceiptImageLine(L("Rounding"), sign + Money(receipt.Total - vat.TotalIncludingVat)));
+                lines.Add(new ReceiptImageLine(L(receipt.Return is null ? "TOTAL" : "REFUND TOTAL"), sign + Money(receipt.Total), Bold: true));
+            }
+        }
         else
-            lines.Add(new ReceiptImageLine("TOTAL", Money(receipt.Total), Bold: true));
+        {
+            if (receipt.Return is not null)
+                lines.Add(new ReceiptImageLine(L("REFUND TOTAL"), "-" + Money(receipt.Total), Bold: true));
+            else
+                lines.Add(new ReceiptImageLine(L("TOTAL"), Money(receipt.Total), Bold: true));
 
-        // FIX-08b: prices include tax - the tax contained in the total, per rate
-        foreach (var tax in receipt.Taxes ?? [])
-            lines.Add(new ReceiptImageLine($"incl. tax {Quantity(tax.Rate * 100m)}%", Money(tax.Amount)));
+            // FIX-08b: prices include tax - the tax contained in the total, per rate
+            foreach (var tax in receipt.Taxes ?? [])
+                lines.Add(new ReceiptImageLine($"incl. tax {Quantity(tax.Rate * 100m)}%", Money(tax.Amount)));
+        }
 
         foreach (var payment in receipt.AllPayments)
         {
-            lines.Add(new ReceiptImageLine(payment.Method, Money(payment.Amount)));
-            if (payment.Tendered is { } tendered) lines.Add(new ReceiptImageLine("Tendered", Money(tendered)));
-            if (payment.Change is { } change) lines.Add(new ReceiptImageLine("Change", Money(change)));
+            lines.Add(new ReceiptImageLine(Method(payment.Method), Money(payment.Amount)));
+            if (payment.Tendered is { } tendered) lines.Add(new ReceiptImageLine(L("Tendered"), Money(tendered)));
+            if (payment.Change is { } change) lines.Add(new ReceiptImageLine(L("Change"), Money(change)));
         }
 
         if (receipt.Return is { } refund)
         {
-            foreach (var l in Wrap("Reason: " + refund.Reason, width)) lines.Add(new ReceiptImageLine(l));
+            foreach (var l in Wrap(L("Reason:") + " " + refund.Reason, width)) lines.Add(new ReceiptImageLine(l));
             lines.Add(new ReceiptImageLine(""));
-            lines.Add(new ReceiptImageLine("Customer signature"));
+            lines.Add(new ReceiptImageLine(L("Customer signature")));
             lines.Add(new ReceiptImageLine(""));
             lines.Add(new ReceiptImageLine(new string('_', width)));
         }
 
         // MISS-11c-2 (owner's choice: large and centred under the totals): the electronic receipt's QR code, its title and caption
+        // (MISS-11d-2: Saudi Arabia prints nothing under it - its title is on top)
         if (receipt.Fiscal is { } fiscal && !string.IsNullOrWhiteSpace(fiscal.QrPayload))
         {
             Rule();
             lines.Add(new ReceiptImageLine("", Center: true, QrPayload: fiscal.QrPayload));
-            foreach (var l in Wrap(fiscal.Title, width)) lines.Add(new ReceiptImageLine(l, Bold: true, Center: true));
-            foreach (var l in Wrap(fiscal.Caption, width)) lines.Add(new ReceiptImageLine(l, Center: true));
+            if (!string.IsNullOrWhiteSpace(fiscal.Title))
+                foreach (var l in Wrap(fiscal.Title, width)) lines.Add(new ReceiptImageLine(l, Bold: true, Center: true));
+            if (!string.IsNullOrWhiteSpace(fiscal.Caption))
+                foreach (var l in Wrap(fiscal.Caption, width)) lines.Add(new ReceiptImageLine(l, Center: true));
         }
 
         foreach (var footer in receipt.FooterLines ?? [])
@@ -145,6 +181,16 @@ public static class EscPosReceiptFormatter
         => [Esc, 0x70, (byte)(pin == 1 ? 1 : 0), (byte)Math.Clamp(onMs / 2, 1, 255), (byte)Math.Clamp(offMs / 2, 1, 255)];
 
     public static string Money(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture);
+
+    /// <summary>MISS-11d-2: the receipt's labels in Arabic (a Saudi invoice prints each with its English beside it).</summary>
+    private static readonly Dictionary<string, string> Arabic = new(StringComparer.Ordinal)
+    {
+        ["*** COPY ***"] = "نسخة", ["*** RETURN ***"] = "إرجاع", ["Return"] = "رقم الإرجاع", ["Of invoice"] = "للفاتورة",
+        ["Invoice"] = "رقم الفاتورة", ["Cashier"] = "الكاشير", ["(damaged)"] = "(تالف)", ["discount"] = "خصم", ["Subtotal"] = "المجموع",
+        ["Discount"] = "الخصم", ["Total excl. VAT"] = "الإجمالي بدون الضريبة", ["VAT"] = "ضريبة القيمة المضافة", ["Total incl. VAT"] = "الإجمالي شامل الضريبة",
+        ["Rounding"] = "التقريب", ["TOTAL"] = "الإجمالي", ["REFUND TOTAL"] = "إجمالي المسترد", ["Tendered"] = "المدفوع", ["Change"] = "الباقي",
+        ["Reason:"] = "السبب", ["Customer signature"] = "توقيع العميل", ["Cash"] = "نقدًا", ["Card"] = "بطاقة", ["Other"] = "أخرى",
+    };
 
     public static string Quantity(decimal value) => value.ToString("0.###", CultureInfo.InvariantCulture);
 

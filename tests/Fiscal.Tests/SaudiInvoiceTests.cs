@@ -373,6 +373,7 @@ public sealed class SaudiInvoiceTests
         Assert.Equal(FiscalCountry.SaudiArabia, part.Country);
         Assert.False(((IFiscalCountryPart)part).HoldsLateDocuments);
         Assert.Null(((IFiscalCountryPart)part).BuyerRule);
-        Assert.Equal(new FiscalReceiptMark("qr", "فاتورة ضريبية مبسطة", "AAAAAAAA...BBBBBBBB"), part.Mark("AAAAAAAAxxxxxxxxxxxxxxxxxxxxBBBBBBBB", "qr"));
+        var mark = part.Mark("AAAAAAAAxxxxxxxxxxxxxxxxxxxxBBBBBBBB", "qr");   // MISS-11d-2: the title on top, nothing under the QR
+        Assert.Equal(("qr", "", "", "فاتورة ضريبية مبسطة"), (mark.QrPayload, mark.Title, mark.Caption, mark.TopLines![0]));
     }
 }

@@ -269,3 +269,13 @@ without the stamp and the QR, SHA-256, Base64; Matjar writes no indentation, so 
 1-5 before onboarding, amounts net of VAT *(to confirm with ZATCA's validator: each category's VAT = its taxable amount x rate, the
 payable amount = what was charged with PayableRoundingAmount for a halala; the issue time and the QR's time in Riyadh time without a zone;
 the buyer's name alone on a simplified invoice; PCE as the unit when none is set)*. Saudi invoices are not held as Late.
+
+11d-2 (2026-10-22), owner's choices: **every label in Arabic and English** (drawn option A; ZATCA requires the invoice in Arabic), **nothing
+under the QR** (the title and VAT number are on top), **the signing key for this Windows user** (like the ETA secrets), **committed without
+the SDK check** (owner, 2026-10-22: the details below are confirmed in 11f). Built: the enveloped XAdES stamp in the UBLExtensions, the QR's nine tags, the key in the
+Windows key store (secp256k1, CNG, not exportable), the Saudi receipt (labels with the English word first so each line reads left to right; title and VAT number on top, the invoice's totals - excluding VAT,
+the VAT, including VAT - and a rounding line when what was charged differs). Built as ZATCA's SDK is widely known to work *(to confirm in 11f
+against the SDK's signed samples and validator, and on ZATCA's simulation)*: the signature is ECDSA/SHA-256 of the invoice hash's bytes
+(not of SignedInfo); the certificate's and the signed properties' digests are Base64 of the SHA-256's lowercase hex; the signed properties
+are digested in their exclusive canonical form; the QR's tags 6 and 7 hold the Base64 text, 8 the public key's DER, 9 the CA's signature;
+SigningTime in Riyadh time without a zone.

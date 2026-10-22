@@ -56,6 +56,9 @@ public static class FiscalServicesExtensions
         configuration.GetSection(Fiscal.Saudi.SaudiInvoiceOptions.SectionName).Bind(saudi);
         services.AddSingleton(saudi);
         services.AddSingleton<Fiscal.Application.Abstractions.IFiscalCountryPart, Fiscal.Saudi.SaudiCountryPart>();
+        if (OperatingSystem.IsWindows())   // MISS-11d-2: the till's ZATCA signing key, in the Windows key store (onboarding makes it, 11d-3)
+            services.AddSingleton<Fiscal.Saudi.IZatcaKeyStore>(new Fiscal.Infrastructure.Services.CngZatcaKeyStore(
+                Fiscal.Infrastructure.Services.CngZatcaKeyStore.NameFor(dbOptions.ResolveDatabasePath())));
 
         services.AddSingleton<IModule, FiscalModule>();
         services.AddHostedService<FiscalDatabaseInitializer>();

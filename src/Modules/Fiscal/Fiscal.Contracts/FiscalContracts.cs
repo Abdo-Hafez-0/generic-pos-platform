@@ -75,7 +75,19 @@ namespace Fiscal.Contracts.Models
     /// MISS-11c-2: the tax authority's mark on a printed receipt: the QR code's text, a title and a caption printed under it (Egypt:
     /// "إيصال إلكتروني" and "UUID 68e656b2...f368f320").
     /// </summary>
-    public sealed record FiscalReceiptMark(string QrPayload, string Title, string Caption);
+    public sealed record FiscalReceiptMark(string QrPayload, string Title, string Caption)
+    {
+        /// <summary>MISS-11d-2: lines printed at the top, under the shop's name (Saudi Arabia: the title and the VAT number - owner's choice A).</summary>
+        public IReadOnlyList<string>? TopLines { get; init; }
+
+        /// <summary>MISS-11d-2: the invoice's own totals, printed instead of the till's (Saudi Arabia: excluding VAT, the VAT, including VAT).</summary>
+        public decimal? TotalExcludingTax { get; init; }
+        public decimal? TaxTotal { get; init; }
+        public decimal? TotalIncludingTax { get; init; }
+
+        /// <summary>MISS-11d-2: every label of the receipt in Arabic and English (Saudi Arabia - owner's choice A).</summary>
+        public bool BilingualLabels { get; init; }
+    }
 
     /// <summary>
     /// MISS-11c-3: one call to a tax authority's web service, as a country part asks for it (the part knows the authority's addresses and

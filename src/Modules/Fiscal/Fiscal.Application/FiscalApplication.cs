@@ -77,6 +77,9 @@ namespace Fiscal.Application.Abstractions
 
         /// <summary>MISS-11c-2: what the printed receipt carries under its QR code (default: "Electronic receipt" and the short hash).</summary>
         Fiscal.Contracts.Models.FiscalReceiptMark Mark(string hash, string qrPayload) => new(qrPayload, "Electronic receipt", FiscalMarks.Short(hash));
+
+        /// <summary>MISS-11d-2: the mark of a sale's or a return's document (Saudi Arabia: an invoice or a credit note); default: the same.</summary>
+        Fiscal.Contracts.Models.FiscalReceiptMark Mark(string hash, string qrPayload, FiscalDocumentKind kind) => Mark(hash, qrPayload);
     }
 
     /// <summary>MISS-11c-2: the marks' shared pieces.</summary>
@@ -89,7 +92,7 @@ namespace Fiscal.Application.Abstractions
         public static Fiscal.Contracts.Models.FiscalReceiptMark? Of(FiscalDocument document, IEnumerable<IFiscalCountryPart>? parts)
             => document is { State: not FiscalDocumentState.NotBuilt, Hash: { } hash, QrPayload: { Length: > 0 } qr }
                && (parts ?? []).LastOrDefault(p => p.Country == document.Country) is { } part
-                ? part.Mark(hash, qr)
+                ? part.Mark(hash, qr, document.Kind)
                 : null;
     }
 

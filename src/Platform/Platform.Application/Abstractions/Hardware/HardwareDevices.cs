@@ -45,7 +45,20 @@ public sealed record ReceiptTax(decimal Rate, decimal Amount);
 /// MISS-11c-2: the tax authority's mark on a receipt - the QR code of its electronic receipt (printed offline, owner's choice: large and
 /// centred under the totals) with a title and a caption under it (Egypt: "إيصال إلكتروني" and the short UUID).
 /// </summary>
-public sealed record ReceiptFiscal(string QrPayload, string Title, string Caption);
+public sealed record ReceiptFiscal(string QrPayload, string Title, string Caption)
+{
+    /// <summary>MISS-11d-2: lines under the shop's name (Saudi Arabia: the invoice's title and the VAT number).</summary>
+    public IReadOnlyList<string>? TopLines { get; init; }
+
+    /// <summary>MISS-11d-2: the authority's document's totals, printed instead of the total and its tax lines (null: the till's).</summary>
+    public ReceiptVatTotals? VatTotals { get; init; }
+
+    /// <summary>MISS-11d-2: every label in Arabic and English (Saudi Arabia: the invoice must be in Arabic).</summary>
+    public bool BilingualLabels { get; init; }
+}
+
+/// <summary>MISS-11d-2: an invoice's totals as the authority reads them - excluding VAT, the VAT, including VAT.</summary>
+public sealed record ReceiptVatTotals(decimal TotalExcludingVat, decimal Vat, decimal TotalIncludingVat);
 
 /// <summary>How the sale was paid, when known.</summary>
 public sealed record ReceiptPayment(string Method, decimal Amount, decimal? Tendered = null, decimal? Change = null);

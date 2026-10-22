@@ -97,7 +97,12 @@ public static class PosReceiptFactory
 
     /// <summary>MISS-11c-2: the electronic receipt's mark as the receipt prints it (null: none).</summary>
     public static ReceiptFiscal? ToReceiptFiscal(Fiscal.Contracts.Models.FiscalReceiptMark? mark)
-        => mark is null ? null : new ReceiptFiscal(mark.QrPayload, mark.Title, mark.Caption);
+        => mark is null ? null : new ReceiptFiscal(mark.QrPayload, mark.Title, mark.Caption)
+        {
+            TopLines = mark.TopLines,   // MISS-11d-2: Saudi Arabia's title and VAT number on top, the invoice's totals, labels in Arabic and English
+            VatTotals = mark is { TotalExcludingTax: { } excluding, TaxTotal: { } vat, TotalIncludingTax: { } including } ? new ReceiptVatTotals(excluding, vat, including) : null,
+            BilingualLabels = mark.BilingualLabels,
+        };
 
     public static ReceiptPayment ToReceiptPayment(POSPaymentRequest payment, decimal total, decimal changeDue)
         => new(payment.Method.ToString(), total, payment.TenderedAmount, payment.Method == POSPaymentMethod.Cash ? changeDue : null);

@@ -90,4 +90,22 @@ public sealed class PosFiscalReceiptTests
             Assert.True((await scope.ServiceProvider.GetRequiredService<IPOSDevices>().PrintReceiptAsync(cartId)).IsSuccess);
         Assert.Null(printer.Printed[1].Fiscal);
     }
+
+    [Fact]
+    public void Saudi_Arabias_marks_reach_the_receipt()
+    {
+        // MISS-11d-2 (owner's choice A): the title and VAT number on top, the invoice's totals, labels in Arabic and English
+        var mark = new FiscalReceiptMark("qr", "", "")
+        {
+            TopLines = ["فاتورة ضريبية مبسطة", "Simplified Tax Invoice"], TotalExcludingTax = 3.77m, TaxTotal = 0.57m, TotalIncludingTax = 4.34m, BilingualLabels = true,
+        };
+
+        var fiscal = POS.Application.Devices.PosReceiptFactory.ToReceiptFiscal(mark)!;
+
+        Assert.Equal(("qr", "", "", true), (fiscal.QrPayload, fiscal.Title, fiscal.Caption, fiscal.BilingualLabels));
+        Assert.Equal(mark.TopLines, fiscal.TopLines);
+        Assert.Equal(new ReceiptVatTotals(3.77m, 0.57m, 4.34m), fiscal.VatTotals);
+        var egypt = POS.Application.Devices.PosReceiptFactory.ToReceiptFiscal(new FiscalReceiptMark("qr", "إيصال إلكتروني", "UUID"))!;
+        Assert.Equal(((IReadOnlyList<string>?)null, (ReceiptVatTotals?)null, false), (egypt.TopLines, egypt.VatTotals, egypt.BilingualLabels));
+    }
 }

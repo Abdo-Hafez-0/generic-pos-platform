@@ -118,7 +118,8 @@ public sealed class FiscalSaudiSetupTests
         Assert.Equal(ZatcaXml.Hash(ZatcaXml.Read(documents[1].Payload!)), documents[1].Hash);
         Assert.Equal(("381", "S-0000AAAA", "Wrong size"), (note.Root!.Element(Cbc + "InvoiceTypeCode")!.Value,
             note.Root.Element(Cac + "BillingReference")!.Value, note.Root.Element(Cac + "PaymentMeans")!.Element(Cbc + "InstructionNote")!.Value));
-        Assert.Equal("فاتورة ضريبية مبسطة", first.Mark!.Title);
+        Assert.Equal("فاتورة ضريبية مبسطة", first.Mark!.TopLines![0]);
+        Assert.Equal("إشعار دائن مبسط", refund.Mark!.TopLines![0]);   // MISS-11d-2: the credit note's own title
         Assert.Equal(documents[0].QrPayload, first.Mark.QrPayload);
     }
 

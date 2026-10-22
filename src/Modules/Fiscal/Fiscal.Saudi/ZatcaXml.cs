@@ -108,6 +108,62 @@ internal static class ZatcaXml
         text.Append("</").Append(name).Append('>');
     }
 
+    /// <summary>
+    /// MISS-11d-2: Exclusive XML canonicalization (W3C exc-c14n, without comments) of one element and what it holds: a namespace is declared
+    /// where it is visibly used (by the element's or an attribute's name) and not already declared above it in the output - how ZATCA
+    /// digests the stamp's signed properties.
+    /// </summary>
+    public static string ExclusiveCanonical(XElement apex)
+    {
+        var text = new StringBuilder();
+        ExclusiveElement(apex, text, new Dictionary<string, string>(StringComparer.Ordinal));
+        return text.ToString();
+    }
+
+    private static void ExclusiveElement(XElement element, StringBuilder text, Dictionary<string, string> rendered)
+    {
+        var name = QualifiedName(element, element.Name);
+        text.Append('<').Append(name);
+
+        var used = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        void Use(XName n, bool isAttribute)
+        {
+            if (n.Namespace == XNamespace.Xml) return;
+            if (n.Namespace == XNamespace.None) { if (!isAttribute) used[string.Empty] = string.Empty; return; }
+            var prefix = element.GetPrefixOfNamespace(n.Namespace);
+            if (prefix is not null) used[prefix] = n.NamespaceName;
+            else if (!isAttribute) used[string.Empty] = n.NamespaceName;
+        }
+
+        Use(element.Name, isAttribute: false);
+        var attributes = element.Attributes().Where(a => !a.IsNamespaceDeclaration).ToList();
+        foreach (var attribute in attributes) Use(attribute.Name, isAttribute: true);
+
+        var scope = new Dictionary<string, string>(rendered, StringComparer.Ordinal);
+        foreach (var (prefix, uri) in used)
+        {
+            if (rendered.GetValueOrDefault(prefix, string.Empty) == uri) continue;
+            text.Append(' ').Append(prefix.Length == 0 ? "xmlns" : "xmlns:" + prefix).Append("=\"").Append(EscapeAttribute(uri)).Append('"');
+            scope[prefix] = uri;
+        }
+
+        foreach (var attribute in attributes.OrderBy(a => a.Name.NamespaceName, StringComparer.Ordinal).ThenBy(a => a.Name.LocalName, StringComparer.Ordinal))
+            text.Append(' ').Append(QualifiedName(element, attribute.Name, isAttribute: true)).Append("=\"").Append(EscapeAttribute(attribute.Value)).Append('"');
+        text.Append('>');
+
+        foreach (var node in element.Nodes())
+        {
+            switch (node)
+            {
+                case XElement child: ExclusiveElement(child, text, scope); break;
+                case XText part: text.Append(EscapeText(part.Value)); break;
+                case XProcessingInstruction pi: Instruction(pi, text); break;
+            }
+        }
+
+        text.Append("</").Append(name).Append('>');
+    }
+
     private static void Instruction(XProcessingInstruction pi, StringBuilder text)
         => text.Append("<?").Append(pi.Target).Append(pi.Data.Length > 0 ? " " + pi.Data : string.Empty).Append("?>");
 

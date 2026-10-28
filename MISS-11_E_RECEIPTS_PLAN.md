@@ -290,3 +290,13 @@ Matjar's invoices pass with no warning in the edge cases (a halala of rounding, 
 discounted lines, a credit note, several lines) - so the 11d-1 and 11d-2 details marked *(to confirm)* about the hash, the stamp, the QR's
 bytes, the times without a zone, the rounding amount and the buyer's name are settled. One fix came from it: QR tag 4 is the amount due
 (BT-115). Still *(to confirm in 11f)*: the same on the simulation with a real account, and production.
+
+11d-4 (2026-10-28), owner's decisions: **the opt-in tests may report to ZATCA's developer sandbox**; **an invoice ZATCA accepts with
+warnings is Accepted, its warnings shown in its row** (no status-bar alarm). Built: reporting each signed invoice singly (POST
+/invoices/reporting/single, Basic sign-in with the till's certificate and secret, Clearance-Status 0), right after each sale (the outbox is
+woken and sends 3 seconds later) and at the 5-minute rounds; NOT_REPORTED is refused with ZATCA's words; a refused sign-in or a busy ZATCA
+leaves the rest waiting; "Correct and resend" makes a new invoice at the end of the chain. **Found by reporting to the sandbox** (the
+compliance checks did not test them): the signed properties' certificate digest is of the certificate's Base64 text, and the signed
+properties are digested in ZATCA's SDK layout with empty elements self-closed - both fixed; Matjar's sale and credit note are REPORTED.
+*(to confirm on the simulation in 11f: the answer to an invoice reported twice - taken as accepted on 409)*. **MISS-11d is complete**; the
+run on ZATCA's simulation with a real account is part of 11f.

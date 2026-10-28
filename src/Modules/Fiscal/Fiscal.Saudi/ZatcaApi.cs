@@ -67,6 +67,16 @@ internal sealed class ZatcaApi(SaudiInvoiceOptions options, IFiscalHttpTransport
             : Result.Failure<ZatcaValidation>(Error.Failure("Fiscal.Zatca.Refused", Describe(answer.Value)));
     }
 
+    /// <summary>
+    /// MISS-11d-4: reports one simplified invoice (POST /invoices/reporting/single, Clearance-Status 0, Basic sign-in with the production
+    /// CSID): the answer as it came (the caller reads REPORTED / NOT_REPORTED, a sign-in refusal or no answer).
+    /// </summary>
+    public async Task<Result<FiscalHttpResponse>> ReportAsync(FiscalEnvironment environment, ZatcaCsid production, string hash, string uuid, string xml,
+        CancellationToken cancellationToken)
+        => await SendAsync(new FiscalHttpRequest("POST", Url(environment, "/invoices/reporting/single"),
+            Headers(Basic(production), ("Accept-Language", "en"), ("Clearance-Status", "0")),
+            JsonSerializer.Serialize(new { invoiceHash = hash, uuid, invoice = Convert.ToBase64String(Encoding.UTF8.GetBytes(xml)) })), cancellationToken);
+
     /// <summary>ZATCA's validation results in an answer (200, 202 or 400 with them), or null.</summary>
     public static ZatcaValidation? Validation(FiscalHttpResponse response)
     {

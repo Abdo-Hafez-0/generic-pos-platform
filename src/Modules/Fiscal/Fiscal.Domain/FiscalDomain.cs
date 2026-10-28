@@ -527,6 +527,17 @@ namespace Fiscal.Domain.Entities
                 State = FiscalDocumentState.Waiting, CreatedAt = nowUtc, Request = refused.Request, ReplacesDocumentId = refused.Id,
             };
 
+        /// <summary>
+        /// MISS-11d-4: the corrected copy of a refused document at the END of the chain (Saudi Arabia: a new invoice with the next counter and
+        /// the chain's last hash; the refused one stays in the chain).
+        /// </summary>
+        public static FiscalDocument CorrectionAtEnd(FiscalDocument refused, long number, string? previousHash, string hash, string payload, string? qrPayload, DateTime nowUtc)
+        {
+            var copy = Correction(refused, hash, payload, qrPayload, nowUtc);
+            (copy.Number, copy.PreviousHash) = (number, previousHash);
+            return copy;
+        }
+
         /// <summary>The longest the sender waits between two attempts.</summary>
         public static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(30);
 
@@ -542,13 +553,14 @@ namespace Fiscal.Domain.Entities
             NextAttemptAt = null;
         }
 
-        public void MarkAccepted(string? authorityReference, DateTime nowUtc)
+        /// <summary>The authority took it. MISS-11d-4: <paramref name="note"/> its warnings, if any (owner's decision: shown with the document).</summary>
+        public void MarkAccepted(string? authorityReference, DateTime nowUtc, string? note = null)
         {
             if (!IsOutstanding) return;
             if (State == FiscalDocumentState.Waiting) { Attempts++; LastAttemptAt = nowUtc; }
             State = FiscalDocumentState.Accepted;
             AuthorityReference = string.IsNullOrWhiteSpace(authorityReference) ? AuthorityReference : authorityReference.Trim();
-            StateReason = null;
+            StateReason = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
             AnsweredAt = nowUtc;
             NextAttemptAt = null;
         }

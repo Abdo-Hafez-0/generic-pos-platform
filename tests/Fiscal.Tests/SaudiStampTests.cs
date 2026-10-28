@@ -94,7 +94,8 @@ public sealed class SaudiStampTests
         Assert.Equal(("urn:oasis:names:specification:ubl:signature:Invoice", "urn:oasis:names:specification:ubl:dsig:enveloped:xades"),
             (root.Element(Cac + "Signature")!.Element(Cbc + "ID")!.Value, root.Element(Cac + "Signature")!.Element(Cbc + "SignatureMethod")!.Value));
         Assert.Equal("urn:oasis:names:specification:ubl:dsig:enveloped:xades", root.Element(Ext + "UBLExtensions")!.Descendants(Ext + "ExtensionURI").Single().Value);
-        Assert.DoesNotContain("\n", stamped.Xml);
+        // MISS-11d-4: no indentation in the invoice itself (only the stamp's signed properties are laid out as ZATCA's SDK lays them out)
+        Assert.DoesNotContain("\n", ZatcaXml.Write(ZatcaXml.WithoutStamp(ZatcaXml.Read(stamped.Xml))));
         Assert.Throws<InvalidOperationException>(() => ZatcaStamp.Apply(stamped.Xml, TestSigner(), IssuedAt, new SaudiInvoiceOptions()));   // once only
     }
 
@@ -121,15 +122,17 @@ public sealed class SaudiStampTests
     }
 
     [Fact]
-    public void The_signed_properties_name_the_certificate_and_are_digested_in_their_exclusive_canonical_form()
+    public void The_signed_properties_name_the_certificate_and_are_digested_in_ZATCAs_form()
     {
         var (_, stamped, signer) = Stamp();
-        var document = XDocument.Parse(stamped.Xml);
+        var document = XDocument.Parse(stamped.Xml, LoadOptions.PreserveWhitespace);
         var properties = document.Descendants(Xades + "SignedProperties").Single();
+        Assert.DoesNotContain("\r", stamped.Xml);   // line breaks as hashed: no CR added on writing
 
         Assert.Equal("xadesSignedProperties", (string?)properties.Attribute("Id"));
         Assert.Equal("2026-10-22T12:31:15", properties.Descendants(Xades + "SigningTime").Single().Value);   // Riyadh time
-        var certHex = Convert.ToHexString(SHA256.HashData(signer.Certificate.RawData)).ToLowerInvariant();
+        // MISS-11d-4 (found on ZATCA's sandbox): the digest of the certificate's Base64 text, not of its DER bytes
+        var certHex = Convert.ToHexString(SHA256.HashData(Encoding.ASCII.GetBytes(Convert.ToBase64String(signer.Certificate.RawData)))).ToLowerInvariant();
         Assert.Equal(Convert.ToBase64String(Encoding.ASCII.GetBytes(certHex)), properties.Descendants(Xades + "CertDigest").Single().Element(Ds + "DigestValue")!.Value);
         Assert.Equal("CN=TSZEINVOICE-SubCA-1, DC=extgazt, DC=gov, DC=local", properties.Descendants(Ds + "X509IssuerName").Single().Value);
         Assert.Equal("5813059089", properties.Descendants(Ds + "X509SerialNumber").Single().Value);   // 0x015A7C3E11
@@ -144,10 +147,15 @@ public sealed class SaudiStampTests
         transform.LoadInput(subset);
         var canonical = new StreamReader((Stream)transform.GetOutput(typeof(Stream)), Encoding.UTF8).ReadToEnd();
         Assert.Equal(canonical, ZatcaXml.ExclusiveCanonical(properties));
-        Assert.StartsWith("<xades:SignedProperties xmlns:xades=\"http://uri.etsi.org/01903/v1.3.2#\" Id=\"xadesSignedProperties\"><xades:SignedSignatureProperties>", canonical);
-        Assert.Contains("<ds:DigestMethod xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\" Algorithm=\"http://www.w3.org/2001/04/xmlenc#sha256\"></ds:DigestMethod>", canonical);
+        // laid out as ZATCA's SDK template: a new line and four more spaces per level
+        Assert.StartsWith("<xades:SignedProperties xmlns:xades=\"http://uri.etsi.org/01903/v1.3.2#\" Id=\"xadesSignedProperties\">\n" + new string(' ', 36) + "<xades:SignedSignatureProperties>\n" + new string(' ', 40) + "<xades:SigningTime>", canonical);
+        Assert.EndsWith("</xades:SignedSignatureProperties>\n" + new string(' ', 32) + "</xades:SignedProperties>", canonical);
 
-        var digest = Convert.ToBase64String(Encoding.ASCII.GetBytes(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant()));
+        // MISS-11d-4 (found on ZATCA's sandbox): ZATCA digests the exclusive form with its empty elements self-closed
+        var zatcaForm = canonical.Replace("></ds:DigestMethod>", "/>");
+        Assert.Equal(zatcaForm, ZatcaXml.ZatcaSignedPropertiesForm(properties));
+        Assert.Contains("<ds:DigestMethod xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\" Algorithm=\"http://www.w3.org/2001/04/xmlenc#sha256\"/>", zatcaForm);
+        var digest = Convert.ToBase64String(Encoding.ASCII.GetBytes(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(zatcaForm))).ToLowerInvariant()));
         var reference = document.Descendants(Ds + "Reference").Single(r => (string?)r.Attribute("URI") == "#xadesSignedProperties");
         Assert.Equal(("http://www.w3.org/2000/09/xmldsig#SignatureProperties", digest), ((string?)reference.Attribute("Type"), reference.Element(Ds + "DigestValue")!.Value));
     }

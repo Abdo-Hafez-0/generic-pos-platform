@@ -20,11 +20,11 @@ internal static class ZatcaXml
     public static readonly XNamespace Cbc = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2";
     public static readonly XNamespace Ext = "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2";
 
-    /// <summary>The document as it is sent: UTF-8, the XML declaration, no indentation.</summary>
+    /// <summary>The document as it is sent: UTF-8, the XML declaration, no indentation, line breaks kept as they are (no CR added).</summary>
     public static string Write(XDocument document)
     {
         using var stream = new MemoryStream();
-        using (var writer = XmlWriter.Create(stream, new XmlWriterSettings { Encoding = new UTF8Encoding(false), Indent = false, OmitXmlDeclaration = false }))
+        using (var writer = XmlWriter.Create(stream, new XmlWriterSettings { Encoding = new UTF8Encoding(false), Indent = false, OmitXmlDeclaration = false, NewLineHandling = NewLineHandling.None }))
             document.Save(writer);
         return Encoding.UTF8.GetString(stream.ToArray());
     }
@@ -116,11 +116,23 @@ internal static class ZatcaXml
     public static string ExclusiveCanonical(XElement apex)
     {
         var text = new StringBuilder();
-        ExclusiveElement(apex, text, new Dictionary<string, string>(StringComparer.Ordinal));
+        ExclusiveElement(apex, text, new Dictionary<string, string>(StringComparer.Ordinal), selfCloseEmpty: false);
         return text.ToString();
     }
 
-    private static void ExclusiveElement(XElement element, StringBuilder text, Dictionary<string, string> rendered)
+    /// <summary>
+    /// MISS-11d-4: the signed properties as ZATCA's reporting digests them - found on ZATCA's developer sandbox: the exclusive form, but an
+    /// empty element closed in its own tag ("&lt;ds:DigestMethod .../&gt;"); the strict canonical form ("&gt;&lt;/ds:DigestMethod&gt;") is
+    /// refused with "Invalid signed properties hashing" (the compliance checks do not test it).
+    /// </summary>
+    public static string ZatcaSignedPropertiesForm(XElement signedProperties)
+    {
+        var text = new StringBuilder();
+        ExclusiveElement(signedProperties, text, new Dictionary<string, string>(StringComparer.Ordinal), selfCloseEmpty: true);
+        return text.ToString();
+    }
+
+    private static void ExclusiveElement(XElement element, StringBuilder text, Dictionary<string, string> rendered, bool selfCloseEmpty)
     {
         var name = QualifiedName(element, element.Name);
         text.Append('<').Append(name);
@@ -149,13 +161,19 @@ internal static class ZatcaXml
 
         foreach (var attribute in attributes.OrderBy(a => a.Name.NamespaceName, StringComparer.Ordinal).ThenBy(a => a.Name.LocalName, StringComparer.Ordinal))
             text.Append(' ').Append(QualifiedName(element, attribute.Name, isAttribute: true)).Append("=\"").Append(EscapeAttribute(attribute.Value)).Append('"');
+        if (selfCloseEmpty && !element.Nodes().Any())
+        {
+            text.Append("/>");
+            return;
+        }
+
         text.Append('>');
 
         foreach (var node in element.Nodes())
         {
             switch (node)
             {
-                case XElement child: ExclusiveElement(child, text, scope); break;
+                case XElement child: ExclusiveElement(child, text, scope, selfCloseEmpty); break;
                 case XText part: text.Append(EscapeText(part.Value)); break;
                 case XProcessingInstruction pi: Instruction(pi, text); break;
             }

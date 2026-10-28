@@ -149,12 +149,75 @@ public sealed class SaudiCountryPart(SaudiInvoiceOptions? options = null, IZatca
         return new ZatcaSigner(key, System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadCertificate(Convert.FromBase64String(certificate)));
     }
 
-    public Task<IReadOnlyList<FiscalSendOutcome>> SendAsync(FiscalSendInput input, CancellationToken cancellationToken = default)
-        => Task.FromResult<IReadOnlyList<FiscalSendOutcome>>(input.Documents.Select(d => new FiscalSendOutcome(d.DocumentId, FiscalSendResult.NotSent,
-            Reason: input.Registration == FiscalTillRegistration.Registered ? NotReportingYet : NotOnboarded)).ToList());
+    /// <summary>MISS-11d-4 (owner's decision): a simplified invoice is reported a moment after its sale.</summary>
+    public bool SendsRightAway => true;
 
-    /// <summary>MISS-11d-3: onboarded, but reporting to ZATCA comes with the next step (11d-4): the invoices wait, signed.</summary>
-    internal const string NotReportingYet = "Signed and waiting: Matjar does not report invoices to ZATCA yet.";
+    /// <summary>MISS-11d-4 (owner's decision): a refused invoice's corrected copy is a new invoice at the end of the chain.</summary>
+    public bool CorrectsInPlace => false;
+
+    internal const string NotSigned = "Not signed yet: this till's signing key is not on this computer (onboard it again).";
+    internal const string CertificateRefused = "ZATCA did not accept this till's certificate (it may have expired or been revoked): renew it.";
+
+    /// <summary>
+    /// MISS-11d-4: reports each invoice to ZATCA, one at a time in the order of the chain (ZATCA takes simplified invoices singly):
+    /// REPORTED is accepted (its warnings kept - owner's decision), NOT_REPORTED refused with ZATCA's words; an invoice ZATCA already had
+    /// counts as accepted. A sign-in refusal or no answer stops the round: the rest wait for the next one.
+    /// </summary>
+    public async Task<IReadOnlyList<FiscalSendOutcome>> SendAsync(FiscalSendInput input, CancellationToken cancellationToken = default)
+    {
+        if (input.Registration != FiscalTillRegistration.Registered || input.Connection is not { } connection)
+            return All(input, NotOnboarded);
+
+        var api = new ZatcaApi(_options, transport);
+        var production = new ZatcaCsid(string.Empty, Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes(connection.ClientId)), connection.ClientSecret);
+        var outcomes = new List<FiscalSendOutcome>();
+        foreach (var document in input.Documents.OrderBy(d => d.Number))
+        {
+            if (!document.Payload.Contains("UBLExtensions", StringComparison.Ordinal) || Uuid(document.Payload) is not { } uuid)
+            {
+                outcomes.Add(new(document.DocumentId, FiscalSendResult.NotSent, Reason: NotSigned));
+                continue;
+            }
+
+            var answer = await api.ReportAsync(connection.Environment, production, document.Hash, uuid, document.Payload, cancellationToken);
+            if (answer.IsFailure)   // no answer: the rest wait for the next round
+                return [.. outcomes, .. Rest(input, outcomes, answer.Error.Description)];
+
+            var response = answer.Value;
+            var validation = ZatcaApi.Validation(response);
+            if (response.StatusCode is 200 or 202 && validation is { Passed: true })
+                outcomes.Add(new(document.DocumentId, FiscalSendResult.Accepted, uuid, validation.Warnings.Count == 0 ? null : "ZATCA's warnings: " + string.Join("; ", validation.Warnings.Take(5))));
+            else if (response.StatusCode == 409)   // ZATCA had it already (a round cut short after it reported) *(to confirm: the code ZATCA answers)*
+                outcomes.Add(new(document.DocumentId, FiscalSendResult.Accepted, uuid, "ZATCA had already received it."));
+            else if (validation is { Passed: false })
+                outcomes.Add(new(document.DocumentId, FiscalSendResult.Rejected, uuid, ZatcaApi.Describe(response)));
+            else if (response.StatusCode == 401)
+                return [.. outcomes, .. Rest(input, outcomes, CertificateRefused)];
+            else   // 429, 5xx or an answer without validation: tried again later
+                return [.. outcomes, .. Rest(input, outcomes, ZatcaApi.Describe(response))];
+        }
+
+        return outcomes;
+    }
+
+    private static IReadOnlyList<FiscalSendOutcome> All(FiscalSendInput input, string reason)
+        => input.Documents.Select(d => new FiscalSendOutcome(d.DocumentId, FiscalSendResult.NotSent, Reason: reason)).ToList();
+
+    private static IEnumerable<FiscalSendOutcome> Rest(FiscalSendInput input, List<FiscalSendOutcome> done, string reason)
+        => input.Documents.Where(d => done.All(o => o.DocumentId != d.DocumentId)).Select(d => new FiscalSendOutcome(d.DocumentId, FiscalSendResult.NotSent, Reason: reason));
+
+    /// <summary>The invoice's UUID (cbc:UUID), read from it.</summary>
+    private static string? Uuid(string payload)
+    {
+        try
+        {
+            return System.Xml.Linq.XDocument.Parse(payload).Root?.Element(ZatcaXml.Cbc + "UUID")?.Value;
+        }
+        catch (System.Xml.XmlException)
+        {
+            return null;
+        }
+    }
 
     public Task<IReadOnlyList<FiscalSendOutcome>> CheckAsync(FiscalSendInput input, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<FiscalSendOutcome>>(

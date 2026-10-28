@@ -65,6 +65,18 @@ namespace Fiscal.Application.Abstractions
         /// </summary>
         bool HoldsLateDocuments => true;
 
+        /// <summary>
+        /// MISS-11d-4: the outbox sends a new document a moment after it is made (Saudi Arabia, owner's decision: reported right after each
+        /// sale) rather than at its next round (Egypt: batches every 5 minutes).
+        /// </summary>
+        bool SendsRightAway => false;
+
+        /// <summary>
+        /// MISS-11c-4 / 11d-4: a refused document's corrected copy takes its place in the chain (Egypt) or goes at the end of the chain with
+        /// the next number (Saudi Arabia: the refused invoice stays in the chain).
+        /// </summary>
+        bool CorrectsInPlace => true;
+
         /// <summary>MISS-11c: when a sale must name its buyer (Egypt: a person's name and national ID above a total); null = never.</summary>
         Fiscal.Contracts.Models.FiscalBuyerRule? BuyerRule => null;
 
@@ -132,6 +144,27 @@ namespace Fiscal.Application.Abstractions
         public override string ToString() => $"certificate until {ExpiresAtUtc:u}";   // the secret never reaches a log line
     }
 
+    /// <summary>
+    /// MISS-11d-4 (owner's decision: reported right after each sale): wakes the outbox when a document is made for a part that sends right
+    /// away; the outbox then waits a moment (the sale's transaction commits) and sends what is due.
+    /// </summary>
+    public sealed class FiscalOutboxSignal
+    {
+        private readonly SemaphoreSlim _poked = new(0, 1);
+
+        public void Poke()
+        {
+            if (_poked.CurrentCount == 0)
+            {
+                try { _poked.Release(); }
+                catch (SemaphoreFullException) { }   // already poked
+            }
+        }
+
+        /// <summary>True when poked within <paramref name="timeout"/>.</summary>
+        public Task<bool> WaitAsync(TimeSpan timeout, CancellationToken cancellationToken) => _poked.WaitAsync(timeout, cancellationToken);
+    }
+
     /// <summary>MISS-11c-2: the marks' shared pieces.</summary>
     public static class FiscalMarks
     {
@@ -190,6 +223,12 @@ namespace Fiscal.Application.Abstractions
     {
         public static async Task<FiscalTillConnection?> ReadAsync(FiscalTill till, IFiscalSecretStore? secrets, CancellationToken cancellationToken)
         {
+            // MISS-11d-4: Saudi Arabia - the till signs in with ZATCA's certificate (ClientId) and its secret
+            if (till is { Registration: FiscalTillRegistration.Registered, Certificate: { } certificate } && till.Environment != FiscalEnvironment.None && secrets is not null)
+                return await secrets.ReadAsync(cancellationToken) is { } kept
+                    ? new FiscalTillConnection(till.Environment, certificate, kept.ClientSecret, till.DeviceSerial ?? string.Empty, string.Empty, string.Empty, string.Empty)
+                    : null;
+
             if (till is not { Registration: FiscalTillRegistration.Registered, ClientId: { } clientId, PosOsVersion: { } os, PosModelFramework: { } model, DeviceSerial: { } serial }
                 || till.Environment == FiscalEnvironment.None || secrets is null)
                 return null;
@@ -456,7 +495,7 @@ namespace Fiscal.Application.Commands
     /// No capability check: only reachable through Fiscal.Contracts' IFiscalRecorder, inside an operation the user was authorized for.
     /// </summary>
     public sealed class RecordFiscalDocumentCommandHandler(IFiscalSetupRepository setup, IFiscalDocumentRepository documents, IFiscalUnitOfWork unitOfWork,
-        IEnumerable<IFiscalCountryPart>? countryParts = null, TimeProvider? timeProvider = null, FiscalCodeBook? codeBook = null)
+        IEnumerable<IFiscalCountryPart>? countryParts = null, TimeProvider? timeProvider = null, FiscalCodeBook? codeBook = null, FiscalOutboxSignal? outbox = null)
     {
         internal async Task<FiscalDocumentResult> ExecuteAsync(FiscalDocumentRequest request, CancellationToken cancellationToken = default)
         {
@@ -494,6 +533,7 @@ namespace Fiscal.Application.Commands
 
             await documents.AddAsync(document, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            if (document.State != FiscalDocumentState.NotBuilt && part.SendsRightAway) outbox?.Poke();   // MISS-11d-4
             return document.State == FiscalDocumentState.NotBuilt
                 ? FiscalDocumentResult.NotBuilt(document.Id, document.StateReason!)
                 : FiscalDocumentResult.Issued(document.Id, document.Number!.Value, document.QrPayload) with { Mark = FiscalMarks.Of(document, countryParts) };
@@ -603,7 +643,7 @@ namespace Fiscal.Application.Commands
                     switch (outcome.Result)
                     {
                         case FiscalSendResult.Sent: document.MarkSent(outcome.AuthorityReference, now); sent++; break;
-                        case FiscalSendResult.Accepted: document.MarkAccepted(outcome.AuthorityReference, now); accepted++; break;
+                        case FiscalSendResult.Accepted: document.MarkAccepted(outcome.AuthorityReference, now, outcome.Reason); accepted++; break;   // MISS-11d-4: its warnings
                         case FiscalSendResult.Rejected: document.MarkRejected(outcome.Reason ?? string.Empty, now); rejected++; break;
                         default: document.MarkNotSent(outcome.Reason ?? string.Empty, now); notSent++; lastReason = outcome.Reason ?? lastReason; break;
                     }
@@ -1063,7 +1103,8 @@ namespace Fiscal.Application.Commands
             var now = (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;
             var till = await FiscalTillAccess.GetOrCreateAsync(setup, unitOfWork, timeProvider, cancellationToken);
             var refused = document.State == FiscalDocumentState.Rejected;
-            var built = refused
+            var inPlace = refused && part.CorrectsInPlace;   // MISS-11d-4: Saudi Arabia corrects at the end of the chain
+            var built = inPlace
                 ? await FiscalBuilding.BuildAsync(part, request, settings, till, document.Number!.Value, document.PreviousHash, documents, codeBook, document.Hash, cancellationToken)
                 : await FiscalBuilding.BuildAsync(part, request, settings, till, till.Counter + 1, till.LastDocumentHash, documents, codeBook, null, cancellationToken);
             if (built.IsFailure) return Error.Validation("Fiscal.Correct.NotBuilt", built.Error.Description);
@@ -1072,7 +1113,10 @@ namespace Fiscal.Application.Commands
             string summary;
             if (refused)
             {
-                var copy = FiscalDocument.Correction(document, built.Value.Hash, built.Value.Payload, built.Value.QrPayload, now);
+                var previous = till.LastDocumentHash;
+                var copy = inPlace
+                    ? FiscalDocument.Correction(document, built.Value.Hash, built.Value.Payload, built.Value.QrPayload, now)
+                    : FiscalDocument.CorrectionAtEnd(document, till.Chain(built.Value.Hash), previous, built.Value.Hash, built.Value.Payload, built.Value.QrPayload, now);
                 async Task<Result<bool>> ReplaceAsync()
                 {
                     document.MarkReplaced(copy.Id, now);

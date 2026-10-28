@@ -112,6 +112,41 @@ public sealed class ZatcaSandboxTests(ITestOutputHelper output)
         await Check("many lines", Sale("PROBE-M", null, Enumerable.Range(1, 7).Select(i => new FiscalLineRequest(dates, "D", "Item " + i, 3m, 0.99m, 0m, 2.97m, 0.15m, 0.39m)).ToArray()));
     }
 
+    [ZatcaSandboxFact]
+    public async Task Matjars_signed_invoices_are_reported_to_ZATCAs_sandbox()
+    {
+        // MISS-11d-4 (owner's decision: the opt-in tests may report to the sandbox): onboarding, then a sale and its credit note reported
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        var options = new SaudiInvoiceOptions { UseDeveloperSandbox = true };
+        var api = new ZatcaApi(options, new HttpFiscalTransport(http));
+        using var key = ECDsa.Create(ECCurve.CreateFromFriendlyName("secP256k1"));
+        var settings = TestShop();
+        var onboarded = await new ZatcaOnboarding(options, api).RunAsync(key, settings, new ZatcaUnit("Till 1", "Olaya branch", "Retail", "RRRD2929"),
+            "MTJ-1A2B-3C4D-5E6F", "1.0", FiscalEnvironment.PreProduction, Otp, null, CancellationToken.None);
+        Assert.True(onboarded.IsSuccess, onboarded.IsFailure ? onboarded.Error.Description : null);
+        using var production = onboarded.Value.Production.Certificate();
+        output.WriteLine($"production certificate: {production.Subject}; our key: {production.PublicKey.ExportSubjectPublicKeyInfo().SequenceEqual(key.ExportSubjectPublicKeyInfo())}");
+
+        var now = DateTime.UtcNow;
+        var water = Guid.NewGuid();
+        var codes = new Dictionary<Guid, FiscalLineCodes> { [water] = new(null, null, "PCE", null, null, "S", null, null) };
+        var sale = new FiscalDocumentRequest(FiscalDocumentKindContract.Sale, Guid.NewGuid(), "SBX-" + now.ToString("HHmmss"), now,
+            [new FiscalLineRequest(water, "W", "Water", 2m, 1.15m, 0m, 2.30m, 0.15m, 0.30m)], 2.30m, 0.30m, [new FiscalPaymentRequest("Cash", 2.30m)]);
+        string? previous = null;
+        var number = 0;
+        foreach (var request in new[] { sale, sale with { Kind = FiscalDocumentKindContract.Return, SourceId = Guid.NewGuid(), Reference = sale.Reference + "-R", OriginalReference = sale.Reference, Reason = "Wrong size" } })
+        {
+            var built = ZatcaInvoiceBuilder.Build(new FiscalBuildInput(request, settings, Guid.NewGuid(), "t", ++number, previous, codes), options).Value;
+            var stamped = ZatcaStamp.Apply(built.Xml, key, production, now, options);
+            var answer = await api.ReportAsync(FiscalEnvironment.PreProduction, onboarded.Value.Production, stamped.Hash, built.Uuid, stamped.Xml, CancellationToken.None);
+            Assert.True(answer.IsSuccess, answer.IsFailure ? answer.Error.Description : null);
+            output.WriteLine($"{request.Reference}: {answer.Value.StatusCode} {answer.Value.Body}");
+            var validation = ZatcaApi.Validation(answer.Value);
+            Assert.True(validation is { Passed: true }, answer.Value.Body);
+            previous = stamped.Hash;
+        }
+    }
+
     private sealed class SynchronousProgress(Action<FiscalOnboardingProgress> report) : IProgress<FiscalOnboardingProgress>
     {
         public void Report(FiscalOnboardingProgress value) => report(value);

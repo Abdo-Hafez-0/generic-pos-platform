@@ -21,6 +21,8 @@ using Tests.Common.Security;
 namespace Fiscal.Tests;
 
 /// <summary>
+/// MISS-11d-4 (owner's decisions: reported right after each sale; accepted with ZATCA's warnings shown; "Correct and resend" as a new invoice
+/// at the end of the chain): reporting each signed invoice to ZATCA and reading its answer.
 /// MISS-11d-3 (owner's choices: one button with the steps ticked; simulation or production; the earlier invoices signed at its end; the
 /// certificate's expiry warned 30 days before and on the till in the last 7): onboarding this till with ZATCA through the module - the CSR,
 /// the compliance CSID and checks, the production CSID, the certificate kept on the till and its secret protected, invoices signed from
@@ -172,9 +174,10 @@ public sealed class ZatcaOnboardingTests : IDisposable
         Assert.Contains(_events, e => e.Action == "fiscal.till-onboarded" && (e.Summary ?? "").Contains("1 earlier document(s) signed", StringComparison.Ordinal));
         Assert.DoesNotContain(_events, e => ((e.Summary ?? "") + e.Details).Contains(FakeZatca.Otp, StringComparison.Ordinal) || ((e.Summary ?? "") + e.Details).Contains("secret-", StringComparison.Ordinal));
 
-        // the documents wait, signed (reporting comes with 11d-4)
+        // MISS-11d-4: both are reported to ZATCA
         var round = await db.InScopeAsync(sp => sp.GetRequiredService<SendFiscalDocumentsCommandHandler>().ExecuteAsync(force: true));
-        Assert.Equal(SaudiCountryPart.NotReportingYet, round.LastReason);
+        Assert.Equal(2, round.Accepted);
+        Assert.Equal(["S-BEFORE", "S-AFTER"], _zatca.Reported);
     }
 
     [Theory]
@@ -259,5 +262,132 @@ public sealed class ZatcaOnboardingTests : IDisposable
 
         _clock.Advance(TimeSpan.FromDays(10));   // expired: still said
         Assert.NotNull((await NoticeAsync())!.CertificateExpiresAtUtc);
+    }
+
+    // ---- MISS-11d-4: reporting
+
+    private static Task<Fiscal.Application.DTOs.FiscalSendSummary> RoundAsync(TestModuleDatabase<FiscalDbContext> db)
+        => db.InScopeAsync(sp => sp.GetRequiredService<SendFiscalDocumentsCommandHandler>().ExecuteAsync(force: true));
+
+    private static Task<List<Fiscal.Domain.Entities.FiscalDocument>> DocumentsAsync(TestModuleDatabase<FiscalDbContext> db)
+        => db.InScopeAsync(sp => sp.GetRequiredService<FiscalDbContext>().Documents.AsNoTracking().OrderBy(d => d.Number).ThenBy(d => d.CreatedAt).ToListAsync());
+
+    private async Task<TestModuleDatabase<FiscalDbContext>> OnboardedAsync()
+    {
+        var db = await DatabaseAsync();
+        Assert.True((await OnboardAsync(db, Command())).IsSuccess);
+        return db;
+    }
+
+    [Fact]
+    public async Task A_sale_wakes_the_outbox_to_report_it_right_away()
+    {
+        await using var db = await OnboardedAsync();
+        var signal = await db.InScopeAsync(sp => Task.FromResult(sp.GetRequiredService<FiscalOutboxSignal>()));
+        while (await signal.WaitAsync(TimeSpan.Zero, CancellationToken.None)) { }   // onboarding's own pokes
+
+        await db.InScopeAsync(sp => sp.GetRequiredService<IFiscalRecorder>().RecordAsync(Sale("S-1")));
+
+        Assert.True(await signal.WaitAsync(TimeSpan.Zero, CancellationToken.None));
+        Assert.False(await signal.WaitAsync(TimeSpan.Zero, CancellationToken.None));   // one poke, however many sales
+        Assert.True(new SaudiCountryPart().SendsRightAway);
+        Assert.False(((IFiscalCountryPart)new Fiscal.Egypt.EgyptCountryPart()).SendsRightAway);   // Egypt: batches every 5 minutes
+    }
+
+    [Fact]
+    public async Task Each_invoice_is_reported_with_the_tills_certificate_and_ZATCAs_answer_is_kept()
+    {
+        await using var db = await OnboardedAsync();
+        foreach (var reference in new[] { "S-1", "S-2", "S-3" })
+            await db.InScopeAsync(sp => sp.GetRequiredService<IFiscalRecorder>().RecordAsync(Sale(reference)));
+        _zatca.WarnReport["S-2"] = "[BR-KSA-98] The simplified invoice should be submitted within 24 hours of issuing the invoice";
+        _zatca.RefuseReport["S-3"] = "[BR-KSA-31] the seller's identification is not valid";
+
+        var round = await RoundAsync(db);
+
+        Assert.Equal((2, 1, 0), (round.Accepted, round.Rejected, round.NotSent));
+        var documents = await DocumentsAsync(db);
+        Assert.Equal((FiscalDocumentState.Accepted, (string?)null), (documents[0].State, documents[0].StateReason));
+        Assert.Equal(FiscalDocumentState.Accepted, documents[1].State);   // owner's decision: accepted, its warnings shown
+        Assert.Equal("ZATCA's warnings: BR-KSA-98: [BR-KSA-98] The simplified invoice should be submitted within 24 hours of issuing the invoice", documents[1].StateReason);
+        Assert.Equal(FiscalDocumentState.Rejected, documents[2].State);
+        Assert.Contains("BR-KSA-31", documents[2].StateReason);
+        Assert.Equal(System.Xml.Linq.XDocument.Parse(documents[0].Payload!).Root!.Element(ZatcaXml.Cbc + "UUID")!.Value, documents[0].AuthorityReference);
+
+        var report = _zatca.Requests.First(r => r.Url.EndsWith("/invoices/reporting/single", StringComparison.Ordinal));
+        Assert.Equal(("V2", "0", "en"), (report.Headers["Accept-Version"], report.Headers["Clearance-Status"], report.Headers["Accept-Language"]));
+        Assert.StartsWith("https://gw-fatoora.zatca.gov.sa/e-invoicing/simulation/", report.Url);
+        Assert.NotNull((await db.InScopeAsync(sp => sp.GetRequiredService<FiscalDbContext>().Tills.AsNoTracking().SingleAsync())).FirstSentAt);   // the environment is locked
+
+        // nothing is reported twice
+        Assert.False((await RoundAsync(db)).Ran && _zatca.Reported.Count > 2);
+        Assert.Equal(["S-1", "S-2"], _zatca.Reported);
+    }
+
+    [Theory]
+    [InlineData(401, SaudiCountryPart.CertificateRefused)]
+    [InlineData(429, "Too many requests")]
+    [InlineData(503, "ZATCA answered 503")]
+    public async Task A_refused_sign_in_or_a_busy_ZATCA_leaves_the_invoices_waiting(int status, string reason)
+    {
+        await using var db = await OnboardedAsync();
+        foreach (var reference in new[] { "S-1", "S-2" })
+            await db.InScopeAsync(sp => sp.GetRequiredService<IFiscalRecorder>().RecordAsync(Sale(reference)));
+        _zatca.NextReportStatus = status;
+
+        var round = await RoundAsync(db);
+
+        Assert.Equal((0, 2), (round.Accepted, round.NotSent));   // the round stops at the first: the second is not tried
+        Assert.Contains(reason, round.LastReason);
+        Assert.Equal(1, _zatca.Requests.Count(r => r.Url.EndsWith("/invoices/reporting/single", StringComparison.Ordinal)));
+        Assert.All(await DocumentsAsync(db), d => Assert.Equal(FiscalDocumentState.Waiting, d.State));
+        Assert.Null((await db.InScopeAsync(sp => sp.GetRequiredService<FiscalDbContext>().Tills.AsNoTracking().SingleAsync())).FirstSentAt);
+
+        Assert.Equal(2, (await RoundAsync(db)).Accepted);   // the next round reports them
+    }
+
+    [Fact]
+    public async Task Without_the_till_key_on_this_computer_an_invoice_waits_unsigned()
+    {
+        await using var db = await OnboardedAsync();
+        _keys.Delete();
+        await db.InScopeAsync(sp => sp.GetRequiredService<IFiscalRecorder>().RecordAsync(Sale("S-1")));
+
+        var round = await RoundAsync(db);
+
+        Assert.Equal((0, 1, SaudiCountryPart.NotSigned), (round.Accepted, round.NotSent, round.LastReason));
+        Assert.Empty(_zatca.Reported);
+    }
+
+    [Fact]
+    public async Task A_refused_invoice_is_corrected_as_a_new_invoice_at_the_end_of_the_chain()
+    {
+        await using var db = await OnboardedAsync();
+        foreach (var reference in new[] { "S-1", "S-2" })
+            await db.InScopeAsync(sp => sp.GetRequiredService<IFiscalRecorder>().RecordAsync(Sale(reference)));
+        _zatca.RefuseReport["S-1"] = "[BR-KSA-31] the seller's identification is not valid";
+        await RoundAsync(db);
+        var refused = (await DocumentsAsync(db)).Single(d => d.Reference == "S-1");
+        Assert.Equal(FiscalDocumentState.Rejected, refused.State);
+
+        _zatca.RefuseReport.Clear();   // the shop fixed what ZATCA said
+        var corrected = await db.InScopeAsync(sp => sp.GetRequiredService<CorrectFiscalDocumentCommandHandler>().HandleAsync(new CorrectFiscalDocumentCommand(refused.Id)));
+        Assert.True(corrected.IsSuccess, corrected.IsFailure ? corrected.Error.Description : null);
+
+        var documents = await DocumentsAsync(db);
+        var copy = documents.Single(d => d.ReplacesDocumentId == refused.Id);
+        var last = documents.Single(d => d.Reference == "S-2");
+        Assert.Equal(FiscalDocumentState.Replaced, documents.Single(d => d.Id == refused.Id).State);
+        Assert.Equal((last.Number + 1, last.Hash), (copy.Number, copy.PreviousHash));   // a new invoice at the END of the chain
+        var xml = System.Xml.Linq.XDocument.Parse(copy.Payload!).Root!;
+        Assert.Equal((copy.Number!.Value.ToString(), last.Hash), (xml.Elements(ZatcaXml.Cac + "AdditionalDocumentReference").Single(r => r.Element(ZatcaXml.Cbc + "ID")!.Value == "ICV").Element(ZatcaXml.Cbc + "UUID")!.Value,
+            xml.Elements(ZatcaXml.Cac + "AdditionalDocumentReference").Single(r => r.Element(ZatcaXml.Cbc + "ID")!.Value == "PIH").Descendants(ZatcaXml.Cbc + "EmbeddedDocumentBinaryObject").Single().Value));
+        Assert.NotEqual(refused.Hash, copy.Hash);
+        Assert.Contains("<ext:UBLExtensions>", copy.Payload);   // signed at once
+
+        Assert.Equal(1, (await RoundAsync(db)).Accepted);
+        Assert.Equal(["S-2", "S-1"], _zatca.Reported);
+        var till = await db.InScopeAsync(sp => sp.GetRequiredService<FiscalDbContext>().Tills.AsNoTracking().SingleAsync());
+        Assert.Equal((copy.Number, copy.Hash), ((long?)till.Counter, till.LastDocumentHash));
     }
 }

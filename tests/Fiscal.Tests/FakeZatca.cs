@@ -36,6 +36,12 @@ public sealed class FakeZatca : IFiscalHttpTransport
     public (int Check, string Error)? RefuseCheck { get; set; }
 
     public List<string> CheckedInvoices { get; } = [];
+
+    /// <summary>MISS-11d-4: the invoices reported (their numbers), the refusals and warnings to answer (by invoice number), a status for the next report.</summary>
+    public List<string> Reported { get; } = [];
+    public Dictionary<string, string> RefuseReport { get; } = [];
+    public Dictionary<string, string> WarnReport { get; } = [];
+    public int? NextReportStatus { get; set; }
     public List<CertificateRequest> Csrs { get; } = [];
 
     public Task<FiscalHttpResponse> SendAsync(FiscalHttpRequest request, CancellationToken cancellationToken = default)
@@ -66,6 +72,31 @@ public sealed class FakeZatca : IFiscalHttpTransport
             {
                 validationResults = new { infoMessages = Array.Empty<object>(), warningMessages = Array.Empty<object>(), errorMessages = errors, status = errors.Count == 0 ? "PASS" : "ERROR" },
                 reportingStatus = errors.Count == 0 ? "REPORTED" : "NOT_REPORTED",
+            }));
+        }
+
+        if (request.Method == "POST" && path.EndsWith("/invoices/reporting/single", StringComparison.Ordinal))
+        {
+            // MISS-11d-4: reporting - signed in with the production CSID; the invoice's hash and signature checked; refusals and warnings as scripted
+            if (NextReportStatus is { } status) { NextReportStatus = null; return Answer(status, status == 429 ? "{\"message\":\"Too many requests\"}" : ""); }
+            if (!SignedIn(request, "production")) return Answer(401, "");
+            if (request.Headers.GetValueOrDefault("Clearance-Status") != "0") return Answer(400, "{\"message\":\"Clearance-Status missing\"}");
+            using var json = JsonDocument.Parse(request.Body!);
+            var xml = Encoding.UTF8.GetString(Convert.FromBase64String(json.RootElement.GetProperty("invoice").GetString()!));
+            var id = System.Xml.Linq.XDocument.Parse(xml).Root!.Element(Fiscal.Saudi.ZatcaXml.Cbc + "ID")!.Value;
+            var uuid = System.Xml.Linq.XDocument.Parse(xml).Root!.Element(Fiscal.Saudi.ZatcaXml.Cbc + "UUID")!.Value;
+            var hash = Fiscal.Saudi.ZatcaXml.Hash(Fiscal.Saudi.ZatcaXml.Read(xml));
+            var errors = new List<object>();
+            if (hash != json.RootElement.GetProperty("invoiceHash").GetString()) errors.Add(new { code = "invalid-invoice-hash", message = "The invoice hash API body does not match the (calculated) Hash of the XML" });
+            if (uuid != json.RootElement.GetProperty("uuid").GetString()) errors.Add(new { code = "invalid-uuid", message = "The UUID does not match" });
+            if (!SignatureVerifies(xml, hash)) errors.Add(new { code = "invalid-signature", message = "The signature does not verify" });
+            if (RefuseReport.TryGetValue(id, out var refusal)) errors.Add(new { code = "BR-KSA-XX", message = refusal });
+            if (errors.Count == 0 && !Reported.Contains(id)) Reported.Add(id);
+            var warnings = WarnReport.TryGetValue(id, out var warning) ? new object[] { new { code = "BR-KSA-98", message = warning } } : [];
+            return Answer(errors.Count > 0 ? 400 : warnings.Length > 0 ? 202 : 200, JsonSerializer.Serialize(new
+            {
+                validationResults = new { infoMessages = Array.Empty<object>(), warningMessages = warnings, errorMessages = errors, status = errors.Count > 0 ? "ERROR" : warnings.Length > 0 ? "WARNING" : "PASS" },
+                reportingStatus = errors.Count > 0 ? "NOT_REPORTED" : "REPORTED",
             }));
         }
 

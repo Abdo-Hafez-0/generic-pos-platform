@@ -70,6 +70,7 @@ public static class FiscalServicesExtensions
     public static IServiceCollection AddFiscalCore(this IServiceCollection services)
     {
         services.AddScoped<Fiscal.Application.Abstractions.IFiscalUnitOfWork, FiscalUnitOfWork>();
+        services.AddSingleton<Fiscal.Application.Abstractions.FiscalOutboxSignal>();   // MISS-11d-4
         services.AddScoped<Fiscal.Application.Repositories.IFiscalSetupRepository, Fiscal.Infrastructure.Repositories.EfFiscalSetupRepository>();
         services.AddScoped<Fiscal.Contracts.Interfaces.IFiscalSetupReader, Fiscal.Infrastructure.Repositories.FiscalSetupReader>();
         services.AddScoped<Fiscal.Application.Repositories.IFiscalDocumentRepository, Fiscal.Infrastructure.Repositories.EfFiscalDocumentRepository>();

@@ -92,7 +92,7 @@ internal static class ZatcaStamp
                 new XElement(Xades + "SigningCertificate", new XElement(Xades + "Cert",
                     new XElement(Xades + "CertDigest",
                         new XElement(Ds + "DigestMethod", new XAttribute("Algorithm", Sha256)),
-                        new XElement(Ds + "DigestValue", HexDigest(certificate.RawData))),
+                        new XElement(Ds + "DigestValue", HexDigest(Encoding.ASCII.GetBytes(Convert.ToBase64String(certificate.RawData))))),   // of the certificate's Base64 text (found on ZATCA's sandbox)
                     new XElement(Xades + "IssuerSerial",
                         new XElement(Ds + "X509IssuerName", certificate.IssuerName.Name),
                         new XElement(Ds + "X509SerialNumber", new BigInteger(certificate.GetSerialNumber(), isUnsigned: true).ToString(CultureInfo.InvariantCulture)))))));
@@ -130,8 +130,11 @@ internal static class ZatcaStamp
                                     signedProperties))))))));
         root.AddFirst(extensions);
 
-        // the signed properties' digest, from their exclusive canonical form where they now sit
-        signedInfo.Elements(Ds + "Reference").Last().Element(Ds + "DigestValue")!.Value = HexDigest(Encoding.UTF8.GetBytes(ZatcaXml.ExclusiveCanonical(signedProperties)));
+        // the signed properties laid out as ZATCA's SDK lays them out (its reporting checks their digest in that form; outside the invoice hash)
+        Indent(signedProperties, 32);
+
+        // the signed properties' digest, in the form ZATCA's reporting checks (exclusive, empty elements self-closed - found on its sandbox)
+        signedInfo.Elements(Ds + "Reference").Last().Element(Ds + "DigestValue")!.Value = HexDigest(Encoding.UTF8.GetBytes(ZatcaXml.ZatcaSignedPropertiesForm(signedProperties)));
 
         // the QR with all nine tags, then the reference to the signature (UBL order: after the document references)
         var qr = Qr(root, hash, signature, certificate);
@@ -173,6 +176,23 @@ internal static class ZatcaStamp
         certificateSequence.ReadEncodedValue();   // tbsCertificate
         certificateSequence.ReadEncodedValue();   // signatureAlgorithm
         return certificateSequence.ReadBitString(out _);
+    }
+
+    /// <summary>
+    /// MISS-11d-4: indents an element's children as ZATCA's SDK template does (a new line and four more spaces per level, the closing tag
+    /// back at <paramref name="spaces"/>); elements holding text only are left as they are.
+    /// </summary>
+    private static void Indent(XElement element, int spaces)
+    {
+        var children = element.Elements().ToList();
+        if (children.Count == 0) return;
+        foreach (var child in children)
+        {
+            child.AddBeforeSelf(new XText("\n" + new string(' ', spaces + 4)));
+            Indent(child, spaces + 4);
+        }
+
+        children[^1].AddAfterSelf(new XText("\n" + new string(' ', spaces)));
     }
 
     /// <summary>ZATCA's digest form for the certificate and the signed properties: Base64 of the SHA-256's lowercase hex text.</summary>

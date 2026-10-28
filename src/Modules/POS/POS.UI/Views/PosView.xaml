@@ -384,6 +384,7 @@
                             <TextBlock x:Name="ReturnNothingLeftText" Text="{x:Static res:PosText.ReturnNothingLeft}" Foreground="{DynamicResource Brush.Warning}" FontSize="14" Margin="0,10,0,0"
                                        TextWrapping="Wrap" Visibility="{Binding ReturnNothingLeft, Converter={StaticResource VisibleWhenTrue}}"/>
                             <TextBlock x:Name="ReturnLateText" Text="{Binding ReturnLateText}" Foreground="{DynamicResource Brush.Warning}" FontSize="14" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="ReturnFiscalLimitText" Text="{Binding ReturnFiscalLimitText}" Foreground="{DynamicResource Brush.Warning}" FontSize="14" Margin="0,6,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                             <ItemsControl x:Name="ReturnLinesList" ItemsSource="{Binding ReturnLines}" AutomationProperties.Name="{x:Static res:PosText.ReturnQuantity}">
@@ -431,24 +432,37 @@
                     </DockPanel>
                 </Border>
 
-                <!-- ======== the refund -->
+                <!-- ======== the refund (MISS-11e: its fields scroll when the buyer's boxes are shown; Give refund stays at the bottom) -->
                 <Border Grid.Column="2" Style="{StaticResource Panel}">
-                    <DockPanel LastChildFill="False">
+                    <DockPanel>
                         <DockPanel DockPanel.Dock="Top">
                             <TextBlock x:Name="RefundTotalText" DockPanel.Dock="Right" Text="{Binding RefundTotal, StringFormat=N2}" FontSize="34" FontWeight="SemiBold"/>
                             <TextBlock Text="{x:Static res:PosText.RefundTitle}" FontSize="16" FontWeight="SemiBold"/>
                         </DockPanel>
-                        <TextBlock DockPanel.Dock="Top" Text="{x:Static res:PosText.RefundBy}" Style="{StaticResource Label.Field}" FontSize="13" Margin="0,16,0,4"/>
-                        <ComboBox DockPanel.Dock="Top" x:Name="RefundMethodBox" ItemsSource="{Binding PaymentMethods}" SelectedItem="{Binding RefundMethod}"
-                                  DisplayMemberPath="Text" AutomationProperties.Name="{x:Static res:PosText.RefundBy}"/>
-                        <TextBox DockPanel.Dock="Top" x:Name="RefundNoteBox" Margin="0,8,0,0" Text="{Binding RefundNote, UpdateSourceTrigger=PropertyChanged}"
-                                 Tag="{x:Static res:PosText.RefundNote}" AutomationProperties.Name="{x:Static res:PosText.RefundNote}"
-                                 Visibility="{Binding RefundNeedsNote, Converter={StaticResource VisibleWhenTrue}}"/>
-                        <TextBlock DockPanel.Dock="Top" Text="{x:Static res:PosText.ReturnReason}" Style="{StaticResource Label.Field}" FontSize="13" Margin="0,14,0,4"/>
-                        <TextBox DockPanel.Dock="Top" x:Name="ReturnReasonBox" Text="{Binding ReturnReason, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"
-                                 MinHeight="72" VerticalContentAlignment="Top" AutomationProperties.Name="{x:Static res:PosText.ReturnReason}"/>
                         <Button DockPanel.Dock="Bottom" x:Name="GiveRefundButton" Content="{x:Static res:PosText.GiveRefund}" Style="{StaticResource Button.Checkout}"
                                 MinHeight="64" FontSize="19" HorizontalAlignment="Stretch" Margin="0,14,0,0" Command="{Binding GiveRefundCommand}"/>
+                        <ScrollViewer x:Name="RefundFields" VerticalScrollBarVisibility="Auto" Focusable="False">
+                            <StackPanel>
+                                <TextBlock Text="{x:Static res:PosText.RefundBy}" Style="{StaticResource Label.Field}" FontSize="13" Margin="0,16,0,4"/>
+                                <ComboBox x:Name="RefundMethodBox" ItemsSource="{Binding PaymentMethods}" SelectedItem="{Binding RefundMethod}"
+                                          DisplayMemberPath="Text" AutomationProperties.Name="{x:Static res:PosText.RefundBy}"/>
+                                <TextBox x:Name="RefundNoteBox" Margin="0,8,0,0" Text="{Binding RefundNote, UpdateSourceTrigger=PropertyChanged}"
+                                         Tag="{x:Static res:PosText.RefundNote}" AutomationProperties.Name="{x:Static res:PosText.RefundNote}"
+                                         Visibility="{Binding RefundNeedsNote, Converter={StaticResource VisibleWhenTrue}}"/>
+                                <TextBlock Text="{x:Static res:PosText.ReturnReason}" Style="{StaticResource Label.Field}" FontSize="13" Margin="0,14,0,4"/>
+                                <TextBox x:Name="ReturnReasonBox" Text="{Binding ReturnReason, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"
+                                         MinHeight="72" VerticalContentAlignment="Top" AutomationProperties.Name="{x:Static res:PosText.ReturnReason}"/>
+                                <!-- MISS-11e (owner's decision): the buyer of a large return without a sale receipt, as for a sale -->
+                                <StackPanel x:Name="ReturnBuyerPanel" Margin="0,14,0,0" Visibility="{Binding ReturnNeedsBuyer, Converter={StaticResource VisibleWhenTrue}}">
+                                    <TextBlock x:Name="ReturnBuyerNoticeText" Text="{Binding ReturnBuyerNotice}" Foreground="{DynamicResource Brush.Warning}" TextWrapping="Wrap" FontSize="14" Margin="0,0,0,6"/>
+                                    <TextBox x:Name="ReturnBuyerNameBox" Text="{Binding ReturnBuyerName, UpdateSourceTrigger=PropertyChanged}" Tag="{x:Static res:PosText.BuyerName}"
+                                             AutomationProperties.Name="{x:Static res:PosText.BuyerName}" Margin="0,0,0,6"/>
+                                    <TextBox x:Name="ReturnBuyerNationalIdBox" Text="{Binding ReturnBuyerNationalId, UpdateSourceTrigger=PropertyChanged}" Tag="{x:Static res:PosText.BuyerNationalId}"
+                                             ToolTip="{x:Static res:PosText.BuyerNationalIdHint}" FlowDirection="LeftToRight" MaxLength="14" InputScope="Number"
+                                             AutomationProperties.Name="{x:Static res:PosText.BuyerNationalId}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
                     </DockPanel>
                 </Border>
             </Grid>

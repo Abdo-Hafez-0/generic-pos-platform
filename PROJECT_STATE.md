@@ -2777,7 +2777,7 @@ FIX-13 decisions (user, 2026-10-09): every screen text in Arabic with right-to-l
   - The Cash drawer already listed "Cash refund" movements and their effect on the expected balance (10a).
 - **MISS-10 is complete.** Next: MISS-11 (electronic receipts, Egypt first; 11e will issue the fiscal returns for these).
 
-## MISS-11 Summary - Electronic receipts for Egypt and Saudi Arabia (2026-10-21, in progress: 11a, 11b, 11c and 11d done)
+## MISS-11 Summary - Electronic receipts for Egypt and Saudi Arabia (2026-10-21, in progress: 11a-11e done)
 
 - **Plan and decisions**: `MISS-11_E_RECEIPTS_PLAN.md` (Egypt first, shop sales only, a tax adviser in each country; section 5 for 11a: keep selling and queue, the Fiscal screen as boxes + list, warnings for managers plus a short line on the till, the country locked after the first document).
 - **11a-1 - the Fiscal module and its setup**: a new module `Fiscal` (licensed module id "fiscal"; capability `fiscal.manage`, sensitive; tables `fis_Settings`, `fis_Tills`; migration `InitialFiscalSchema`; shares the database transaction like the other business modules).
@@ -2852,7 +2852,16 @@ FIX-13 decisions (user, 2026-10-09): every screen text in Arabic with right-to-l
     - Tests: Fiscal.Tests +7 (the poke after a sale and not for Egypt, reporting with accepted / warnings / refused and the request's headers, 401 / 429 / 503 leave the rest waiting, an unsigned invoice waits, the correction at the end of the chain reported) + 1 opt-in sandbox reporting test + an opt-in tool (`LocalZatcaServer`: the stand-in ZATCA over plain HTTP on 127.0.0.1); the stand-in ZATCA reports and checks the hash, UUID and signature. Checked on the real application: the Saudi demo copy onboarded against the stand-in on this computer, the 5 earlier invoices signed and accepted with "Send now", a new sale reported by itself 3 seconds later (nothing left the computer; the copy was put back to not onboarded and its key deleted afterwards).
 - **MISS-11d is complete**: Saudi Arabia's simplified invoices are built, signed, onboarded and reported, checked against ZATCA's developer sandbox; the run on ZATCA's simulation with a real account is part of 11f.
 - **11e decisions** (2026-10-28, plan section 9): Egypt's Return Receipt Without Reference (RWR, reason B) for a return of a sale made before e-receipts were on (Saudi Arabia already has its credit notes); the buyer asked at the till when such a return reaches 150,000 EGP; returns still start from a Matjar receipt; past ETA's 540 days the till warns and the return gets no e-receipt.
-- **Next**: 11e build - Egypt's Return Receipt Without Reference, then 11f - the release check.
+- **11e - returns without an e-receipt** (owner's decisions, plan section 9):
+    - Egypt's **Return Receipt Without Reference** (`receiptType` "RWR", v1.2) for a return of a sale made before e-receipts were on (the sale has no fiscal document at all): no `referenceUUID`; `sOrderNameCode` the sale's receipt number, `documentUseReason` "B" (sales issued before adoption), `salesIssuedDateTime` the sale's time, in the SDK's header order; chained like any receipt. POS sends the sale's time with every return (`FiscalDocumentRequest.OriginalIssuedAtUtc`).
+    - A sale whose own document is there but not made yet (`FiscalBuildInput.OriginalPending`): its return is not built ("Make the sale's receipt first") - "Build and send" on the sale, then on the return, which then names it as a normal Return Receipt.
+    - The buyer of such a return at or above the threshold (150,000 EGP) is asked at the till: `IFiscalSetupReader.GetReturnRuleAsync(saleId)` -> `FiscalReturnRule(Buyer, DaysAllowed)` from the part (`IFiscalCountryPart.ReturnWithoutOriginalNamesBuyer`, `ReturnDaysAllowed`), carried to the till as `POSReturnableSale.Fiscal`; the return mode shows the buyer's boxes as a sale does; `RefundSaleCommand.Buyer` - refused without a name and a 14-digit national ID (`POS.Refund.BuyerRequired`, nothing saved).
+    - ETA's 540 days (receipt FAQ): a return later than that is not built (`Fiscal.Egypt.ReturnTooLate`, the manager sees it as not made) and the till warns when the sale is shown (`PosText.ReturnPastFiscalLimit`); the refund stays allowed with the late-return permission.
+    - Saudi Arabia: nothing to add - every return already has its credit note naming the sale's receipt number (11d-1); the till asks nothing more.
+    - The till's refund panel: its fields scroll when the buyer's boxes show, "Give refund" stays at the bottom.
+    - Tests: Fiscal.Tests +6 (the RWR's header and order, its buyer, a sale not made yet, 540 days for both kinds of return, Egypt's part, Saudi asks nothing), Integration +2 (a pre-e-receipt sale's return refused without the buyer then an RWR on the real host; a sale whose receipt is not made yet), UI.Tests +2 (the buyer's boxes in return mode, the 540-day warning). Checked on the real application (the Egypt demo, the buyer's limit lowered to 2 for the run): two returns of 19/10 sales became RWR receipts, Waiting (the demo is not registered with the ETA; nothing was sent). Not checked on the real application: the 540-day warning (no sale that old in the demo; covered by the tests).
+- **MISS-11e is complete.**
+- **Next**: 11f - the release check (real runs on ETA's pre-production and ZATCA's simulation, a tax adviser's review in each country, the owner's guide).
 
 ---
 
@@ -2933,4 +2942,4 @@ Notes:
 
 ---
 
-Last updated: 2026-10-28 - MISS-11e: the owner's decisions for returns without an e-receipt (plan section 9). 3206 tests + 6 opt-in skipped, 0 warnings; MISS-07 open until the device check is run; next: MISS-11e build (Egypt's Return Receipt Without Reference), 11f, MISS-12..18, Part C (PKG-02). Note: Backup.Tests EscrowRecoveryTests "Any_changed_lost_or_added_character..." failed once and passed on reruns (random input; a separate task).
+Last updated: 2026-10-28 - MISS-11e: Egypt's Return Receipt Without Reference; MISS-11e complete. 3216 tests + 6 opt-in skipped, 0 warnings; MISS-07 open until the device check is run; next: MISS-11f (the release check), MISS-12..18, Part C (PKG-02). Note: Backup.Tests EscrowRecoveryTests "Any_changed_lost_or_added_character..." failed once and passed on reruns (random input; a separate task). UI.Tests failed twice in nine runs on 2026-10-28 right after a real-app check (60, then the 4 UsersAndRolesOnRealDesktopTests) and passed on reruns; the error was not captured (a separate task).

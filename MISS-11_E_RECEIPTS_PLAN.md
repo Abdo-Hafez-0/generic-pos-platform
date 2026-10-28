@@ -322,3 +322,9 @@ Facts checked (2026-10-28, ETA's SDK: Return Receipt Without Reference v1.2 and 
 type is used "if the sales receipt was issued before adoption or if the sales receipt was not issued in Egypt"; `documentUseReason` I
 (international return) or B (sales issued before adoption); `salesIssuedDateTime` mandatory (UTC); `referenceUUID` optional; the buyer
 types B, P or F with the ID required for P at or above 150,000 EGP; the receipt FAQ's limit of 540 days from the sale for a return.
+
+11e (2026-10-28), built as decided: a return of a sale with no fiscal document at all is Egypt's Return Receipt Without Reference
+("RWR", documentUseReason "B", salesIssuedDateTime the sale's time, sOrderNameCode the sale's receipt number, no referenceUUID); a sale
+whose document is there but not made waits ("Make the sale's receipt first"); the buyer of such a return at or above 150,000 EGP is asked
+in the till's return mode; past 540 days the return is not built and the till warns. *(to confirm on ETA's pre-production in 11f: an RWR
+accepted, and whether the ETA wants the buyer of an RWR below the threshold)*. **MISS-11e is complete.**

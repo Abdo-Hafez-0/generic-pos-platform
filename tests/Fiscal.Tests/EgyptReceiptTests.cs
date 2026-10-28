@@ -251,9 +251,87 @@ public sealed class EgyptReceiptTests
         Assert.Equal(sale.Uuid, root.GetProperty("header").GetProperty("previousUUID").GetString());
         Assert.Equal("29901011234567", root.GetProperty("buyer").GetProperty("id").GetString());   // the sale's buyer, above the threshold
 
+        // MISS-11e: without the sale's receipt and without the sale's time, nothing can be sent
         var orphan = EgyptReceiptBuilder.Build(Input(request), Options);
-        Assert.Equal("Fiscal.Egypt.NoOriginal", orphan.Error.Code);
+        Assert.Equal("Fiscal.Egypt.SaleTimeUnknown", orphan.Error.Code);
         Assert.Contains("S-1A2B3C4D", orphan.Error.Description);
+    }
+
+    /// <summary>MISS-11e: a return of a sale made before e-receipts were on - ETA's Return Receipt Without Reference.</summary>
+    private static FiscalDocumentRequest ReturnOfOldSale(DateTime soldAt, string? buyerName = null, string? buyerId = null, decimal colaPrice = 114m)
+        => Sale(buyerName: buyerName, buyerId: buyerId, colaPrice: colaPrice) with
+        {
+            Kind = FiscalDocumentKindContract.Return, Reference = "R-0000AAAA", OriginalReference = "S-0LD5A1E0", OriginalSourceId = Guid.NewGuid(),
+            OriginalIssuedAtUtc = soldAt,
+        };
+
+    [Fact]
+    public void A_return_of_a_sale_made_before_e_receipts_is_a_return_receipt_without_reference()
+    {
+        var soldAt = new DateTime(2026, 9, 30, 17, 5, 9, DateTimeKind.Utc);
+        var built = Build(Input(ReturnOfOldSale(soldAt), previous: new string('b', 64)));
+
+        using var json = JsonDocument.Parse(built.Json);
+        var root = json.RootElement;
+        var header = root.GetProperty("header");
+        Assert.Equal("RWR", root.GetProperty("documentType").GetProperty("receiptType").GetString());
+        Assert.Equal("1.2", root.GetProperty("documentType").GetProperty("typeVersion").GetString());
+        Assert.False(header.TryGetProperty("referenceUUID", out _));
+        Assert.Equal("B", header.GetProperty("documentUseReason").GetString());   // sales issued before adoption
+        Assert.Equal("2026-09-30T17:05:09Z", header.GetProperty("salesIssuedDateTime").GetString());
+        Assert.Equal("S-0LD5A1E0", header.GetProperty("sOrderNameCode").GetString());
+        Assert.Equal(new string('b', 64), header.GetProperty("previousUUID").GetString());   // in the chain like any receipt
+        Assert.Equal(["dateTimeIssued", "receiptNumber", "uuid", "previousUUID", "currency", "sOrderNameCode", "documentUseReason", "salesIssuedDateTime"],
+            header.EnumerateObject().Select(p => p.Name).ToArray());   // the SDK's order
+        Assert.Equal(built.Uuid, header.GetProperty("uuid").GetString());
+    }
+
+    [Fact]
+    public void A_large_return_without_reference_names_the_buyer_asked_at_the_till()
+    {
+        var soldAt = IssuedAt.AddDays(-3);
+        var refused = EgyptReceiptBuilder.Build(Input(ReturnOfOldSale(soldAt, colaPrice: 75_000m)), Options);
+        Assert.Equal("Fiscal.Egypt.BuyerRequired", refused.Error.Code);
+
+        var named = Build(Input(ReturnOfOldSale(soldAt, "أحمد علي", "29901011234567", colaPrice: 75_000m)));
+        using var json = JsonDocument.Parse(named.Json);
+        var buyer = json.RootElement.GetProperty("buyer");
+        Assert.Equal("P", buyer.GetProperty("type").GetString());
+        Assert.Equal("29901011234567", buyer.GetProperty("id").GetString());
+        Assert.Equal("أحمد علي", buyer.GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public void A_return_of_a_sale_whose_receipt_is_not_made_yet_waits_for_it()
+    {
+        var input = Input(ReturnOfOldSale(IssuedAt.AddDays(-1))) with { OriginalPending = true };
+        var refused = EgyptReceiptBuilder.Build(input, Options);
+
+        Assert.Equal("Fiscal.Egypt.OriginalNotMade", refused.Error.Code);
+        Assert.Contains("S-0LD5A1E0", refused.Error.Description);
+    }
+
+    [Fact]
+    public void A_return_more_than_540_days_after_its_sale_gets_no_e_receipt()
+    {
+        Assert.True(EgyptReceiptBuilder.Build(Input(ReturnOfOldSale(IssuedAt.AddDays(-540))), Options).IsSuccess);
+        var late = EgyptReceiptBuilder.Build(Input(ReturnOfOldSale(IssuedAt.AddDays(-541))), Options);
+        Assert.Equal("Fiscal.Egypt.ReturnTooLate", late.Error.Code);
+        Assert.Contains("540", late.Error.Description);
+
+        // a return naming its sale's receipt too
+        var sale = Build(Input(Sale()));
+        var request = Sale() with { Kind = FiscalDocumentKindContract.Return, Reference = "R-0000BBBB", OriginalReference = "S-1A2B3C4D", OriginalSourceId = Guid.NewGuid() };
+        var tooLate = EgyptReceiptBuilder.Build(Input(request, original: new FiscalOriginalDocument(Guid.NewGuid(), sale.Uuid, sale.Json, IssuedAt.AddDays(-600))), Options);
+        Assert.Equal("Fiscal.Egypt.ReturnTooLate", tooLate.Error.Code);
+    }
+
+    [Fact]
+    public void Egypts_part_takes_returns_for_540_days_and_names_the_buyer_of_one_without_reference()
+    {
+        IFiscalCountryPart part = new EgyptCountryPart();
+        Assert.Equal(540, part.ReturnDaysAllowed);
+        Assert.True(part.ReturnWithoutOriginalNamesBuyer);
     }
 
     [Fact]

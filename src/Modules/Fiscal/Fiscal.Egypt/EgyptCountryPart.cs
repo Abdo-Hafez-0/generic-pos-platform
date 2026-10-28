@@ -22,6 +22,12 @@ public sealed class EgyptCountryPart(EgyptReceiptOptions? options = null, IFisca
     /// <summary>Owner's decision: the till asks for a person's name and national ID at or above the threshold.</summary>
     public FiscalBuyerRule? BuyerRule => new(_options.BuyerIdThreshold, EgyptReceiptBuilder.NationalIdLength);
 
+    /// <summary>MISS-11e: the ETA takes a return up to 540 days after its sale (owner's decision: the till warns past it).</summary>
+    public int? ReturnDaysAllowed => EgyptReceiptBuilder.ReturnDaysAllowed;
+
+    /// <summary>MISS-11e: the Return Receipt Without Reference names its own buyer (owner's decision: asked at the till).</summary>
+    public bool ReturnWithoutOriginalNamesBuyer => true;
+
     /// <summary>Owner's choice (drawn option A): "إيصال إلكتروني" and the short UUID under the QR code.</summary>
     public FiscalReceiptMark Mark(string hash, string qrPayload) => new(qrPayload, ReceiptTitle, "UUID " + FiscalMarks.Short(hash));
 

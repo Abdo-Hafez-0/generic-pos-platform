@@ -44,7 +44,8 @@ namespace Fiscal.Contracts.Models
         Guid? OriginalSourceId = null,
         string? OriginalReference = null,
         string? BuyerNationalId = null,   // MISS-11c: Egypt - a person buyer's national ID, asked at the till above the threshold
-        string? Reason = null);           // MISS-11d: a return's reason (Saudi Arabia: the credit note's reason for issuance)
+        string? Reason = null,            // MISS-11d: a return's reason (Saudi Arabia: the credit note's reason for issuance)
+        DateTime? OriginalIssuedAtUtc = null);   // MISS-11e: when a return's sale was made (Egypt: a sale without an e-receipt, and ETA's 540 days)
 
     /// <summary>
     /// MISS-11c (owner's decision: asked at the till): a sale whose total is at or above <see cref="Threshold"/> must name its buyer - a name
@@ -57,6 +58,17 @@ namespace Fiscal.Contracts.Models
         /// <summary>The buyer given is enough: a name and a national ID of the right number of digits.</summary>
         public bool IsSatisfiedBy(string? name, string? nationalId)
             => !string.IsNullOrWhiteSpace(name) && nationalId is { } id && id.Trim().Length == NationalIdLength && id.Trim().All(char.IsAsciiDigit);
+    }
+
+    /// <summary>
+    /// MISS-11e: what the till must know to take a return of a sale for the electronic receipt: <see cref="Buyer"/> when the return names its
+    /// own buyer (Egypt: a sale made before e-receipts were on has no receipt to take the buyer from), and <see cref="DaysAllowed"/> how long
+    /// after its sale the authority takes a return (Egypt: 540 days; null = no limit).
+    /// </summary>
+    public sealed record FiscalReturnRule(FiscalBuyerRule? Buyer, int? DaysAllowed)
+    {
+        /// <summary>The return comes too long after its sale for the authority: it gets no electronic receipt.</summary>
+        public bool IsPastLimit(DateTime saleAtUtc, DateTime returnAtUtc) => DaysAllowed is { } days && returnAtUtc - saleAtUtc > TimeSpan.FromDays(days);
     }
 
     /// <summary>
@@ -141,6 +153,9 @@ namespace Fiscal.Contracts.Interfaces
 
         /// <summary>MISS-11c: when a sale must name its buyer (null when receipts are off or the chosen country asks for no buyer).</summary>
         Task<FiscalBuyerRule?> GetBuyerRuleAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>MISS-11e: what a return of the sale <paramref name="saleId"/> needs for its electronic receipt (null when nothing).</summary>
+        Task<FiscalReturnRule?> GetReturnRuleAsync(Guid saleId, CancellationToken cancellationToken = default) => Task.FromResult<FiscalReturnRule?>(null);
     }
 
     /// <summary>

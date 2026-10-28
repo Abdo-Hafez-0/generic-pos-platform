@@ -321,6 +321,9 @@
   <data name="GiveRefund" xml:space="preserve">
     <value>رد المبلغ</value>
   </data>
+  <data name="ReturnPastFiscalLimit" xml:space="preserve">
+    <value>مضى على هذا البيع أكثر من {0} يومًا: لا تقبل مصلحة الضرائب إيصالًا إلكترونيًا لمرتجعه.</value>
+  </data>
   <data name="ReturnLate" xml:space="preserve">
     <value>مضى على هذا البيع أكثر من {0} يومًا: لا يرد المبلغ إلا من يُسمح له بقبول المرتجعات المتأخرة.</value>
   </data>

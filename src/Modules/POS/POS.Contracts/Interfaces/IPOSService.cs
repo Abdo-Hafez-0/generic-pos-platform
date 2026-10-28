@@ -62,8 +62,9 @@ public interface IPOSService
     /// <summary>
     /// MISS-10: takes items of a completed sale back and gives the money back the way the cashier chose (cash from this till's drawer, card,
     /// or other with <paramref name="methodDetail"/>); lines go back on the shelf or are written off as damaged. One transaction: all or nothing.
-    /// Anyone who may sell; a sale past the shop's limit also needs the late-returns permission.
+    /// Anyone who may sell; a sale past the shop's limit also needs the late-returns permission. MISS-11e: <paramref name="buyer"/> names the
+    /// buyer when the return's electronic receipt needs it (see <see cref="POSReturnableSale.Fiscal"/>).
     /// </summary>
     Task<POSRefundResult> RefundSaleAsync(Guid saleId, IReadOnlyList<POSRefundLineRequest> lines, string reason, POSPaymentMethod method,
-        string? methodDetail = null, CancellationToken cancellationToken = default);
+        string? methodDetail = null, CancellationToken cancellationToken = default, POSBuyer? buyer = null);
 }

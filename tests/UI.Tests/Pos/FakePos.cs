@@ -30,7 +30,7 @@ internal sealed class FakeTill
 
     // MISS-10b: completed sales the till can return, and the refunds asked for
     public Dictionary<Guid, POSReturnableSale> ReturnableSales { get; } = [];
-    public List<(Guid SaleId, IReadOnlyList<POSRefundLineRequest> Lines, string Reason, POSPaymentMethod Method, string? Detail)> Refunds { get; } = [];
+    public List<(Guid SaleId, IReadOnlyList<POSRefundLineRequest> Lines, string Reason, POSPaymentMethod Method, string? Detail, POSBuyer? Buyer)> Refunds { get; } = [];
     public string? RefundRefusal { get; set; }
     public IReadOnlyList<POSHardwareNotice>? RefundHardwareNotices { get; set; }
     public POSFiscalNotice? FiscalNotice { get; set; }
@@ -204,11 +204,11 @@ internal sealed class FakePosService : IPOSService, IPOSReader
     }
 
     public Task<POSRefundResult> RefundSaleAsync(Guid saleId, IReadOnlyList<POSRefundLineRequest> lines, string reason, POSPaymentMethod method,
-        string? methodDetail = null, CancellationToken cancellationToken = default)
+        string? methodDetail = null, CancellationToken cancellationToken = default, POSBuyer? buyer = null)
     {
         Enter("refund");
         if (_till.RefundRefusal is { } refusal) return Task.FromResult(POSRefundResult.Failure("POS.Refund.NotEnoughCash", refusal));
-        _till.Refunds.Add((saleId, lines, reason, method, methodDetail));
+        _till.Refunds.Add((saleId, lines, reason, method, methodDetail, buyer));
         var sale = _till.ReturnableSales[saleId];
         var total = lines.Sum(l => sale.Lines.Single(s => s.SaleItemId == l.SaleItemId).RefundFor(l.Quantity));
         return Task.FromResult(POSRefundResult.Success(Guid.NewGuid(), total, _till.RefundHardwareNotices));

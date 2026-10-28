@@ -81,6 +81,18 @@ namespace Fiscal.Application.Abstractions
         Fiscal.Contracts.Models.FiscalBuyerRule? BuyerRule => null;
 
         /// <summary>
+        /// MISS-11e: how many days after its sale the authority takes a return (Egypt: 540); null = no limit. A return past it is not built
+        /// and the till warns before it is given.
+        /// </summary>
+        int? ReturnDaysAllowed => null;
+
+        /// <summary>
+        /// MISS-11e: a return of a sale without a document of its own (made before receipts were on) names its own buyer (Egypt: the Return
+        /// Receipt Without Reference has no sale receipt to take the buyer from), asked at the till like a sale's.
+        /// </summary>
+        bool ReturnWithoutOriginalNamesBuyer => false;
+
+        /// <summary>
         /// MISS-11c-3: tries the till's sign-in with the authority (Egypt: asks for a token). A failed result says why (the authority's
         /// words, or no connection); never an exception.
         /// </summary>
@@ -269,7 +281,8 @@ namespace Fiscal.Application.Abstractions
         long Number, string? PreviousHash, IReadOnlyDictionary<Guid, FiscalLineCodes>? LineCodes = null, FiscalOriginalDocument? Original = null,
         string? DeviceSerial = null, FiscalEnvironment Environment = FiscalEnvironment.None,   // MISS-11c-3: Egypt's QR links to that environment's portal
         string? ReferenceOldHash = null,   // MISS-11c-4: a corrected copy names the refused document (Egypt: referenceOldUUID)
-        string? Certificate = null);       // MISS-11d-3: Saudi Arabia - the till's ZATCA certificate once onboarded (the invoice is signed at once)
+        string? Certificate = null,        // MISS-11d-3: Saudi Arabia - the till's ZATCA certificate once onboarded (the invoice is signed at once)
+        bool OriginalPending = false);     // MISS-11e: the return's sale has a document that is not made yet (it must be made first)
 
     /// <summary>
     /// MISS-11c: a return's sale as its fiscal document recorded it (Egypt: the return carries the sale's UUID as referenceUUID and its buyer);
@@ -561,19 +574,25 @@ namespace Fiscal.Application.Commands
             FiscalTill till, long number, string? previousHash, IFiscalDocumentRepository documents, FiscalCodeBook? codeBook, string? referenceOldHash,
             CancellationToken cancellationToken)
         {
-            // MISS-11c: a return names its sale's document (Egypt: referenceUUID)
+            // MISS-11c: a return names its sale's document (Egypt: referenceUUID); MISS-11e: a sale without one was made before receipts were
+            // on, unless its document is there but not made yet
             FiscalOriginalDocument? original = null;
+            var originalPending = false;
             if (request.Kind == FiscalDocumentKindContract.Return && request.OriginalSourceId is { } saleId
-                && await documents.FindBySourceAsync(FiscalDocumentKind.Sale, saleId, cancellationToken) is { Hash: { } saleHash, Payload: { } salePayload } sale
-                && sale.State != FiscalDocumentState.NotBuilt)
-                original = new FiscalOriginalDocument(sale.Id, saleHash, salePayload, sale.IssuedAt);
+                && await documents.FindBySourceAsync(FiscalDocumentKind.Sale, saleId, cancellationToken) is { } sale)
+            {
+                if (sale is { Hash: { } saleHash, Payload: { } salePayload } && sale.State != FiscalDocumentState.NotBuilt)
+                    original = new FiscalOriginalDocument(sale.Id, saleHash, salePayload, sale.IssuedAt);
+                else
+                    originalPending = true;
+            }
 
             try
             {
                 var lineCodes = codeBook is null ? null
                     : await codeBook.ForProductsAsync(request.Lines.Select(l => l.ProductId).Distinct().ToList(), cancellationToken);   // MISS-11b
                 return part.Build(new FiscalBuildInput(request, settings, till.Id, till.Name, number, previousHash, lineCodes,
-                    original, till.DeviceSerial, till.Environment, referenceOldHash, till.Certificate));
+                    original, till.DeviceSerial, till.Environment, referenceOldHash, till.Certificate, originalPending));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

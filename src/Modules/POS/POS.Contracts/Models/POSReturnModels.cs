@@ -27,6 +27,19 @@ public sealed record POSReturnableSale(Guid SaleId, string ReceiptNumber, DateTi
     decimal RefundedTotal, IReadOnlyList<POSReturnableLine> Lines, bool IsLate, int DaysAllowed)
 {
     public bool HasAnythingLeft => Lines.Any(l => l.RemainingQuantity > 0m);
+
+    /// <summary>MISS-11e: what the electronic receipt of a return of this sale needs (null when receipts are off or it needs nothing).</summary>
+    public POSFiscalReturnRule? Fiscal { get; init; }
+}
+
+/// <summary>
+/// MISS-11e: a return's electronic receipt: <see cref="Buyer"/> when the return must name its buyer above a total (Egypt: a sale made before
+/// e-receipts were on), and how many days after its sale the tax authority takes a return (<see cref="DaysAllowed"/>; Egypt: 540).
+/// </summary>
+public sealed record POSFiscalReturnRule(POSFiscalBuyerRule? Buyer, int? DaysAllowed)
+{
+    /// <summary>The return comes too long after its sale for the tax authority: it gets no electronic receipt.</summary>
+    public bool IsPastLimit(DateTime saleAtUtc, DateTime returnAtUtc) => DaysAllowed is { } days && returnAtUtc - saleAtUtc > TimeSpan.FromDays(days);
 }
 
 /// <summary>MISS-10b: the sale a receipt number points at, or why none was found (not found, or the number matches several sales).</summary>

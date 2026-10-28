@@ -238,6 +238,52 @@ public sealed class PosReturnTests
     }
 
     [Fact]
+    public async Task A_large_return_without_a_sale_receipt_asks_for_the_buyer_as_a_sale_does()
+    {
+        // MISS-11e (owner's decision): Egypt - a sale made before e-receipts were on; its return names the buyer at or above 150,000
+        await OpenTillAsync();
+        var added = _till.AddReturnableSale(("TV", 2m, 0m, 300_000m, 0m));
+        var sale = _till.ReturnableSales[added.SaleId] = added with { Fiscal = new POSFiscalReturnRule(new POSFiscalBuyerRule(150_000m, 14), 540) };
+        await FindAsync(sale);
+        _vm.ReturnReason = "Changed mind";
+
+        _vm.ReturnLines[0].Quantity = 1m;                                     // 150,000: at the threshold
+        Assert.True(_vm.ReturnNeedsBuyer);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, PosText.BuyerNeeded, 150_000m), _vm.ReturnBuyerNotice);
+        Assert.Null(_vm.ReturnFiscalLimitText);
+
+        _vm.ReturnBuyerName = "Ahmed Ali";
+        _vm.ReturnBuyerNationalId = "2990101";                                // too short
+        await Run(_vm.GiveRefundCommand);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, PosText.BuyerMissing, 14), _vm.ErrorMessage);
+        Assert.Empty(_till.Refunds);
+
+        _vm.ReturnBuyerNationalId = "29901011234567";
+        await Run(_vm.GiveRefundCommand);
+        Assert.Equal(new POSBuyer("Ahmed Ali", "29901011234567"), Assert.Single(_till.Refunds).Buyer);
+    }
+
+    [Fact]
+    public async Task A_small_return_needs_no_buyer_and_a_sale_past_the_tax_authoritys_days_is_warned()
+    {
+        // MISS-11e (owner's decision): past ETA's 540 days the till warns that the return gets no electronic receipt
+        await OpenTillAsync();
+        var added = _till.AddReturnableSale(("Milk", 1m, 0m, 2.5m, 0m));
+        var sale = _till.ReturnableSales[added.SaleId] = added with
+        {
+            CompletedAtUtc = DateTime.UtcNow.AddDays(-541), IsLate = true, Fiscal = new POSFiscalReturnRule(new POSFiscalBuyerRule(150_000m, 14), 540),
+        };
+        await FindAsync(sale);
+        _vm.ReturnLines[0].Quantity = 1m;
+        _vm.ReturnReason = "Changed mind";
+
+        Assert.False(_vm.ReturnNeedsBuyer);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, PosText.ReturnPastFiscalLimit, 540), _vm.ReturnFiscalLimitText);
+        await Run(_vm.GiveRefundCommand);
+        Assert.Null(Assert.Single(_till.Refunds).Buyer);
+    }
+
+    [Fact]
     public async Task Sales_history_asks_for_a_return_and_the_till_shows_that_sale_even_without_an_open_till()
     {
         _till.AddWarehouse("Main shop");

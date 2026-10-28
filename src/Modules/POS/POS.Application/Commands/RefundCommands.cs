@@ -24,9 +24,11 @@ public sealed record RefundLine(Guid SaleItemId, decimal Quantity, bool BackToSt
 
 /// <summary>
 /// MISS-10: returns items of a completed sale and gives the money back. <see cref="Method"/> is how the money goes back, chosen by the
-/// cashier whatever the customer paid with (owner's decision); "Other" needs <see cref="MethodDetail"/>.
+/// cashier whatever the customer paid with (owner's decision); "Other" needs <see cref="MethodDetail"/>. MISS-11e: <see cref="Buyer"/> names
+/// the buyer when the return's electronic receipt needs it (Egypt: a sale made before e-receipts were on, at or above the threshold).
 /// </summary>
-public sealed record RefundSaleCommand(Guid SaleId, IReadOnlyList<RefundLine> Lines, string Reason, POSPaymentMethod Method, string? MethodDetail = null);
+public sealed record RefundSaleCommand(Guid SaleId, IReadOnlyList<RefundLine> Lines, string Reason, POSPaymentMethod Method, string? MethodDetail = null,
+    POSBuyer? Buyer = null);
 
 /// <summary>A completed refund: the return, the money given back and how; MISS-10c: what the printer or the drawer could not do.</summary>
 public sealed record RefundOutcome(Guid ReturnId, Guid SaleId, decimal RefundTotal, POSPaymentMethod Method, IReadOnlyList<ReturnedLineResult> Lines,
@@ -70,7 +72,8 @@ public sealed class RefundSaleCommandHandler(
     PosReceiptOptions? receiptOptions = null,
     IReceiptPrinter? receiptPrinter = null,
     ICashDrawer? cashDrawer = null,
-    IFiscalRecorder? fiscalRecorder = null)
+    IFiscalRecorder? fiscalRecorder = null,
+    IFiscalSetupReader? fiscalSetup = null)
 {
     private bool TracksCash => cashRecorder is not null && cashShifts is not null;
 
@@ -234,6 +237,12 @@ public sealed class RefundSaleCommandHandler(
         Fiscal.Contracts.Models.FiscalReceiptMark? fiscalMark = null;
         if (fiscalRecorder is not null)
         {
+            // MISS-11e (owner's decision: asked at the till): a return that names its own buyer above the threshold
+            if (fiscalSetup is not null && await fiscalSetup.GetReturnRuleAsync(command.SaleId, cancellationToken) is { Buyer: { } buyerRule }
+                && buyerRule.Applies(recorded.RefundTotal) && !buyerRule.IsSatisfiedBy(command.Buyer?.Name, command.Buyer?.NationalId))
+                return Result.Failure<RefundOutcome>(Error.Validation("POS.Refund.BuyerRequired",
+                    $"A return of {Money(buyerRule.Threshold)} or more must name the buyer for the electronic receipt: a name and a {buyerRule.NationalIdLength}-digit national ID. Nothing was saved."));
+
             var fiscal = await fiscalRecorder.RecordAsync(FiscalReturn(command, sale, recorded, by), cancellationToken);
             if (!fiscal.IsSuccess)
                 return Result.Failure<RefundOutcome>(Error.Failure("POS.Refund.FiscalFailed",
@@ -259,8 +268,12 @@ public sealed class RefundSaleCommandHandler(
         }).ToList();
         return new FiscalDocumentRequest(FiscalDocumentKindContract.Return, recorded.ReturnId, "R-" + recorded.ReturnId.ToString("N")[..8].ToUpperInvariant(),
             (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime, lines, recorded.RefundTotal, lines.Sum(l => l.Tax),
-            [new FiscalPaymentRequest(command.Method.ToString(), recorded.RefundTotal)], cashier, sale.CustomerName,
-            command.SaleId, "S-" + command.SaleId.ToString("N")[..8].ToUpperInvariant(), Reason: command.Reason.Trim());   // MISS-11d: the credit note's reason
+            [new FiscalPaymentRequest(command.Method.ToString(), recorded.RefundTotal)], cashier,
+            string.IsNullOrWhiteSpace(command.Buyer?.Name) ? sale.CustomerName : command.Buyer.Name.Trim(),
+            command.SaleId, "S-" + command.SaleId.ToString("N")[..8].ToUpperInvariant(),
+            BuyerNationalId: string.IsNullOrWhiteSpace(command.Buyer?.NationalId) ? null : command.Buyer.NationalId.Trim(),   // MISS-11e
+            Reason: command.Reason.Trim(),   // MISS-11d: the credit note's reason
+            OriginalIssuedAtUtc: sale.CompletedAtUtc);   // MISS-11e: Egypt - the sale's time (a sale without an e-receipt; ETA's 540 days)
     }
 
     private static BusinessEvent Refunded(RefundSaleCommand command, RefundOutcome done)

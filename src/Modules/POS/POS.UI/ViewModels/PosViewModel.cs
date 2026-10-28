@@ -62,6 +62,8 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
     private RecentReceiptRow? _selectedRecent;
     private bool _isReturnMode;
     private POSReturnableSale? _returnSale;
+    private string _returnBuyerName = string.Empty;        // MISS-11e
+    private string _returnBuyerNationalId = string.Empty;
     private string _receiptNumberText = string.Empty;
     private PaymentChoice _refundMethod;
     private string _refundNote = string.Empty;
@@ -149,7 +151,7 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
         {
             if (!Set(ref _returnSale, value)) return;
             foreach (var name in new[] { nameof(HasReturnSale), nameof(IsFindingReturn), nameof(ReturnTitle), nameof(ReturnCustomerText), nameof(ReturnLateText),
-                         nameof(ReturnNothingLeft) }) Raise(name);
+                         nameof(ReturnNothingLeft), nameof(ReturnFiscalLimitText), nameof(ReturnNeedsBuyer), nameof(ReturnBuyerNotice) }) Raise(name);
         }
     }
 
@@ -167,6 +169,25 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
     public string? ReturnLateText => ReturnSale is { IsLate: true } sale ? string.Format(CultureInfo.CurrentCulture, PosText.ReturnLate, sale.DaysAllowed) : null;
 
     public bool ReturnNothingLeft => ReturnSale is { HasAnythingLeft: false };
+
+    // ---- MISS-11e (owner's decisions): what the return's electronic receipt needs
+
+    /// <summary>The sale is older than the tax authority takes a return (Egypt: 540 days): the return gets no electronic receipt.</summary>
+    public string? ReturnFiscalLimitText => ReturnSale is { Fiscal: { DaysAllowed: { } days } rule } sale && rule.IsPastLimit(sale.CompletedAtUtc, DateTime.UtcNow)
+        ? string.Format(CultureInfo.CurrentCulture, PosText.ReturnPastFiscalLimit, days)
+        : null;
+
+    /// <summary>The return reaches the threshold and has no sale receipt to take the buyer from (a sale made before e-receipts were on).</summary>
+    public bool ReturnNeedsBuyer => ReturnSale?.Fiscal?.Buyer?.Applies(RefundTotal) == true && RefundTotal > 0m;
+
+    public string ReturnBuyerNotice => ReturnSale?.Fiscal?.Buyer is { } rule ? string.Format(CultureInfo.CurrentCulture, PosText.BuyerNeeded, rule.Threshold) : string.Empty;
+
+    public string ReturnBuyerName { get => _returnBuyerName; set => Set(ref _returnBuyerName, value); }
+
+    public string ReturnBuyerNationalId { get => _returnBuyerNationalId; set => Set(ref _returnBuyerNationalId, value); }
+
+    /// <summary>The buyer to send with the return (null when it needs none).</summary>
+    private POSBuyer? ReturnBuyer => ReturnNeedsBuyer ? new POSBuyer(ReturnBuyerName.Trim(), ReturnBuyerNationalId.Trim()) : null;
 
     /// <summary>The sale's lines with what comes back of each.</summary>
     public ObservableCollection<ReturnLineRow> ReturnLines { get; } = [];
@@ -201,6 +222,7 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
         IsRecentShown = false;
         ShowReturn(null);
         (ReceiptNumberText, ReturnReason, RefundNote, RefundMethod) = (string.Empty, string.Empty, string.Empty, PaymentMethods[0]);
+        (ReturnBuyerName, ReturnBuyerNationalId) = (string.Empty, string.Empty);   // MISS-11e
         (ErrorMessage, StatusMessage) = (null, PosText.ReceiptNumberHint);
         IsReturnMode = true;
     }
@@ -262,6 +284,7 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
 
         ReturnSale = sale;
         Raise(nameof(RefundTotal));
+        Raise(nameof(ReturnNeedsBuyer));
     }
 
     private void OnReturnLineChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -269,6 +292,7 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
         if (e.PropertyName is nameof(ReturnLineRow.Refund) or nameof(ReturnLineRow.Quantity) or nameof(ReturnLineRow.IsValid))
         {
             Raise(nameof(RefundTotal));
+            Raise(nameof(ReturnNeedsBuyer));
             Raise(nameof(CanGiveRefund));
         }
     }
@@ -280,7 +304,14 @@ public sealed class PosViewModel : ViewModelBase, INavigationAware, IScreenReque
         var lines = ReturnLines.Where(r => r.Quantity > 0m).Select(r => new POSRefundLineRequest(r.Line.SaleItemId, r.Quantity, !r.IsDamaged)).ToList();
         var (method, reason) = (RefundMethod, ReturnReason.Trim());
         var note = RefundNeedsNote ? RefundNote.Trim() : null;
-        var refunded = await _runner.QueryAsync((scope, ct) => scope.Get<IPOSService>().RefundSaleAsync(sale.SaleId, lines, reason, method.Method, note, ct));
+        var buyer = ReturnBuyer;   // MISS-11e
+        if (ReturnNeedsBuyer && sale.Fiscal!.Buyer is { } rule && !rule.IsSatisfiedBy(buyer))
+        {
+            Fail(string.Format(CultureInfo.CurrentCulture, PosText.BuyerMissing, rule.NationalIdLength));
+            return;
+        }
+
+        var refunded = await _runner.QueryAsync((scope, ct) => scope.Get<IPOSService>().RefundSaleAsync(sale.SaleId, lines, reason, method.Method, note, ct, buyer));
         if (!Accept(refunded)) return;
         if (!refunded.Value.IsSuccess)
         {

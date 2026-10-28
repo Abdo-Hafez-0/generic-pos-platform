@@ -156,11 +156,11 @@ internal sealed class POSService(
     }
 
     public Task<POSRefundResult> RefundSaleAsync(Guid saleId, IReadOnlyList<POSRefundLineRequest> lines, string reason, POSPaymentMethod method,
-        string? methodDetail = null, CancellationToken cancellationToken = default)
+        string? methodDetail = null, CancellationToken cancellationToken = default, POSBuyer? buyer = null)
         => GuardAsync("refund sale", POSRefundResult.Failure, async () =>
         {
             var result = await refundHandler.HandleAsync(new RefundSaleCommand(saleId,
-                (lines ?? []).Select(l => new RefundLine(l.SaleItemId, l.Quantity, l.BackToStock)).ToList(), reason ?? string.Empty, method, methodDetail), cancellationToken);
+                (lines ?? []).Select(l => new RefundLine(l.SaleItemId, l.Quantity, l.BackToStock)).ToList(), reason ?? string.Empty, method, methodDetail, buyer), cancellationToken);
             return result.IsSuccess
                 ? POSRefundResult.Success(result.Value.ReturnId, result.Value.RefundTotal, result.Value.HardwareNotices)
                 : POSRefundResult.Failure(result.Error.Code, result.Error.Description);
@@ -193,11 +193,24 @@ internal sealed class POSReader(
             ? new POSFiscalNotice(notice.OverdueCount, notice.OldestAtUtc, notice.LimitHours, notice.CertificateExpiresAtUtc)
             : null;
 
-    public Task<POSReturnableSale?> GetReturnableSaleAsync(Guid saleId, CancellationToken cancellationToken = default)
-        => returnableHandler.HandleAsync(new GetReturnableSaleQuery(saleId), cancellationToken);
+    public async Task<POSReturnableSale?> GetReturnableSaleAsync(Guid saleId, CancellationToken cancellationToken = default)
+        => await WithFiscalAsync(await returnableHandler.HandleAsync(new GetReturnableSaleQuery(saleId), cancellationToken), cancellationToken);
 
-    public Task<POSFindReturnResult> FindReturnableSaleAsync(string receiptNumber, CancellationToken cancellationToken = default)
-        => returnableHandler.HandleAsync(new FindReturnableSaleQuery(receiptNumber), cancellationToken);
+    public async Task<POSFindReturnResult> FindReturnableSaleAsync(string receiptNumber, CancellationToken cancellationToken = default)
+    {
+        var found = await returnableHandler.HandleAsync(new FindReturnableSaleQuery(receiptNumber), cancellationToken);
+        return found is { IsSuccess: true, Sale: { } sale } ? POSFindReturnResult.Success((await WithFiscalAsync(sale, cancellationToken))!) : found;
+    }
+
+    /// <summary>MISS-11e: what the return's electronic receipt needs (the buyer, the tax authority's days).</summary>
+    private async Task<POSReturnableSale?> WithFiscalAsync(POSReturnableSale? sale, CancellationToken cancellationToken)
+    {
+        if (sale is null || fiscalSetup is null || await fiscalSetup.GetReturnRuleAsync(sale.SaleId, cancellationToken) is not { } rule) return sale;
+        return sale with
+        {
+            Fiscal = new POSFiscalReturnRule(rule.Buyer is { } buyer ? new POSFiscalBuyerRule(buyer.Threshold, buyer.NationalIdLength) : null, rule.DaysAllowed),
+        };
+    }
 
     public Task<POSSessionResult?> GetSessionAsync(Guid sessionId, CancellationToken cancellationToken = default)
         => sessionHandler.HandleAsync(new GetPosSessionQuery(sessionId), cancellationToken);

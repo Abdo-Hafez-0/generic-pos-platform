@@ -41,6 +41,24 @@ internal sealed class FiscalSetupReader(FiscalDbContext dbContext, IEnumerable<F
         if (country == FiscalCountryContract.None) return null;
         return (countryParts ?? []).LastOrDefault(p => (int)p.Country == (int)country)?.BuyerRule;
     }
+
+    /// <summary>
+    /// MISS-11e: the chosen country's part says how long after a sale a return is taken; a sale without a document of its own (made before
+    /// receipts were on) has its return name its buyer when the part asks for it.
+    /// </summary>
+    public async Task<FiscalReturnRule?> GetReturnRuleAsync(Guid saleId, CancellationToken cancellationToken = default)
+    {
+        var country = await GetCountryAsync(cancellationToken);
+        if (country == FiscalCountryContract.None) return null;
+        var part = (countryParts ?? []).LastOrDefault(p => (int)p.Country == (int)country);
+        if (part is null) return null;
+
+        FiscalBuyerRule? buyer = null;
+        if (part.ReturnWithoutOriginalNamesBuyer && part.BuyerRule is { } rule
+            && !await dbContext.Documents.AsNoTracking().AnyAsync(d => d.Kind == FiscalDocumentKind.Sale && d.SourceId == saleId, cancellationToken))
+            buyer = rule;
+        return buyer is null && part.ReturnDaysAllowed is null ? null : new FiscalReturnRule(buyer, part.ReturnDaysAllowed);
+    }
 }
 
 internal sealed class EfFiscalDocumentRepository(FiscalDbContext dbContext) : IFiscalDocumentRepository

@@ -44,7 +44,8 @@ public sealed class EtaHosts
 
 /// <summary>
 /// MISS-11c: builds the ETA e-receipt (v1.2; owner's decision: the general Receipt, "s" for a sale and "r" for a return) of a sale or a return
-/// at its place in the till's chain: the JSON, the UUID (SHA-256 of the serialized receipt with an empty uuid, which includes the previous
+/// - MISS-11e: "RWR", the Return Receipt Without Reference, for a return of a sale made before e-receipts were on - at its place in the till's
+/// chain: the JSON, the UUID (SHA-256 of the serialized receipt with an empty uuid, which includes the previous
 /// receipt's UUID) and the QR code's text. Pure and offline.
 ///
 /// Matjar's prices include tax; the ETA's lines are net of tax: the net unit price and the net line are worked back with 5 decimals, the
@@ -56,6 +57,9 @@ internal static class EgyptReceiptBuilder
     public const string TypeVersion = "1.2";
     public const string SaleType = "s";
     public const string ReturnType = "r";
+    public const string ReturnWithoutReferenceType = "RWR";   // MISS-11e
+    public const string SoldBeforeAdoption = "B";             // MISS-11e: the code table "Return with no reference reasons"
+    public const int ReturnDaysAllowed = 540;                 // MISS-11e: the ETA's receipt FAQ - a return within 540 days of its sale
     public const int NationalIdLength = 14;
     public const int MaxLines = 300;
 
@@ -72,9 +76,18 @@ internal static class EgyptReceiptBuilder
         if (problem is not null) return Fail("Fiscal.Egypt.SellerIncomplete", problem);
         if (request.Lines.Count == 0) return Fail("Fiscal.Egypt.NoLines", "A receipt needs at least one line.");
         if (request.Lines.Count > MaxLines) return Fail("Fiscal.Egypt.TooManyLines", $"An e-receipt carries at most {MaxLines} lines.");
-        if (isReturn && input.Original is null)
-            return Fail("Fiscal.Egypt.NoOriginal",
-                $"The sale {request.OriginalReference} has no electronic receipt to refer to, so its return cannot be sent to the tax authority.");
+        // MISS-11e: a return of a sale made before e-receipts were on is a Return Receipt Without Reference; a sale whose own receipt is
+        // not made yet is made first, and its return then names it
+        if (isReturn && input.Original is null && input.OriginalPending)
+            return Fail("Fiscal.Egypt.OriginalNotMade",
+                $"The sale {request.OriginalReference} has no electronic receipt yet. Make the sale's receipt first (\"Build and send\" on its row), then this return's.");
+        var withoutReference = isReturn && input.Original is null;
+        var saleIssued = input.Original?.IssuedAt ?? request.OriginalIssuedAtUtc;
+        if (withoutReference && saleIssued is null)
+            return Fail("Fiscal.Egypt.SaleTimeUnknown", $"The time of the sale {request.OriginalReference} is not known, so its return cannot be sent to the tax authority.");
+        if (isReturn && new FiscalReturnRule(null, ReturnDaysAllowed).IsPastLimit(saleIssued!.Value, request.IssuedAtUtc))
+            return Fail("Fiscal.Egypt.ReturnTooLate",
+                $"The sale {request.OriginalReference} was made more than {ReturnDaysAllowed} days before this return; the tax authority takes no e-receipt for it.");
 
         // the lines, each with the authority's codes
         var missing = new List<string>();
@@ -101,8 +114,9 @@ internal static class EgyptReceiptBuilder
             return Fail("Fiscal.Egypt.CodesMissing", "Without the tax authority's codes: " + string.Join("; ", missing.Take(5))
                 + (missing.Count > 5 ? $" and {missing.Count - 5} more" : string.Empty) + ". Set them on the Electronic receipts screen.");
 
-        // the buyer: a person; named with the national ID at or above the threshold (a return: the sale's buyer)
-        var (buyerName, buyerId) = isReturn ? OriginalBuyer(input.Original!.Payload) : (request.BuyerName, request.BuyerNationalId);
+        // the buyer: a person; named with the national ID at or above the threshold (a return: the sale's buyer; MISS-11e: without a sale
+        // receipt, the buyer asked at the till)
+        var (buyerName, buyerId) = isReturn && !withoutReference ? OriginalBuyer(input.Original!.Payload) : (request.BuyerName, request.BuyerNationalId);
         buyerId = buyerId?.Trim();
         var rule = new FiscalBuyerRule(options.BuyerIdThreshold, NationalIdLength);
         if (rule.Applies(sums.Total) && !rule.IsSatisfiedBy(buyerName, buyerId))
@@ -111,16 +125,20 @@ internal static class EgyptReceiptBuilder
         var named = rule.IsSatisfiedBy(buyerName, buyerId);
 
         var issued = DateTime.SpecifyKind(request.IssuedAtUtc, DateTimeKind.Utc);
-        var issuedText = issued.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+        var issuedText = Utc(issued);
 
         var header = EtaObject.Of(
             ("dateTimeIssued", new EtaText(issuedText)),
             ("receiptNumber", new EtaText(EtaJson.Clean(request.Reference, 50))),
             ("uuid", new EtaText(string.Empty)),
             ("previousUUID", new EtaText(input.PreviousHash ?? string.Empty)),   // empty only for the POS's first receipt
-            ("referenceUUID", isReturn ? new EtaText(input.Original!.Hash) : null),
+            ("referenceUUID", isReturn && !withoutReference ? new EtaText(input.Original!.Hash) : null),
             ("referenceOldUUID", input.ReferenceOldHash is { Length: > 0 } old ? new EtaText(old) : null),   // MISS-11c-4: the corrected copy names the refused one
-            ("currency", new EtaText(options.Currency)));
+            ("currency", new EtaText(options.Currency)),
+            // MISS-11e: the Return Receipt Without Reference - the sale's receipt number for information, why there is no reference, the sale's time
+            ("sOrderNameCode", withoutReference && !string.IsNullOrWhiteSpace(request.OriginalReference) ? new EtaText(EtaJson.Clean(request.OriginalReference, 30)) : null),
+            ("documentUseReason", withoutReference ? new EtaText(SoldBeforeAdoption) : null),
+            ("salesIssuedDateTime", withoutReference ? new EtaText(Utc(saleIssued!.Value)) : null));
 
         var a = settings.Address;
         var seller = EtaObject.Of(
@@ -148,7 +166,7 @@ internal static class EgyptReceiptBuilder
 
         var document = EtaObject.Of(
             ("header", header),
-            ("documentType", EtaObject.Of(("receiptType", new EtaText(isReturn ? ReturnType : SaleType)), ("typeVersion", new EtaText(TypeVersion)))),
+            ("documentType", EtaObject.Of(("receiptType", new EtaText(withoutReference ? ReturnWithoutReferenceType : isReturn ? ReturnType : SaleType)), ("typeVersion", new EtaText(TypeVersion)))),
             ("seller", seller),
             ("buyer", buyer),
             ("itemData", new EtaArray(lines)),
@@ -226,6 +244,9 @@ internal static class EgyptReceiptBuilder
         if (string.IsNullOrWhiteSpace(deviceSerial)) lacks.Add("the till's serial number");
         return lacks.Count == 0 ? null : "The shop's details for the tax authority are incomplete: " + string.Join(", ", lacks) + ". Complete them on the Electronic receipts screen.";
     }
+
+    /// <summary>A UTC time as the ETA writes it ("2026-10-21T09:15:00Z").</summary>
+    private static string Utc(DateTime time) => DateTime.SpecifyKind(time, DateTimeKind.Utc).ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
     /// <summary>The buyer the sale's receipt named (a return names the same buyer).</summary>
     private static (string? Name, string? Id) OriginalBuyer(string payload)

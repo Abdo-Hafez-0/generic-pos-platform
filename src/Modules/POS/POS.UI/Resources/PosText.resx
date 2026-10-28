@@ -321,6 +321,9 @@
   <data name="GiveRefund" xml:space="preserve">
     <value>Give refund</value>
   </data>
+  <data name="ReturnPastFiscalLimit" xml:space="preserve">
+    <value>This sale is more than {0} days old: the tax authority takes no electronic receipt for its return.</value>
+  </data>
   <data name="ReturnLate" xml:space="preserve">
     <value>This sale is more than {0} days old: only someone allowed to accept late returns can give this refund.</value>
   </data>

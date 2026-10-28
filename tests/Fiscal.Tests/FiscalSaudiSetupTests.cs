@@ -44,6 +44,18 @@ public sealed class FiscalSaudiSetupTests
         => db.InScopeAsync(sp => sp.GetRequiredService<SaveFiscalSettingsCommandHandler>()
             .HandleAsync(new SaveFiscalSettingsCommand(FiscalCountry.SaudiArabia, "300000000000003", null, null, "متجر النور", address, scheme, id)));
 
+    [Fact]
+    public async Task A_return_in_Saudi_Arabia_asks_nothing_more_at_the_till()
+    {
+        // MISS-11e: every return already has its credit note (naming the sale's receipt number); no buyer, no limit of days
+        await using var db = await DatabaseAsync();
+        Task<FiscalReturnRule?> RuleAsync() => db.InScopeAsync(sp => sp.GetRequiredService<IFiscalSetupReader>().GetReturnRuleAsync(Guid.NewGuid()));
+
+        Assert.Null(await RuleAsync());   // receipts off
+        Assert.True((await SaveAsync(db, SaudiInvoiceTests.Riyadh)).IsSuccess);
+        Assert.Null(await RuleAsync());
+    }
+
     [Theory]
     [InlineData(null, "1010010000", null, "Fiscal.Settings.SellerIdTypeRequired")]
     [InlineData("XYZ", "1010010000", null, "Fiscal.Settings.SellerIdTypeRequired")]

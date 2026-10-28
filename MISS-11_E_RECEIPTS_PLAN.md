@@ -300,3 +300,25 @@ compliance checks did not test them): the signed properties' certificate digest 
 properties are digested in ZATCA's SDK layout with empty elements self-closed - both fixed; Matjar's sale and credit note are REPORTED.
 *(to confirm on the simulation in 11f: the answer to an invoice reported twice - taken as accepted on 409)*. **MISS-11d is complete**; the
 run on ZATCA's simulation with a real account is part of 11f.
+
+## 9. Owner's decisions for 11e (2026-10-28)
+
+What is left after 11c and 11d: a return of a sale that has no electronic receipt. Saudi Arabia already issues its credit note for every
+return (11d-1; the credit note names the sale's receipt number, whether or not that sale has an invoice of its own), so 11e is Egypt's.
+
+1. **Egypt's "Return Receipt Without Reference" for sales made before e-receipts were on**: a return of a sale made before the shop
+   turned e-receipts on (it has no e-receipt) is issued as ETA's Return Receipt Without Reference (`receiptType` "RWR", v1.2,
+   `documentUseReason` "B" - sales issued before adoption, `salesIssuedDateTime` the sale's time, no `referenceUUID`, the sale's receipt
+   number as `sOrderNameCode` for information). A sale whose own e-receipt could not be made is not covered: it is made and sent first
+   ("Build and send", 11c-4), and its return then names it as a normal Return Receipt.
+2. **The buyer of a large return is asked at the till**: when such a return reaches the national-ID limit (150,000 EGP), the till's buyer
+   boxes (name and national ID, as for a sale) appear in return mode.
+3. **Returns still start from a Matjar receipt**: no "return without receipt" at the till (MISS-10's rule stays: 14 days, later with
+   permission).
+4. **ETA's 540 days**: ETA refuses a return more than 540 days after its sale. In Egypt the till warns that such a return gets no
+   e-receipt; it is still allowed with the late-return permission, and its document is "not made" with that reason for the manager.
+
+Facts checked (2026-10-28, ETA's SDK: Return Receipt Without Reference v1.2 and the code table "Return with no reference reasons"): the
+type is used "if the sales receipt was issued before adoption or if the sales receipt was not issued in Egypt"; `documentUseReason` I
+(international return) or B (sales issued before adoption); `salesIssuedDateTime` mandatory (UTC); `referenceUUID` optional; the buyer
+types B, P or F with the ID required for P at or above 150,000 EGP; the receipt FAQ's limit of 540 days from the sale for a return.
